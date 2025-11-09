@@ -4,6 +4,6 @@ Simple starter script for the UrbanClimbApp.
 
 Run:
 ```bash
-python UrbanClimbApp.py
+python app.py
 ```
 
