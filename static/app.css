@@ -24,8 +24,39 @@ body{ margin:0; font-family:ui-sans-serif, system-ui, -apple-system, Segoe UI, R
 
 .leaderboard{ width:100%; border-collapse:collapse; background:var(--card); border-radius:12px; overflow:hidden; }
 .leaderboard thead th{ text-align:left; font-weight:700; padding:12px; border-bottom:1px solid #262a30; color:var(--muted); }
-.leaderboard tbody td{ padding:12px; border-bottom:1px solid #22262c; }
-.leaderboard tbody tr:hover{ background:#101215; }
+.leaderboard tbody td {
+	padding:12px;
+	border-bottom:1px solid #22262c;
+	color: var(--text);
+}
+.leaderboard tbody tr:hover {
+	background:#101215;
+}
+.leaderboard a {
+	color: var(--accent);
+	text-decoration: none;
+}
+.leaderboard a:hover {
+	color: #7fffa4;
+	text-decoration: underline;
+}
+
+/* Fix link colors on leaderboard index cards */
+.info-grid a.card {
+	color: var(--text);
+	text-decoration: none;
+}
+.info-grid a.card h3 {
+	color: var(--text);
+	margin: 0 0 4px;
+}
+.info-grid a.card p {
+	color: var(--muted);
+	margin: 0;
+}
+.info-grid a.card:hover {
+	background:#101215;
+}
 
 /* --- Top nav & brand --- */
 .top-nav{ display:flex; justify-content:space-between; align-items:center; padding:16px 0; }
@@ -51,6 +82,31 @@ body{ margin:0; font-family:ui-sans-serif, system-ui, -apple-system, Segoe UI, R
 .ghost{ display:inline-block; padding:10px 12px; border-radius:10px; border:1px solid #2a2f36; color:var(--text); text-decoration:none; }
 .ghost:hover{ background:#121418; }
 .quick-links{ margin-top:12px; }
+
+/* Align category label and select box with competitor number */
+.form-row {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	margin-top: 14px;
+}
+.form-row label {
+	color: var(--muted);
+	font-size: 15px;
+}
+.form-row select {
+	padding: 10px 12px;
+	border-radius: 10px;
+	border: 1px solid #2a2f36;
+	background: #111316;
+	color: var(--text);
+	font-size: 15px;
+}
+.form-row select:focus {
+	border-color: var(--accent);
+	box-shadow: 0 0 0 3px rgba(98, 210, 111, 0.15);
+}
+
 
 /* --- Info grid --- */
 .info-grid{ display:grid; grid-template-columns:repeat(auto-fit, minmax(240px,1fr)); gap:12px; margin-top:20px; }
