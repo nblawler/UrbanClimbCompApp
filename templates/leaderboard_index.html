@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<title>Leaderboards · Urban Climb Comp</title>
+		<link rel="stylesheet" href="/static/app.css" />
+	</head>
+	<body>
+		<nav class="container" style="display:flex; gap:12px; align-items:center; margin-top:16px;">
+			<a class="back" href="/">Home</a>
+			<a class="back" href="/admin">Admin</a>
+		</nav>
+
+		<main class="container">
+			<header class="header">
+				<h1>Leaderboards</h1>
+				<p class="form-hint">Select a category below to view rankings.</p>
+			</header>
+
+			<section class="info-grid">
+				<a class="card" href="/leaderboard/male" style="text-decoration:none;">
+					<h3>Male</h3>
+					<p>View rankings for the Male category.</p>
+				</a>
+				<a class="card" href="/leaderboard/female" style="text-decoration:none;">
+					<h3>Female</h3>
+					<p>View rankings for the Female category.</p>
+				</a>
+				<a class="card" href="/leaderboard/inclusive" style="text-decoration:none;">
+					<h3>Gender Inclusive</h3>
+					<p>View rankings for the Gender Inclusive category.</p>
+				</a>
+			</section>
+		</main>
+	</body>
+</html>
