@@ -15,6 +15,9 @@ db = SQLAlchemy(app)
 
 NUM_CLIMBS = int(os.getenv("NUM_CLIMBS", 10))	# Default to 10 climbs
 
+# --- Simple admin password ---
+ADMIN_PASSWORD = "climbadmin"	# change this before running the real comp
+
 
 # --- No-cache for API responses ---
 @app.after_request
@@ -65,12 +68,15 @@ CLIMB_SCORES = {
 def points_for(climb_number: int, attempts: int, topped: bool) -> int:
 	"""
 	Points apply only if topped:
-		points = max(base - penalty * attempts, 0)
+		points = max(base - penalty * min(attempts, 5), 0)
 	"""
 	cfg = CLIMB_SCORES.get(climb_number)
 	if not cfg or not topped:
 		return 0
-	return max(int(cfg["base"] - cfg["penalty"] * attempts), 0)
+
+	max_penalty_attempts = 5	# cap the penalty at 5 attempts
+	effective_attempts = min(attempts, max_penalty_attempts)
+	return max(int(cfg["base"] - cfg["penalty"] * effective_attempts), 0)
 
 
 # --- Routes ---
@@ -255,6 +261,45 @@ def leaderboard_api():
 		row["position"] = pos
 
 	return jsonify(out)
+
+
+# --- Admin panel ---
+@app.route("/admin", methods=["GET", "POST"])
+def admin_panel():
+	message = None
+	error = None
+
+	if request.method == "POST":
+		password = (request.form.get("password") or "").strip()
+		if password != ADMIN_PASSWORD:
+			error = "Incorrect password."
+		else:
+			action = request.form.get("action")
+			if action == "delete_one":
+				raw_cid = (request.form.get("competitor_id") or "").strip()
+				if not raw_cid.isdigit():
+					error = "Please enter a valid competitor number."
+				else:
+					cid = int(raw_cid)
+					# delete scores first (FK)
+					deleted_scores = Score.query.filter_by(competitor_id=cid).delete()
+					comp = Competitor.query.get(cid)
+					if comp:
+						db.session.delete(comp)
+						db.session.commit()
+						message = f"Deleted competitor #{cid} and {deleted_scores} scores."
+					else:
+						db.session.commit()
+						message = f"No competitor #{cid} found. {deleted_scores} scores (if any) removed."
+			elif action == "reset_all":
+				Score.query.delete()
+				Competitor.query.delete()
+				db.session.commit()
+				message = "All competitors and scores have been removed."
+			else:
+				error = "Unknown action."
+
+	return render_template("admin.html", message=message, error=error)
 
 
 # --- Startup ---

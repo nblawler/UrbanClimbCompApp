@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<title>Admin · Urban Climb Comp</title>
+		<link rel="stylesheet" href="/static/app.css" />
+	</head>
+	<body>
+		<nav class="container" style="display:flex; gap:12px; align-items:center; margin-top:16px;">
+			<a class="back" href="/">Home</a>
+			<a class="back" href="/leaderboard">Leaderboard</a>
+		</nav>
+
+		<main class="container">
+			<header class="header">
+				<h1>Admin Panel</h1>
+			</header>
+
+			{% if error %}
+			<div class="error">{{ error }}</div>
+			{% endif %}
+
+			{% if message %}
+			<div class="card" style="margin-bottom:16px; border-left:4px solid var(--accent);">
+				{{ message }}
+			</div>
+			{% endif %}
+
+			<section class="card" style="margin-bottom:16px;">
+				<h2>Delete single competitor</h2>
+				<form method="post">
+					<input type="hidden" name="action" value="delete_one" />
+					<label>Admin password</label>
+					<input type="password" name="password" required />
+
+					<label style="margin-top:8px;">Competitor number</label>
+					<input type="number" name="competitor_id" min="1" required />
+
+					<button type="submit" class="primary" style="margin-top:12px;">
+						Delete competitor
+					</button>
+				</form>
+			</section>
+
+			<section class="card" style="border:1px solid #662222;">
+				<h2 style="color:var(--err);">Reset all data</h2>
+				<p>This will delete <strong>all competitors and all scores</strong>. This cannot be undone.</p>
+				<form method="post">
+					<input type="hidden" name="action" value="reset_all" />
+					<label>Admin password</label>
+					<input type="password" name="password" required />
+					<button type="submit" class="primary" style="margin-top:12px; background:#c0392b;">
+						Wipe ALL competitors &amp; scores
+					</button>
+				</form>
+			</section>
+		</main>
+	</body>
+</html>
