@@ -13,16 +13,13 @@ app.config["SQLALCHEMY_DATABASE_URI"] = DB_URL
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 db = SQLAlchemy(app)
 
-NUM_CLIMBS = int(os.getenv("NUM_CLIMBS", 10))	# Default to 10 climbs
-
-# --- Simple admin password ---
-ADMIN_PASSWORD = "climbadmin"	# change this before running the real comp
+NUM_CLIMBS = int(os.getenv("NUM_CLIMBS", 66))	# Default to 10 climbs
+ADMIN_PASSWORD = "climbadmin"	# change for real comp
 
 
 # --- No-cache for API responses ---
 @app.after_request
 def add_no_store(resp):
-	# prevent browsers/CDNs from caching API JSON
 	if request.path.startswith("/api/"):
 		resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
 		resp.headers["Pragma"] = "no-cache"
@@ -32,6 +29,7 @@ def add_no_store(resp):
 # --- Models ---
 class Competitor(db.Model):
 	id = db.Column(db.Integer, primary_key=True)
+	gender = db.Column(db.String(32), nullable=False, default="Gender Inclusive")
 	created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
 
@@ -50,7 +48,7 @@ class Score(db.Model):
 	competitor = db.relationship("Competitor", backref=db.backref("scores", lazy=True))
 
 
-# --- Per-climb scoring config ---
+# --- Scoring configuration ---
 CLIMB_SCORES = {
 	1: {"base": 100, "penalty": 10},
 	2: {"base": 110, "penalty": 10},
@@ -62,24 +60,100 @@ CLIMB_SCORES = {
 	8: {"base": 170, "penalty": 12},
 	9: {"base": 180, "penalty": 12},
 	10: {"base": 200, "penalty": 15},
+ 	12: {"base": 100, "penalty": 10},
+	12: {"base": 110, "penalty": 10},
+	13: {"base": 120, "penalty": 10},
+	14: {"base": 130, "penalty": 10},
+	15: {"base": 140, "penalty": 10},
+	16: {"base": 150, "penalty": 12},
+	17: {"base": 160, "penalty": 12},
+	18: {"base": 170, "penalty": 12},
+	19: {"base": 180, "penalty": 12},
+	20: {"base": 200, "penalty": 15},
+ 	21: {"base": 100, "penalty": 10},
+	22: {"base": 110, "penalty": 10},
+	23: {"base": 120, "penalty": 10},
+	24: {"base": 130, "penalty": 10},
+	25: {"base": 140, "penalty": 10},
+	26: {"base": 150, "penalty": 12},
+	27: {"base": 160, "penalty": 12},
+	28: {"base": 170, "penalty": 12},
+	29: {"base": 180, "penalty": 12},
+	30: {"base": 200, "penalty": 15},
+ 	31: {"base": 100, "penalty": 10},
+	32: {"base": 110, "penalty": 10},
+	33: {"base": 120, "penalty": 10},
+	34: {"base": 130, "penalty": 10},
+	35: {"base": 140, "penalty": 10},
+	36: {"base": 150, "penalty": 12},
+	37: {"base": 160, "penalty": 12},
+	38: {"base": 170, "penalty": 12},
+	39: {"base": 180, "penalty": 12},
+	40: {"base": 200, "penalty": 15},
+ 	41: {"base": 100, "penalty": 10},
+	42: {"base": 110, "penalty": 10},
+	43: {"base": 120, "penalty": 10},
+	44: {"base": 130, "penalty": 10},
+	45: {"base": 140, "penalty": 10},
+	46: {"base": 150, "penalty": 12},
+	47: {"base": 160, "penalty": 12},
+	48: {"base": 170, "penalty": 12},
+	49: {"base": 180, "penalty": 12},
+	50: {"base": 200, "penalty": 15},
+ 	51: {"base": 100, "penalty": 10},
+	52: {"base": 110, "penalty": 10},
+	53: {"base": 120, "penalty": 10},
+	54: {"base": 130, "penalty": 10},
+	55: {"base": 140, "penalty": 10},
+	56: {"base": 150, "penalty": 12},
+	57: {"base": 160, "penalty": 12},
+	58: {"base": 170, "penalty": 12},
+	59: {"base": 180, "penalty": 12},
+	60: {"base": 200, "penalty": 15},
+ 	61: {"base": 100, "penalty": 10},
+	62: {"base": 110, "penalty": 10},
+	63: {"base": 120, "penalty": 10},
+	64: {"base": 130, "penalty": 10},
+	65: {"base": 140, "penalty": 10},
+	66: {"base": 150, "penalty": 12},
 }
 
 
 def points_for(climb_number: int, attempts: int, topped: bool) -> int:
 	"""
-	Points apply only if topped:
-		points = max(base - penalty * min(attempts, 5), 0)
+	Points apply only if topped.
+
+	Full points on first attempt.
+	Penalty starts from attempt #2, capped at 5 attempts for penalty purposes.
+
+	Example (base=100, penalty=10):
+	 - attempts=1 -> 100
+	 - attempts=2 -> 90
+	 - attempts=3 -> 80
+	 - attempts=6 -> also 60 (cap at 5 attempts)
 	"""
 	cfg = CLIMB_SCORES.get(climb_number)
 	if not cfg or not topped:
 		return 0
 
-	max_penalty_attempts = 5	# cap the penalty at 5 attempts
-	effective_attempts = min(attempts, max_penalty_attempts)
-	return max(int(cfg["base"] - cfg["penalty"] * effective_attempts), 0)
+	base = cfg["base"]
+	penalty = cfg["penalty"]
+
+	# Cap raw attempts between 1 and 50
+	if attempts < 1:
+		attempts = 1
+	elif attempts > 50:
+		attempts = 50
+
+	# Only attempts from 2 onwards incur penalty, capped at 5 total attempts
+	# So penalty_attempts = 0 for attempt 1, then 1,2,3,4 for attempts 2..5, then stays at 4
+	penalty_attempts = max(0, min(attempts, 5) - 1)
+
+	return max(int(base - penalty * penalty_attempts), 0)
 
 
-# --- Routes ---
+
+# --- Routes: Home & Competitor entry ---
 @app.route("/")
 def index():
 	return render_template("index.html")
@@ -87,180 +161,152 @@ def index():
 
 @app.route("/competitor", methods=["POST"])
 def enter_competitor():
-	raw = (request.form.get("competitor_id") or "").strip()
-	if not raw.isdigit() or int(raw) <= 0:
+	raw_id = (request.form.get("competitor_id") or "").strip()
+	gender = (request.form.get("gender") or "Gender Inclusive").strip()
+
+	if not raw_id.isdigit() or int(raw_id) <= 0:
 		return render_template("index.html", error="Please enter a valid competitor number (positive integer).")
 
-	cid = int(raw)
+	if gender not in ("Male", "Female", "Gender Inclusive"):
+		return render_template("index.html", error="Please select a valid category.")
+
+	cid = int(raw_id)
 	comp = Competitor.query.get(cid)
 	if comp is None:
-		comp = Competitor(id=cid)
+		comp = Competitor(id=cid, gender=gender)
 		db.session.add(comp)
-		db.session.commit()
+	else:
+		if not comp.gender:
+			comp.gender = gender
 
+	db.session.commit()
 	return redirect(f"/competitor/{cid}")
 
 
 @app.route("/competitor/<int:cid>")
 def competitor_page(cid):
-	competitor = Competitor.query.get_or_404(cid)
-	existing = {s.climb_number: s for s in Score.query.filter_by(competitor_id=cid).all()}
+	comp = Competitor.query.get_or_404(cid)
+	existing = {s.climb_number: s for s in comp.scores}
 	climbs = list(range(1, NUM_CLIMBS + 1))
-	total_points = sum(points_for(s.climb_number, s.attempts, s.topped) for s in existing.values())
-	return render_template("competitor.html", competitor=competitor, climbs=climbs, existing=existing, total_points=total_points)
+	return render_template("competitor.html", competitor=comp, climbs=climbs, existing=existing)
 
 
+# --- API: upsert and fetch scores ---
 @app.route("/api/score", methods=["POST"])
-def upsert_score():
+def save_score():
 	data = request.get_json(force=True, silent=True) or {}
+
 	try:
-		competitor_id = int(data.get("competitor_id"))
-		climb_number = int(data.get("climb_number"))
+		cid = int(data.get("competitor_id"))
+		climb = int(data.get("climb_number"))
 		attempts = int(data.get("attempts"))
 		topped = bool(data.get("topped"))
 	except Exception:
 		return jsonify({"ok": False, "error": "Invalid payload"}), 400
 
-	# Enforce bounds: attempts must be 1..50
+	# enforce bounds on attempts
 	if attempts < 1:
 		attempts = 1
 	elif attempts > 50:
 		attempts = 50
 
-	if not (1 <= climb_number <= NUM_CLIMBS):
+	if climb < 1 or climb > NUM_CLIMBS:
 		return jsonify({"ok": False, "error": f"climb_number must be 1..{NUM_CLIMBS}"}), 400
 
-	comp = Competitor.query.get(competitor_id)
-	if comp is None:
-		comp = Competitor(id=competitor_id)
+	comp = Competitor.query.get(cid)
+	if not comp:
+		# created via API without form → default to Gender Inclusive
+		comp = Competitor(id=cid, gender="Gender Inclusive")
 		db.session.add(comp)
 		db.session.flush()
 
-	s = Score.query.filter_by(competitor_id=competitor_id, climb_number=climb_number).one_or_none()
-	if s is None:
-		s = Score(competitor_id=competitor_id, climb_number=climb_number, attempts=attempts, topped=topped)
-		db.session.add(s)
-	else:
-		s.attempts = attempts
-		s.topped = topped
+	score = Score.query.filter_by(competitor_id=cid, climb_number=climb).first()
+	if not score:
+		score = Score(competitor_id=cid, climb_number=climb)
+		db.session.add(score)
 
+	score.attempts = attempts
+	score.topped = topped
 	db.session.commit()
 
-	return jsonify({
-		"ok": True,
-		"score": {
-			"competitor_id": s.competitor_id,
-			"climb_number": s.climb_number,
-			"attempts": s.attempts,
-			"topped": s.topped,
-			"updated_at": s.updated_at.isoformat(),
-		}
-	})
+	return jsonify({"ok": True})
 
 
 @app.route("/api/score/<int:cid>")
 def get_scores(cid):
-	rows = Score.query.filter_by(competitor_id=cid).order_by(Score.climb_number).all()
+	comp = Competitor.query.get(cid)
+	if not comp:
+		return jsonify([])
+
 	return jsonify([
-		{"climb_number": r.climb_number, "attempts": r.attempts, "topped": r.topped}
-		for r in rows
+		{
+			"climb_number": s.climb_number,
+			"attempts": s.attempts,
+			"topped": s.topped,
+			"points": points_for(s.climb_number, s.attempts, s.topped),
+		}
+		for s in comp.scores
 	])
 
 
-@app.route("/api/competitor/<int:cid>/totals")
-def competitor_totals(cid):
-	rows = Score.query.filter_by(competitor_id=cid).all()
-	tops = sum(1 for r in rows if r.topped)
-	attempts_on_tops = sum(r.attempts for r in rows if r.topped)
-	total_points = sum(points_for(r.climb_number, r.attempts, r.topped) for r in rows)
-	return jsonify({
-		"competitor_id": cid,
-		"tops": tops,
-		"attempts_on_tops": attempts_on_tops,
-		"total_points": total_points
-	})
+# --- Leaderboard helpers & routes ---
+def compute_leaderboard_for_gender(gender_label: str):
+	comps = Competitor.query.filter_by(gender=gender_label).all()
+	if not comps:
+		return []
+
+	comp_ids = [c.id for c in comps]
+	all_scores = Score.query.filter(Score.competitor_id.in_(comp_ids)).all()
+
+	by_comp = {}
+	for s in all_scores:
+		by_comp.setdefault(s.competitor_id, []).append(s)
+
+	rows = []
+	for c in comps:
+		scores = by_comp.get(c.id, [])
+		tops = sum(1 for s in scores if s.topped)
+		attempts_on_tops = sum(s.attempts for s in scores if s.topped)
+		total_points = sum(points_for(s.climb_number, s.attempts, s.topped) for s in scores)
+
+		rows.append({
+			"competitor_id": c.id,
+			"tops": tops,
+			"attempts_on_tops": attempts_on_tops,
+			"total_points": total_points,
+		})
+
+	rows.sort(key=lambda r: (-r["total_points"], -r["tops"], r["attempts_on_tops"]))
+	pos = 0
+	prev_key = None
+	for row in rows:
+		key = (row["total_points"], row["tops"], row["attempts_on_tops"])
+		if key != prev_key:
+			pos += 1
+		prev_key = key
+		row["position"] = pos
+
+	return rows
 
 
 @app.route("/leaderboard")
-def leaderboard_page():
-	# Pull all competitors and their scores once
-	comps = Competitor.query.all()
-	all_scores = Score.query.all()
-
-	# Index scores by competitor
-	by_comp = {}
-	for s in all_scores:
-		by_comp.setdefault(s.competitor_id, []).append(s)
-
-	leaderboard = []
-	for c in comps:
-		scores = by_comp.get(c.id, [])
-		tops = sum(1 for s in scores if s.topped)
-		attempts_on_tops = sum(s.attempts for s in scores if s.topped)
-		total_points = sum(points_for(s.climb_number, s.attempts, s.topped) for s in scores)
-		last_update = max((s.updated_at for s in scores), default=None)
-
-		leaderboard.append({
-			"competitor_id": c.id,
-			"tops": tops,
-			"attempts_on_tops": attempts_on_tops,
-			"total_points": total_points,
-			"last_update": last_update.isoformat() if last_update else "",
-		})
-
-	# Sort primarily by points desc, then tops desc, then attempts asc
-	leaderboard.sort(key=lambda r: (-r["total_points"], -r["tops"], r["attempts_on_tops"]))
-
-	# Assign positions with stable ties
-	pos = 0
-	prev_key = None
-	for row in leaderboard:
-		key = (row["total_points"], row["tops"], row["attempts_on_tops"])
-		if key != prev_key:
-			pos = pos + 1
-		prev_key = key
-		row["position"] = pos
-
-	return render_template("leaderboard.html", leaderboard=leaderboard)
+def leaderboard_index():
+	return render_template("leaderboard_index.html")
 
 
-@app.route("/api/leaderboard")
-def leaderboard_api():
-	comps = Competitor.query.all()
-	all_scores = Score.query.all()
+@app.route("/leaderboard/<category>")
+def leaderboard_category(category):
+	slug_map = {
+		"male": "Male",
+		"female": "Female",
+		"inclusive": "Gender Inclusive",
+	}
+	gender_label = slug_map.get(category.lower())
+	if not gender_label:
+		return "Unknown category", 404
 
-	by_comp = {}
-	for s in all_scores:
-		by_comp.setdefault(s.competitor_id, []).append(s)
-
-	out = []
-	for c in comps:
-		scores = by_comp.get(c.id, [])
-		tops = sum(1 for s in scores if s.topped)
-		attempts_on_tops = sum(s.attempts for s in scores if s.topped)
-		total_points = sum(points_for(s.climb_number, s.attempts, s.topped) for s in scores)
-		last_update = max((s.updated_at for s in scores), default=None)
-
-		out.append({
-			"competitor_id": c.id,
-			"tops": tops,
-			"attempts_on_tops": attempts_on_tops,
-			"total_points": total_points,
-			"last_update": last_update.isoformat() if last_update else None,
-		})
-
-	out.sort(key=lambda r: (-r["total_points"], -r["tops"], r["attempts_on_tops"]))
-
-	pos = 0
-	prev_key = None
-	for row in out:
-		key = (row["total_points"], row["tops"], row["attempts_on_tops"])
-		if key != prev_key:
-			pos = pos + 1
-		prev_key = key
-		row["position"] = pos
-
-	return jsonify(out)
+	rows = compute_leaderboard_for_gender(gender_label)
+	return render_template("leaderboard_gender.html", category=gender_label, rows=rows)
 
 
 # --- Admin panel ---
@@ -281,7 +327,6 @@ def admin_panel():
 					error = "Please enter a valid competitor number."
 				else:
 					cid = int(raw_cid)
-					# delete scores first (FK)
 					deleted_scores = Score.query.filter_by(competitor_id=cid).delete()
 					comp = Competitor.query.get(cid)
 					if comp:
@@ -307,14 +352,11 @@ with app.app_context():
 	db.create_all()
 
 if __name__ == "__main__":
-	# Helpful debug: show which DB file and working directory are in use
 	print("== DB URI:", app.config["SQLALCHEMY_DATABASE_URI"], "CWD:", os.getcwd())
-
 	port = 5001
 	if "--port" in sys.argv:
 		try:
-			idx = sys.argv.index("--port")
-			port = int(sys.argv[idx + 1])
+			port = int(sys.argv[sys.argv.index("--port") + 1])
 		except Exception:
 			pass
 	app.run(debug=True, port=port)

@@ -27,5 +27,9 @@ SETUP
 3. Install Dependencies
     pip install -r requirements.txt
 
-4. Run App
+For Local Development
+
+1. Run App
     python app.py --port 5001
+
+2. Access at http://127.0.0.1:5001

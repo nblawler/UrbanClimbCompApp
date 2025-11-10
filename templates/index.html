@@ -6,6 +6,7 @@
 		<title>Urban Climb Comp</title>
 		<link rel="stylesheet" href="/static/app.css" />
 	</head>
+
 	<body>
 		<nav class="container top-nav">
 			<div class="brand">
@@ -26,6 +27,7 @@
 			<section class="enter-card card">
 				<form method="post" action="/competitor" class="enter-form">
 					<label for="competitor_id">Competitor number</label>
+
 					<div class="input-row">
 						<input
 							type="number"
@@ -37,13 +39,29 @@
 							autofocus
 							inputmode="numeric"
 						/>
+					</div>
+
+					<!-- Category selection -->
+					<div class="form-row">
+						<label for="gender">Category</label>
+						<select id="gender" name="gender" required>
+							<option value="Male">Male</option>
+							<option value="Female">Female</option>
+							<option value="Inclusive">Gender Inclusive</option>
+						</select>
+					</div>
+
+					<div style="margin-top:16px;">
 						<button type="submit" class="primary">Continue</button>
 					</div>
-					<p class="form-hint">You can find your competitor number on the sign-in sheet or ask at the counter.</p>
+
+					<p class="form-hint">
+						You can find your competitor number on the sign-in sheet or ask at the counter.
+					</p>
 				</form>
 
 				{% if error %}
-					<div class="error">{{ error }}</div>
+				<div class="error">{{ error }}</div>
 				{% endif %}
 
 				<div class="quick-links">
@@ -62,7 +80,7 @@
 				</div>
 				<div class="info card">
 					<h3>Need help?</h3>
-					<p>Ask a staff member or check the desk for your competitor number.</p>
+					<p>Ask a staff member or check at the front desk to find out your competitor number.</p>
 				</div>
 			</section>
 		</main>
