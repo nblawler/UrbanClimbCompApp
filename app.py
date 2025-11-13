@@ -13,7 +13,7 @@ app.config["SQLALCHEMY_DATABASE_URI"] = DB_URL
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 db = SQLAlchemy(app)
 
-NUM_CLIMBS = int(os.getenv("NUM_CLIMBS", 66))	# Default to 10 climbs
+NUM_CLIMBS = int(os.getenv("NUM_CLIMBS", 66))	# Default to 66 climbs
 ADMIN_PASSWORD = "climbadmin"	# change for real comp
 
 
