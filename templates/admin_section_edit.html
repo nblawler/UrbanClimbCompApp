@@ -65,6 +65,7 @@
 						value="save_section"
 						class="primary"
 						style="margin-top:12px;"
+						formnovalidate
 					>
 						Save section name
 					</button>
@@ -73,7 +74,7 @@
 
 					<h3>Add climb to this section</h3>
 					<p class="muted">
-						Enter a climb number (must exist in the scoring config) and an optional colour / grade label.
+						Enter a climb number, optional colour / grade, and the scoring configuration.
 					</p>
 
 					<label for="climb_number">Climb number</label>
@@ -83,6 +84,7 @@
 						name="climb_number"
 						min="1"
 						placeholder="e.g. 3"
+						required
 					/>
 
 					<label for="colour" style="margin-top:10px;">Colour / grade</label>
@@ -92,6 +94,44 @@
 						name="colour"
 						placeholder="e.g. Purple, Green, Yellow"
 					/>
+
+					<div style="display:flex; flex-wrap:wrap; gap:12px; margin-top:12px;">
+						<div style="flex:1; min-width:160px;">
+							<label for="base_points">Base points</label>
+							<input
+								type="number"
+								id="base_points"
+								name="base_points"
+								min="0"
+								required
+								placeholder="e.g. 1000"
+							/>
+						</div>
+
+						<div style="flex:1; min-width:160px;">
+							<label for="penalty_per_attempt">Penalty per attempt</label>
+							<input
+								type="number"
+								id="penalty_per_attempt"
+								name="penalty_per_attempt"
+								min="0"
+								required
+								placeholder="e.g. 10"
+							/>
+						</div>
+
+						<div style="flex:1; min-width:160px;">
+							<label for="attempt_cap">Attempt cap</label>
+							<input
+								type="number"
+								id="attempt_cap"
+								name="attempt_cap"
+								min="1"
+								required
+								placeholder="e.g. 5"
+							/>
+						</div>
+					</div>
 
 					<button
 						type="submit"
@@ -113,6 +153,9 @@
 								<tr>
 									<th>Climb #</th>
 									<th>Colour</th>
+									<th>Base</th>
+									<th>Penalty / attempt</th>
+									<th>Attempt cap</th>
 									<th></th>
 								</tr>
 							</thead>
@@ -121,6 +164,9 @@
 									<tr>
 										<td>{{ c.climb_number }}</td>
 										<td>{{ c.colour or "-" }}</td>
+										<td>{{ c.base_points if c.base_points is not none else "-" }}</td>
+										<td>{{ c.penalty_per_attempt if c.penalty_per_attempt is not none else "-" }}</td>
+										<td>{{ c.attempt_cap if c.attempt_cap is not none else "-" }}</td>
 										<td>
 											<button
 												type="submit"
@@ -129,6 +175,7 @@
 												class="primary"
 												style="background:#8b1e1e; padding:6px 10px; font-size:12px;"
 												onclick="this.form.climb_id.value='{{ c.id }}';"
+												formnovalidate
 											>
 												Remove
 											</button>
@@ -155,6 +202,7 @@
 						value="delete_section"
 						class="primary"
 						style="background:#8b1e1e;"
+						formnovalidate
 					>
 						Delete section
 					</button>
@@ -163,3 +211,4 @@
 		</main>
 	</body>
 </html>
+

@@ -2,8 +2,6 @@ from flask import Flask, render_template, request, redirect, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import UniqueConstraint
 from datetime import datetime
-from typing import Optional
-from ClimbScores_config import CLIMB_SCORES
 import os
 import sys
 import re
@@ -16,9 +14,6 @@ app.config["SQLALCHEMY_DATABASE_URI"] = DB_URL
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
 db = SQLAlchemy(app)
-
-# Number of climbs = how many entries in the config
-NUM_CLIMBS = len(CLIMB_SCORES)
 
 
 # --- Models ---
@@ -68,6 +63,11 @@ class SectionClimb(db.Model):
 	climb_number = db.Column(db.Integer, nullable=False)
 	colour = db.Column(db.String(80), nullable=True)
 
+	# per-climb scoring config (admin editable)
+	base_points = db.Column(db.Integer, nullable=True)           # e.g. 1000
+	penalty_per_attempt = db.Column(db.Integer, nullable=True)   # e.g. 10
+	attempt_cap = db.Column(db.Integer, nullable=True)           # e.g. 5
+
 	section = db.relationship("Section", backref=db.backref("climbs", lazy=True))
 
 	__table_args__ = (
@@ -80,32 +80,38 @@ class SectionClimb(db.Model):
 
 def points_for(climb_number, attempts, topped):
 	"""
-	Points apply only if topped.
+	Calculate points for a climb using ONLY DB config.
 
-	Full points on first attempt.
-	Penalty starts from attempt #2, capped at 5 attempts for penalty purposes.
-
-	Example (base=100, penalty=10):
-	 - attempts=1 -> 100
-	 - attempts=2 -> 90
-	 - attempts=3 -> 80
-	 - attempts>=6 -> same as attempts=5 (cap)
+	Rules:
+	- If not topped -> 0 points.
+	- Full base points on first attempt (no penalty).
+	- From attempt #2 onward, each attempt applies a penalty.
+	- Penalty is capped at `attempt_cap` attempts:
+	    attempts beyond the cap are still recorded but do not
+	    reduce the score further.
+	- If no SectionClimb config exists for this climb_number, or
+	  config fields are missing, return 0.
 	"""
-	cfg = CLIMB_SCORES.get(climb_number)
-	if not cfg or not topped:
+	if not topped:
 		return 0
 
-	base = cfg["base"]
-	penalty = cfg["penalty"]
-
-	# sanity-clamp attempts
+	# sanity-clamp attempts recorded
 	if attempts < 1:
 		attempts = 1
 	elif attempts > 50:
 		attempts = 50
 
-	# only attempts from 2 onward incur penalty; cap at 5
-	penalty_attempts = max(0, min(attempts, 5) - 1)
+	# Per-climb config must exist in DB
+	sc = SectionClimb.query.filter_by(climb_number=climb_number).first()
+	if not sc or sc.base_points is None or sc.penalty_per_attempt is None:
+		return 0
+
+	base = sc.base_points
+	penalty = sc.penalty_per_attempt
+	cap = sc.attempt_cap if sc.attempt_cap and sc.attempt_cap > 0 else 5
+
+	# only attempts from 2 onward incur penalty; cap at `cap`
+	penalty_attempts = max(0, min(attempts, cap) - 1)
 
 	return max(int(base - penalty * penalty_attempts), 0)
 
@@ -326,12 +332,14 @@ def api_save_score():
 	if competitor_id <= 0 or climb_number <= 0:
 		return "Invalid competitor or climb number", 400
 
-	if climb_number not in CLIMB_SCORES:
-		return "Unknown climb number", 400
-
 	comp = Competitor.query.get(competitor_id)
 	if not comp:
 		return "Competitor not found", 404
+
+	# Ensure this climb exists in the DB config
+	sc = SectionClimb.query.filter_by(climb_number=climb_number).first()
+	if not sc:
+		return "Unknown climb number", 400
 
 	# enforce at least 1 attempt
 	if attempts < 1:
@@ -495,7 +503,7 @@ def admin_page():
 					if existing:
 						slug = f"{slug}-{int(datetime.utcnow().timestamp())}"
 
-  					# start_climb / end_climb are not used to define climbs anymore;
+					# start_climb / end_climb are not used to define climbs anymore;
 					# they can stay as 0 or be used later for metadata if you want.
 					s = Section(
 						name=name,
@@ -537,12 +545,31 @@ def edit_section(section_id):
 				climb_raw = request.form.get("climb_number", "").strip()
 				colour = request.form.get("colour", "").strip()
 
+				base_raw = request.form.get("base_points", "").strip()
+				penalty_raw = request.form.get("penalty_per_attempt", "").strip()
+				cap_raw = request.form.get("attempt_cap", "").strip()
+
+				# basic validation
 				if not climb_raw.isdigit():
 					error = "Please enter a valid climb number."
+				elif base_raw == "" or penalty_raw == "" or cap_raw == "":
+					error = "Please enter base points, penalty per attempt, and attempt cap for this climb."
+				elif not (
+					base_raw.lstrip("-").isdigit()
+					and penalty_raw.lstrip("-").isdigit()
+					and cap_raw.lstrip("-").isdigit()
+				):
+					error = "Base points, penalty per attempt, and attempt cap must be whole numbers."
 				else:
 					climb_number = int(climb_raw)
-					if climb_number not in CLIMB_SCORES:
-						error = "That climb number is not in the scoring config."
+					base_points = int(base_raw)
+					penalty_per_attempt = int(penalty_raw)
+					attempt_cap = int(cap_raw)
+
+					if climb_number <= 0:
+						error = "Climb number must be positive."
+					elif base_points < 0 or penalty_per_attempt < 0 or attempt_cap <= 0:
+						error = "Base points and penalty must be ≥ 0 and attempt cap must be > 0."
 					else:
 						existing = SectionClimb.query.filter_by(
 							section_id=section.id,
@@ -555,6 +582,9 @@ def edit_section(section_id):
 								section_id=section.id,
 								climb_number=climb_number,
 								colour=colour or None,
+								base_points=base_points,
+								penalty_per_attempt=penalty_per_attempt,
+								attempt_cap=attempt_cap,
 							)
 							db.session.add(sc)
 							db.session.commit()
@@ -570,14 +600,30 @@ def edit_section(section_id):
 					if not sc or sc.section_id != section.id:
 						error = "Climb not found in this section."
 					else:
+						# Delete all scores for this climb (for all competitors)
+						Score.query.filter_by(climb_number=sc.climb_number).delete()
+
+						# Then delete the climb config itself
 						db.session.delete(sc)
 						db.session.commit()
-						message = f"Climb {sc.climb_number} removed from {section.name}."
+						message = f"Climb {sc.climb_number} removed from {section.name}, and all associated scores were deleted."
 
 			elif action == "delete_section":
+				# Find all climb numbers in this section
+				section_climbs = SectionClimb.query.filter_by(section_id=section.id).all()
+				climb_numbers = [sc.climb_number for sc in section_climbs]
+
+				# Delete all scores for those climbs (for all competitors)
+				if climb_numbers:
+					Score.query.filter(Score.climb_number.in_(climb_numbers)).delete()
+
+				# Delete the section's climbs
 				SectionClimb.query.filter_by(section_id=section.id).delete()
+
+				# Delete the section itself
 				db.session.delete(section)
 				db.session.commit()
+
 				return redirect("/admin")
 
 	climbs = (

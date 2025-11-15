@@ -156,7 +156,7 @@
 					rows.forEach((r) => {
 						totalPoints += r.points || 0;
 						const li = document.createElement("li");
-						li.textContent = `Climb ${r.climb_number}: attempts ${r.attempts}, ${
+						li.textContent = `Climb #${r.climb_number}: attempts ${r.attempts}, ${
 							r.topped ? "TOP" : "no top"
 						} (${r.points} pts)`;
 						ul.appendChild(li);
