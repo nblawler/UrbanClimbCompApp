@@ -7,58 +7,83 @@
 		<link rel="stylesheet" href="/static/app.css" />
 	</head>
 	<body>
-		<nav class="container" style="display:flex; gap:12px; align-items:center; margin-top:16px;">
-			<a class="back" href="/">Home</a>
-			<a class="back" href="/leaderboard">Leaderboards</a>
+		<nav class="container top-nav">
+			<div class="brand">
+				<span class="brand-mark">🧗‍♂️</span>
+				<span class="brand-name">Urban Climb Comp</span>
+			</div>
+			<div class="nav-links">
+				<a class="back" href="/">Home</a>
+				<a class="back" href="/leaderboard">Leaderboard</a>
+			</div>
 		</nav>
 
 		<main class="container">
 			<header class="header">
 				<div>
-					<h1>Competitor #{{ competitor.id }}</h1>
-					<p class="form-hint">Category: {{ competitor.gender }}</p>
+					<h1>Name: {{ competitor.name }}</h1>
+					<p>Competitor #{{ competitor.id }}</p>
 				</div>
-				<div>
-					<h2 id="total-points">Total Points: 0</h2>
-					<a class="back" href="/">Switch competitor</a>
+				<div class="points-header">
+					Points: <span id="total-points">{{ total_points }}</span>
 				</div>
 			</header>
 
-			<section class="grid">
-				{% for n in climbs %}
-				{% set s = existing.get(n) %}
-				<div class="climb-card" data-climb="{{ n }}">
-					<h2>Climb {{ n }}</h2>
+			<section class="card" style="margin-bottom:16px;">
+				<header class="section-header">
+					<h2 class="section-title">
+						{% if section %}
+							{{ section.name }}
+						{% else %}
+							Climbs
+						{% endif %}
+					</h2>
+				</header>
+			
+				<section class="grid">
+					{% for n in climbs %}
+						{% set s = existing.get(n) %}
+						<div class="climb-card" data-climb="{{ n }}">
+							<h3>Climb #{{ n }}</h3>
 
-					<div class="row">
-						<label>Attempts</label>
-						<input
-							type="number"
-							min="1"
-							max="50"
-							value="{{ s.attempts if s else 1 }}"
-							class="attempts"
-						/>
-					</div>
+							{# Optional colour line if a 'colours' dict is passed in the context #}
+							{% if colours is defined %}
+								{% set col = colours.get(n) %}
+								{% if col %}
+									<p class="climb-colour">{{ col }}</p>
+								{% endif %}
+							{% endif %}
 
-					<div class="row">
-						<label class="check">
-							<input
-								type="checkbox"
-								class="topped"
-								{% if s and s.topped %}checked{% endif %}
-							/>
-							Topped
-						</label>
-					</div>
+							<div class="row">
+								<label>Attempts</label>
+								<input
+									type="number"
+									min="1"
+									max="50"
+									value="{{ s.attempts if s else 1 }}"
+									class="attempts"
+								/>
+							</div>
 
-					<button class="save">Save</button>
-					<div class="status" aria-live="polite"></div>
-				</div>
-				{% endfor %}
+							<div class="row">
+								<label class="check">
+									<input
+										type="checkbox"
+										class="topped"
+										{% if s and s.topped %}checked{% endif %}
+									/>
+									<span>Topped</span>
+								</label>
+							</div>
+
+							<button class="save">Save</button>
+							<div class="status" aria-live="polite"></div>
+						</div>
+					{% endfor %}
+				</section>
 			</section>
 
-			<section class="summary">
+			<section class="summary card">
 				<h3>Summary</h3>
 				<ul id="summary-list"></ul>
 			</section>
@@ -67,7 +92,6 @@
 		<script>
 			const competitorId = {{ competitor.id }};
 			const cards = document.querySelectorAll(".climb-card");
-			const totalPointsEl = document.getElementById("total-points");
 
 			function showStatus(el, msg, ok = true) {
 				el.textContent = msg;
@@ -80,12 +104,18 @@
 
 			async function save(card) {
 				const climb = parseInt(card.dataset.climb);
-				const attempts = Math.max(
-					1,
-					parseInt(card.querySelector(".attempts").value || "1")
-				);
+				let attempts = parseInt(card.querySelector(".attempts").value || "1");
 				const topped = card.querySelector(".topped").checked;
 				const status = card.querySelector(".status");
+
+				if (isNaN(attempts) || attempts < 1) {
+					attempts = 1;
+					card.querySelector(".attempts").value = 1;
+				}
+				if (attempts > 50) {
+					attempts = 50;
+					card.querySelector(".attempts").value = 50;
+				}
 
 				try {
 					const res = await fetch("/api/score", {
@@ -118,22 +148,25 @@
 					const res = await fetch(`/api/score/${competitorId}`);
 					const rows = await res.json();
 					const ul = document.getElementById("summary-list");
-					ul.innerHTML = "";
+					const totalEl = document.getElementById("total-points");
 
+					ul.innerHTML = "";
 					let totalPoints = 0;
 
 					rows.forEach((r) => {
+						totalPoints += r.points || 0;
 						const li = document.createElement("li");
 						li.textContent = `Climb ${r.climb_number}: attempts ${r.attempts}, ${
 							r.topped ? "TOP" : "no top"
-						} (points: ${r.points})`;
+						} (${r.points} pts)`;
 						ul.appendChild(li);
-						totalPoints += r.points || 0;
 					});
 
-					totalPointsEl.textContent = `Total Points: ${totalPoints}`;
+					if (totalEl) {
+						totalEl.textContent = totalPoints;
+					}
 				} catch (e) {
-					// silent fail
+					/* silent */
 				}
 			}
 
@@ -141,7 +174,6 @@
 				card.querySelector(".save").addEventListener("click", () => save(card));
 			});
 
-			// initial load
 			refreshSummary();
 		</script>
 	</body>

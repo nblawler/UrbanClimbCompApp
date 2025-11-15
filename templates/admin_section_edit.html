@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<title>Edit section · Urban Climb Comp</title>
+		<link rel="stylesheet" href="/static/app.css" />
+	</head>
+	<body>
+		<nav class="container top-nav">
+			<div class="brand">
+				<span class="brand-mark">🧗‍♂️</span>
+				<span class="brand-name">Urban Climb Comp</span>
+			</div>
+			<div class="nav-links">
+				<a class="back" href="/">Home</a>
+				<a class="back" href="/leaderboard">Leaderboard</a>
+				<a class="back" href="/admin">Admin</a>
+			</div>
+		</nav>
+
+		<main class="container">
+			<header class="header">
+				<h1>Edit section</h1>
+			</header>
+
+			{% if error %}
+				<div class="error">{{ error }}</div>
+			{% endif %}
+
+			{% if message %}
+				<div class="status ok">{{ message }}</div>
+			{% endif %}
+
+			<section class="card">
+				<p class="muted" style="margin-top:0;">
+					Editing section <strong>{{ section.name }}</strong>
+					{% if section.start_climb and section.end_climb %}
+						· climbs {{ section.start_climb }}–{{ section.end_climb }}
+					{% endif %}
+				</p>
+
+				<form method="post">
+					<label for="password">Admin password</label>
+					<input
+						type="password"
+						id="password"
+						name="password"
+						required
+						placeholder="Enter admin password"
+					/>
+
+					<label for="name" style="margin-top:10px;">Section name</label>
+					<input
+						type="text"
+						id="name"
+						name="name"
+						value="{{ section.name }}"
+						required
+					/>
+
+					<button
+						type="submit"
+						name="action"
+						value="save_section"
+						class="primary"
+						style="margin-top:12px;"
+					>
+						Save section name
+					</button>
+
+					<hr style="margin:16px 0; border-color:#262a30;" />
+
+					<h3>Add climb to this section</h3>
+					<p class="muted">
+						Enter a climb number (must exist in the scoring config) and an optional colour / grade label.
+					</p>
+
+					<label for="climb_number">Climb number</label>
+					<input
+						type="number"
+						id="climb_number"
+						name="climb_number"
+						min="1"
+						placeholder="e.g. 3"
+					/>
+
+					<label for="colour" style="margin-top:10px;">Colour / grade</label>
+					<input
+						type="text"
+						id="colour"
+						name="colour"
+						placeholder="e.g. Purple, Green, Yellow"
+					/>
+
+					<button
+						type="submit"
+						name="action"
+						value="add_climb"
+						class="primary"
+						style="margin-top:12px;"
+					>
+						Add climb
+					</button>
+
+					<hr style="margin:16px 0; border-color:#262a30;" />
+
+					<h3>Climbs in this section</h3>
+
+					{% if climbs %}
+						<table class="leaderboard">
+							<thead>
+								<tr>
+									<th>Climb #</th>
+									<th>Colour</th>
+									<th></th>
+								</tr>
+							</thead>
+							<tbody>
+								{% for c in climbs %}
+									<tr>
+										<td>{{ c.climb_number }}</td>
+										<td>{{ c.colour or "-" }}</td>
+										<td>
+											<button
+												type="submit"
+												name="action"
+												value="delete_climb"
+												class="primary"
+												style="background:#8b1e1e; padding:6px 10px; font-size:12px;"
+												onclick="this.form.climb_id.value='{{ c.id }}';"
+											>
+												Remove
+											</button>
+										</td>
+									</tr>
+								{% endfor %}
+							</tbody>
+						</table>
+						<input type="hidden" name="climb_id" value="">
+					{% else %}
+						<p class="muted">No climbs have been added yet.</p>
+					{% endif %}
+
+					<hr style="margin:16px 0; border-color:#262a30;" />
+
+					<h3>Danger zone</h3>
+					<p class="muted">
+						Delete this section and all its climbs. Scores are not deleted.
+					</p>
+
+					<button
+						type="submit"
+						name="action"
+						value="delete_section"
+						class="primary"
+						style="background:#8b1e1e;"
+					>
+						Delete section
+					</button>
+				</form>
+			</section>
+		</main>
+	</body>
+</html>

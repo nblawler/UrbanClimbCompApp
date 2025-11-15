@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<title>Register Competitor · Urban Climb Comp</title>
+	<link rel="stylesheet" href="/static/app.css" />
+</head>
+
+<body>
+	<nav class="container" style="display:flex; gap:12px; align-items:center; margin-top:16px;">
+		<a class="back" href="/">Home</a>
+		<a class="back" href="/leaderboard">Leaderboard</a>
+	</nav>
+
+	<main class="container">
+		<h1>Register Competitor</h1>
+
+		<!-- Registration form -->
+		<section class="card" style="margin-top:20px;">
+			<form method="post" action="/register">
+				<label>Name</label>
+				<input type="text" name="name" placeholder="Competitor name" required />
+
+				<label style="margin-top:16px;">Category</label>
+				<select name="gender" required style="margin-top:6px;">
+					<option value="Male">Male</option>
+					<option value="Female">Female</option>
+					<option value="Inclusive">Gender Inclusive</option>
+				</select>
+
+				<button class="primary" type="submit" style="margin-top:16px;">
+					Create competitor
+				</button>
+			</form>
+		</section>
+
+		<!-- Confirmation -->
+		{% if competitor %}
+		<section class="card" style="margin-top:24px;">
+			<h2>Competitor created</h2>
+			<p><strong>Name:</strong> {{ competitor.name }}</p>
+			<p><strong>Category:</strong> {{ competitor.gender }}</p>
+			<p><strong>Competitor number:</strong> 
+				<span style="font-size: 1.4em; color: var(--accent); font-weight:700;">
+					#{{ competitor.id }}
+				</span>
+			</p>
+			<p style="margin-top:10px; color:var(--muted);">
+				Give this number to the competitor so they can log their climbs.
+			</p>
+		</section>
+		{% endif %}
+	</main>
+</body>
+</html>
