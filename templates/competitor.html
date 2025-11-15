@@ -19,13 +19,29 @@
 		</nav>
 
 		<main class="container">
+
 			<header class="header">
 				<div>
-					<h1>Name: {{ competitor.name }}</h1>
-					<p>Competitor #{{ competitor.id }}</p>
-				</div>
-				<div class="points-header">
-					Points: <span id="total-points">{{ total_points }}</span>
+					<h1
+						style="
+							display:flex;
+							gap:160px;
+							align-items:baseline;
+							flex-wrap:wrap;
+							margin-bottom:4px;
+						"
+					>
+						<span>Name: {{ competitor.name }}</span>
+						<span>Points: <span id="total-points">{{ total_points }}</span></span>
+
+						{% if position is defined and position is not none %}
+							<span>Position: {{ position }}</span>
+						{% endif %}
+					</h1>
+
+					<p style="margin:0; padding-top:2px;">
+						Competitor #{{ competitor.id }}
+					</p>
 				</div>
 			</header>
 
@@ -47,7 +63,6 @@
 						<div class="climb-card" data-climb="{{ n }}">
 							<h3>Climb #{{ n }}</h3>
 
-							{# Optional colour line if a 'colours' dict is passed in the context #}
 							{% if colours is defined %}
 								{% set col = colours.get(n) %}
 								{% if col %}
@@ -55,7 +70,6 @@
 								{% endif %}
 							{% endif %}
 
-							{# NEW: show max points if available #}
 							{% if max_pts is not none %}
 								<p style="margin: 4px 0 0;">
 									Max points: {{ max_pts }}

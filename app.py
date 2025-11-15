@@ -255,6 +255,14 @@ def competitor_section_climbs(competitor_id, section_slug):
 	comp = Competitor.query.get_or_404(competitor_id)
 	section = Section.query.filter_by(slug=section_slug).first_or_404()
 
+	# Leaderboard rows to figure out competitor position
+	rows, _ = build_leaderboard(None)
+	position = None
+	for r in rows:
+		if r["competitor_id"] == competitor_id:
+			position = r["position"]
+			break
+
 	# Use the climbs explicitly configured for this section
 	section_climbs = (
 		SectionClimb.query
@@ -263,16 +271,9 @@ def competitor_section_climbs(competitor_id, section_slug):
 		.all()
 	)
 
-	# List of climb numbers for the template
 	climbs = [sc.climb_number for sc in section_climbs]
-
-	# Optional colour/grade labels
 	colours = {sc.climb_number: sc.colour for sc in section_climbs if sc.colour}
 
-	# 🆕 Max points (base_points) per climb
-	max_points = {sc.climb_number: sc.base_points for sc in section_climbs}
-
-	# Existing scores for this competitor
 	scores = Score.query.filter_by(competitor_id=competitor_id).all()
 	existing = {s.climb_number: s for s in scores}
 
@@ -286,8 +287,9 @@ def competitor_section_climbs(competitor_id, section_slug):
 		total_points=total_points,
 		section=section,
 		colours=colours,
-		max_points=max_points,  # 🆕 passed to template
+		position=position,     
 	)
+
 
 
 # --- Register new competitors (staff use only, separate page for now) ---

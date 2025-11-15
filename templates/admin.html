@@ -31,21 +31,6 @@
 				<div class="status ok">{{ message }}</div>
 			{% endif %}
 
-			<section class="card">
-				<h2>Reset all competitors & scores</h2>
-				<p class="muted">
-					WARNING: This deletes ALL competitors, ALL scores, ALL sections, and ALL climbs.
-				</p>
-
-				<form method="post">
-					<label>Admin password</label>
-					<input type="password" name="password" required placeholder="Enter admin password" />
-
-					<button type="submit" name="action" value="reset_all" class="primary" style="background:#8b1e1e;">
-						Reset all data
-					</button>
-				</form>
-			</section>
 
 			<section class="card">
 				<h2>Create competitor</h2>
@@ -127,6 +112,22 @@
 				{% else %}
 					<p class="muted">No sections created yet.</p>
 				{% endif %}
+			</section>
+
+			<section class="card">
+				<h2>Reset all competitors & scores</h2>
+				<p class="muted">
+					WARNING: This deletes ALL competitors, ALL scores, ALL sections, and ALL climbs.
+				</p>
+
+				<form method="post">
+					<label>Admin password</label>
+					<input type="password" name="password" required placeholder="Enter admin password" />
+
+					<button type="submit" name="action" value="reset_all" class="primary" style="background:#8b1e1e;">
+						Reset all data
+					</button>
+				</form>
 			</section>
 		</main>
 	</body>
