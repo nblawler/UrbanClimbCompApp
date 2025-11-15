@@ -31,142 +31,103 @@
 				<div class="status ok">{{ message }}</div>
 			{% endif %}
 
-			<form method="post" class="card" style="margin-top:16px;">
-				<h2 style="margin-top:0;">Admin actions</h2>
-
-				<label for="password">Admin password</label>
-				<input
-					type="password"
-					id="password"
-					name="password"
-					required
-					placeholder="Enter admin password"
-				/>
-
-				<hr style="margin:16px 0; border-color:#262a30;" />
-
-				<h3>Create competitor</h3>
+			<section class="card">
+				<h2>Reset all competitors & scores</h2>
 				<p class="muted">
-					Use this to register a new competitor (staff only). The system will assign the next available competitor number.
+					WARNING: This deletes ALL competitors, ALL scores, ALL sections, and ALL climbs.
 				</p>
 
-				<label for="new_name">Name</label>
-				<input
-					type="text"
-					id="new_name"
-					name="new_name"
-					placeholder="e.g. Jordan Smith"
-				/>
+				<form method="post">
+					<label>Admin password</label>
+					<input type="password" name="password" required placeholder="Enter admin password" />
 
-				<label for="new_gender" style="margin-top:10px;">Category</label>
-				<select
-					id="new_gender"
-					name="new_gender"
-					style="width:100%; padding:10px 12px; border-radius:8px; border:1px solid #2a2f36; background:#111316; color:var(--text);"
-				>
-					<option value="Male">Male</option>
-					<option value="Female">Female</option>
-					<option value="Inclusive">Gender Inclusive</option>
-				</select>
+					<button type="submit" name="action" value="reset_all" class="primary" style="background:#8b1e1e;">
+						Reset all data
+					</button>
+				</form>
+			</section>
 
-				<button
-					type="submit"
-					name="action"
-					value="create_competitor"
-					class="primary"
-					style="margin-top:10px;"
-				>
-					Create competitor
-				</button>
+			<section class="card">
+				<h2>Create competitor</h2>
 
-				<hr style="margin:16px 0; border-color:#262a30;" />
+				<form method="post">
+					<label>Admin password</label>
+					<input type="password" name="password" required />
 
-				<h3>Delete single competitor</h3>
-				<label for="competitor_id">Competitor number</label>
-				<input
-					type="number"
-					id="competitor_id"
-					name="competitor_id"
-					min="1"
-					placeholder="e.g. 3"
-				/>
-				<button
-					type="submit"
-					name="action"
-					value="delete_competitor"
-					class="primary"
-					style="margin-top:8px;"
-				>
-					Delete competitor
-				</button>
+					<label>Name</label>
+					<input type="text" name="new_name" required />
 
-				<hr style="margin:16px 0; border-color:#262a30;" />
+					<label>Gender</label>
+					<select name="new_gender">
+						<option>Inclusive</option>
+						<option>Male</option>
+						<option>Female</option>
+					</select>
 
-				<h3>Create wall section</h3>
-				<p class="muted">
-					Create a section (sector) by name. Then use the <strong>Edit</strong> button
-					below to add climbs one by one.
-				</p>
-				
-				<label for="section_name">Section name</label>
-				<input
-					type="text"
-					id="section_name"
-					name="section_name"
-					placeholder="e.g. Slab City"
-				/>
-				
-				<button
-					type="submit"
-					name="action"
-					value="create_section"
-					class="primary"
-					style="margin-top:14px;"
-				>
-					Create section
-				</button>
-				
+					<button type="submit" name="action" value="create_competitor" class="primary">
+						Create competitor
+					</button>
+				</form>
+			</section>
 
-				<hr style="margin:16px 0; border-color:#262a30;" />
+			<section class="card">
+				<h2>Delete competitor</h2>
 
-				<h3>Reset all data</h3>
-				<p class="muted">
-					This will delete <strong>all</strong> competitors, scores, sections and section climbs.
-					Use with care.
-				</p>
-				<button
-					type="submit"
-					name="action"
-					value="reset_all"
-					class="primary"
-					style="margin-top:8px; background:#8b1e1e;"
-				>
-					Reset all data
-				</button>
-			</form>
+				<form method="post">
+					<label>Admin password</label>
+					<input type="password" name="password" required />
 
-			{% if sections %}
-				<section class="card" style="margin-top:24px;">
-					<h2 style="margin-top:0;">Existing sections</h2>
-					<ul style="list-style:none; padding-left:0; margin:0;">
-						{% for s in sections %}
-							<li style="padding:6px 0; border-bottom:1px solid #262a30;">
-								<strong>{{ s.name }}</strong>
-								<span class="muted">
-									· climbs {{ s.start_climb }}–{{ s.end_climb }}
-								</span>
+					<label>Competitor number</label>
+					<input type="number" name="competitor_id" min="1" required />
+
+					<button type="submit" name="action" value="delete_competitor" class="primary" style="background:#8b1e1e;">
+						Delete competitor
+					</button>
+				</form>
+			</section>
+
+			<section class="card">
+				<h2>Create section</h2>
+
+				<form method="post">
+					<label>Admin password</label>
+					<input type="password" name="password" required />
+
+					<label>Section name</label>
+					<input type="text" name="section_name" required />
+
+					<button type="submit" name="action" value="create_section" class="primary">
+						Create section
+					</button>
+				</form>
+			</section>
+
+			<section class="card">
+				<h2>Existing sections</h2>
+
+				{% if sections %}
+					<ul class="section-list">
+						{% for section in sections %}
+							<li style="margin-bottom:8px;">
+								<strong>{{ section.name }}</strong>
+								·
+								{{ section.climbs|length }}
+								climb{% if section.climbs|length != 1 %}s{% endif %}
+
 								<a
-									href="/admin/section/{{ s.id }}/edit"
-									class="ghost"
-									style="margin-left:8px; padding:4px 8px; font-size:12px;"
+									href="/admin/section/{{ section.id }}/edit"
+									class="primary"
+									style="padding:4px 8px; font-size:12px; margin-left:12px;"
 								>
 									Edit
 								</a>
 							</li>
 						{% endfor %}
 					</ul>
-				</section>
-			{% endif %}
+				{% else %}
+					<p class="muted">No sections created yet.</p>
+				{% endif %}
+			</section>
 		</main>
 	</body>
 </html>
