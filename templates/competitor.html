@@ -15,6 +15,8 @@
 			<div class="nav-links">
 				<a class="back" href="/">Home</a>
 				<a class="back" href="/leaderboard">Leaderboard</a>
+				<a class="back" href="/competitor/{{ competitor.id }}/sections">Sections</a>
+				<a class="back" href="/competitor/{{ competitor.id }}/stats">Stats</a>
 			</div>
 		</nav>
 
@@ -25,18 +27,35 @@
 					<h1
 						style="
 							display:flex;
-							gap:160px;
-							align-items:baseline;
+							justify-content:space-between;
+							align-items:center;
 							flex-wrap:wrap;
+							row-gap:4px;
+							column-gap:24px;
 							margin-bottom:4px;
 						"
 					>
-						<span>Name: {{ competitor.name }}</span>
-						<span>Points: <span id="total-points">{{ total_points }}</span></span>
+						<!-- LEFT: Name block -->
+						<span style="display:flex; align-items:center; gap:6px;">
+							<strong>Name:</strong> {{ competitor.name }}
+						</span>
 
-						{% if position is defined and position is not none %}
-							<span>Position: {{ position }}</span>
-						{% endif %}
+						<!-- RIGHT: Points + Position grouped -->
+						<div style="display:flex; align-items:center; gap:32px; flex-wrap:wrap; justify-content:flex-end;">
+							<span style="display:flex; align-items:center; gap:6px;">
+								<strong>Points:</strong>
+								<span id="total-points">{{ total_points }}</span>
+							</span>
+
+							{% if position is defined and position is not none %}
+								<span
+									style="display:flex; align-items:center; gap:6px;"
+									id="position-value"
+								>
+									<strong>Position:</strong> {{ position }}
+								</span>
+							{% endif %}
+						</div>
 					</h1>
 
 					<p style="margin:0; padding-top:2px;">
@@ -159,7 +178,8 @@
 
 					await res.json();
 					showStatus(status, "Saved");
-					refreshSummary();
+					await refreshSummary();
+					refreshPosition();
 				} catch (e) {
 					showStatus(status, "Network error", false);
 				}
@@ -192,11 +212,36 @@
 				}
 			}
 
+			async function refreshPosition() {
+				try {
+					const res = await fetch("/api/leaderboard");
+					const data = await res.json();
+
+					if (!data.rows) return;
+
+					const posSpan = document.getElementById("position-value");
+					if (!posSpan) return;
+
+					for (const row of data.rows) {
+						if (row.competitor_id === competitorId) {
+							posSpan.textContent = "Position: " + row.position;
+							break;
+						}
+					}
+				} catch (e) {
+					/* silent */
+				}
+			}
+
 			cards.forEach((card) => {
-				card.querySelector(".save").addEventListener("click", () => save(card));
+				card.querySelector(".save").addEventListener("click", async () => {
+					await save(card);
+				});
 			});
 
+			// Initial load
 			refreshSummary();
+			refreshPosition();
 		</script>
 	</body>
 </html>

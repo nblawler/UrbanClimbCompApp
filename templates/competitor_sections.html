@@ -16,20 +16,62 @@
 		<div class="nav-links">
 			<a class="back" href="/">Home</a>
 			<a class="back" href="/leaderboard">Leaderboard</a>
+			<a class="back" href="/competitor/{{ competitor.id }}/sections">Sections</a>
+			<a class="back" href="/competitor/{{ competitor.id }}/stats">Stats</a>
 		</div>
 	</nav>
 
 	<main class="container">
 
-		<!-- Clean header -->
-		<header class="header" style="margin-bottom: 10px;">
-			<h1 style="font-size: 2rem; margin: 0;">{{ competitor.name }}</h1>
-			<div class="points-header" style="font-size: 1.6rem; margin: 0;">
-				Points: {{ total_points }}
+		<header
+			class="header"
+			style="
+				margin-bottom: 10px;
+				display:flex;
+				flex-direction:column;
+				align-items:flex-start;
+				row-gap:4px;
+			"
+		>
+
+			<!-- LINE 1: NAME -->
+			<div
+				style="
+					font-size:1.9rem;
+					display:grid;
+					grid-template-columns:auto minmax(0, 1fr);
+					column-gap:6px;
+					row-gap:4px;
+					align-items:baseline;
+				"
+			>
+				<span><strong>Name:</strong></span>
+				<span style="overflow-wrap:anywhere;">
+					{{ competitor.name }}
+				</span>
 			</div>
+
+			<!-- LINE 2: POINTS + COMPETITOR # -->
+			<div
+				style="
+					font-size:1.3rem;
+					display:flex;
+					gap:24px;
+					flex-wrap:wrap;
+				"
+			>
+				<span style="display:inline-flex; align-items:baseline; gap:6px;">
+					<strong>Points:</strong> {{ total_points }}
+				</span>
+
+				<span style="display:inline-flex; align-items:baseline; gap:6px;">
+					<strong>Competitor #:</strong> {{ competitor.id }}
+				</span>
+			</div>
+
 		</header>
 
-		<!-- Section buttons only -->
+		<!-- Section buttons -->
 		<section class="section-grid">
 			{% for s in sections %}
 				<a href="/competitor/{{ competitor.id }}/section/{{ s.slug }}" class="section-btn-big">

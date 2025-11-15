@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="en">
+<head>
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<title>{{ competitor.name }} · Stats</title>
+	<link rel="stylesheet" href="/static/app.css" />
+</head>
+
+<body>
+	<nav class="container top-nav">
+		<div class="brand">
+			<span class="brand-mark">🧗‍♂️</span>
+			<span class="brand-name">Urban Climb Comp</span>
+		</div>
+		<div class="nav-links">
+			<a class="back" href="/">Home</a>
+			<a class="back" href="/leaderboard">Leaderboard</a>
+			<a class="back" href="/competitor/{{ competitor.id }}/sections">Sections</a>
+			<a class="back" href="/competitor/{{ competitor.id }}/stats">Stats</a>
+		</div>
+	</nav>
+
+	<main class="container">
+
+		<header class="header" style="margin-bottom: 16px;">
+			<h1 style="margin:0 0 4px 0; font-size:1.9rem;">
+				<strong>Name:</strong> {{ competitor.name }}
+			</h1>
+			<p style="margin:0; font-size:1.3rem;">
+				<strong>Points:</strong> {{ total_points }}
+			</p>
+		</header>
+
+		<!-- PERFORMANCE BY SECTION -->
+		<section class="stats-card">
+			<h2 class="stats-title">Performance by Section</h2>
+			<table class="stats-table">
+				<thead>
+					<tr>
+						<th>Section</th>
+						<th>Tops</th>
+						<th>Attempts</th>
+						<th>Efficiency</th>
+						<th>Points</th>
+					</tr>
+				</thead>
+				<tbody>
+					{% for s in section_stats %}
+					<tr>
+						<td>{{ s.section.name }}</td>
+						<td>{{ s.tops }}</td>
+						<td>{{ s.attempts }}</td>
+						<td>
+							{% if s.attempts %}
+								{{ (s.efficiency * 100) | round(1) }}%
+							{% else %}
+								–
+							{% endif %}
+						</td>
+						<td>{{ s.points }}</td>
+					</tr>
+					{% endfor %}
+				</tbody>
+			</table>
+		</section>
+
+		<!-- PERSONAL HEATMAP -->
+		<section class="stats-card">
+			<h2 class="stats-title">Your Climb Heatmap</h2>
+
+			{% for sec in heatmap_sections %}
+				<h3 class="heatmap-section-title">{{ sec.section.name }}</h3>
+				<div class="heatmap-grid">
+					{% for c in sec.climbs %}
+						<div
+							class="heat-cell status-{{ c.status }}"
+							title="Climb {{ c.climb_number }} · {{ c.status | replace('-', ' ') }}"
+						>
+							{{ c.climb_number }}
+						</div>
+					{% endfor %}
+				</div>
+			{% endfor %}
+
+			<div class="heatmap-legend">
+				<span class="legend-item">
+					<span class="legend-box status-flashed"></span> Flashed
+				</span>
+				<span class="legend-item">
+					<span class="legend-box status-topped-late"></span> Topped late
+				</span>
+				<span class="legend-item">
+					<span class="legend-box status-not-topped"></span> Not topped
+				</span>
+				<span class="legend-item">
+					<span class="legend-box status-skipped"></span> Skipped
+				</span>
+			</div>
+		</section>
+
+		<!-- GLOBAL HEATMAP -->
+		<section class="stats-card">
+			<h2 class="stats-title">Global Difficulty Heatmap</h2>
+			<p style="margin:0 0 8px 0; font-size:0.9rem; color:var(--muted);">
+				Based on all competitors' scores. Hover for details.
+			</p>
+
+			{% for sec in global_heatmap_sections %}
+				<h3 class="heatmap-section-title">{{ sec.section.name }}</h3>
+				<div class="heatmap-grid">
+					{% for c in sec.climbs %}
+						<div
+							class="heat-cell {{ c.status }}"
+							title="Climb {{ c.climb_number }} · {{ c.tooltip }}"
+						>
+							{{ c.climb_number }}
+						</div>
+					{% endfor %}
+				</div>
+			{% endfor %}
+
+			<div class="heatmap-legend">
+				<span class="legend-item">
+					<span class="legend-box global-easy"></span> Easy (most topped)
+				</span>
+				<span class="legend-item">
+					<span class="legend-box global-medium"></span> Medium
+				</span>
+				<span class="legend-item">
+					<span class="legend-box global-hard"></span> Hard (rarely topped)
+				</span>
+				<span class="legend-item">
+					<span class="legend-box global-no-data"></span> No data
+				</span>
+			</div>
+		</section>
+
+	</main>
+</body>
+</html>

@@ -250,6 +250,162 @@ def competitor_sections(competitor_id):
 	)
 
 
+# --- Competitor stats page (personal + global heatmaps) ---
+
+
+@app.route("/competitor/<int:competitor_id>/stats")
+def competitor_stats(competitor_id):
+	"""
+	Stats page for a competitor:
+	- Performance by section (tops, attempts, efficiency, points)
+	- Personal heatmap (this competitor's status on each climb)
+	- Global heatmap (how hard each climb is across all competitors)
+	"""
+	comp = Competitor.query.get_or_404(competitor_id)
+	total_points = competitor_total_points(competitor_id)
+
+	sections = Section.query.order_by(Section.name).all()
+
+	# Personal scores for this competitor
+	personal_scores = Score.query.filter_by(competitor_id=competitor_id).all()
+	personal_by_climb = {s.climb_number: s for s in personal_scores}
+
+	# Global aggregate for every climb across all competitors
+	all_scores = Score.query.all()
+	global_by_climb = {}
+	for s in all_scores:
+		info = global_by_climb.setdefault(
+			s.climb_number,
+			{
+				"attempts_total": 0,
+				"tops": 0,
+				"flashes": 0,
+				"competitors": set(),
+			},
+		)
+		info["attempts_total"] += s.attempts
+		info["competitors"].add(s.competitor_id)
+		if s.topped:
+			info["tops"] += 1
+			if s.attempts == 1:
+				info["flashes"] += 1
+
+	section_stats = []
+	personal_heatmap_sections = []
+	global_heatmap_sections = []
+
+	for sec in sections:
+		climbs = (
+			SectionClimb.query
+			.filter_by(section_id=sec.id)
+			.order_by(SectionClimb.climb_number)
+			.all()
+		)
+
+		sec_tops = 0
+		sec_attempts = 0
+		sec_points = 0
+
+		personal_cells = []
+		global_cells = []
+
+		for sc in climbs:
+			# --- Personal classification ---
+			score = personal_by_climb.get(sc.climb_number)
+
+			if score:
+				sec_attempts += score.attempts
+				if score.topped:
+					sec_tops += 1
+				sec_points += points_for(
+					score.climb_number, score.attempts, score.topped
+				)
+
+				if score.topped and score.attempts == 1:
+					status = "flashed"
+				elif score.topped:
+					status = "topped-late"
+				else:
+					status = "not-topped"
+			else:
+				status = "skipped"
+
+			personal_cells.append(
+				{
+					"climb_number": sc.climb_number,
+					"status": status,
+				}
+			)
+
+			# --- Global classification for this climb ---
+			g = global_by_climb.get(sc.climb_number)
+			if not g or len(g["competitors"]) == 0:
+				g_status = "global-no-data"
+				tooltip = "No recorded attempts"
+			else:
+				total_comp = len(g["competitors"])
+				tops = g["tops"]
+				flashes = g["flashes"]
+				attempts_total = g["attempts_total"]
+
+				top_rate = tops / total_comp if total_comp > 0 else 0.0
+
+				if top_rate >= 0.8:
+					g_status = "global-easy"
+				elif top_rate >= 0.4:
+					g_status = "global-medium"
+				else:
+					g_status = "global-hard"
+
+				tooltip = (
+					f"{tops}/{total_comp} competitors topped, "
+					f"{flashes} flashed, {attempts_total} total attempts"
+				)
+
+			global_cells.append(
+				{
+					"climb_number": sc.climb_number,
+					"status": g_status,
+					"tooltip": tooltip,
+				}
+			)
+
+		efficiency = (sec_tops / sec_attempts) if sec_attempts > 0 else 0.0
+
+		section_stats.append(
+			{
+				"section": sec,
+				"tops": sec_tops,
+				"attempts": sec_attempts,
+				"efficiency": efficiency,
+				"points": sec_points,
+			}
+		)
+
+		personal_heatmap_sections.append(
+			{
+				"section": sec,
+				"climbs": personal_cells,
+			}
+		)
+
+		global_heatmap_sections.append(
+			{
+				"section": sec,
+				"climbs": global_cells,
+			}
+		)
+
+	return render_template(
+		"competitor_stats.html",
+		competitor=comp,
+		total_points=total_points,
+		section_stats=section_stats,
+		heatmap_sections=personal_heatmap_sections,
+		global_heatmap_sections=global_heatmap_sections,
+	)
+
+
 @app.route("/competitor/<int:competitor_id>/section/<section_slug>")
 def competitor_section_climbs(competitor_id, section_slug):
 	comp = Competitor.query.get_or_404(competitor_id)
@@ -274,6 +430,13 @@ def competitor_section_climbs(competitor_id, section_slug):
 	climbs = [sc.climb_number for sc in section_climbs]
 	colours = {sc.climb_number: sc.colour for sc in section_climbs if sc.colour}
 
+	# Max points per climb (base_points)
+	max_points = {
+		sc.climb_number: sc.base_points
+		for sc in section_climbs
+		if sc.base_points is not None
+	}
+
 	scores = Score.query.filter_by(competitor_id=competitor_id).all()
 	existing = {s.climb_number: s for s in scores}
 
@@ -287,9 +450,9 @@ def competitor_section_climbs(competitor_id, section_slug):
 		total_points=total_points,
 		section=section,
 		colours=colours,
-		position=position,     
+		position=position,
+		max_points=max_points,
 	)
-
 
 
 # --- Register new competitors (staff use only, separate page for now) ---
@@ -344,7 +507,6 @@ def api_save_score():
 
 	# Ensure this climb exists in the DB config
 	sc = SectionClimb.query.filter_by(climb_number=climb_number).first()
-  
 	if not sc:
 		return "Unknown climb number", 400
 
@@ -355,7 +517,7 @@ def api_save_score():
 		attempts = 50
 
 	score = Score.query.filter_by(
-		competitor_id=competitor_id, climb_number=climb_number
+			competitor_id=competitor_id, climb_number=climb_number
 	).first()
 
 	if not score:
@@ -664,3 +826,4 @@ if __name__ == "__main__":
 		except Exception:
 			pass
 	app.run(debug=True, port=port)
+
