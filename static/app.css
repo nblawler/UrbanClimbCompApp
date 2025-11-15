@@ -537,6 +537,16 @@ a.back:hover {
 	opacity: 0.9;
 }
 
+.heatmap-grid a.heat-cell-link {
+	text-decoration: none;
+	color: inherit;
+}
+
+.heat-cell:hover {
+	filter: brightness(1.1);
+	cursor: pointer;
+}
+
 /* Status colours – personal heatmap */
 .status-flashed {
 	background: #2d9f6f;  /* green-ish */

@@ -341,13 +341,9 @@ def competitor_stats(competitor_id):
 			g = global_by_climb.get(sc.climb_number)
 			if not g or len(g["competitors"]) == 0:
 				g_status = "global-no-data"
-				tooltip = "No recorded attempts"
 			else:
 				total_comp = len(g["competitors"])
 				tops = g["tops"]
-				flashes = g["flashes"]
-				attempts_total = g["attempts_total"]
-
 				top_rate = tops / total_comp if total_comp > 0 else 0.0
 
 				if top_rate >= 0.8:
@@ -357,16 +353,10 @@ def competitor_stats(competitor_id):
 				else:
 					g_status = "global-hard"
 
-				tooltip = (
-					f"{tops}/{total_comp} competitors topped, "
-					f"{flashes} flashed, {attempts_total} total attempts"
-				)
-
 			global_cells.append(
 				{
 					"climb_number": sc.climb_number,
 					"status": g_status,
-					"tooltip": tooltip,
 				}
 			)
 
@@ -403,6 +393,87 @@ def competitor_stats(competitor_id):
 		section_stats=section_stats,
 		heatmap_sections=personal_heatmap_sections,
 		global_heatmap_sections=global_heatmap_sections,
+	)
+
+
+# --- NEW: Per-climb stats page (global) ---
+
+
+@app.route("/climb/<int:climb_number>/stats")
+def climb_stats(climb_number):
+	"""
+	Global stats for a single climb across all competitors.
+	Shows:
+	- Sections this climb belongs to
+	- Aggregate stats (tops, flashes, attempts, rates)
+	- Per-competitor breakdown
+	"""
+	# All section mappings for this climb
+	section_climbs = SectionClimb.query.filter_by(climb_number=climb_number).all()
+	if not section_climbs:
+		# If the climb isn't configured at all, 404
+		return render_template("climb_stats.html", climb_number=climb_number, has_config=False)
+
+	section_ids = {sc.section_id for sc in section_climbs}
+	sections = Section.query.filter(Section.id.in_(section_ids)).all()
+	sections_by_id = {s.id: s for s in sections}
+
+	# All scores for this climb
+	scores = Score.query.filter_by(climb_number=climb_number).all()
+
+	total_attempts = sum(s.attempts for s in scores)
+	tops = sum(1 for s in scores if s.topped)
+	flashes = sum(1 for s in scores if s.topped and s.attempts == 1)
+	competitor_ids = {s.competitor_id for s in scores}
+	num_competitors = len(competitor_ids)
+
+	top_rate = (tops / num_competitors) if num_competitors > 0 else 0.0
+	flash_rate = (flashes / num_competitors) if num_competitors > 0 else 0.0
+	avg_attempts_per_comp = (total_attempts / num_competitors) if num_competitors > 0 else 0.0
+	avg_attempts_on_tops = (
+		sum(s.attempts for s in scores if s.topped) / tops
+		if tops > 0 else 0.0
+	)
+
+	# Per-competitor breakdown
+	comps = {}
+	if competitor_ids:
+		comps = {
+			c.id: c
+			for c in Competitor.query.filter(Competitor.id.in_(competitor_ids)).all()
+		}
+
+	per_competitor = []
+	for s in scores:
+		c = comps.get(s.competitor_id)
+		per_competitor.append(
+			{
+				"competitor_id": s.competitor_id,
+				"name": c.name if c else f"#{s.competitor_id}",
+				"attempts": s.attempts,
+				"topped": s.topped,
+				"points": points_for(s.climb_number, s.attempts, s.topped),
+				"updated_at": s.updated_at,
+			}
+		)
+
+	# Sort per-competitor list: topped first, then by attempts asc
+	per_competitor.sort(key=lambda r: (not r["topped"], r["attempts"]))
+
+	return render_template(
+		"climb_stats.html",
+		climb_number=climb_number,
+		has_config=True,
+		sections=[sections_by_id[sc.section_id] for sc in section_climbs if sc.section_id in sections_by_id],
+		total_attempts=total_attempts,
+		tops=tops,
+		flashes=flashes,
+		num_competitors=num_competitors,
+		top_rate=top_rate,
+		flash_rate=flash_rate,
+		avg_attempts_per_comp=avg_attempts_per_comp,
+		avg_attempts_on_tops=avg_attempts_on_tops,
+		per_competitor=per_competitor,
 	)
 
 
@@ -517,7 +588,7 @@ def api_save_score():
 		attempts = 50
 
 	score = Score.query.filter_by(
-			competitor_id=competitor_id, climb_number=climb_number
+		competitor_id=competitor_id, climb_number=climb_number
 	).first()
 
 	if not score:
@@ -826,4 +897,5 @@ if __name__ == "__main__":
 		except Exception:
 			pass
 	app.run(debug=True, port=port)
+
 

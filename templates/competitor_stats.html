@@ -68,17 +68,19 @@
 		<!-- PERSONAL HEATMAP -->
 		<section class="stats-card">
 			<h2 class="stats-title">Your Climb Heatmap</h2>
+            <p style="margin:0 0 8px 0; font-size:0.9rem; color:var(--muted);">
+				Tap a climb to see detailed stats.
+			</p>
 
 			{% for sec in heatmap_sections %}
 				<h3 class="heatmap-section-title">{{ sec.section.name }}</h3>
 				<div class="heatmap-grid">
 					{% for c in sec.climbs %}
-						<div
-							class="heat-cell status-{{ c.status }}"
-							title="Climb {{ c.climb_number }} · {{ c.status | replace('-', ' ') }}"
-						>
-							{{ c.climb_number }}
-						</div>
+						<a href="/climb/{{ c.climb_number }}/stats" class="heat-cell-link">
+							<div class="heat-cell status-{{ c.status }}">
+								{{ c.climb_number }}
+							</div>
+                        </a>
 					{% endfor %}
 				</div>
 			{% endfor %}
@@ -103,19 +105,18 @@
 		<section class="stats-card">
 			<h2 class="stats-title">Global Difficulty Heatmap</h2>
 			<p style="margin:0 0 8px 0; font-size:0.9rem; color:var(--muted);">
-				Based on all competitors' scores. Hover for details.
+				Tap a climb to see detailed stats.
 			</p>
 
 			{% for sec in global_heatmap_sections %}
 				<h3 class="heatmap-section-title">{{ sec.section.name }}</h3>
 				<div class="heatmap-grid">
 					{% for c in sec.climbs %}
-						<div
-							class="heat-cell {{ c.status }}"
-							title="Climb {{ c.climb_number }} · {{ c.tooltip }}"
-						>
-							{{ c.climb_number }}
-						</div>
+						<a href="/climb/{{ c.climb_number }}/stats" class="heat-cell-link">
+							<div class="heat-cell {{ c.status }}">
+								{{ c.climb_number }}
+							</div>
+                        </a>
 					{% endfor %}
 				</div>
 			{% endfor %}

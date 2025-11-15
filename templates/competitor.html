@@ -124,10 +124,6 @@
 				</section>
 			</section>
 
-			<section class="summary card">
-				<h3>Summary</h3>
-				<ul id="summary-list"></ul>
-			</section>
 		</main>
 
 		<script>
@@ -178,35 +174,29 @@
 
 					await res.json();
 					showStatus(status, "Saved");
-					await refreshSummary();
+
+					// Update total points + position after save
+					await refreshTotalPoints();
 					refreshPosition();
 				} catch (e) {
 					showStatus(status, "Network error", false);
 				}
 			}
 
-			async function refreshSummary() {
+			// New: only recompute total points, no summary list
+			async function refreshTotalPoints() {
 				try {
 					const res = await fetch(`/api/score/${competitorId}`);
 					const rows = await res.json();
-					const ul = document.getElementById("summary-list");
 					const totalEl = document.getElementById("total-points");
+					if (!totalEl) return;
 
-					ul.innerHTML = "";
 					let totalPoints = 0;
-
 					rows.forEach((r) => {
 						totalPoints += r.points || 0;
-						const li = document.createElement("li");
-						li.textContent = `Climb #${r.climb_number}: attempts ${r.attempts}, ${
-							r.topped ? "TOP" : "no top"
-						} (${r.points} pts)`;
-						ul.appendChild(li);
 					});
 
-					if (totalEl) {
-						totalEl.textContent = totalPoints;
-					}
+					totalEl.textContent = totalPoints;
 				} catch (e) {
 					/* silent */
 				}
@@ -240,8 +230,9 @@
 			});
 
 			// Initial load
-			refreshSummary();
+			refreshTotalPoints();
 			refreshPosition();
 		</script>
 	</body>
 </html>
+
