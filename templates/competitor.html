@@ -43,6 +43,7 @@
 				<section class="grid">
 					{% for n in climbs %}
 						{% set s = existing.get(n) %}
+						{% set max_pts = max_points.get(n) if max_points is defined else None %}
 						<div class="climb-card" data-climb="{{ n }}">
 							<h3>Climb #{{ n }}</h3>
 
@@ -52,6 +53,13 @@
 								{% if col %}
 									<p class="climb-colour">{{ col }}</p>
 								{% endif %}
+							{% endif %}
+
+							{# NEW: show max points if available #}
+							{% if max_pts is not none %}
+								<p style="margin: 4px 0 0;">
+									Max points: {{ max_pts }}
+								</p>
 							{% endif %}
 
 							<div class="row">

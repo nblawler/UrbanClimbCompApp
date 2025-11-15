@@ -269,6 +269,9 @@ def competitor_section_climbs(competitor_id, section_slug):
 	# Optional colour/grade labels
 	colours = {sc.climb_number: sc.colour for sc in section_climbs if sc.colour}
 
+	# 🆕 Max points (base_points) per climb
+	max_points = {sc.climb_number: sc.base_points for sc in section_climbs}
+
 	# Existing scores for this competitor
 	scores = Score.query.filter_by(competitor_id=competitor_id).all()
 	existing = {s.climb_number: s for s in scores}
@@ -283,6 +286,7 @@ def competitor_section_climbs(competitor_id, section_slug):
 		total_points=total_points,
 		section=section,
 		colours=colours,
+		max_points=max_points,  # 🆕 passed to template
 	)
 
 
@@ -338,6 +342,7 @@ def api_save_score():
 
 	# Ensure this climb exists in the DB config
 	sc = SectionClimb.query.filter_by(climb_number=climb_number).first()
+  
 	if not sc:
 		return "Unknown climb number", 400
 
