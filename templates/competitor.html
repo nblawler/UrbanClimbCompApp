@@ -8,10 +8,6 @@
 	</head>
 	<body>
 		<nav class="container top-nav">
-			<div class="brand">
-				<span class="brand-mark">🧗‍♂️</span>
-				<span class="brand-name">Urban Climb Comp</span>
-			</div>
 			<div class="nav-links">
 				<a class="back" href="/leaderboard?cid={{ competitor.id }}">Leaderboard</a>
 				<a class="back" href="/competitor/{{ competitor.id }}/sections">Sections</a>
@@ -21,34 +17,24 @@
 
 		<main class="container">
 
-			<header class="header">
+			<header class="header competitor-header">
 				<div>
-					<h1
-						style="
-							display:flex;
-							justify-content:space-between;
-							align-items:center;
-							flex-wrap:wrap;
-							row-gap:4px;
-							column-gap:24px;
-							margin-bottom:4px;
-						"
-					>
+					<h1 class="competitor-header-top">
 						<!-- LEFT: Name block -->
-						<span style="display:flex; align-items:center; gap:6px;">
+						<span class="competitor-name-block">
 							<strong>Name:</strong> {{ competitor.name }}
 						</span>
 
 						<!-- RIGHT: Points + Position grouped -->
-						<div style="display:flex; align-items:center; gap:32px; flex-wrap:wrap; justify-content:flex-end;">
-							<span style="display:flex; align-items:center; gap:6px;">
+						<div class="competitor-score-block">
+							<span class="competitor-points">
 								<strong>Points:</strong>
 								<span id="total-points">{{ total_points }}</span>
 							</span>
 
 							{% if position is defined and position is not none %}
 								<span
-									style="display:flex; align-items:center; gap:6px;"
+									class="competitor-position"
 									id="position-value"
 								>
 									<strong>Position:</strong> {{ position }}
@@ -57,7 +43,7 @@
 						</div>
 					</h1>
 
-					<p style="margin:0; padding-top:2px;">
+					<p class="competitor-id-line">
 						Competitor #{{ competitor.id }}
 					</p>
 				</div>

@@ -279,7 +279,7 @@ a.back:hover {
 	border-radius:10px;
 	border:1px solid #2a2f36;
 	background:#111316;
-	color:var(--text);
+	color:#fff;
 	outline:none;
 }
 
@@ -478,6 +478,7 @@ a.back:hover {
 	padding: 16px 20px;
 	margin-bottom: 20px;
 	box-shadow: 0 12px 30px rgba(0,0,0,0.35);
+	overflow:hidden; /* keep contents (like numbers) inside rounded card */
 }
 
 .stats-title {
@@ -486,7 +487,7 @@ a.back:hover {
 	color: var(--text);
 }
 
-/* TABLE */
+/* TABLE – generic base */
 
 .stats-table {
 	width: 100%;
@@ -508,6 +509,52 @@ a.back:hover {
 
 .stats-table tbody tr:nth-child(even) {
 	background: rgba(255,255,255,0.02);
+}
+
+/* Per-competitor / general stats tables –
+   wrap first column, let others align by type */
+.stats-table tbody td:first-child {
+	white-space: normal;
+	overflow-wrap: break-word;
+	max-width: 180px; /* stops super long names eating the whole row */
+}
+
+/* Attempts column – centred */
+.stats-table th:nth-child(2),
+.stats-table td:nth-child(2) {
+	text-align: center;
+	white-space: nowrap;
+}
+
+/* Status column – left aligned (keeps text close to header) */
+.stats-table th:nth-child(3),
+.stats-table td:nth-child(3) {
+	text-align: left;
+	white-space: nowrap;
+}
+
+/* Points column – right aligned, numbers line up neatly */
+.stats-table th:nth-child(4),
+.stats-table td:nth-child(4) {
+	text-align: right;
+	white-space: nowrap;
+}
+
+/* Overview table: wrap labels, keep numbers inside/right-aligned */
+.overview-table {
+	table-layout: fixed;
+}
+
+.overview-table th {
+	white-space: normal;
+	word-wrap: break-word;
+	max-width: 70%;
+}
+
+.overview-table td {
+	white-space: normal;
+	text-align: right;
+	width: 30%;
 }
 
 /* HEATMAP */
@@ -614,4 +661,27 @@ a.back:hover {
 }
 .legend-box.global-no-data {
 	background:#555;
+}
+
+/* --- Responsive tweaks for stats table --- */
+
+/* Horizontal scroll wrapper for wide stats tables (per-competitor etc.) */
+.stats-table-wrapper {
+	width: 100%;
+	overflow-x: auto;
+	-webkit-overflow-scrolling: touch;
+}
+
+/* Give wrapped tables a sensible minimum width so columns don’t squish */
+.stats-table-wrapper .stats-table {
+	min-width: 480px;
+}
+
+/* tighten padding + font size on smaller screens */
+@media (max-width: 600px) {
+	.stats-table th,
+	.stats-table td {
+		padding: 6px 6px;
+		font-size: 0.85rem;
+	}
 }

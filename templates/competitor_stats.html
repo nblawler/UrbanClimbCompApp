@@ -9,10 +9,6 @@
 
 <body>
 	<nav class="container top-nav">
-		<div class="brand">
-			<span class="brand-mark">🧗‍♂️</span>
-			<span class="brand-name">Urban Climb Comp</span>
-		</div>
 		<div class="nav-links">
 			<a class="back" href="/leaderboard?cid={{ competitor.id }}">Leaderboard</a>
 			<a class="back" href="/competitor/{{ competitor.id }}/sections">Sections</a>
@@ -34,34 +30,38 @@
 		<!-- PERFORMANCE BY SECTION -->
 		<section class="stats-card">
 			<h2 class="stats-title">Performance by Section</h2>
-			<table class="stats-table">
-				<thead>
-					<tr>
-						<th>Section</th>
-						<th>Tops</th>
-						<th>Attempts</th>
-						<th>Efficiency</th>
-						<th>Points</th>
-					</tr>
-				</thead>
-				<tbody>
-					{% for s in section_stats %}
-					<tr>
-						<td>{{ s.section.name }}</td>
-						<td>{{ s.tops }}</td>
-						<td>{{ s.attempts }}</td>
-						<td>
-							{% if s.attempts %}
-								{{ (s.efficiency * 100) | round(1) }}%
-							{% else %}
-								–
-							{% endif %}
-						</td>
-						<td>{{ s.points }}</td>
-					</tr>
-					{% endfor %}
-				</tbody>
-			</table>
+
+			<!-- NEW WRAPPER -->
+			<div class="stats-table-wrapper">
+				<table class="stats-table">
+					<thead>
+						<tr>
+							<th>Section</th>
+							<th>Tops</th>
+							<th>Attempts</th>
+							<th>Efficiency</th>
+							<th>Points</th>
+						</tr>
+					</thead>
+					<tbody>
+						{% for s in section_stats %}
+						<tr>
+							<td>{{ s.section.name }}</td>
+							<td>{{ s.tops }}</td>
+							<td>{{ s.attempts }}</td>
+							<td>
+								{% if s.attempts %}
+									{{ (s.efficiency * 100) | round(1) }}%
+								{% else %}
+									–
+								{% endif %}
+							</td>
+							<td>{{ s.points }}</td>
+						</tr>
+						{% endfor %}
+					</tbody>
+				</table>
+			</div>
 		</section>
 
 		<!-- PERSONAL HEATMAP -->
