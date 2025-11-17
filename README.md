@@ -15,17 +15,19 @@ File Overview
 6. requirments.txt
     This is the dependency list for pip instalation
 
+
 SETUP
 
 1. Clone Git
     git clone https://github.com/nblawler/UrbanClimbCompApp.git
-
+    
 2. Setup Environment
     python3 -m venv .venv
     source .venv/bin/activate
 
 3. Install Dependencies
     pip install -r requirements.txt
+
 
 For Local Development
 
