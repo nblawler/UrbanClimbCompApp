@@ -13,7 +13,6 @@
 			<span class="brand-name">Urban Climb Comp</span>
 		</div>
 		<div class="nav-links">
-			<a class="back" href="/">Home</a>
 			<a class="back" href="/leaderboard">Leaderboard</a>
 			<a class="back" href="javascript:history.back()">Stats</a>
 		</div>
@@ -116,7 +115,8 @@
 
 				{% if per_competitor %}
 					{% set total_rows = per_competitor|length %}
-					{% set default_limit = 10 %}
+					{# use 2 for testing; bump back to 25 for real use #}
+					{% set default_limit = 2 %}
 
 					<div
 						id="per-comp-controls"
@@ -214,7 +214,7 @@
 	{% if per_competitor and per_competitor|length > 0 %}
 	<script>
 		(function () {
-			const defaultLimit = {{ default_limit | default(10) }};
+			const defaultLimit = {{ default_limit | default(25) }};
 			const rows = Array.from(document.querySelectorAll(".comp-row"));
 			if (!rows.length) return;
 
@@ -243,7 +243,7 @@
 			function applyState() {
 				let visibleCount = 0;
 
-				rows.forEach((row, idx) => {
+				rows.forEach((row) => {
 					if (!rowMatchesFilter(row)) {
 						row.style.display = "none";
 						return;
@@ -276,14 +276,13 @@
 
 			if (filterTopped) {
 				filterTopped.addEventListener("change", () => {
-					// If flashes is on and topped is turned off, keep flashes behaviour
 					applyState();
 				});
 			}
 
 			if (filterFlashed) {
 				filterFlashed.addEventListener("change", () => {
-					// If "Only flashes" is on, it overrides "Only topped"
+					// "Only flashes" overrides "Only topped"
 					if (filterFlashed.checked && filterTopped) {
 						filterTopped.checked = false;
 					}

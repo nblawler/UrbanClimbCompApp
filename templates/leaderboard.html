@@ -13,7 +13,13 @@
 			<span class="brand-name">Urban Climb Comp</span>
 		</div>
 		<div class="nav-links">
-			<a class="back" href="/">Home</a>
+			{% if competitor %}
+				<a class="back" href="/leaderboard?cid={{ competitor.id }}">Leaderboard</a>
+				<a class="back" href="/competitor/{{ competitor.id }}/sections">Sections</a>
+				<a class="back" href="/competitor/{{ competitor.id }}/stats">Stats</a>
+			{% else %}
+				<a class="back" href="/leaderboard">Leaderboard</a>
+			{% endif %}
 		</div>
 	</nav>
 
@@ -31,30 +37,30 @@
 			</div>
 
 			<!-- Category tabs (All + Male + Female + Inclusive) -->
-			<div class="section-tabs">
+			<div class="section-tabs" style="margin-top:6px;">
 				<a
-					href="/leaderboard"
+					href="/leaderboard{% if competitor %}?cid={{ competitor.id }}{% endif %}"
 					class="section-tab{% if category == 'All' %} active{% endif %}"
 				>
 					<span class="section-tab-title">All</span>
 				</a>
 
 				<a
-					href="/leaderboard/male"
+					href="/leaderboard/male{% if competitor %}?cid={{ competitor.id }}{% endif %}"
 					class="section-tab{% if category == 'Male' %} active{% endif %}"
 				>
 					<span class="section-tab-title">Male</span>
 				</a>
 
 				<a
-					href="/leaderboard/female"
+					href="/leaderboard/female{% if competitor %}?cid={{ competitor.id }}{% endif %}"
 					class="section-tab{% if category == 'Female' %} active{% endif %}"
 				>
 					<span class="section-tab-title">Female</span>
 				</a>
 
 				<a
-					href="/leaderboard/inclusive"
+					href="/leaderboard/inclusive{% if competitor %}?cid={{ competitor.id }}{% endif %}"
 					class="section-tab{% if category == 'Gender Inclusive' %} active{% endif %}"
 				>
 					<span class="section-tab-title">Inclusive</span>
@@ -79,7 +85,7 @@
 				{% for row in leaderboard %}
 					<tr>
 						<td>{{ row.position }}</td>
-						<td>{{ row.name }}</td>  {# no link, just text #}
+						<td>{{ row.name }}</td>
 						<td>{{ row.gender }}</td>
 						<td>{{ row.tops }}</td>
 						<td>{{ row.attempts_on_tops }}</td>
@@ -102,10 +108,6 @@
 		const leaderboardBody = document.getElementById("leaderboard-body");
 
 		function getCategoryFromPath() {
-			// /leaderboard              -> null (means "All")
-			// /leaderboard/male         -> "male"
-			// /leaderboard/female       -> "female"
-			// /leaderboard/inclusive    -> "inclusive"
 			const parts = window.location.pathname.split("/").filter(Boolean);
 			if (parts.length >= 2 && parts[0] === "leaderboard") {
 				return parts[1];
@@ -128,43 +130,35 @@
 
 				const data = await res.json();
 				const rows = data.rows || [];
-
 				const frag = document.createDocumentFragment();
 
 				rows.forEach((r) => {
 					const tr = document.createElement("tr");
 
-					// Position
 					const tdPos = document.createElement("td");
 					tdPos.textContent = r.position;
 					tr.appendChild(tdPos);
 
-					// Name (no link – read-only)
 					const tdName = document.createElement("td");
 					tdName.textContent = r.name;
 					tr.appendChild(tdName);
 
-					// Gender
 					const tdGender = document.createElement("td");
 					tdGender.textContent = r.gender;
 					tr.appendChild(tdGender);
 
-					// Tops
 					const tdTops = document.createElement("td");
 					tdTops.textContent = r.tops;
 					tr.appendChild(tdTops);
 
-					// Attempts on tops
 					const tdAttempts = document.createElement("td");
 					tdAttempts.textContent = r.attempts_on_tops;
 					tr.appendChild(tdAttempts);
 
-					// Points
 					const tdPoints = document.createElement("td");
 					tdPoints.textContent = r.total_points;
 					tr.appendChild(tdPoints);
 
-					// Last update
 					const tdUpdate = document.createElement("td");
 					if (r.last_update) {
 						const d = new Date(r.last_update);
@@ -172,7 +166,6 @@
 					} else {
 						tdUpdate.textContent = "–";
 					}
-					
 					tr.appendChild(tdUpdate);
 
 					frag.appendChild(tr);
@@ -181,13 +174,12 @@
 				leaderboardBody.innerHTML = "";
 				leaderboardBody.appendChild(frag);
 
-				// Update the category label text from API if present
 				const catLabel = document.getElementById("category-label");
 				if (catLabel && data.category) {
 					catLabel.textContent = data.category;
 				}
 			} catch (e) {
-				// ignore errors – this is display only
+				// display-only
 			}
 		}
 
@@ -197,4 +189,3 @@
 	</script>
 </body>
 </html>
-

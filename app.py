@@ -693,23 +693,36 @@ def api_get_scores(competitor_id):
 
 @app.route("/leaderboard")
 def leaderboard_all():
-	rows, category_label = build_leaderboard(None)
-	return render_template(
-		"leaderboard.html",
-		leaderboard=rows,
-		category=category_label,
-	)
+    # Optional competitor context via ?cid=123
+    cid_raw = request.args.get("cid", "").strip()
+    competitor = None
+    if cid_raw.isdigit():
+        competitor = Competitor.query.get(int(cid_raw))
+
+    rows, category_label = build_leaderboard(None)
+    return render_template(
+        "leaderboard.html",
+        leaderboard=rows,
+        category=category_label,
+        competitor=competitor,
+    )
 
 
 @app.route("/leaderboard/<category>")
 def leaderboard_by_category(category):
-	rows, category_label = build_leaderboard(category)
-	return render_template(
-		"leaderboard.html",
-		leaderboard=rows,
-		category=category_label,
-	)
+    # Optional competitor context via ?cid=123
+    cid_raw = request.args.get("cid", "").strip()
+    competitor = None
+    if cid_raw.isdigit():
+        competitor = Competitor.query.get(int(cid_raw))
 
+    rows, category_label = build_leaderboard(category)
+    return render_template(
+        "leaderboard.html",
+        leaderboard=rows,
+        category=category_label,
+        competitor=competitor,
+    )
 
 @app.route("/api/leaderboard")
 def api_leaderboard():
