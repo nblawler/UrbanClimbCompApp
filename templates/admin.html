@@ -31,7 +31,6 @@
 				<div class="status ok">{{ message }}</div>
 			{% endif %}
 
-
 			<section class="card">
 				<h2>Create competitor</h2>
 
@@ -69,6 +68,69 @@
 						Delete competitor
 					</button>
 				</form>
+			</section>
+
+			<!-- Find competitor by name -->
+			<section class="card" id="search-card">
+				<h2>Find competitor by name</h2>
+
+				<form method="post" action="/admin#search-card">
+					<label>Admin password</label>
+					<input type="password" name="password" required />
+
+					<label style="margin-top:10px;">Name (partial OK)</label>
+					<input
+						type="text"
+						name="search_name"
+						placeholder="e.g. John, Smith"
+						value="{{ search_query or '' }}"
+						required
+					/>
+
+					<button
+						type="submit"
+						name="action"
+						value="search_competitor"
+						class="primary"
+						style="margin-top:12px;"
+					>
+						Search
+					</button>
+				</form>
+
+				{% if search_results is defined and search_results %}
+					<hr style="margin:16px 0; border-color:#262a30;" />
+					<table class="leaderboard">
+						<thead>
+							<tr>
+								<th>#</th>
+								<th>Name</th>
+								<th>Category</th>
+								<th>Registered</th>
+							</tr>
+						</thead>
+						<tbody>
+							{% for c in search_results %}
+								<tr>
+									<td>{{ c.id }}</td>
+									<td>{{ c.name }}</td>
+									<td>{{ c.gender }}</td>
+									<td>
+										{% if c.created_at %}
+											{{ c.created_at.strftime("%Y-%m-%d %H:%M") }}
+										{% else %}
+											–
+										{% endif %}
+									</td>
+								</tr>
+							{% endfor %}
+						</tbody>
+					</table>
+				{% elif search_results is defined and not search_results and search_query %}
+					<p class="muted" style="margin-top:12px;">
+						No competitors found matching "{{ search_query }}".
+					</p>
+				{% endif %}
 			</section>
 
 			<section class="card">

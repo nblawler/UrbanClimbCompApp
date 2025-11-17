@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<title>Join the Comp · Urban Climb Comp</title>
+	<link rel="stylesheet" href="/static/app.css" />
+</head>
+<body>
+	<nav class="container top-nav">
+		<div class="brand">
+			<span class="brand-mark">🧗‍♂️</span>
+			<span class="brand-name">Urban Climb Comp</span>
+		</div>
+		<div class="nav-links">
+			<a class="back" href="/">Home</a>
+			<a class="back" href="/leaderboard">Leaderboard</a>
+		</div>
+	</nav>
+
+	<main class="container">
+		<section class="card enter-card">
+			<header class="hero" style="margin-bottom: 12px;">
+				<h1 style="margin:0 0 6px 0;">Join the comp</h1>
+				<p class="muted" style="margin:0;">
+					Scan, sign up, send. Once you join, you’ll go straight to your scoring page.
+				</p>
+			</header>
+
+			{% if error %}
+				<p class="error">{{ error }}</p>
+			{% endif %}
+
+			<form method="post" class="enter-form" autocomplete="off">
+				<div class="input-row" style="flex-direction:column; align-items:stretch; gap:10px;">
+					<div style="width:100%;">
+						<label for="name">Your name</label>
+						<input
+							id="name"
+							name="name"
+							type="text"
+							required
+							placeholder="e.g. Pickle"
+							value="{{ name }}"
+						/>
+					</div>
+
+					<div style="width:100%;">
+						<label for="gender">Category</label>
+						<select
+							id="gender"
+							name="gender"
+							style="
+								width:100%;
+								padding:12px 14px;
+								border-radius:10px;
+								border:1px solid #2a2f36;
+								background:#111316;
+								color:var(--text);
+							"
+						>
+							<option value="Inclusive" {% if gender == "Inclusive" %}selected{% endif %}>
+								Gender Inclusive
+							</option>
+							<option value="Female" {% if gender == "Female" %}selected{% endif %}>
+								Female
+							</option>
+							<option value="Male" {% if gender == "Male" %}selected{% endif %}>
+								Male
+							</option>
+						</select>
+					</div>
+				</div>
+
+				<button type="submit" class="primary" style="margin-top:16px;">
+					Start sending →
+				</button>
+
+				<p class="form-hint" style="margin-top:10px;">
+				 Already registered? Ask the desk for your competitor number and use the
+				 <a href="/" class="back" style="text-decoration:underline;">number entry page</a>.
+				</p>
+			</form>
+		</section>
+	</main>
+</body>
+</html>

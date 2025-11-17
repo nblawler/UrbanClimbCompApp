@@ -1,73 +1,76 @@
 <!doctype html>
 <html lang="en">
-	<head>
-		<meta charset="utf-8" />
-		<meta name="viewport" content="width=device-width, initial-scale=1" />
-		<title>Urban Climb Comp</title>
-		<link rel="stylesheet" href="/static/app.css" />
-	</head>
-	<body>
-		<nav class="container top-nav">
-			<div class="brand">
-				<span class="brand-mark">🧗‍♂️</span>
-				<span class="brand-name">Urban Climb Comp</span>
-			</div>
-			<div class="nav-links">
-				<a class="back" href="/leaderboard">Leaderboard</a>
+<head>
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<title>Urban Climb Comp</title>
+	<link rel="stylesheet" href="/static/app.css" />
+</head>
+<body>
+	<nav class="container top-nav">
+		<div class="brand">
+			<span class="brand-mark">🧗‍♂️</span>
+			<span class="brand-name">Urban Climb Comp</span>
+		</div>
+		<div class="nav-links">
+			<a class="back" href="/leaderboard">Leaderboard</a>
+		</div>
+	</nav>
 
-			</div>
-		</nav>
+	<main class="container">
+		<section class="hero">
+			<h1>Log your sends</h1>
+			<p class="muted">
+				Already registered? Enter your competitor number to jump back into your scorecard.
+			</p>
+		</section>
 
-		<main class="container">
-			<section class="hero">
-				<h1>Log your sends</h1>
-				<p>Enter your competitor number to start recording attempts and tops.</p>
-			</section>
-
-			<section class="enter-card card">
-				<form method="post" action="/competitor" class="enter-form">
-					<label for="competitor_id">Competitor number</label>
-					<div class="input-row">
-						<input
-							type="number"
-							id="competitor_id"
-							name="competitor_id"
-							min="1"
-							placeholder="e.g. 23"
-							required
-							autofocus
-							inputmode="numeric"
-						/>
-						<button type="submit" class="primary">Continue</button>
-					</div>
-					<p class="form-hint">
-						Your competitor number is assigned at the desk when you register.
-					</p>
-				</form>
+		<section class="card enter-card">
+			<form method="post" action="/competitor" class="enter-form">
+				<label for="competitor_id">Competitor number</label>
+				<div class="input-row">
+					<input
+						id="competitor_id"
+						name="competitor_id"
+						type="number"
+						min="1"
+						placeholder="e.g. 23"
+						required
+					/>
+					<button type="submit" class="primary">
+						Continue
+					</button>
+				</div>
 
 				{% if error %}
-					<div class="error">{{ error }}</div>
+					<p class="error" style="margin-top:12px;">{{ error }}</p>
 				{% endif %}
 
-				<div class="quick-links">
+				<p class="form-hint">
+					Your competitor number is assigned when you join the comp at the front desk.
+					Scan the <strong>registration QR code</strong> there to sign up.
+				</p>
+
+				<div class="quick-links" style="margin-top:14px;">
 					<a href="/leaderboard" class="ghost">View leaderboard →</a>
 				</div>
-			</section>
+			</form>
+		</section>
 
-			<section class="info-grid">
-				<div class="info card">
-					<h3>How scoring works</h3>
-					<p>Top as many climbs as you can. Points depend on climb difficulty and number of attempts.</p>
-				</div>
-				<div class="info card">
-					<h3>Fair play</h3>
-					<p>Log honestly. If you make a mistake, just update and hit Save again.</p>
-				</div>
-				<div class="info card">
-					<h3>Need help?</h3>
-					<p>Ask a staff member at the desk to find your competitor number or register you.</p>
-				</div>
-			</section>
-		</main>
-	</body>
+		<section class="info-grid">
+			<div class="card info">
+				<h3>How scoring works</h3>
+				<p>Top as many climbs as you can. Points depend on climb difficulty and number of attempts.</p>
+			</div>
+			<div class="card info">
+				<h3>Fair play</h3>
+				<p>Log honestly. If you make a mistake, just update the climb and hit Save again.</p>
+			</div>
+			<div class="card info">
+				<h3>New here?</h3>
+				<p>Go to the front desk, scan the QR code, and we’ll give you a competitor number.</p>
+			</div>
+		</section>
+	</main>
+</body>
 </html>

@@ -411,7 +411,7 @@ def climb_stats(climb_number):
 	# All section mappings for this climb
 	section_climbs = SectionClimb.query.filter_by(climb_number=climb_number).all()
 	if not section_climbs:
-		# If the climb isn't configured at all, 404
+		# If the climb isn't configured at all, 404-ish but with a friendly message
 		return render_template("climb_stats.html", climb_number=climb_number, has_config=False)
 
 	section_ids = {sc.section_id for sc in section_climbs}
@@ -554,6 +554,51 @@ def register_competitor():
 	return render_template("register.html", error=None, competitor=None)
 
 
+@app.route("/join", methods=["GET", "POST"])
+@app.route("/join/", methods=["GET", "POST"])
+def public_register():
+	"""
+	Self-service registration for competitors.
+	- This is what the QR code at the desk should point to.
+	- No admin password, just name + category.
+	- After registration, redirect straight to their sections page.
+	"""
+	if request.method == "POST":
+		name = request.form.get("name", "").strip()
+		gender = request.form.get("gender", "Inclusive").strip()
+
+		error = None
+		if not name:
+			error = "Please enter your name."
+
+		if gender not in ("Male", "Female", "Inclusive"):
+			gender = "Inclusive"
+
+		if error:
+			return render_template(
+				"register_public.html",
+				error=error,
+				name=name,
+				gender=gender,
+			)
+
+		# Create competitor
+		comp = Competitor(name=name, gender=gender)
+		db.session.add(comp)
+		db.session.commit()
+
+		# Straight to their sections page to start logging
+		return redirect(f"/competitor/{comp.id}/sections")
+
+	# GET: show blank form
+	return render_template(
+		"register_public.html",
+		error=None,
+		name="",
+		gender="Inclusive",
+	)
+
+
 # --- Score API ---
 
 
@@ -686,6 +731,8 @@ ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "letmein123")
 def admin_page():
 	message = None
 	error = None
+	search_results = None
+	search_query = ""
 
 	if request.method == "POST":
 		password = request.form.get("password", "")
@@ -755,8 +802,31 @@ def admin_page():
 					db.session.commit()
 					message = f"Section created: {name}. You can now add climbs via Edit."
 
+			elif action == "search_competitor":
+				search_query = request.form.get("search_name", "").strip()
+
+				if not search_query:
+					error = "Please enter a name to search."
+				else:
+					pattern = f"%{search_query}%"
+					search_results = (
+						Competitor.query
+						.filter(Competitor.name.ilike(pattern))
+						.order_by(Competitor.name, Competitor.id)
+						.all()
+					)
+					if not search_results:
+						message = f"No competitors found matching '{search_query}'."
+
 	sections = Section.query.order_by(Section.name).all()
-	return render_template("admin.html", message=message, error=error, sections=sections)
+	return render_template(
+		"admin.html",
+		message=message,
+		error=error,
+		sections=sections,
+		search_results=search_results,
+		search_query=search_query,
+	)
 
 
 @app.route("/admin/section/<int:section_id>/edit", methods=["GET", "POST"])
