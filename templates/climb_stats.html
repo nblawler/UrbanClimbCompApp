@@ -116,38 +116,65 @@
 				<h2 class="stats-title">Per-Competitor Breakdown</h2>
 
 				{% if per_competitor %}
-					<table class="stats-table">
-						<thead>
-							<tr>
-								<th>Competitor</th>
-								<th>Attempts</th>
-								<th>Status</th>
-								<th>Points</th>
-							</tr>
-						</thead>
-						<tbody>
-							{% for row in per_competitor %}
+
+					{% set total_rows = per_competitor|length %}
+					{% set default_limit = 2 %}
+
+					<div
+						id="per-comp-controls"
+						style="display:flex; justify-content:space-between; align-items:center; margin:8px 0 10px;"
+					>
+						<p style="margin:0; font-size:0.85rem; color:var(--muted);">
+							Competitors logged: {{ total_rows }}
+						</p>
+
+						{% if total_rows > default_limit %}
+							<button
+								id="toggle-rows-btn"
+								type="button"
+								class="primary"
+								style="padding:6px 10px; font-size:0.85rem;"
+							>
+								Show all ({{ total_rows }})
+							</button>
+						{% endif %}
+					</div>
+
+					<div style="max-height:70vh; overflow:auto; border-radius:10px;">
+						<table class="stats-table">
+							<thead>
 								<tr>
-									<td>
-										{{ row.name }} ( #{{ row.competitor_id }} )
-									</td>
-									<td>{{ row.attempts }}</td>
-									<td>
-										{% if row.topped %}
-											{% if row.attempts == 1 %}
-												Flashed
-											{% else %}
-												Topped
-											{% endif %}
-										{% else %}
-											Not topped
-										{% endif %}
-									</td>
-									<td>{{ row.points }}</td>
+									<th>Competitor</th>
+									<th>Attempts</th>
+									<th>Status</th>
+									<th>Points</th>
 								</tr>
-							{% endfor %}
-						</tbody>
-					</table>
+							</thead>
+							<tbody id="per-comp-body">
+								{% for row in per_competitor %}
+									<tr class="comp-row">
+										<td>
+											{{ row.name }} ( #{{ row.competitor_id }} )
+										</td>
+										<td>{{ row.attempts }}</td>
+										<td>
+											{% if row.topped %}
+												{% if row.attempts == 1 %}
+													Flashed
+												{% else %}
+													Topped
+												{% endif %}
+											{% else %}
+												Not topped
+											{% endif %}
+										</td>
+										<td>{{ row.points }}</td>
+									</tr>
+								{% endfor %}
+							</tbody>
+						</table>
+					</div>
+
 				{% else %}
 					<p style="margin:0; color:var(--muted);">
 						No competitors have logged attempts on this climb yet.
@@ -158,6 +185,40 @@
 		{% endif %}
 
 	</main>
+
+	{% if per_competitor and per_competitor|length > 2 %}
+	<script>
+		(function () {
+			const defaultLimit = 2;
+			const rows = Array.from(document.querySelectorAll(".comp-row"));
+			const btn = document.getElementById("toggle-rows-btn");
+			if (!rows.length || !btn) return;
+
+			let showingAll = false;
+
+			function applyLimit() {
+				if (!showingAll) {
+					rows.forEach((row, idx) => {
+						row.style.display = idx < defaultLimit ? "" : "none";
+					});
+					btn.textContent = "Show all (" + rows.length + ")";
+				} else {
+					rows.forEach((row) => {
+						row.style.display = "";
+					});
+					btn.textContent = "Show top " + defaultLimit;
+				}
+			}
+
+			btn.addEventListener("click", () => {
+				showingAll = !showingAll;
+				applyLimit();
+			});
+
+			// Initial state: top N only
+			applyLimit();
+		})();
+	</script>
+	{% endif %}
 </body>
 </html>
-
