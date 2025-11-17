@@ -15,7 +15,6 @@
 		<div class="nav-links">
 			<a class="back" href="/">Home</a>
 			<a class="back" href="/leaderboard">Leaderboard</a>
-			<!-- New: back to previous page (usually Stats) -->
 			<a class="back" href="javascript:history.back()">Stats</a>
 		</div>
 	</nav>
@@ -116,28 +115,49 @@
 				<h2 class="stats-title">Per-Competitor Breakdown</h2>
 
 				{% if per_competitor %}
-
 					{% set total_rows = per_competitor|length %}
-					{% set default_limit = 2 %}
+					{% set default_limit = 10 %}
 
 					<div
 						id="per-comp-controls"
-						style="display:flex; justify-content:space-between; align-items:center; margin:8px 0 10px;"
+						style="
+							display:flex;
+							flex-wrap:wrap;
+							gap:8px 16px;
+							justify-content:space-between;
+							align-items:center;
+							margin:8px 0 10px;
+						"
 					>
 						<p style="margin:0; font-size:0.85rem; color:var(--muted);">
 							Competitors logged: {{ total_rows }}
+							{% if total_rows > default_limit %}
+								· showing top {{ default_limit }} by default
+							{% endif %}
 						</p>
 
-						{% if total_rows > default_limit %}
-							<button
-								id="toggle-rows-btn"
-								type="button"
-								class="primary"
-								style="padding:6px 10px; font-size:0.85rem;"
-							>
-								Show all ({{ total_rows }})
-							</button>
-						{% endif %}
+						<div style="display:flex; flex-wrap:wrap; gap:8px 12px; align-items:center;">
+							<label style="display:inline-flex; align-items:center; gap:6px; font-size:0.85rem;">
+								<input type="checkbox" id="filter-topped" />
+								<span>Only topped</span>
+							</label>
+
+							<label style="display:inline-flex; align-items:center; gap:6px; font-size:0.85rem;">
+								<input type="checkbox" id="filter-flashed" />
+								<span>Only flashes</span>
+							</label>
+
+							{% if total_rows > default_limit %}
+								<button
+									id="toggle-rows-btn"
+									type="button"
+									class="primary"
+									style="padding:6px 10px; font-size:0.85rem;"
+								>
+									Show all ({{ total_rows }})
+								</button>
+							{% endif %}
+						</div>
 					</div>
 
 					<div style="max-height:70vh; overflow:auto; border-radius:10px;">
@@ -152,7 +172,12 @@
 							</thead>
 							<tbody id="per-comp-body">
 								{% for row in per_competitor %}
-									<tr class="comp-row">
+									{# data attributes: topped and flash flags #}
+									<tr
+										class="comp-row"
+										data-topped="{{ 1 if row.topped else 0 }}"
+										data-flash="{{ 1 if row.topped and row.attempts == 1 else 0 }}"
+									>
 										<td>
 											{{ row.name }} ( #{{ row.competitor_id }} )
 										</td>
@@ -186,37 +211,88 @@
 
 	</main>
 
-	{% if per_competitor and per_competitor|length > 2 %}
+	{% if per_competitor and per_competitor|length > 0 %}
 	<script>
 		(function () {
-			const defaultLimit = 2;
+			const defaultLimit = {{ default_limit | default(10) }};
 			const rows = Array.from(document.querySelectorAll(".comp-row"));
+			if (!rows.length) return;
+
 			const btn = document.getElementById("toggle-rows-btn");
-			if (!rows.length || !btn) return;
+			const filterTopped = document.getElementById("filter-topped");
+			const filterFlashed = document.getElementById("filter-flashed");
 
 			let showingAll = false;
 
-			function applyLimit() {
-				if (!showingAll) {
-					rows.forEach((row, idx) => {
-						row.style.display = idx < defaultLimit ? "" : "none";
-					});
-					btn.textContent = "Show all (" + rows.length + ")";
-				} else {
-					rows.forEach((row) => {
-						row.style.display = "";
-					});
-					btn.textContent = "Show top " + defaultLimit;
+			function rowMatchesFilter(row) {
+				const isTopped = row.dataset.topped === "1";
+				const isFlash = row.dataset.flash === "1";
+
+				if (filterFlashed && filterFlashed.checked) {
+					// Only flashes: must be flash
+					return isFlash;
+				}
+				if (filterTopped && filterTopped.checked) {
+					// Only topped (including flashes)
+					return isTopped;
+				}
+				// No filters: everyone
+				return true;
+			}
+
+			function applyState() {
+				let visibleCount = 0;
+
+				rows.forEach((row, idx) => {
+					if (!rowMatchesFilter(row)) {
+						row.style.display = "none";
+						return;
+					}
+
+					if (!showingAll && visibleCount >= defaultLimit) {
+						row.style.display = "none";
+						return;
+					}
+
+					row.style.display = "";
+					visibleCount++;
+				});
+
+				if (btn) {
+					if (showingAll) {
+						btn.textContent = "Show top " + defaultLimit;
+					} else {
+						btn.textContent = "Show all (" + rows.length + ")";
+					}
 				}
 			}
 
-			btn.addEventListener("click", () => {
-				showingAll = !showingAll;
-				applyLimit();
-			});
+			if (btn) {
+				btn.addEventListener("click", () => {
+					showingAll = !showingAll;
+					applyState();
+				});
+			}
 
-			// Initial state: top N only
-			applyLimit();
+			if (filterTopped) {
+				filterTopped.addEventListener("change", () => {
+					// If flashes is on and topped is turned off, keep flashes behaviour
+					applyState();
+				});
+			}
+
+			if (filterFlashed) {
+				filterFlashed.addEventListener("change", () => {
+					// If "Only flashes" is on, it overrides "Only topped"
+					if (filterFlashed.checked && filterTopped) {
+						filterTopped.checked = false;
+					}
+					applyState();
+				});
+			}
+
+			// Initial state
+			applyState();
 		})();
 	</script>
 	{% endif %}
