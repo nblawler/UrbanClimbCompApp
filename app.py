@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, jsonify
+from flask import Flask, render_template, request, redirect, jsonify, session
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import UniqueConstraint
 from datetime import datetime
@@ -8,10 +8,12 @@ import re
 
 app = Flask(__name__)
 
-# --- Database setup ---
+# --- Core config / secrets ---
 DB_URL = os.getenv("DATABASE_URL", "sqlite:///scoring.db")
 app.config["SQLALCHEMY_DATABASE_URI"] = DB_URL
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+# Needed for session-based admin + remembering competitor
+app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "change-me-dev-secret")
 
 db = SQLAlchemy(app)
 
@@ -211,6 +213,26 @@ def index():
 	return render_template("index.html", error=None)
 
 
+@app.route("/resume")
+def resume_competitor():
+	"""
+	Resume scoring for the last competitor on this device.
+	Use this as the target for the 'Return to my scoring' QR.
+	"""
+	cid = session.get("competitor_id")
+	if not cid:
+		# No remembered competitor on this device
+		return redirect("/")
+
+	comp = Competitor.query.get(cid)
+	if not comp:
+		# Competitor was deleted; clear and go home
+		session.pop("competitor_id", None)
+		return redirect("/")
+
+	return redirect(f"/competitor/{cid}/sections")
+
+
 @app.route("/competitor", methods=["POST"])
 def enter_competitor():
 	cid_raw = request.form.get("competitor_id", "").strip()
@@ -227,6 +249,9 @@ def enter_competitor():
 			"index.html",
 			error="Competitor not found. Please check with the desk.",
 		)
+
+	# Remember this competitor on this device
+	session["competitor_id"] = cid
 
 	return redirect(f"/competitor/{cid}/sections")
 
@@ -417,7 +442,7 @@ def competitor_stats(competitor_id):
 
 
 
-# --- NEW: Per-climb stats page (global) ---
+# --- Per-climb stats page (global) ---
 
 
 @app.route("/climb/<int:climb_number>/stats")
@@ -635,6 +660,9 @@ def public_register():
 		db.session.add(comp)
 		db.session.commit()
 
+		# Remember this competitor on this device
+		session["competitor_id"] = comp.id
+
 		# Straight to their sections page to start logging
 		return redirect(f"/competitor/{comp.id}/sections")
 
@@ -795,90 +823,106 @@ def admin_page():
 	error = None
 	search_results = None
 	search_query = ""
+	is_admin = session.get("admin_ok", False)
 
 	if request.method == "POST":
-		password = request.form.get("password", "")
-		if password != ADMIN_PASSWORD:
-			error = "Incorrect admin password."
+		action = request.form.get("action")
+
+		# Handle login separately
+		if action == "login":
+			password = request.form.get("password", "")
+			if password != ADMIN_PASSWORD:
+				error = "Incorrect admin password."
+			else:
+				session["admin_ok"] = True
+				is_admin = True
+				message = "Admin access granted."
 		else:
-			action = request.form.get("action")
-
-			if action == "reset_all":
-				# Delete scores, section climbs, competitors, sections
-				Score.query.delete()
-				SectionClimb.query.delete()
-				Competitor.query.delete()
-				Section.query.delete()
-				db.session.commit()
-				message = "All competitors, scores, sections, and section climbs have been deleted."
-
-			elif action == "delete_competitor":
-				raw_id = request.form.get("competitor_id", "").strip()
-				if not raw_id.isdigit():
-					error = "Please provide a valid competitor number."
-				else:
-					cid = int(raw_id)
-					comp = Competitor.query.get(cid)
-					if not comp:
-						error = f"Competitor {cid} not found."
+			# For all other actions, require that admin has been unlocked
+			if not is_admin:
+				error = "Please enter the admin password first."
+			else:
+				if action == "reset_all":
+					# For this action, require password *again* each time
+					password = request.form.get("password", "")
+					if password != ADMIN_PASSWORD:
+						error = "Incorrect admin password."
 					else:
-						Score.query.filter_by(competitor_id=cid).delete()
-						db.session.delete(comp)
+						# Delete scores, section climbs, competitors, sections
+						Score.query.delete()
+						SectionClimb.query.delete()
+						Competitor.query.delete()
+						Section.query.delete()
 						db.session.commit()
-						message = f"Competitor {cid} and their scores have been deleted."
+						message = "All competitors, scores, sections, and section climbs have been deleted."
 
-			elif action == "create_competitor":
-				name = request.form.get("new_name", "").strip()
-				gender = request.form.get("new_gender", "Inclusive").strip()
+				elif action == "delete_competitor":
+					raw_id = request.form.get("competitor_id", "").strip()
+					if not raw_id.isdigit():
+						error = "Please provide a valid competitor number."
+					else:
+						cid = int(raw_id)
+						comp = Competitor.query.get(cid)
+						if not comp:
+							error = f"Competitor {cid} not found."
+						else:
+							Score.query.filter_by(competitor_id=cid).delete()
+							db.session.delete(comp)
+							db.session.commit()
+							message = f"Competitor {cid} and their scores have been deleted."
 
-				if not name:
-					error = "Competitor name is required."
-				else:
-					if gender not in ("Male", "Female", "Inclusive"):
-						gender = "Inclusive"
-					comp = Competitor(name=name, gender=gender)
-					db.session.add(comp)
-					db.session.commit()
-					message = f"Competitor created: {comp.name} (#{comp.id}, {comp.gender})"
+				elif action == "create_competitor":
+					name = request.form.get("new_name", "").strip()
+					gender = request.form.get("new_gender", "Inclusive").strip()
 
-			elif action == "create_section":
-				name = request.form.get("section_name", "").strip()
+					if not name:
+						error = "Competitor name is required."
+					else:
+						if gender not in ("Male", "Female", "Inclusive"):
+							gender = "Inclusive"
+						comp = Competitor(name=name, gender=gender)
+						db.session.add(comp)
+						db.session.commit()
+						message = f"Competitor created: {comp.name} (#{comp.id}, {comp.gender})"
 
-				if not name:
-					error = "Please provide a section name."
-				else:
-					slug = slugify(name)
-					existing = Section.query.filter_by(slug=slug).first()
-					if existing:
-						slug = f"{slug}-{int(datetime.utcnow().timestamp())}"
+				elif action == "create_section":
+					name = request.form.get("section_name", "").strip()
 
-					# start_climb / end_climb are not used to define climbs anymore;
-					# they can stay as 0 or be used later for metadata if you want.
-					s = Section(
-						name=name,
-						slug=slug,
-						start_climb=0,
-						end_climb=0,
-					)
-					db.session.add(s)
-					db.session.commit()
-					message = f"Section created: {name}. You can now add climbs via Edit."
+					if not name:
+						error = "Please provide a section name."
+					else:
+						slug = slugify(name)
+						existing = Section.query.filter_by(slug=slug).first()
+						if existing:
+							slug = f"{slug}-{int(datetime.utcnow().timestamp())}"
 
-			elif action == "search_competitor":
-				search_query = request.form.get("search_name", "").strip()
+						# start_climb / end_climb are not used to define climbs anymore;
+						# they can stay as 0 or be used later for metadata if you want.
+						s = Section(
+							name=name,
+							slug=slug,
+							start_climb=0,
+							end_climb=0,
+						)
+						db.session.add(s)
+						db.session.commit()
+						message = f"Section created: {name}. You can now add climbs via Edit."
 
-				if not search_query:
-					error = "Please enter a name to search."
-				else:
-					pattern = f"%{search_query}%"
-					search_results = (
-						Competitor.query
-						.filter(Competitor.name.ilike(pattern))
-						.order_by(Competitor.name, Competitor.id)
-						.all()
-					)
-					if not search_results:
-						message = f"No competitors found matching '{search_query}'."
+				elif action == "search_competitor":
+					search_query = request.form.get("search_name", "").strip()
+
+					if not search_query:
+						error = "Please enter a name to search."
+					else:
+						pattern = f"%{search_query}%"
+						search_results = (
+							Competitor.query
+							.filter(Competitor.name.ilike(pattern))
+							.order_by(Competitor.name, Competitor.id)
+							.all()
+						)
+						if not search_results:
+							message = f"No competitors found matching '{search_query}'."
 
 	sections = Section.query.order_by(Section.name).all()
 	return render_template(
@@ -888,115 +932,116 @@ def admin_page():
 		sections=sections,
 		search_results=search_results,
 		search_query=search_query,
+		is_admin=is_admin,
 	)
 
 
 @app.route("/admin/section/<int:section_id>/edit", methods=["GET", "POST"])
 def edit_section(section_id):
+	# Require an unlocked admin session
+	if not session.get("admin_ok"):
+		return redirect("/admin")
+
 	section = Section.query.get_or_404(section_id)
 	error = None
 	message = None
 
 	if request.method == "POST":
-		password = request.form.get("password", "")
-		if password != ADMIN_PASSWORD:
-			error = "Incorrect admin password."
-		else:
-			action = request.form.get("action")
+		action = request.form.get("action")
 
-			if action == "save_section":
-				name = request.form.get("name", "").strip()
-				if not name:
-					error = "Section name is required."
-				else:
-					section.name = name
-					db.session.commit()
-					message = "Section name updated."
-
-			elif action == "add_climb":
-				climb_raw = request.form.get("climb_number", "").strip()
-				colour = request.form.get("colour", "").strip()
-
-				base_raw = request.form.get("base_points", "").strip()
-				penalty_raw = request.form.get("penalty_per_attempt", "").strip()
-				cap_raw = request.form.get("attempt_cap", "").strip()
-
-				# basic validation
-				if not climb_raw.isdigit():
-					error = "Please enter a valid climb number."
-				elif base_raw == "" or penalty_raw == "" or cap_raw == "":
-					error = "Please enter base points, penalty per attempt, and attempt cap for this climb."
-				elif not (
-					base_raw.lstrip("-").isdigit()
-					and penalty_raw.lstrip("-").isdigit()
-					and cap_raw.lstrip("-").isdigit()
-				):
-					error = "Base points, penalty per attempt, and attempt cap must be whole numbers."
-				else:
-					climb_number = int(climb_raw)
-					base_points = int(base_raw)
-					penalty_per_attempt = int(penalty_raw)
-					attempt_cap = int(cap_raw)
-
-					if climb_number <= 0:
-						error = "Climb number must be positive."
-					elif base_points < 0 or penalty_per_attempt < 0 or attempt_cap <= 0:
-						error = "Base points and penalty must be ≥ 0 and attempt cap must be > 0."
-					else:
-						existing = SectionClimb.query.filter_by(
-							section_id=section.id,
-							climb_number=climb_number
-						).first()
-						if existing:
-							error = f"Climb {climb_number} is already in this section."
-						else:
-							sc = SectionClimb(
-								section_id=section.id,
-								climb_number=climb_number,
-								colour=colour or None,
-								base_points=base_points,
-								penalty_per_attempt=penalty_per_attempt,
-								attempt_cap=attempt_cap,
-							)
-							db.session.add(sc)
-							db.session.commit()
-							message = f"Climb {climb_number} added to {section.name}."
-
-			elif action == "delete_climb":
-				climb_id_raw = request.form.get("climb_id", "").strip()
-				if not climb_id_raw.isdigit():
-					error = "Invalid climb selection."
-				else:
-					climb_id = int(climb_id_raw)
-					sc = SectionClimb.query.get(climb_id)
-					if not sc or sc.section_id != section.id:
-						error = "Climb not found in this section."
-					else:
-						# Delete all scores for this climb (for all competitors)
-						Score.query.filter_by(climb_number=sc.climb_number).delete()
-
-						# Then delete the climb config itself
-						db.session.delete(sc)
-						db.session.commit()
-						message = f"Climb {sc.climb_number} removed from {section.name}, and all associated scores were deleted."
-
-			elif action == "delete_section":
-				# Find all climb numbers in this section
-				section_climbs = SectionClimb.query.filter_by(section_id=section.id).all()
-				climb_numbers = [sc.climb_number for sc in section_climbs]
-
-				# Delete all scores for those climbs (for all competitors)
-				if climb_numbers:
-					Score.query.filter(Score.climb_number.in_(climb_numbers)).delete()
-
-				# Delete the section's climbs
-				SectionClimb.query.filter_by(section_id=section.id).delete()
-
-				# Delete the section itself
-				db.session.delete(section)
+		if action == "save_section":
+			name = request.form.get("name", "").strip()
+			if not name:
+				error = "Section name is required."
+			else:
+				section.name = name
 				db.session.commit()
+				message = "Section name updated."
 
-				return redirect("/admin")
+		elif action == "add_climb":
+			climb_raw = request.form.get("climb_number", "").strip()
+			colour = request.form.get("colour", "").strip()
+
+			base_raw = request.form.get("base_points", "").strip()
+			penalty_raw = request.form.get("penalty_per_attempt", "").strip()
+			cap_raw = request.form.get("attempt_cap", "").strip()
+
+			# basic validation
+			if not climb_raw.isdigit():
+				error = "Please enter a valid climb number."
+			elif base_raw == "" or penalty_raw == "" or cap_raw == "":
+				error = "Please enter base points, penalty per attempt, and attempt cap for this climb."
+			elif not (
+				base_raw.lstrip("-").isdigit()
+				and penalty_raw.lstrip("-").isdigit()
+				and cap_raw.lstrip("-").isdigit()
+			):
+				error = "Base points, penalty per attempt, and attempt cap must be whole numbers."
+			else:
+				climb_number = int(climb_raw)
+				base_points = int(base_raw)
+				penalty_per_attempt = int(penalty_raw)
+				attempt_cap = int(cap_raw)
+
+				if climb_number <= 0:
+					error = "Climb number must be positive."
+				elif base_points < 0 or penalty_per_attempt < 0 or attempt_cap <= 0:
+					error = "Base points and penalty must be ≥ 0 and attempt cap must be > 0."
+				else:
+					existing = SectionClimb.query.filter_by(
+						section_id=section.id,
+						climb_number=climb_number
+					).first()
+					if existing:
+						error = f"Climb {climb_number} is already in this section."
+					else:
+						sc = SectionClimb(
+							section_id=section.id,
+							climb_number=climb_number,
+							colour=colour or None,
+							base_points=base_points,
+							penalty_per_attempt=penalty_per_attempt,
+							attempt_cap=attempt_cap,
+						)
+						db.session.add(sc)
+						db.session.commit()
+						message = f"Climb {climb_number} added to {section.name}."
+
+		elif action == "delete_climb":
+			climb_id_raw = request.form.get("climb_id", "").strip()
+			if not climb_id_raw.isdigit():
+				error = "Invalid climb selection."
+			else:
+				climb_id = int(climb_id_raw)
+				sc = SectionClimb.query.get(climb_id)
+				if not sc or sc.section_id != section.id:
+					error = "Climb not found in this section."
+				else:
+					# Delete all scores for this climb (for all competitors)
+					Score.query.filter_by(climb_number=sc.climb_number).delete()
+
+					# Then delete the climb config itself
+					db.session.delete(sc)
+					db.session.commit()
+					message = f"Climb {sc.climb_number} removed from {section.name}, and all associated scores were deleted."
+
+		elif action == "delete_section":
+			# Find all climb numbers in this section
+			section_climbs = SectionClimb.query.filter_by(section_id=section.id).all()
+			climb_numbers = [sc.climb_number for sc in section_climbs]
+
+			# Delete all scores for those climbs (for all competitors)
+			if climb_numbers:
+				Score.query.filter(Score.climb_number.in_(climb_numbers)).delete()
+
+			# Delete the section's climbs
+			SectionClimb.query.filter_by(section_id=section.id).delete()
+
+			# Delete the section itself
+			db.session.delete(section)
+			db.session.commit()
+
+			return redirect("/admin")
 
 	climbs = (
 		SectionClimb.query
@@ -1029,3 +1074,5 @@ if __name__ == "__main__":
 		except Exception:
 			pass
 	app.run(debug=True, port=port)
+
+

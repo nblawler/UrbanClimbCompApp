@@ -17,7 +17,7 @@
 
 		<main class="container">
 
-			<!-- Unified header: big name + pills -->
+			<!-- Unified header -->
 			<header class="comp-header">
 				<h1 class="comp-name">
 					<span class="comp-label">Name:</span>
@@ -38,9 +38,7 @@
 					{% if position is defined and position is not none %}
 						<div class="comp-pill">
 							<span class="comp-pill-label">Position</span>
-							<span class="comp-pill-value" id="position-value">
-								{{ position }}
-							</span>
+							<span class="comp-pill-value" id="position-value">{{ position }}</span>
 						</div>
 					{% endif %}
 				</div>
@@ -49,11 +47,7 @@
 			<section class="card" style="margin-bottom:16px;">
 				<header class="section-header">
 					<h2 class="section-title">
-						{% if section %}
-							{{ section.name }}
-						{% else %}
-							Climbs
-						{% endif %}
+						{% if section %} {{ section.name }} {% else %} Climbs {% endif %}
 					</h2>
 				</header>
 			
@@ -61,46 +55,78 @@
 					{% for n in climbs %}
 						{% set s = existing.get(n) %}
 						{% set max_pts = max_points.get(n) if max_points is defined else None %}
-						<div class="climb-card" data-climb="{{ n }}">
-							<h3>Climb #{{ n }}</h3>
+						{% set col_raw = colours.get(n) if colours is defined else None %}
 
-							{% if colours is defined %}
-								{% set col = colours.get(n) %}
-								{% if col %}
-									<p class="climb-colour">{{ col }}</p>
-								{% endif %}
+						{# --- Background selection (special red, white handling) --- #}
+						{% if col_raw %}
+							{% set lc = col_raw|lower %}
+							{% if lc == "red" %}
+								{% set col_bg = "#b32121" %}
+							{% elif lc in ["white", "#fff", "#ffffff"] %}
+								{% set col_bg = "#ffffff" %}
+							{% else %}
+								{% set col_bg = col_raw %}
+							{% endif %}
+						{% else %}
+							{% set col_bg = None %}
+						{% endif %}
+
+						{# --- TEXT COLOUR: black if white background, else white --- #}
+						{% if col_bg and col_bg|lower in ["white", "#fff", "#ffffff"] %}
+							{% set text_color = "black" %}
+						{% else %}
+							{% set text_color = "white" %}
+						{% endif %}
+						
+						<div
+							class="climb-card"
+							data-climb="{{ n }}"
+							style="
+								background-color: {{ col_bg if col_bg else '#1a1a1a' }};
+								color: var(--climb-text);
+								--climb-text: {{ text_color }};
+							"
+						>
+							<h3 style="color: var(--climb-text);">Climb #{{ n }}</h3>
+
+							{% if col_raw %}
+								<p class="climb-colour" style="color: var(--climb-text);">{{ col_raw }}</p>
 							{% endif %}
 
 							{% if max_pts is not none %}
-								<p style="margin: 4px 0 0;">
+								<p style="margin:4px 0 0; color: var(--climb-text);">
 									Max points: {{ max_pts }}
 								</p>
 							{% endif %}
 
 							<div class="row">
-								<label>Attempts</label>
+								<label style="color: var(--climb-text);">Attempts</label>
 								<input
 									type="number"
 									min="1"
 									max="50"
 									value="{{ s.attempts if s else 1 }}"
 									class="attempts"
+									style="color: var(--climb-text); background:#ffffff30; border-color:#00000040;"
 								/>
 							</div>
 
 							<div class="row">
-								<label class="check">
+								<label class="check" style="color: var(--climb-text);">
 									<input
 										type="checkbox"
 										class="topped"
 										{% if s and s.topped %}checked{% endif %}
 									/>
-									<span>Topped</span>
+									<span style="color: var(--climb-text);">Topped</span>
 								</label>
 							</div>
 
-							<button class="save">Save</button>
-							<div class="status" aria-live="polite"></div>
+							<button class="save" style="color: var(--climb-text); border-color: var(--climb-text);">
+								Save
+							</button>
+
+							<div class="status" aria-live="polite" style="color: var(--climb-text);"></div>
 						</div>
 					{% endfor %}
 				</section>
@@ -157,7 +183,6 @@
 					await res.json();
 					showStatus(status, "Saved");
 
-					// Update total points + position after save
 					await refreshTotalPoints();
 					refreshPosition();
 				} catch (e) {
@@ -165,7 +190,6 @@
 				}
 			}
 
-			// Recompute total points only
 			async function refreshTotalPoints() {
 				try {
 					const res = await fetch(`/api/score/${competitorId}`);
@@ -179,9 +203,7 @@
 					});
 
 					totalEl.textContent = totalPoints;
-				} catch (e) {
-					/* silent */
-				}
+				} catch (e) {}
 			}
 
 			async function refreshPosition() {
@@ -200,9 +222,7 @@
 							break;
 						}
 					}
-				} catch (e) {
-					/* silent */
-				}
+				} catch (e) {}
 			}
 
 			cards.forEach((card) => {
@@ -217,4 +237,3 @@
 		</script>
 	</body>
 </html>
-

@@ -28,7 +28,6 @@
 	<main class="container">
 
 		{% if competitor %}
-			<!-- Unified header: same as other competitor pages -->
 			<header class="comp-header">
 				<h1 class="comp-name">
 					<span class="comp-label">Name:</span>
@@ -76,7 +75,7 @@
 			</section>
 		{% else %}
 
-			<!-- OVERVIEW CARD -->
+			<!-- OVERVIEW -->
 			<section class="stats-card">
 				<h2 class="stats-title">Overview</h2>
 
@@ -93,22 +92,10 @@
 
 				<table class="stats-table overview-table">
 					<tbody>
-						<tr>
-							<th>Total competitors who logged this climb</th>
-							<td>{{ num_competitors }}</td>
-						</tr>
-						<tr>
-							<th>Total attempts</th>
-							<td>{{ total_attempts }}</td>
-						</tr>
-						<tr>
-							<th>Tops</th>
-							<td>{{ tops }}</td>
-						</tr>
-						<tr>
-							<th>Flashes (topped on first attempt)</th>
-							<td>{{ flashes }}</td>
-						</tr>
+						<tr><th>Total competitors who logged this climb</th><td>{{ num_competitors }}</td></tr>
+						<tr><th>Total attempts</th><td>{{ total_attempts }}</td></tr>
+						<tr><th>Tops</th><td>{{ tops }}</td></tr>
+						<tr><th>Flashes (topped on first attempt)</th><td>{{ flashes }}</td></tr>
 						<tr>
 							<th>Top rate</th>
 							<td>
@@ -153,7 +140,7 @@
 				</table>
 			</section>
 
-			<!-- PER-COMPETITOR CARD -->
+			<!-- PER-COMPETITOR -->
 			<section class="stats-card">
 				<h2 class="stats-title">Per-Competitor Breakdown</h2>
 
@@ -165,10 +152,9 @@
 						id="per-comp-controls"
 						style="
 							display:flex;
-							flex-wrap:wrap;
-							gap:8px 16px;
-							justify-content:space-between;
-							align-items:center;
+							flex-direction:column;   /* stack text + buttons */
+							align-items:flex-start;
+							gap:8px;
 							margin:8px 0 10px;
 						"
 					>
@@ -179,16 +165,13 @@
 							{% endif %}
 						</p>
 
-						<div style="display:flex; flex-wrap:wrap; gap:8px 12px; align-items:center;">
-							<label style="display:inline-flex; align-items:center; gap:6px; font-size:0.85rem;">
-								<input type="checkbox" id="filter-topped" />
-								<span>Only topped</span>
-							</label>
-
-							<label style="display:inline-flex; align-items:center; gap:6px; font-size:0.85rem;">
-								<input type="checkbox" id="filter-flashed" />
-								<span>Only flashes</span>
-							</label>
+						<div style="display:flex; flex-wrap:wrap; gap:8px;">
+							<button id="btn-topped" class="filter-btn" type="button">
+								Only Topped
+							</button>
+							<button id="btn-flashed" class="filter-btn" type="button">
+								Only Flashes
+							</button>
 
 							{% if total_rows > default_limit %}
 								<button
@@ -204,13 +187,16 @@
 					</div>
 
 					<div style="max-height:70vh; overflow-y:auto; border-radius:10px;">
-						<div class="stats-table-wrapper per-competitor-wrapper">
-							<table class="stats-table per-competitor-table">
+						<div class="stats-table-wrapper per-competitor-wrapper" style="overflow-x:auto;">
+							<table
+								class="stats-table per-competitor-table"
+								style="width:auto; min-width:0; font-size:0.9rem;"
+							>
 								<thead>
 									<tr>
-										<th>Competitor</th>
-										<th>Attempts</th>
-										<th>Status</th>
+										<th style="white-space:nowrap;">Competitor</th>
+										<th style="white-space:nowrap;">Attempts</th>
+										<th style="white-space:nowrap;">Status</th>
 									</tr>
 								</thead>
 								<tbody id="per-comp-body">
@@ -220,8 +206,8 @@
 											data-topped="{{ 1 if row.topped else 0 }}"
 											data-flash="{{ 1 if row.topped and row.attempts == 1 else 0 }}"
 										>
-											<td>
-												{{ row.name }} ( #{{ row.competitor_id }} )
+											<td style="white-space:nowrap;">
+												{{ row.name }} (#{{ row.competitor_id }})
 											</td>
 											<td>{{ row.attempts }}</td>
 											<td>
@@ -260,22 +246,19 @@
 			const rows = Array.from(document.querySelectorAll(".comp-row"));
 			if (!rows.length) return;
 
-			const btn = document.getElementById("toggle-rows-btn");
-			const filterTopped = document.getElementById("filter-topped");
-			const filterFlashed = document.getElementById("filter-flashed");
+			const btnShowAll = document.getElementById("toggle-rows-btn");
+			const btnTopped = document.getElementById("btn-topped");
+			const btnFlashed = document.getElementById("btn-flashed");
 
 			let showingAll = false;
+			let filterMode = "none"; // "topped", "flashed", "none"
 
 			function rowMatchesFilter(row) {
 				const isTopped = row.dataset.topped === "1";
 				const isFlash = row.dataset.flash === "1";
 
-				if (filterFlashed && filterFlashed.checked) {
-					return isFlash;
-				}
-				if (filterTopped && filterTopped.checked) {
-					return isTopped;
-				}
+				if (filterMode === "flashed") return isFlash;
+				if (filterMode === "topped") return isTopped;
 				return true;
 			}
 
@@ -297,33 +280,51 @@
 					visibleCount++;
 				});
 
-				if (btn) {
-					if (showingAll) {
-						btn.textContent = "Show top " + defaultLimit;
-					} else {
-						btn.textContent = "Show all (" + rows.length + ")";
-					}
+				if (btnShowAll) {
+					btnShowAll.textContent = showingAll
+						? "Show top " + defaultLimit
+						: "Show all (" + rows.length + ")";
 				}
 			}
 
-			if (btn) {
-				btn.addEventListener("click", () => {
-					showingAll = !showingAll;
-					applyState();
-				});
-			}
-
-			if (filterTopped) {
-				filterTopped.addEventListener("change", () => {
-					applyState();
-				});
-			}
-
-			if (filterFlashed) {
-				filterFlashed.addEventListener("change", () => {
-					if (filterFlashed.checked && filterTopped) {
-						filterTopped.checked = false;
+			// Filter buttons
+			if (btnTopped) {
+				btnTopped.addEventListener("click", () => {
+					if (filterMode === "topped") {
+						filterMode = "none";
+					} else {
+						filterMode = "topped";
 					}
+
+					btnTopped.classList.toggle("active", filterMode === "topped");
+					if (btnFlashed) btnFlashed.classList.remove("active");
+
+					// When filtering, show all by default so it feels nice
+					showingAll = true;
+					applyState();
+				});
+			}
+
+			if (btnFlashed) {
+				btnFlashed.addEventListener("click", () => {
+					if (filterMode === "flashed") {
+						filterMode = "none";
+					} else {
+						filterMode = "flashed";
+					}
+
+					btnFlashed.classList.toggle("active", filterMode === "flashed");
+					if (btnTopped) btnTopped.classList.remove("active");
+
+					showingAll = true;
+					applyState();
+				});
+			}
+
+			// Show all / show top toggle
+			if (btnShowAll) {
+				btnShowAll.addEventListener("click", () => {
+					showingAll = !showingAll;
 					applyState();
 				});
 			}

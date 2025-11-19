@@ -8,10 +8,6 @@
 	</head>
 	<body>
 		<nav class="container top-nav">
-			<div class="brand">
-				<span class="brand-mark">🧗‍♂️</span>
-				<span class="brand-name">Urban Climb Comp</span>
-			</div>
 			<div class="nav-links">
 				<a class="back" href="/">Home</a>
 				<a class="back" href="/leaderboard">Leaderboard</a>
@@ -41,14 +37,7 @@
 				</p>
 
 				<form method="post">
-					<label for="password">Admin password</label>
-					<input
-						type="password"
-						id="password"
-						name="password"
-						required
-						placeholder="Enter admin password"
-					/>
+					<!-- No password field here anymore; admin session is already validated -->
 
 					<label for="name" style="margin-top:10px;">Section name</label>
 					<input
@@ -75,6 +64,8 @@
 					<h3>Add climb to this section</h3>
 					<p class="muted">
 						Enter a climb number, optional colour / grade, and the scoring configuration.
+						<br />
+						Each climb number can only exist once across all sections.
 					</p>
 
 					<label for="climb_number">Climb number</label>
@@ -96,7 +87,7 @@
 					/>
 
 					<div style="display:flex; flex-wrap:wrap; gap:12px; margin-top:12px;">
-						<div style="flex:1; min-width:160px;">
+						<div style="flex:1; min-width:140px;">
 							<label for="base_points">Base points</label>
 							<input
 								type="number"
@@ -108,8 +99,8 @@
 							/>
 						</div>
 
-						<div style="flex:1; min-width:160px;">
-							<label for="penalty_per_attempt">Penalty per attempt</label>
+						<div style="flex:1; min-width:140px;">
+							<label for="penalty_per_attempt">Penalty / attempt</label>
 							<input
 								type="number"
 								id="penalty_per_attempt"
@@ -120,7 +111,7 @@
 							/>
 						</div>
 
-						<div style="flex:1; min-width:160px;">
+						<div style="flex:1; min-width:140px;">
 							<label for="attempt_cap">Attempt cap</label>
 							<input
 								type="number"
@@ -148,42 +139,45 @@
 					<h3>Climbs in this section</h3>
 
 					{% if climbs %}
-						<table class="leaderboard">
-							<thead>
-								<tr>
-									<th>Climb #</th>
-									<th>Colour</th>
-									<th>Base</th>
-									<th>Penalty / attempt</th>
-									<th>Attempt cap</th>
-									<th></th>
-								</tr>
-							</thead>
-							<tbody>
-								{% for c in climbs %}
+						<!-- Wrap table in a scrollable container so it fits on smaller screens -->
+						<div style="width:100%; overflow-x:auto;">
+							<table class="leaderboard" style="min-width:520px;">
+								<thead>
 									<tr>
-										<td>{{ c.climb_number }}</td>
-										<td>{{ c.colour or "-" }}</td>
-										<td>{{ c.base_points if c.base_points is not none else "-" }}</td>
-										<td>{{ c.penalty_per_attempt if c.penalty_per_attempt is not none else "-" }}</td>
-										<td>{{ c.attempt_cap if c.attempt_cap is not none else "-" }}</td>
-										<td>
-											<button
-												type="submit"
-												name="action"
-												value="delete_climb"
-												class="primary"
-												style="background:#8b1e1e; padding:6px 10px; font-size:12px;"
-												onclick="this.form.climb_id.value='{{ c.id }}';"
-												formnovalidate
-											>
-												Remove
-											</button>
-										</td>
+										<th>Climb #</th>
+										<th>Colour</th>
+										<th>Base</th>
+										<th>Penalty / att.</th>
+										<th>Attempt cap</th>
+										<th></th>
 									</tr>
-								{% endfor %}
-							</tbody>
-						</table>
+								</thead>
+								<tbody>
+									{% for c in climbs %}
+										<tr>
+											<td>{{ c.climb_number }}</td>
+											<td>{{ c.colour or "-" }}</td>
+											<td>{{ c.base_points if c.base_points is not none else "-" }}</td>
+											<td>{{ c.penalty_per_attempt if c.penalty_per_attempt is not none else "-" }}</td>
+											<td>{{ c.attempt_cap if c.attempt_cap is not none else "-" }}</td>
+											<td>
+												<button
+													type="submit"
+													name="action"
+													value="delete_climb"
+													class="primary"
+													style="background:#8b1e1e; padding:6px 10px; font-size:12px;"
+													onclick="this.form.climb_id.value='{{ c.id }}';"
+													formnovalidate
+												>
+													Remove
+												</button>
+											</td>
+										</tr>
+									{% endfor %}
+								</tbody>
+							</table>
+						</div>
 						<input type="hidden" name="climb_id" value="">
 					{% else %}
 						<p class="muted">No climbs have been added yet.</p>
@@ -211,4 +205,3 @@
 		</main>
 	</body>
 </html>
-

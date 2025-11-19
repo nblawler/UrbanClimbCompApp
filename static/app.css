@@ -827,4 +827,24 @@ a.back:hover {
 	}
 }
 
+/* --- Filter buttons on climb_stats --- */
 
+.filter-btn {
+	padding: 6px 12px;
+	font-size: 0.85rem;
+	border-radius: 8px;
+	border: 1px solid var(--accent);
+	background: var(--accent);   /* green by default */
+	color: #0a0a0a;
+	cursor: pointer;
+	font-weight: 600;
+	transition: 0.15s;
+}
+
+.filter-btn:hover {
+	filter: brightness(1.05);
+}
+
+.filter-btn.active {
+	filter: brightness(1.12);    /* slightly brighter when active */
+}
