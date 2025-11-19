@@ -3,24 +3,70 @@
 <head>
 	<meta charset="utf-8" />
 	<meta name="viewport" content="width=device-width, initial-scale=1" />
-	<title>Climb {{ climb_number }} · Stats</title>
+	<title>
+		{% if competitor %}
+			{{ competitor.name }} · Climb {{ climb_number }} Stats
+		{% else %}
+			Climb {{ climb_number }} · Stats
+		{% endif %}
+	</title>
 	<link rel="stylesheet" href="/static/app.css" />
 </head>
 <body>
 	<nav class="container top-nav">
 		<div class="nav-links">
-			<a class="back" href="/leaderboard">Leaderboard</a>
-			<a class="back" href="javascript:history.back()">Stats</a>
+			{% if competitor %}
+				<a class="back" href="/leaderboard?cid={{ competitor.id }}">Leaderboard</a>
+				<a class="back" href="/competitor/{{ competitor.id }}/sections">Sections</a>
+				<a class="back" href="/competitor/{{ competitor.id }}/stats">Stats</a>
+			{% else %}
+				<a class="back" href="/leaderboard">Leaderboard</a>
+			{% endif %}
 		</div>
 	</nav>
 
 	<main class="container">
 
-		<header class="header" style="margin-bottom: 16px;">
-			<h1 style="margin:0 0 4px 0; font-size:1.9rem;">
+		{% if competitor %}
+			<!-- Unified header: same as other competitor pages -->
+			<header class="comp-header">
+				<h1 class="comp-name">
+					<span class="comp-label">Name:</span>
+					<span class="comp-value">{{ competitor.name }}</span>
+				</h1>
+
+				<div class="comp-meta-row">
+					<div class="comp-pill">
+						<span class="comp-pill-label">Competitor #</span>
+						<span class="comp-pill-value">{{ competitor.id }}</span>
+					</div>
+
+					{% if total_points is not none %}
+						<div class="comp-pill">
+							<span class="comp-pill-label">Points</span>
+							<span class="comp-pill-value">{{ total_points }}</span>
+						</div>
+					{% endif %}
+
+					{% if position is not none %}
+						<div class="comp-pill">
+							<span class="comp-pill-label">Position</span>
+							<span class="comp-pill-value">{{ position }}</span>
+						</div>
+					{% endif %}
+				</div>
+			</header>
+
+			<h2 class="stats-title" style="margin-top: 0;">
 				Climb #{{ climb_number }} Stats
-			</h1>
-		</header>
+			</h2>
+		{% else %}
+			<header class="header" style="margin-bottom: 16px;">
+				<h1 style="margin:0 0 4px 0; font-size:1.9rem;">
+					Climb #{{ climb_number }} Stats
+				</h1>
+			</header>
+		{% endif %}
 
 		{% if not has_config %}
 			<section class="stats-card">
@@ -35,7 +81,7 @@
 				<h2 class="stats-title">Overview</h2>
 
 				<p style="margin: 0 0 6px 0; font-size:0.95rem; color:var(--muted);">
-					Sections:
+					Section:
 					{% if sections %}
 						{% for s in sections %}
 							<span>{{ s.name }}</span>{% if not loop.last %}, {% endif %}

@@ -424,16 +424,40 @@ def competitor_stats(competitor_id):
 def climb_stats(climb_number):
 	"""
 	Global stats for a single climb across all competitors.
-	Shows:
-	- Sections this climb belongs to
-	- Aggregate stats (tops, flashes, attempts, rates)
-	- Per-competitor breakdown
+	Optionally in the context of a specific competitor (?cid=123).
 	"""
+
+	# --- Optional competitor context via ?cid= ---
+	cid_raw = request.args.get("cid", "").strip()
+	competitor = None
+	total_points = None
+	position = None
+
+	if cid_raw.isdigit():
+		competitor = Competitor.query.get(int(cid_raw))
+		if competitor:
+			# total points for this competitor
+			total_points = competitor_total_points(competitor.id)
+
+			# leaderboard position for this competitor
+			rows, _ = build_leaderboard(None)
+			for r in rows:
+				if r["competitor_id"] == competitor.id:
+					position = r["position"]
+					break
+
 	# All section mappings for this climb
 	section_climbs = SectionClimb.query.filter_by(climb_number=climb_number).all()
 	if not section_climbs:
-		# If the climb isn't configured at all, 404-ish but with a friendly message
-		return render_template("climb_stats.html", climb_number=climb_number, has_config=False)
+		# If the climb isn't configured at all, show not-configured message
+		return render_template(
+			"climb_stats.html",
+			climb_number=climb_number,
+			has_config=False,
+			competitor=competitor,
+			total_points=total_points,
+			position=position,
+		)
 
 	section_ids = {sc.section_id for sc in section_climbs}
 	sections = Section.query.filter(Section.id.in_(section_ids)).all()
@@ -495,6 +519,9 @@ def climb_stats(climb_number):
 		avg_attempts_per_comp=avg_attempts_per_comp,
 		avg_attempts_on_tops=avg_attempts_on_tops,
 		per_competitor=per_competitor,
+		competitor=competitor,
+		total_points=total_points,
+		position=position,
 	)
 
 

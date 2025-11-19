@@ -90,7 +90,7 @@
 				<h3 class="heatmap-section-title">{{ sec.section.name }}</h3>
 				<div class="heatmap-grid">
 					{% for c in sec.climbs %}
-						<a href="/climb/{{ c.climb_number }}/stats" class="heat-cell-link">
+						<a href="/climb/{{ c.climb_number }}/stats?cid={{ competitor.id }}" class="heat-cell-link">
 							<div class="heat-cell status-{{ c.status }}">
 								{{ c.climb_number }}
 							</div>
@@ -126,7 +126,7 @@
 				<h3 class="heatmap-section-title">{{ sec.section.name }}</h3>
 				<div class="heatmap-grid">
 					{% for c in sec.climbs %}
-						<a href="/climb/{{ c.climb_number }}/stats" class="heat-cell-link">
+						<a href="/climb/{{ c.climb_number }}/stats?cid={{ competitor.id }}" class="heat-cell-link">
 							<div class="heat-cell {{ c.status }}">
 								{{ c.climb_number }}
 							</div>
@@ -154,4 +154,3 @@
 	</main>
 </body>
 </html>
-
