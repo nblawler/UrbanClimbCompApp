@@ -13,14 +13,18 @@
 	<link rel="stylesheet" href="/static/app.css" />
 </head>
 <body>
+	{% set viewer_id = session.get('competitor_id') %}
 	<nav class="container top-nav">
 		<div class="nav-links">
-			{% if competitor %}
-				<a class="back" href="/leaderboard?cid={{ competitor.id }}">Leaderboard</a>
-				<a class="back" href="/competitor/{{ competitor.id }}/sections">Sections</a>
-				<a class="back" href="/competitor/{{ competitor.id }}/stats">Stats</a>
-			{% else %}
-				<a class="back" href="/leaderboard">Leaderboard</a>
+			<a
+				class="back"
+				href="/leaderboard{% if viewer_id %}?cid={{ viewer_id }}{% endif %}"
+			>
+				Leaderboard
+			</a>
+			{% if viewer_id %}
+				<a class="back" href="/competitor/{{ viewer_id }}/sections">Sections</a>
+				<a class="back" href="/competitor/{{ viewer_id }}/stats">Stats</a>
 			{% endif %}
 		</div>
 	</nav>
@@ -127,7 +131,7 @@
 							</td>
 						</tr>
 						<tr>
-							<th>Avg attempts on topped climbs</th>
+							<th>Avg attempts per competitor who topped</th>
 							<td>
 								{% if tops %}
 									{{ avg_attempts_on_tops | round(2) }}
@@ -152,7 +156,7 @@
 						id="per-comp-controls"
 						style="
 							display:flex;
-							flex-direction:column;   /* stack text + buttons */
+							flex-direction:column;
 							align-items:flex-start;
 							gap:8px;
 							margin:8px 0 10px;
@@ -299,7 +303,7 @@
 					btnTopped.classList.toggle("active", filterMode === "topped");
 					if (btnFlashed) btnFlashed.classList.remove("active");
 
-					// When filtering, show all by default so it feels nice
+					// When filtering, show all by default
 					showingAll = true;
 					applyState();
 				});

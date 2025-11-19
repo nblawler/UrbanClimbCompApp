@@ -7,14 +7,15 @@
 	<link rel="stylesheet" href="/static/app.css" />
 </head>
 <body>
+	{% set viewer_id = session.get('competitor_id') %}
 	<nav class="container top-nav">
 		<div class="nav-links">
-			{% if competitor %}
-				<a class="back" href="/leaderboard?cid={{ competitor.id }}">Leaderboard</a>
-				<a class="back" href="/competitor/{{ competitor.id }}/sections">Sections</a>
-				<a class="back" href="/competitor/{{ competitor.id }}/stats">Stats</a>
-			{% else %}
-				<a class="back" href="/leaderboard">Leaderboard</a>
+			<a class="back" href="/leaderboard{% if viewer_id %}?cid={{ viewer_id }}{% endif %}">
+				Leaderboard
+			</a>
+			{% if viewer_id %}
+				<a class="back" href="/competitor/{{ viewer_id }}/sections">Sections</a>
+				<a class="back" href="/competitor/{{ viewer_id }}/stats">Stats</a>
 			{% endif %}
 		</div>
 	</nav>
@@ -35,28 +36,28 @@
 			<!-- Category tabs (All + Male + Female + Inclusive) -->
 			<div class="section-tabs" style="margin-top:6px;">
 				<a
-					href="/leaderboard{% if competitor %}?cid={{ competitor.id }}{% endif %}"
+					href="/leaderboard{% if viewer_id %}?cid={{ viewer_id }}{% endif %}"
 					class="section-tab{% if category == 'All' %} active{% endif %}"
 				>
 					<span class="section-tab-title">All</span>
 				</a>
 
 				<a
-					href="/leaderboard/male{% if competitor %}?cid={{ competitor.id }}{% endif %}"
+					href="/leaderboard/male{% if viewer_id %}?cid={{ viewer_id }}{% endif %}"
 					class="section-tab{% if category == 'Male' %} active{% endif %}"
 				>
 					<span class="section-tab-title">Male</span>
 				</a>
 
 				<a
-					href="/leaderboard/female{% if competitor %}?cid={{ competitor.id }}{% endif %}"
+					href="/leaderboard/female{% if viewer_id %}?cid={{ viewer_id }}{% endif %}"
 					class="section-tab{% if category == 'Female' %} active{% endif %}"
 				>
 					<span class="section-tab-title">Female</span>
 				</a>
 
 				<a
-					href="/leaderboard/inclusive{% if competitor %}?cid={{ competitor.id }}{% endif %}"
+					href="/leaderboard/inclusive{% if viewer_id %}?cid={{ viewer_id }}{% endif %}"
 					class="section-tab{% if category == 'Gender Inclusive' %} active{% endif %}"
 				>
 					<span class="section-tab-title">Inclusive</span>
@@ -64,37 +65,41 @@
 			</div>
 		</header>
 
-		<!-- Wrapper so leaderboard fills the screen nicely and scrolls horizontally if needed -->
-		<div class="leaderboard-wrapper">
-			<div class="stats-table-wrapper" style="margin-top:4px;">
-				<table class="leaderboard">
-					<thead>
+		<!-- Scrollable wrapper so the leaderboard never overflows the page -->
+		<div class="stats-table-wrapper" style="margin-top:4px;">
+			<table class="leaderboard">
+				<thead>
+					<tr>
+						<th>Pos</th>
+						<th>Competitor</th>
+						<th>Tops</th>
+						<th>Attempts</th>
+						<th>Points</th>
+					</tr>
+				</thead>
+				<tbody id="leaderboard-body">
+					{# Initial server-rendered rows so page works without JS #}
+					{% for row in leaderboard %}
 						<tr>
-							<th>Pos</th>
-							<th>Competitor</th>
-							<th>Tops</th>
-							<th>Attempts</th>
-							<th>Points</th>
-						</tr>
-					</thead>
-					<tbody id="leaderboard-body">
-						{# Initial server-rendered rows so page works without JS #}
-						{% for row in leaderboard %}
-							<tr>
-								<td>{{ row.position }}</td>
-								<td>
+							<td>{{ row.position }}</td>
+							<td>
+								{% if current_competitor_id and row.competitor_id == current_competitor_id %}
 									<a href="/competitor/{{ row.competitor_id }}/stats">
 										{{ row.name }}
 									</a>
-								</td>
-								<td>{{ row.tops }}</td>
-								<td>{{ row.attempts_on_tops }}</td>
-								<td>{{ row.total_points }}</td>
-							</tr>
-						{% endfor %}
-					</tbody>
-				</table>
-			</div>
+								{% else %}
+									<a href="/competitor/{{ row.competitor_id }}/stats?view=public">
+										{{ row.name }}
+									</a>
+								{% endif %}
+							</td>
+							<td>{{ row.tops }}</td>
+							<td>{{ row.attempts_on_tops }}</td>
+							<td>{{ row.total_points }}</td>
+						</tr>
+					{% endfor %}
+				</tbody>
+			</table>
 		</div>
 
 	</main>
@@ -130,30 +135,26 @@
 				rows.forEach((r) => {
 					const tr = document.createElement("tr");
 
-					// Pos
 					const tdPos = document.createElement("td");
 					tdPos.textContent = r.position;
 					tr.appendChild(tdPos);
 
-					// Name (clickable to competitor stats)
 					const tdName = document.createElement("td");
-					const link = document.createElement("a");
-					link.href = `/competitor/${r.competitor_id}/stats`;
-					link.textContent = r.name;
-					tdName.appendChild(link);
+					// JS refresh uses public view links so no one accidentally gets edit access
+					const a = document.createElement("a");
+					a.href = `/competitor/${r.competitor_id}/stats?view=public`;
+					a.textContent = r.name;
+					tdName.appendChild(a);
 					tr.appendChild(tdName);
 
-					// Tops
 					const tdTops = document.createElement("td");
 					tdTops.textContent = r.tops;
 					tr.appendChild(tdTops);
 
-					// Attempts on tops
 					const tdAttempts = document.createElement("td");
 					tdAttempts.textContent = r.attempts_on_tops;
 					tr.appendChild(tdAttempts);
 
-					// Points
 					const tdPoints = document.createElement("td");
 					tdPoints.textContent = r.total_points;
 					tr.appendChild(tdPoints);
@@ -169,7 +170,7 @@
 					catLabel.textContent = data.category;
 				}
 			} catch (e) {
-				// display-only
+				// display-only error; ignore
 			}
 		}
 

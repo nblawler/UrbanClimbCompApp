@@ -300,7 +300,17 @@ def competitor_stats(competitor_id):
 	comp = Competitor.query.get_or_404(competitor_id)
 	total_points = competitor_total_points(competitor_id)
 
-	# --- NEW: get leaderboard position for this competitor ---
+	# Who is viewing?
+	view_mode = request.args.get("view", "").lower()
+	viewer_id = session.get("competitor_id")
+	viewer_is_self = (viewer_id == competitor_id)
+
+	# Spectator mode ONLY when:
+	# - URL has ?view=public
+	# - and viewer is NOT this competitor
+	is_public_view = (view_mode == "public" and not viewer_is_self)
+
+	# --- get leaderboard position for this competitor ---
 	rows, _ = build_leaderboard(None)
 	position = None
 	for r in rows:
@@ -434,12 +444,14 @@ def competitor_stats(competitor_id):
 		"competitor_stats.html",
 		competitor=comp,
 		total_points=total_points,
-		position=position,  # <--- pass through
+		position=position,
 		section_stats=section_stats,
 		heatmap_sections=personal_heatmap_sections,
 		global_heatmap_sections=global_heatmap_sections,
+		is_public_view=is_public_view,
+		viewer_id=viewer_id,
+		viewer_is_self=viewer_is_self,
 	)
-
 
 
 # --- Per-climb stats page (global) ---
@@ -769,35 +781,41 @@ def api_get_scores(competitor_id):
 
 @app.route("/leaderboard")
 def leaderboard_all():
-	# Optional competitor context via ?cid=123
+	# Optional competitor context via ?cid=123 (used mainly for back-links)
 	cid_raw = request.args.get("cid", "").strip()
 	competitor = None
 	if cid_raw.isdigit():
 		competitor = Competitor.query.get(int(cid_raw))
 
 	rows, category_label = build_leaderboard(None)
+	current_competitor_id = session.get("competitor_id")
+
 	return render_template(
 		"leaderboard.html",
 		leaderboard=rows,
 		category=category_label,
 		competitor=competitor,
+		current_competitor_id=current_competitor_id,
 	)
 
 
 @app.route("/leaderboard/<category>")
 def leaderboard_by_category(category):
-	# Optional competitor context via ?cid=123
+	# Optional competitor context via ?cid=123 (used mainly for back-links)
 	cid_raw = request.args.get("cid", "").strip()
 	competitor = None
 	if cid_raw.isdigit():
 		competitor = Competitor.query.get(int(cid_raw))
 
 	rows, category_label = build_leaderboard(category)
+	current_competitor_id = session.get("competitor_id")
+
 	return render_template(
 		"leaderboard.html",
 		leaderboard=rows,
 		category=category_label,
 		competitor=competitor,
+		current_competitor_id=current_competitor_id,
 	)
 
 
@@ -1074,5 +1092,3 @@ if __name__ == "__main__":
 		except Exception:
 			pass
 	app.run(debug=True, port=port)
-
-

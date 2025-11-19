@@ -7,11 +7,20 @@
 		<link rel="stylesheet" href="/static/app.css" />
 	</head>
 	<body>
+		{# Unified nav based on viewer_id from session #}
+		{% set viewer_id = session.get('competitor_id') %}
 		<nav class="container top-nav">
 			<div class="nav-links">
-				<a class="back" href="/leaderboard?cid={{ competitor.id }}">Leaderboard</a>
-				<a class="back" href="/competitor/{{ competitor.id }}/sections">Sections</a>
-				<a class="back" href="/competitor/{{ competitor.id }}/stats">Stats</a>
+				<a
+					class="back"
+					href="/leaderboard{% if viewer_id %}?cid={{ viewer_id }}{% endif %}"
+				>
+					Leaderboard
+				</a>
+				{% if viewer_id %}
+					<a class="back" href="/competitor/{{ viewer_id }}/sections">Sections</a>
+					<a class="back" href="/competitor/{{ viewer_id }}/stats">Stats</a>
+				{% endif %}
 			</div>
 		</nav>
 
@@ -90,7 +99,9 @@
 							<h3 style="color: var(--climb-text);">Climb #{{ n }}</h3>
 
 							{% if col_raw %}
-								<p class="climb-colour" style="color: var(--climb-text);">{{ col_raw }}</p>
+								<p class="climb-colour" style="color: var(--climb-text);">
+									{{ col_raw }}
+								</p>
 							{% endif %}
 
 							{% if max_pts is not none %}
