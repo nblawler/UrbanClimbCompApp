@@ -145,7 +145,7 @@ a.back:hover {
 /* Name line */
 .comp-name {
 	margin: 0;
-	font-size: 1.4rem;        /* tweak this if you want bigger/smaller */
+	font-size: 1.4rem;
 	font-weight: 800;
 	display: flex;
 	flex-wrap: wrap;
@@ -282,7 +282,7 @@ a.back:hover {
 	border-radius:8px;
 	border:1px solid #333;
 	background:#111316;
-	color:var(--text);
+	color: var(--text);
 }
 
 /* checkbox + label inline */
@@ -505,6 +505,25 @@ a.back:hover {
 .leaderboard a:hover {
 	color:#7fffa4;
 	text-decoration:underline;
+}
+
+/* Center the numeric columns on the leaderboard:
+   Tops (3), Attempts (4), Points (5) */
+.leaderboard th:nth-child(3),
+.leaderboard td:nth-child(3),
+.leaderboard th:nth-child(4),
+.leaderboard td:nth-child(4),
+.leaderboard th:nth-child(5),
+.leaderboard td:nth-child(5) {
+	text-align: center;
+}
+
+/* Wrapper so the leaderboard fills the viewport nicely even with few rows */
+.leaderboard-wrapper {
+	min-height: calc(100vh - 160px); /* adjust if nav/header height changes */
+	display: flex;
+	flex-direction: column;
+	justify-content: flex-start;
 }
 
 /* --- Section tabs / buttons (competitor + section selection) --- */

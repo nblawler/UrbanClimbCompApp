@@ -64,29 +64,38 @@
 			</div>
 		</header>
 
-		<table class="leaderboard">
-			<thead>
-				<tr>
-					<th>Pos</th>
-					<th>Competitor</th>
-					<th>Tops</th>
-					<th>Attempts</th>
-					<th>Points</th>
-				</tr>
-			</thead>
-			<tbody id="leaderboard-body">
-				{# Initial server-rendered rows so page works without JS #}
-				{% for row in leaderboard %}
-					<tr>
-						<td>{{ row.position }}</td>
-						<td>{{ row.name }}</td>
-						<td>{{ row.tops }}</td>
-						<td>{{ row.attempts_on_tops }}</td>
-						<td>{{ row.total_points }}</td>
-					</tr>
-				{% endfor %}
-			</tbody>
-		</table>
+		<!-- Wrapper so leaderboard fills the screen nicely and scrolls horizontally if needed -->
+		<div class="leaderboard-wrapper">
+			<div class="stats-table-wrapper" style="margin-top:4px;">
+				<table class="leaderboard">
+					<thead>
+						<tr>
+							<th>Pos</th>
+							<th>Competitor</th>
+							<th>Tops</th>
+							<th>Attempts</th>
+							<th>Points</th>
+						</tr>
+					</thead>
+					<tbody id="leaderboard-body">
+						{# Initial server-rendered rows so page works without JS #}
+						{% for row in leaderboard %}
+							<tr>
+								<td>{{ row.position }}</td>
+								<td>
+									<a href="/competitor/{{ row.competitor_id }}/stats">
+										{{ row.name }}
+									</a>
+								</td>
+								<td>{{ row.tops }}</td>
+								<td>{{ row.attempts_on_tops }}</td>
+								<td>{{ row.total_points }}</td>
+							</tr>
+						{% endfor %}
+					</tbody>
+				</table>
+			</div>
+		</div>
 
 	</main>
 
@@ -126,9 +135,12 @@
 					tdPos.textContent = r.position;
 					tr.appendChild(tdPos);
 
-					// Name
+					// Name (clickable to competitor stats)
 					const tdName = document.createElement("td");
-					tdName.textContent = r.name;
+					const link = document.createElement("a");
+					link.href = `/competitor/${r.competitor_id}/stats`;
+					link.textContent = r.name;
+					tdName.appendChild(link);
 					tr.appendChild(tdName);
 
 					// Tops
