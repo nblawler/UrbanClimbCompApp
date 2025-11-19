@@ -69,7 +69,6 @@
 				<tr>
 					<th>Pos</th>
 					<th>Competitor</th>
-					<th>Gender</th>
 					<th>Tops</th>
 					<th>Attempts</th>
 					<th>Points</th>
@@ -81,7 +80,6 @@
 					<tr>
 						<td>{{ row.position }}</td>
 						<td>{{ row.name }}</td>
-						<td>{{ row.gender }}</td>
 						<td>{{ row.tops }}</td>
 						<td>{{ row.attempts_on_tops }}</td>
 						<td>{{ row.total_points }}</td>
@@ -132,11 +130,6 @@
 					const tdName = document.createElement("td");
 					tdName.textContent = r.name;
 					tr.appendChild(tdName);
-
-					// Gender
-					const tdGender = document.createElement("td");
-					tdGender.textContent = r.gender;
-					tr.appendChild(tdGender);
 
 					// Tops
 					const tdTops = document.createElement("td");

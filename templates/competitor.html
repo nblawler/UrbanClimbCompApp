@@ -17,35 +17,32 @@
 
 		<main class="container">
 
-			<header class="header competitor-header">
-				<div>
-					<h1 class="competitor-header-top">
-						<!-- LEFT: Name block -->
-						<span class="competitor-name-block">
-							<strong>Name:</strong> {{ competitor.name }}
-						</span>
+			<!-- Unified header: big name + pills -->
+			<header class="comp-header">
+				<h1 class="comp-name">
+					<span class="comp-label">Name:</span>
+					<span class="comp-value">{{ competitor.name }}</span>
+				</h1>
 
-						<!-- RIGHT: Points + Position grouped -->
-						<div class="competitor-score-block">
-							<span class="competitor-points">
-								<strong>Points:</strong>
-								<span id="total-points">{{ total_points }}</span>
+				<div class="comp-meta-row">
+					<div class="comp-pill">
+						<span class="comp-pill-label">Competitor #</span>
+						<span class="comp-pill-value">{{ competitor.id }}</span>
+					</div>
+
+					<div class="comp-pill">
+						<span class="comp-pill-label">Points</span>
+						<span class="comp-pill-value" id="total-points">{{ total_points }}</span>
+					</div>
+
+					{% if position is defined and position is not none %}
+						<div class="comp-pill">
+							<span class="comp-pill-label">Position</span>
+							<span class="comp-pill-value" id="position-value">
+								{{ position }}
 							</span>
-
-							{% if position is defined and position is not none %}
-								<span
-									class="competitor-position"
-									id="position-value"
-								>
-									<strong>Position:</strong> {{ position }}
-								</span>
-							{% endif %}
 						</div>
-					</h1>
-
-					<p class="competitor-id-line">
-						Competitor #{{ competitor.id }}
-					</p>
+					{% endif %}
 				</div>
 			</header>
 
@@ -168,7 +165,7 @@
 				}
 			}
 
-			// New: only recompute total points, no summary list
+			// Recompute total points only
 			async function refreshTotalPoints() {
 				try {
 					const res = await fetch(`/api/score/${competitorId}`);
@@ -194,12 +191,12 @@
 
 					if (!data.rows) return;
 
-					const posSpan = document.getElementById("position-value");
-					if (!posSpan) return;
+					const posValue = document.getElementById("position-value");
+					if (!posValue) return;
 
 					for (const row of data.rows) {
 						if (row.competitor_id === competitorId) {
-							posSpan.textContent = "Position: " + row.position;
+							posValue.textContent = row.position;
 							break;
 						}
 					}
@@ -220,3 +217,4 @@
 		</script>
 	</body>
 </html>
+

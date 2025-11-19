@@ -68,9 +68,52 @@ body {
 
 .header {
 	display:flex;
-	align-items:center;
+	align-items:flex-start;
 	justify-content:space-between;
+	flex-wrap:wrap;
+	row-gap:4px;
 	margin-bottom:16px;
+}
+
+/* header helper layout for Name/Competitor # vs Points/Position */
+.header-column {
+	display:flex;
+	flex-direction:column;
+	gap:2px;
+}
+
+.header-column.right {
+	text-align:right;
+}
+
+.header-line-main,
+.header-line-sub {
+	display:flex;
+	align-items:baseline;
+	gap:6px;
+}
+
+.header-line-main {
+	font-size:1.9rem;
+	font-weight:700;
+}
+
+.header-line-sub {
+	font-size:1.1rem;
+	color:var(--muted);
+}
+
+.header-column.right .header-line-main,
+.header-column.right .header-line-sub {
+	justify-content:flex-end;
+}
+
+.header-label {
+	font-weight:700;
+}
+
+.header-name {
+	overflow-wrap:anywhere;
 }
 
 .back {
@@ -88,6 +131,86 @@ a.back:hover {
 	border-radius:12px;
 	padding:16px;
 	box-shadow:0 8px 24px rgba(0,0,0,0.25);
+}
+
+/* --- Unified competitor header: big name + stat pills --- */
+
+.comp-header {
+	margin-bottom: 20px;
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+
+/* Name line */
+.comp-name {
+	margin: 0;
+	font-size: 1.4rem;        /* tweak this if you want bigger/smaller */
+	font-weight: 800;
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+	align-items: baseline;
+}
+
+.comp-label {
+	font-weight: 700;
+}
+
+.comp-value {
+	overflow-wrap: anywhere;  /* long names won’t break layout */
+}
+
+/* Stats row (Competitor #, Points, Position) */
+.comp-meta-row {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 12px;
+}
+
+/* Pill style – centered label + value */
+.comp-pill {
+	background: #1c1f24;
+	border: 1px solid #2f353d;
+	padding: 10px 18px;
+	border-radius: 14px;
+
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+
+	min-width: 110px;       /* keeps pills consistent width */
+}
+
+.comp-pill-label {
+	font-size: 0.70rem;
+	color: var(--muted);
+	text-transform: uppercase;
+	letter-spacing: 1px;
+	margin-bottom: 2px;
+}
+
+.comp-pill-value {
+	font-size: 1.1rem;
+	font-weight: 700;
+	color: var(--text);
+}
+
+/* On very small screens, keep things readable */
+@media (max-width: 480px) {
+	.comp-name {
+		font-size: 1.25rem;
+	}
+
+	.comp-pill {
+		padding: 8px 12px;
+		min-width: 95px;
+	}
+
+	.comp-pill-value {
+		font-size: 1rem;
+	}
 }
 
 /* --- Forms & inputs --- */
@@ -142,7 +265,7 @@ a.back:hover {
 .climb-colour {
 	margin:4px 0 6px;
 	color:var(--text);
-	font-size:1.1rem;      /* match Climb X */
+	font-size:1.1rem;
 	font-weight:600;
 }
 
@@ -478,7 +601,7 @@ a.back:hover {
 	padding: 16px 20px;
 	margin-bottom: 20px;
 	box-shadow: 0 12px 30px rgba(0,0,0,0.35);
-	overflow:hidden; /* keep contents (like numbers) inside rounded card */
+	overflow:hidden; /* keep contents inside rounded card */
 }
 
 .stats-title {
@@ -511,36 +634,54 @@ a.back:hover {
 	background: rgba(255,255,255,0.02);
 }
 
-/* Per-competitor / general stats tables –
-   wrap first column, let others align by type */
+/* Allow first column (usually names/sections) to wrap nicely */
 .stats-table tbody td:first-child {
 	white-space: normal;
 	overflow-wrap: break-word;
-	max-width: 180px; /* stops super long names eating the whole row */
+	max-width: 180px;
 }
 
-/* Attempts column – centred */
-.stats-table th:nth-child(2),
-.stats-table td:nth-child(2) {
-	text-align: center;
-	white-space: nowrap;
-}
+/* --- Performance by Section table (competitor_stats) ---
+   All numeric columns aligned like Efficiency (right-aligned) */
 
-/* Status column – left aligned (keeps text close to header) */
-.stats-table th:nth-child(3),
-.stats-table td:nth-child(3) {
-	text-align: left;
-	white-space: nowrap;
-}
-
-/* Points column – right aligned, numbers line up neatly */
-.stats-table th:nth-child(4),
-.stats-table td:nth-child(4) {
+.section-performance-table th:nth-child(2),
+.section-performance-table td:nth-child(2),
+.section-performance-table th:nth-child(3),
+.section-performance-table td:nth-child(3),
+.section-performance-table th:nth-child(4),
+.section-performance-table td:nth-child(4),
+.section-performance-table th:nth-child(5),
+.section-performance-table td:nth-child(5) {
 	text-align: right;
 	white-space: nowrap;
 }
 
-/* Overview table: wrap labels, keep numbers inside/right-aligned */
+/* --- Per-competitor breakdown (climb_stats) ---
+   No horizontal scroll, table only as wide as content, columns closer */
+
+.per-competitor-container .stats-table-wrapper {
+	overflow-x: visible;    /* no sideways scroll */
+}
+
+.per-competitor-container .stats-table {
+	width: auto;            /* don't stretch to full card width */
+	min-width: 0;           /* allow shrinking on phone */
+}
+
+/* keep simple alignment only */
+.per-competitor-table th:nth-child(2),
+.per-competitor-table td:nth-child(2) {
+	text-align: right;      /* Attempts */
+	white-space: nowrap;
+}
+
+.per-competitor-table th:nth-child(3),
+.per-competitor-table td:nth-child(3) {
+	text-align: left;       /* Status */
+	white-space: normal;    /* can wrap if needed */
+}
+
+/* Overview table: wrap labels, keep numbers snug on the right */
 .overview-table {
 	table-layout: fixed;
 }
@@ -672,7 +813,7 @@ a.back:hover {
 	-webkit-overflow-scrolling: touch;
 }
 
-/* Give wrapped tables a sensible minimum width so columns don’t squish */
+/* default min-width for big tables; per-competitor overrides this */
 .stats-table-wrapper .stats-table {
 	min-width: 480px;
 }
@@ -685,3 +826,5 @@ a.back:hover {
 		font-size: 0.85rem;
 	}
 }
+
+

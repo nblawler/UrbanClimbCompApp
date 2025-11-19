@@ -18,58 +18,39 @@
 
 	<main class="container">
 
-		<header
-			class="header"
-			style="
-				margin-bottom: 10px;
-				display:flex;
-				flex-direction:column;
-				align-items:flex-start;
-				row-gap:4px;
-			"
-		>
+		<!-- Unified header: same as competitor.html -->
+		<header class="comp-header">
+			<h1 class="comp-name">
+				<span class="comp-label">Name:</span>
+				<span class="comp-value">{{ competitor.name }}</span>
+			</h1>
 
-			<!-- LINE 1: NAME -->
-			<div
-				style="
-					font-size:1.9rem;
-					display:grid;
-					grid-template-columns:auto minmax(0, 1fr);
-					column-gap:6px;
-					row-gap:4px;
-					align-items:baseline;
-				"
-			>
-				<span><strong>Name:</strong></span>
-				<span style="overflow-wrap:anywhere;">
-					{{ competitor.name }}
-				</span>
+			<div class="comp-meta-row">
+				<div class="comp-pill">
+					<span class="comp-pill-label">Competitor #</span>
+					<span class="comp-pill-value">{{ competitor.id }}</span>
+				</div>
+
+				<div class="comp-pill">
+					<span class="comp-pill-label">Points</span>
+					<span class="comp-pill-value" id="total-points">{{ total_points }}</span>
+				</div>
+
+				{% if position is not none %}
+					<div class="comp-pill">
+						<span class="comp-pill-label">Position</span>
+						<span class="comp-pill-value">{{ position }}</span>
+					</div>
+				{% endif %}
 			</div>
-
-			<!-- LINE 2: POINTS + COMPETITOR # -->
-			<div
-				style="
-					font-size:1.3rem;
-					display:flex;
-					gap:24px;
-					flex-wrap:wrap;
-				"
-			>
-				<span style="display:inline-flex; align-items:baseline; gap:6px;">
-					<strong>Points:</strong> {{ total_points }}
-				</span>
-
-				<span style="display:inline-flex; align-items:baseline; gap:6px;">
-					<strong>Competitor #:</strong> {{ competitor.id }}
-				</span>
-			</div>
-
 		</header>
 
-		<!-- Section buttons -->
 		<section class="section-grid">
 			{% for s in sections %}
-				<a href="/competitor/{{ competitor.id }}/section/{{ s.slug }}" class="section-btn-big">
+				<a
+					href="/competitor/{{ competitor.id }}/section/{{ s.slug }}"
+					class="section-btn-big"
+				>
 					{{ s.name }}
 				</a>
 			{% endfor %}

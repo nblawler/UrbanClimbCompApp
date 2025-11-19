@@ -234,7 +234,8 @@ def enter_competitor():
 @app.route("/competitor/<int:competitor_id>")
 def competitor_redirect(competitor_id):
 	# Backwards compatibility: redirect plain competitor URL to sections
-	return redirect(f"/competitor/{competitor_id}/sections")
+	_return = redirect(f"/competitor/{competitor_id}/sections")
+	return _return
 
 
 @app.route("/competitor/<int:competitor_id>/sections")
@@ -242,11 +243,21 @@ def competitor_sections(competitor_id):
 	comp = Competitor.query.get_or_404(competitor_id)
 	sections = Section.query.order_by(Section.name).all()
 	total_points = competitor_total_points(competitor_id)
+
+	# Leaderboard position for this competitor
+	rows, _ = build_leaderboard(None)
+	position = None
+	for r in rows:
+		if r["competitor_id"] == competitor_id:
+			position = r["position"]
+			break
+
 	return render_template(
 		"competitor_sections.html",
 		competitor=comp,
 		sections=sections,
 		total_points=total_points,
+		position=position,
 	)
 
 
@@ -263,6 +274,14 @@ def competitor_stats(competitor_id):
 	"""
 	comp = Competitor.query.get_or_404(competitor_id)
 	total_points = competitor_total_points(competitor_id)
+
+	# --- NEW: get leaderboard position for this competitor ---
+	rows, _ = build_leaderboard(None)
+	position = None
+	for r in rows:
+		if r["competitor_id"] == competitor_id:
+			position = r["position"]
+			break
 
 	sections = Section.query.order_by(Section.name).all()
 
@@ -390,10 +409,12 @@ def competitor_stats(competitor_id):
 		"competitor_stats.html",
 		competitor=comp,
 		total_points=total_points,
+		position=position,  # <--- pass through
 		section_stats=section_stats,
 		heatmap_sections=personal_heatmap_sections,
 		global_heatmap_sections=global_heatmap_sections,
 	)
+
 
 
 # --- NEW: Per-climb stats page (global) ---

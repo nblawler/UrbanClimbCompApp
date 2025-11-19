@@ -30,6 +30,7 @@
 			</section>
 		{% else %}
 
+			<!-- OVERVIEW CARD -->
 			<section class="stats-card">
 				<h2 class="stats-title">Overview</h2>
 
@@ -44,7 +45,6 @@
 					{% endif %}
 				</p>
 
-				<!-- OVERVIEW: labels wrap, numbers snug -->
 				<table class="stats-table overview-table">
 					<tbody>
 						<tr>
@@ -107,6 +107,7 @@
 				</table>
 			</section>
 
+			<!-- PER-COMPETITOR CARD -->
 			<section class="stats-card">
 				<h2 class="stats-title">Per-Competitor Breakdown</h2>
 
@@ -157,14 +158,13 @@
 					</div>
 
 					<div style="max-height:70vh; overflow-y:auto; border-radius:10px;">
-						<div class="stats-table-wrapper">
-							<table class="stats-table">
+						<div class="stats-table-wrapper per-competitor-wrapper">
+							<table class="stats-table per-competitor-table">
 								<thead>
 									<tr>
 										<th>Competitor</th>
 										<th>Attempts</th>
 										<th>Status</th>
-										<th>Points</th>
 									</tr>
 								</thead>
 								<tbody id="per-comp-body">
@@ -189,7 +189,6 @@
 													Not topped
 												{% endif %}
 											</td>
-											<td>{{ row.points }}</td>
 										</tr>
 									{% endfor %}
 								</tbody>

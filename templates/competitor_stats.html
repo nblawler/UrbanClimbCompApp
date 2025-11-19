@@ -18,56 +18,71 @@
 
 	<main class="container">
 
-		<header class="header" style="margin-bottom: 16px;">
-			<h1 style="margin:0 0 4px 0; font-size:1.9rem;">
-				<strong>Name:</strong> {{ competitor.name }}
+		<!-- Unified header: same as competitor.html -->
+		<header class="comp-header">
+			<h1 class="comp-name">
+				<span class="comp-label">Name:</span>
+				<span class="comp-value">{{ competitor.name }}</span>
 			</h1>
-			<p style="margin:0; font-size:1.3rem;">
-				<strong>Points:</strong> {{ total_points }}
-			</p>
+
+			<div class="comp-meta-row">
+				<div class="comp-pill">
+					<span class="comp-pill-label">Competitor #</span>
+					<span class="comp-pill-value">{{ competitor.id }}</span>
+				</div>
+
+				<div class="comp-pill">
+					<span class="comp-pill-label">Points</span>
+					<span class="comp-pill-value">{{ total_points }}</span>
+				</div>
+
+				{% if position is not none %}
+					<div class="comp-pill">
+						<span class="comp-pill-label">Position</span>
+						<span class="comp-pill-value">{{ position }}</span>
+					</div>
+				{% endif %}
+			</div>
 		</header>
 
 		<!-- PERFORMANCE BY SECTION -->
 		<section class="stats-card">
 			<h2 class="stats-title">Performance by Section</h2>
 
-			<!-- NEW WRAPPER -->
-			<div class="stats-table-wrapper">
-				<table class="stats-table">
-					<thead>
-						<tr>
-							<th>Section</th>
-							<th>Tops</th>
-							<th>Attempts</th>
-							<th>Efficiency</th>
-							<th>Points</th>
-						</tr>
-					</thead>
-					<tbody>
-						{% for s in section_stats %}
-						<tr>
-							<td>{{ s.section.name }}</td>
-							<td>{{ s.tops }}</td>
-							<td>{{ s.attempts }}</td>
-							<td>
-								{% if s.attempts %}
-									{{ (s.efficiency * 100) | round(1) }}%
-								{% else %}
-									–
-								{% endif %}
-							</td>
-							<td>{{ s.points }}</td>
-						</tr>
-						{% endfor %}
-					</tbody>
-				</table>
-			</div>
+			<table class="stats-table section-performance-table">
+				<thead>
+					<tr>
+						<th>Section</th>
+						<th>Tops</th>
+						<th>Attempts</th>
+						<th>Efficiency</th>
+						<th>Points</th>
+					</tr>
+				</thead>
+				<tbody>
+					{% for s in section_stats %}
+					<tr>
+						<td>{{ s.section.name }}</td>
+						<td>{{ s.tops }}</td>
+						<td>{{ s.attempts }}</td>
+						<td>
+							{% if s.attempts %}
+								{{ (s.efficiency * 100) | round(1) }}%
+							{% else %}
+								–
+							{% endif %}
+						</td>
+						<td>{{ s.points }}</td>
+					</tr>
+					{% endfor %}
+				</tbody>
+			</table>
 		</section>
 
 		<!-- PERSONAL HEATMAP -->
 		<section class="stats-card">
 			<h2 class="stats-title">Your Climb Heatmap</h2>
-            <p style="margin:0 0 8px 0; font-size:0.9rem; color:var(--muted);">
+			<p style="margin:0 0 8px 0; font-size:0.9rem; color:var(--muted);">
 				Tap a climb to see detailed stats.
 			</p>
 
@@ -79,7 +94,7 @@
 							<div class="heat-cell status-{{ c.status }}">
 								{{ c.climb_number }}
 							</div>
-                        </a>
+						</a>
 					{% endfor %}
 				</div>
 			{% endfor %}
@@ -115,7 +130,7 @@
 							<div class="heat-cell {{ c.status }}">
 								{{ c.climb_number }}
 							</div>
-                        </a>
+						</a>
 					{% endfor %}
 				</div>
 			{% endfor %}
@@ -139,3 +154,4 @@
 	</main>
 </body>
 </html>
+
