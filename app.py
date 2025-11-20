@@ -1,11 +1,11 @@
 from flask import Flask, render_template, request, redirect, jsonify, session
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import UniqueConstraint
-from sqlalchemy.exc import IntegrityError
 from datetime import datetime
 import os
 import sys
 import re
+import time
 
 app = Flask(__name__)
 
@@ -17,6 +17,19 @@ app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "change-me-dev-secret")
 
 db = SQLAlchemy(app)
+
+
+# --- Leaderboard cache ---
+
+LEADERBOARD_CACHE_TTL = 10.0  # seconds
+# key: normalised category ("all", "male", "female", "inclusive")
+# value: (rows, category_label, timestamp)
+LEADERBOARD_CACHE = {}
+
+
+def invalidate_leaderboard_cache():
+	"""Clear all cached leaderboard entries."""
+	LEADERBOARD_CACHE.clear()
 
 
 # --- Models ---
@@ -34,8 +47,17 @@ class Score(db.Model):
 	__tablename__ = "scores"
 
 	id = db.Column(db.Integer, primary_key=True)
-	competitor_id = db.Column(db.Integer, db.ForeignKey("competitor.id"), nullable=False)
-	climb_number = db.Column(db.Integer, nullable=False)
+	competitor_id = db.Column(
+		db.Integer,
+		db.ForeignKey("competitor.id"),
+		nullable=False,
+		index=True,  # INDEX for "all scores for this competitor"
+	)
+	climb_number = db.Column(
+		db.Integer,
+		nullable=False,
+		index=True,  # INDEX for "all scores for this climb"
+	)
 	attempts = db.Column(db.Integer, nullable=False, default=0)
 	topped = db.Column(db.Boolean, nullable=False, default=False)
 	updated_at = db.Column(
@@ -63,7 +85,11 @@ class Section(db.Model):
 class SectionClimb(db.Model):
 	id = db.Column(db.Integer, primary_key=True)
 	section_id = db.Column(db.Integer, db.ForeignKey("section.id"), nullable=False)
-	climb_number = db.Column(db.Integer, nullable=False)
+	climb_number = db.Column(
+		db.Integer,
+		nullable=False,
+		index=True,  # INDEX for "all section mappings for this climb"
+	)
 	colour = db.Column(db.String(80), nullable=True)
 
 	# per-climb scoring config (admin editable)
@@ -127,8 +153,35 @@ def slugify(name: str) -> str:
 	return s or "section"
 
 
+def _normalise_category_key(category):
+	"""Normalise the category argument into a cache key."""
+	if not category:
+		return "all"
+	norm = category.strip().lower()
+	if norm.startswith("m"):
+		return "male"
+	if norm.startswith("f"):
+		return "female"
+	return "inclusive"
+
+
 def build_leaderboard(category=None):
-	"""Build leaderboard rows, optionally filtered by gender category."""
+	"""
+	Build leaderboard rows, optionally filtered by gender category.
+
+	Now cached in memory for LEADERBOARD_CACHE_TTL seconds so we
+	don't recompute on every request under load.
+	"""
+	# --- cache lookup ---
+	key = _normalise_category_key(category)
+	now = time.time()
+	cached = LEADERBOARD_CACHE.get(key)
+	if cached:
+		rows, category_label, ts = cached
+		if now - ts <= LEADERBOARD_CACHE_TTL:
+			return rows, category_label
+
+	# --- original logic ---
 	q = Competitor.query
 	category_label = "All"
 
@@ -146,7 +199,9 @@ def build_leaderboard(category=None):
 
 	comps = q.all()
 	if not comps:
-		return [], category_label
+		rows = []
+		LEADERBOARD_CACHE[key] = (rows, category_label, now)
+		return rows, category_label
 
 	comp_ids = [c.id for c in comps]
 	if comp_ids:
@@ -191,11 +246,14 @@ def build_leaderboard(category=None):
 	pos = 0
 	prev_key = None
 	for row in rows:
-		key = (row["total_points"], row["tops"], row["attempts_on_tops"])
-		if key != prev_key:
+		k = (row["total_points"], row["tops"], row["attempts_on_tops"])
+		if k != prev_key:
 			pos += 1
-		prev_key = key
+		prev_key = k
 		row["position"] = pos
+
+	# cache the result
+	LEADERBOARD_CACHE[key] = (rows, category_label, now)
 
 	return rows, category_label
 
@@ -203,23 +261,6 @@ def build_leaderboard(category=None):
 def competitor_total_points(comp_id: int) -> int:
 	scores = Score.query.filter_by(competitor_id=comp_id).all()
 	return sum(points_for(s.climb_number, s.attempts, s.topped) for s in scores)
-
-
-def is_local_debug_trusted() -> bool:
-	"""
-	Treat localhost + debug as 'trusted' for dev:
-	- lets you edit any competitor/section locally
-	- used by both UI routes and /api/score
-	Does **not** apply when debug=False or remote.
-	"""
-	try:
-		return (
-			app.debug
-			and request.remote_addr in ("127.0.0.1", "::1")
-		)
-	except RuntimeError:
-		# Outside request context
-		return False
 
 
 # --- Routes ---
@@ -283,38 +324,58 @@ def competitor_redirect(competitor_id):
 
 @app.route("/competitor/<int:competitor_id>/sections")
 def competitor_sections(competitor_id):
-	# Only the competitor themselves (or admin) can access the edit flow
-	viewer_id = session.get("competitor_id")
-	is_admin = session.get("admin_ok", False)
+    """
+    Sections index page.
 
-	# In local debug, treat as trusted admin so you can always edit
-	if is_local_debug_trusted():
-		is_admin = True
+    Non-admins are *forced* to their own competitor id from the session.
+    Changing the id in the URL does not let you see or edit someone else's sections.
+    """
+    viewer_id = session.get("competitor_id")
+    is_admin = session.get("admin_ok", False)
 
-	if viewer_id != competitor_id and not is_admin:
-		# Send spectators to public stats instead
-		return redirect(f"/competitor/{competitor_id}/stats?view=public")
+    # Not logged in as competitor and not admin -> no access to sections at all
+    if not viewer_id and not is_admin:
+        return redirect("/")
 
-	comp = Competitor.query.get_or_404(competitor_id)
-	sections = Section.query.order_by(Section.name).all()
-	total_points = competitor_total_points(competitor_id)
+    # Determine which competitor we are actually showing
+    if is_admin:
+        # Admin can genuinely inspect any competitor_id
+        target_id = competitor_id
+    else:
+        # Non-admins can *only* see their own sections
+        target_id = viewer_id
+        if competitor_id != viewer_id:
+            # If they mess with the URL, shove them back to their own id
+            return redirect(f"/competitor/{viewer_id}/sections")
 
-	# Leaderboard position for this competitor
-	rows, _ = build_leaderboard(None)
-	position = None
-	for r in rows:
-		if r["competitor_id"] == competitor_id:
-			position = r["position"]
-			break
+    comp = Competitor.query.get_or_404(target_id)
+    sections = Section.query.order_by(Section.name).all()
+    total_points = competitor_total_points(target_id)
 
-	return render_template(
-		"competitor_sections.html",
-		competitor=comp,
-		sections=sections,
-		total_points=total_points,
-		position=position,
-		nav_active="sections",
-	)
+    # Leaderboard position for this competitor
+    rows, _ = build_leaderboard(None)
+    position = None
+    for r in rows:
+        if r["competitor_id"] == target_id:
+            position = r["position"]
+            break
+
+    # --- NEW: who can actually edit? ---
+    # Logged-in competitor on their own page, or admin.
+    can_edit = (viewer_id == target_id)
+
+    return render_template(
+        "competitor_sections.html",
+        competitor=comp,
+        sections=sections,
+        total_points=total_points,
+        position=position,
+        nav_active="sections",
+        viewer_id=viewer_id,
+        is_admin=is_admin,
+        can_edit=can_edit,  # <<< THIS is what your template was missing
+    )
+
 
 
 # --- Competitor stats page (personal + global heatmaps) ---
@@ -544,7 +605,9 @@ def climb_stats(climb_number):
 
 	top_rate = (tops / num_competitors) if num_competitors > 0 else 0.0
 	flash_rate = (flashes / num_competitors) if num_competitors > 0 else 0.0
-	avg_attempts_per_comp = (total_attempts / num_competitors) if num_competitors > 0 else 0.0
+	avg_attempts_per_comp = (
+		(total_attempts / num_competitors) if num_competitors > 0 else 0.0
+	)
 	avg_attempts_on_tops = (
 		sum(s.attempts for s in scores if s.topped) / tops
 		if tops > 0 else 0.0
@@ -575,7 +638,7 @@ def climb_stats(climb_number):
 	# Sort per-competitor list: topped first, then by attempts asc
 	per_competitor.sort(key=lambda r: (not r["topped"], r["attempts"]))
 
-	# --- NEW: find this competitor's row (if any) so Jinja doesn't have to ---
+	# --- find this competitor's row (if any) so Jinja doesn't have to ---
 	personal_row = None
 	if competitor:
 		for row in per_competitor:
@@ -587,7 +650,11 @@ def climb_stats(climb_number):
 		"climb_stats.html",
 		climb_number=climb_number,
 		has_config=True,
-		sections=[sections_by_id[sc.section_id] for sc in section_climbs if sc.section_id in sections_by_id],
+		sections=[
+			sections_by_id[sc.section_id]
+			for sc in section_climbs
+			if sc.section_id in sections_by_id
+		],
 		total_attempts=total_attempts,
 		tops=tops,
 		flashes=flashes,
@@ -607,25 +674,35 @@ def climb_stats(climb_number):
 
 @app.route("/competitor/<int:competitor_id>/section/<section_slug>")
 def competitor_section_climbs(competitor_id, section_slug):
-	# Only the competitor themselves (or admin) can access the climb edit UI
+	"""
+	Per-section climbs page.
+
+	Non-admins are *forced* to use their own competitor id from the session.
+	This prevents URL tampering from giving edit access to other competitors.
+	"""
 	viewer_id = session.get("competitor_id")
 	is_admin = session.get("admin_ok", False)
 
-	# In local debug, treat as trusted admin so you can always edit
-	if is_local_debug_trusted():
-		is_admin = True
+	# Not logged in as competitor and not admin -> no access to climbs page
+	if not viewer_id and not is_admin:
+		return redirect("/")
 
-	if viewer_id != competitor_id and not is_admin:
-		return redirect(f"/competitor/{competitor_id}/stats?view=public")
+	if is_admin:
+		target_id = competitor_id
+	else:
+		target_id = viewer_id
+		# If they mess with the URL, force them back to their own competitor id
+		if competitor_id != viewer_id:
+			return redirect(f"/competitor/{viewer_id}/section/{section_slug}")
 
-	comp = Competitor.query.get_or_404(competitor_id)
+	comp = Competitor.query.get_or_404(target_id)
 	section = Section.query.filter_by(slug=section_slug).first_or_404()
 
 	# Leaderboard rows to figure out competitor position
 	rows, _ = build_leaderboard(None)
 	position = None
 	for r in rows:
-		if r["competitor_id"] == competitor_id:
+		if r["competitor_id"] == target_id:
 			position = r["position"]
 			break
 
@@ -647,10 +724,12 @@ def competitor_section_climbs(competitor_id, section_slug):
 		if sc.base_points is not None
 	}
 
-	scores = Score.query.filter_by(competitor_id=competitor_id).all()
+	scores = Score.query.filter_by(competitor_id=target_id).all()
 	existing = {s.climb_number: s for s in scores}
 
-	total_points = competitor_total_points(competitor_id)
+	total_points = competitor_total_points(target_id)
+
+	can_edit = True  # if you got here, you're either that competitor or admin
 
 	return render_template(
 		"competitor.html",
@@ -663,6 +742,9 @@ def competitor_section_climbs(competitor_id, section_slug):
 		position=position,
 		max_points=max_points,
 		nav_active="sections",
+		can_edit=can_edit,
+		viewer_id=viewer_id,
+		is_admin=is_admin,
 	)
 
 
@@ -686,6 +768,7 @@ def register_competitor():
 		comp = Competitor(name=name, gender=gender)
 		db.session.add(comp)
 		db.session.commit()
+		invalidate_leaderboard_cache()
 
 		return render_template(
 			"register.html", error=None, competitor=comp
@@ -726,6 +809,7 @@ def public_register():
 		comp = Competitor(name=name, gender=gender)
 		db.session.add(comp)
 		db.session.commit()
+		invalidate_leaderboard_cache()
 
 		# Remember this competitor on this device
 		session["competitor_id"] = comp.id
@@ -764,10 +848,14 @@ def api_save_score():
 	viewer_id = session.get("competitor_id")
 	is_admin = session.get("admin_ok", False)
 
-	# Allow your local 500-competitor sim (no session) AND local browser
-	# when running in debug on localhost
-	if is_local_debug_trusted():
-		is_admin = True
+	# Allow your local 500-competitor sim (no session) when running in debug on localhost
+	if (
+		not viewer_id
+		and not is_admin
+		and app.debug
+		and request.remote_addr in ("127.0.0.1", "::1")
+	):
+		is_admin = True  # treat local debug caller as trusted
 
 	if viewer_id != competitor_id and not is_admin:
 		return "Not allowed", 403
@@ -787,34 +875,24 @@ def api_save_score():
 	elif attempts > 50:
 		attempts = 50
 
-	# Upsert with race-safe handling
-	for _ in range(2):  # at most one retry on IntegrityError
-		score = Score.query.filter_by(
-			competitor_id=competitor_id, climb_number=climb_number
-		).first()
+	score = Score.query.filter_by(
+		competitor_id=competitor_id, climb_number=climb_number
+	).first()
 
-		if not score:
-			score = Score(
-				competitor_id=competitor_id,
-				climb_number=climb_number,
-				attempts=attempts,
-				topped=topped,
-			)
-			db.session.add(score)
-		else:
-			score.attempts = attempts
-			score.topped = topped
-
-		try:
-			db.session.commit()
-			break
-		except IntegrityError:
-			# Another request inserted the row concurrently.
-			db.session.rollback()
-			# On next loop iteration we re-query and just update the existing row.
+	if not score:
+		score = Score(
+			competitor_id=competitor_id,
+			climb_number=climb_number,
+			attempts=attempts,
+			topped=topped,
+		)
+		db.session.add(score)
 	else:
-		# Extremely unlikely: if we still fail after retry, bail.
-		return "Database error", 500
+		score.attempts = attempts
+		score.topped = topped
+
+	db.session.commit()
+	invalidate_leaderboard_cache()
 
 	points = points_for(climb_number, attempts, topped)
 
@@ -952,6 +1030,7 @@ def admin_page():
 						Competitor.query.delete()
 						Section.query.delete()
 						db.session.commit()
+						invalidate_leaderboard_cache()
 						message = "All competitors, scores, sections, and section climbs have been deleted."
 
 				elif action == "delete_competitor":
@@ -967,6 +1046,7 @@ def admin_page():
 							Score.query.filter_by(competitor_id=cid).delete()
 							db.session.delete(comp)
 							db.session.commit()
+							invalidate_leaderboard_cache()
 							message = f"Competitor {cid} and their scores have been deleted."
 
 				elif action == "create_competitor":
@@ -981,6 +1061,7 @@ def admin_page():
 						comp = Competitor(name=name, gender=gender)
 						db.session.add(comp)
 						db.session.commit()
+						invalidate_leaderboard_cache()
 						message = f"Competitor created: {comp.name} (#{comp.id}, {comp.gender})"
 
 				elif action == "create_section":
@@ -1121,6 +1202,7 @@ def edit_section(section_id):
 					# Then delete the climb config itself
 					db.session.delete(sc)
 					db.session.commit()
+					invalidate_leaderboard_cache()
 					message = f"Climb {sc.climb_number} removed from {section.name}, and all associated scores were deleted."
 
 		elif action == "delete_section":
@@ -1138,6 +1220,7 @@ def edit_section(section_id):
 			# Delete the section itself
 			db.session.delete(section)
 			db.session.commit()
+			invalidate_leaderboard_cache()
 
 			return redirect("/admin")
 

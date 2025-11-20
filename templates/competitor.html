@@ -8,7 +8,7 @@
 	</head>
 	<body>
 		{# Unified nav: uses session competitor as "you", nav_active for highlight #}
-		{% set viewer_id = session.get('competitor_id') %}
+		{% set viewer_id = viewer_id if viewer_id is defined else session.get('competitor_id') %}
 		<nav class="container top-nav">
 			<div class="nav-links">
 				<a
@@ -129,6 +129,7 @@
 									value="{{ s.attempts if s else 1 }}"
 									class="attempts"
 									style="color: var(--climb-text); background:#ffffff30; border-color:#00000040;"
+									{% if not can_edit %}disabled{% endif %}
 								/>
 							</div>
 
@@ -138,12 +139,17 @@
 										type="checkbox"
 										class="topped"
 										{% if s and s.topped %}checked{% endif %}
+										{% if not can_edit %}disabled{% endif %}
 									/>
 									<span style="color: var(--climb-text);">Topped</span>
 								</label>
 							</div>
 
-							<button class="save" style="color: var(--climb-text); border-color: var(--climb-text);">
+							<button
+								class="save"
+								style="color: var(--climb-text); border-color: var(--climb-text);"
+								{% if not can_edit %}disabled{% endif %}
+							>
 								Save
 							</button>
 
@@ -156,7 +162,11 @@
 		</main>
 
 		<script>
-			const competitorId = {{ competitor.id }};
+			// Viewer id comes from the session; that's who we log as.
+			const viewerId = {{ viewer_id if viewer_id is not none else 'null' }};
+			const competitorIdForDisplay = {{ competitor.id }};
+			const canEdit = {{ 'true' if can_edit else 'false' }};
+
 			const cards = document.querySelectorAll(".climb-card");
 
 			function showStatus(el, msg, ok = true) {
@@ -169,6 +179,11 @@
 			}
 
 			async function save(card) {
+				if (!canEdit || viewerId === null) {
+					showStatus(card.querySelector(".status"), "Not allowed", false);
+					return;
+				}
+
 				const climb = parseInt(card.dataset.climb);
 				let attempts = parseInt(card.querySelector(".attempts").value || "1");
 				const topped = card.querySelector(".topped").checked;
@@ -188,7 +203,8 @@
 						method: "POST",
 						headers: { "Content-Type": "application/json" },
 						body: JSON.stringify({
-							competitor_id: competitorId,
+							// IMPORTANT: always log as viewerId, not whoever is in the URL
+							competitor_id: viewerId,
 							climb_number: climb,
 							attempts,
 							topped,
@@ -212,8 +228,9 @@
 			}
 
 			async function refreshTotalPoints() {
+				if (viewerId === null) return;
 				try {
-					const res = await fetch(`/api/score/${competitorId}`);
+					const res = await fetch(`/api/score/${viewerId}`);
 					const rows = await res.json();
 					const totalEl = document.getElementById("total-points");
 					if (!totalEl) return;
@@ -228,6 +245,7 @@
 			}
 
 			async function refreshPosition() {
+				if (viewerId === null) return;
 				try {
 					const res = await fetch("/api/leaderboard");
 					const data = await res.json();
@@ -238,7 +256,7 @@
 					if (!posValue) return;
 
 					for (const row of data.rows) {
-						if (row.competitor_id === competitorId) {
+						if (row.competitor_id === viewerId) {
 							posValue.textContent = row.position;
 							break;
 						}
@@ -246,11 +264,13 @@
 				} catch (e) {}
 			}
 
-			cards.forEach((card) => {
-				card.querySelector(".save").addEventListener("click", async () => {
-					await save(card);
+			if (canEdit) {
+				cards.forEach((card) => {
+					card.querySelector(".save").addEventListener("click", async () => {
+						await save(card);
+					});
 				});
-			});
+			}
 
 			// Initial load
 			refreshTotalPoints();
@@ -258,3 +278,4 @@
 		</script>
 	</body>
 </html>
+
