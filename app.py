@@ -1,6 +1,7 @@
 from flask import Flask, render_template, request, redirect, jsonify, session
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import UniqueConstraint
+from sqlalchemy.exc import IntegrityError
 from datetime import datetime
 import os
 import sys
@@ -204,6 +205,23 @@ def competitor_total_points(comp_id: int) -> int:
 	return sum(points_for(s.climb_number, s.attempts, s.topped) for s in scores)
 
 
+def is_local_debug_trusted() -> bool:
+	"""
+	Treat localhost + debug as 'trusted' for dev:
+	- lets you edit any competitor/section locally
+	- used by both UI routes and /api/score
+	Does **not** apply when debug=False or remote.
+	"""
+	try:
+		return (
+			app.debug
+			and request.remote_addr in ("127.0.0.1", "::1")
+		)
+	except RuntimeError:
+		# Outside request context
+		return False
+
+
 # --- Routes ---
 
 
@@ -268,6 +286,11 @@ def competitor_sections(competitor_id):
 	# Only the competitor themselves (or admin) can access the edit flow
 	viewer_id = session.get("competitor_id")
 	is_admin = session.get("admin_ok", False)
+
+	# In local debug, treat as trusted admin so you can always edit
+	if is_local_debug_trusted():
+		is_admin = True
+
 	if viewer_id != competitor_id and not is_admin:
 		# Send spectators to public stats instead
 		return redirect(f"/competitor/{competitor_id}/stats?view=public")
@@ -587,6 +610,11 @@ def competitor_section_climbs(competitor_id, section_slug):
 	# Only the competitor themselves (or admin) can access the climb edit UI
 	viewer_id = session.get("competitor_id")
 	is_admin = session.get("admin_ok", False)
+
+	# In local debug, treat as trusted admin so you can always edit
+	if is_local_debug_trusted():
+		is_admin = True
+
 	if viewer_id != competitor_id and not is_admin:
 		return redirect(f"/competitor/{competitor_id}/stats?view=public")
 
@@ -732,9 +760,15 @@ def api_save_score():
 	if competitor_id <= 0 or climb_number <= 0:
 		return "Invalid competitor or climb number", 400
 
-	# Only allow a competitor to modify their own scores, or an admin
+	# --- Auth: competitor themself, admin, or local sim in debug ---
 	viewer_id = session.get("competitor_id")
 	is_admin = session.get("admin_ok", False)
+
+	# Allow your local 500-competitor sim (no session) AND local browser
+	# when running in debug on localhost
+	if is_local_debug_trusted():
+		is_admin = True
+
 	if viewer_id != competitor_id and not is_admin:
 		return "Not allowed", 403
 
@@ -753,23 +787,34 @@ def api_save_score():
 	elif attempts > 50:
 		attempts = 50
 
-	score = Score.query.filter_by(
-		competitor_id=competitor_id, climb_number=climb_number
-	).first()
+	# Upsert with race-safe handling
+	for _ in range(2):  # at most one retry on IntegrityError
+		score = Score.query.filter_by(
+			competitor_id=competitor_id, climb_number=climb_number
+		).first()
 
-	if not score:
-		score = Score(
-			competitor_id=competitor_id,
-			climb_number=climb_number,
-			attempts=attempts,
-			topped=topped,
-		)
-		db.session.add(score)
+		if not score:
+			score = Score(
+				competitor_id=competitor_id,
+				climb_number=climb_number,
+				attempts=attempts,
+				topped=topped,
+			)
+			db.session.add(score)
+		else:
+			score.attempts = attempts
+			score.topped = topped
+
+		try:
+			db.session.commit()
+			break
+		except IntegrityError:
+			# Another request inserted the row concurrently.
+			db.session.rollback()
+			# On next loop iteration we re-query and just update the existing row.
 	else:
-		score.attempts = attempts
-		score.topped = topped
-
-	db.session.commit()
+		# Extremely unlikely: if we still fail after retry, bail.
+		return "Database error", 500
 
 	points = points_for(climb_number, attempts, topped)
 
@@ -1126,4 +1171,4 @@ if __name__ == "__main__":
 			port = int(sys.argv[idx + 1])
 		except Exception:
 			pass
-	app.run(debug=True, port=port)
+	app.run(debug=False, port=port)

@@ -63,14 +63,30 @@
 			</div>
 		</header>
 
+		{% if not can_edit %}
+			<p class="view-only-note">
+				You’re viewing sections for <strong>{{ competitor.name }}</strong> in read-only mode.
+				Only this competitor (or a staff member) can log climbs from their own device.
+			</p>
+		{% endif %}
+
 		<section class="section-grid">
 			{% for s in sections %}
-				<a
-					href="/competitor/{{ competitor.id }}/section/{{ s.slug }}"
-					class="section-btn-big"
-				>
-					{{ s.name }}
-				</a>
+				{% if can_edit %}
+					<a
+						href="/competitor/{{ competitor.id }}/section/{{ s.slug }}"
+						class="section-btn-big"
+					>
+						{{ s.name }}
+					</a>
+				{% else %}
+					<div class="section-btn-big section-btn-disabled">
+						<div>{{ s.name }}</div>
+						<span class="section-btn-note">
+							View only – log attempts on your own competitor page.
+						</span>
+					</div>
+				{% endif %}
 			{% endfor %}
 		</section>
 

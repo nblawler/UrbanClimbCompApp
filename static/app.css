@@ -121,6 +121,14 @@ body {
 	transform:translateY(-1px);
 }
 
+/* Disabled nav pill used on climb_stats when spectator */
+.back.back-disabled {
+	opacity:0.5;
+	cursor:default;
+	pointer-events:none;
+	border-color:transparent;
+}
+
 /* optional: when you add .active in templates */
 .nav-links .back.active {
 	background:var(--accent-soft);
@@ -721,6 +729,7 @@ body {
 	display: flex;
 	justify-content: center;
 	align-items: center;
+	flex-direction: column;
 	padding: 28px;
 	border-radius: 16px;
 	background: #1c1f24;
@@ -736,6 +745,27 @@ body {
 		transform var(--transition-fast),
 		box-shadow var(--transition-fast);
 	text-align: center;
+}
+
+/* read-only version of the big section button */
+.section-btn-disabled {
+	cursor:default;
+	border-style:dashed;
+	opacity:0.85;
+}
+
+.section-btn-note {
+	display:block;
+	margin-top:6px;
+	font-size:0.8rem;
+	color:var(--text-muted);
+}
+
+/* small note above grid when in read-only mode */
+.view-only-note {
+	margin:0 0 8px 0;
+	font-size:0.9rem;
+	color:var(--text-muted);
 }
 
 .section-btn-big:hover {
