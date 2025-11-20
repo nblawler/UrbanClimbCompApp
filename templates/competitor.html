@@ -7,19 +7,29 @@
 		<link rel="stylesheet" href="/static/app.css" />
 	</head>
 	<body>
-		{# Unified nav based on viewer_id from session #}
+		{# Unified nav: uses session competitor as "you", nav_active for highlight #}
 		{% set viewer_id = session.get('competitor_id') %}
 		<nav class="container top-nav">
 			<div class="nav-links">
 				<a
-					class="back"
+					class="back {% if nav_active == 'leaderboard' %}active{% endif %}"
 					href="/leaderboard{% if viewer_id %}?cid={{ viewer_id }}{% endif %}"
 				>
 					Leaderboard
 				</a>
 				{% if viewer_id %}
-					<a class="back" href="/competitor/{{ viewer_id }}/sections">Sections</a>
-					<a class="back" href="/competitor/{{ viewer_id }}/stats">Stats</a>
+					<a
+						class="back {% if nav_active == 'sections' %}active{% endif %}"
+						href="/competitor/{{ viewer_id }}/sections"
+					>
+						Sections
+					</a>
+					<a
+						class="back {% if nav_active == 'stats' %}active{% endif %}"
+						href="/competitor/{{ viewer_id }}/stats"
+					>
+						Stats
+					</a>
 				{% endif %}
 			</div>
 		</nav>

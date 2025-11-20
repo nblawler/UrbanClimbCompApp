@@ -283,6 +283,7 @@ def competitor_sections(competitor_id):
 		sections=sections,
 		total_points=total_points,
 		position=position,
+		nav_active="sections",
 	)
 
 
@@ -451,6 +452,7 @@ def competitor_stats(competitor_id):
 		is_public_view=is_public_view,
 		viewer_id=viewer_id,
 		viewer_is_self=viewer_is_self,
+		nav_active="stats",
 	)
 
 
@@ -494,6 +496,7 @@ def climb_stats(climb_number):
 			competitor=competitor,
 			total_points=total_points,
 			position=position,
+			nav_active="stats",
 		)
 
 	section_ids = {sc.section_id for sc in section_climbs}
@@ -542,6 +545,14 @@ def climb_stats(climb_number):
 	# Sort per-competitor list: topped first, then by attempts asc
 	per_competitor.sort(key=lambda r: (not r["topped"], r["attempts"]))
 
+	# --- NEW: find this competitor's row (if any) so Jinja doesn't have to ---
+	personal_row = None
+	if competitor:
+		for row in per_competitor:
+			if row["competitor_id"] == competitor.id:
+				personal_row = row
+				break
+
 	return render_template(
 		"climb_stats.html",
 		climb_number=climb_number,
@@ -556,9 +567,11 @@ def climb_stats(climb_number):
 		avg_attempts_per_comp=avg_attempts_per_comp,
 		avg_attempts_on_tops=avg_attempts_on_tops,
 		per_competitor=per_competitor,
+		personal_row=personal_row,
 		competitor=competitor,
 		total_points=total_points,
 		position=position,
+		nav_active="stats",
 	)
 
 
@@ -608,6 +621,7 @@ def competitor_section_climbs(competitor_id, section_slug):
 		colours=colours,
 		position=position,
 		max_points=max_points,
+		nav_active="sections",
 	)
 
 
@@ -796,6 +810,7 @@ def leaderboard_all():
 		category=category_label,
 		competitor=competitor,
 		current_competitor_id=current_competitor_id,
+		nav_active="leaderboard",
 	)
 
 
@@ -816,6 +831,7 @@ def leaderboard_by_category(category):
 		category=category_label,
 		competitor=competitor,
 		current_competitor_id=current_competitor_id,
+		nav_active="leaderboard",
 	)
 
 

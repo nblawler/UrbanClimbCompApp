@@ -17,14 +17,24 @@
 	<nav class="container top-nav">
 		<div class="nav-links">
 			<a
-				class="back"
+				class="back {% if nav_active == 'leaderboard' %}active{% endif %}"
 				href="/leaderboard{% if viewer_id %}?cid={{ viewer_id }}{% endif %}"
 			>
 				Leaderboard
 			</a>
 			{% if viewer_id %}
-				<a class="back" href="/competitor/{{ viewer_id }}/sections">Sections</a>
-				<a class="back" href="/competitor/{{ viewer_id }}/stats">Stats</a>
+				<a
+					class="back {% if nav_active == 'sections' %}active{% endif %}"
+					href="/competitor/{{ viewer_id }}/sections"
+				>
+					Sections
+				</a>
+				<a
+					class="back {% if nav_active == 'stats' %}active{% endif %}"
+					href="/competitor/{{ viewer_id }}/stats"
+				>
+					Stats
+				</a>
 			{% endif %}
 		</div>
 	</nav>
@@ -83,7 +93,70 @@
 			<section class="stats-card">
 				<h2 class="stats-title">Overview</h2>
 
-				<p style="margin: 0 0 6px 0; font-size:0.95rem; color:var(--muted);">
+				{# --- Show this specific competitor's result (visible to everyone) --- #}
+				{% if competitor %}
+					{% if personal_row %}
+						<p style="margin: 0 0 8px 0; font-size:0.95rem; color:var(--text);">
+							<strong>{{ competitor.name }}:</strong>
+
+							{% if personal_row.topped %}
+								{% if personal_row.attempts == 1 %}
+									<span
+										class="status-flashed"
+										style="
+											display:inline-block;
+											margin-left:8px;
+											padding:2px 10px;
+											border-radius:999px;
+											font-size:0.8rem;
+											color:#fff;
+										"
+									>
+										Flashed
+									</span>
+								{% else %}
+									<span
+										class="status-topped-late"
+										style="
+											display:inline-block;
+											margin-left:8px;
+											padding:2px 10px;
+											border-radius:999px;
+											font-size:0.8rem;
+											color:#fff;
+										"
+									>
+										Topped
+									</span>
+								{% endif %}
+							{% else %}
+								<span
+									class="status-not-topped"
+									style="
+										display:inline-block;
+										margin-left:8px;
+										padding:2px 10px;
+										border-radius:999px;
+										font-size:0.8rem;
+										color:#000;
+									"
+								>
+									Not topped
+								</span>
+							{% endif %}
+
+							<span style="margin-left:8px;">
+								{{ personal_row.attempts }} attempt{% if personal_row.attempts != 1 %}s{% endif %}
+							</span>
+						</p>
+					{% else %}
+						<p style="margin: 0 0 8px 0; font-size:0.95rem; color:var(--muted);">
+							<strong>{{ competitor.name }} has not logged this climb yet.</strong>
+						</p>
+					{% endif %}
+				{% endif %}
+
+				<p style="margin: 8px 0 6px 0; font-size:0.95rem; color:var(--muted);">
 					Section:
 					{% if sections %}
 						{% for s in sections %}
