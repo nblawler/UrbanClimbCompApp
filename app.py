@@ -265,6 +265,13 @@ def competitor_redirect(competitor_id):
 
 @app.route("/competitor/<int:competitor_id>/sections")
 def competitor_sections(competitor_id):
+	# Only the competitor themselves (or admin) can access the edit flow
+	viewer_id = session.get("competitor_id")
+	is_admin = session.get("admin_ok", False)
+	if viewer_id != competitor_id and not is_admin:
+		# Send spectators to public stats instead
+		return redirect(f"/competitor/{competitor_id}/stats?view=public")
+
 	comp = Competitor.query.get_or_404(competitor_id)
 	sections = Section.query.order_by(Section.name).all()
 	total_points = competitor_total_points(competitor_id)
@@ -577,6 +584,12 @@ def climb_stats(climb_number):
 
 @app.route("/competitor/<int:competitor_id>/section/<section_slug>")
 def competitor_section_climbs(competitor_id, section_slug):
+	# Only the competitor themselves (or admin) can access the climb edit UI
+	viewer_id = session.get("competitor_id")
+	is_admin = session.get("admin_ok", False)
+	if viewer_id != competitor_id and not is_admin:
+		return redirect(f"/competitor/{competitor_id}/stats?view=public")
+
 	comp = Competitor.query.get_or_404(competitor_id)
 	section = Section.query.filter_by(slug=section_slug).first_or_404()
 
@@ -718,6 +731,12 @@ def api_save_score():
 
 	if competitor_id <= 0 or climb_number <= 0:
 		return "Invalid competitor or climb number", 400
+
+	# Only allow a competitor to modify their own scores, or an admin
+	viewer_id = session.get("competitor_id")
+	is_admin = session.get("admin_ok", False)
+	if viewer_id != competitor_id and not is_admin:
+		return "Not allowed", 403
 
 	comp = Competitor.query.get(competitor_id)
 	if not comp:
