@@ -147,8 +147,8 @@ def points_for(climb_number, attempts, topped):
 
 # --- Helpers ---
 
-
 def slugify(name: str) -> str:
+	"""Create URL friendly string ("The Slab" -> "the-slab")"""
 	s = re.sub(r"[^a-zA-Z0-9]+", "-", name.strip().lower()).strip("-")
 	return s or "section"
 
@@ -166,7 +166,7 @@ def _normalise_category_key(category):
 
 
 def build_leaderboard(category=None):
-	"""
+	""" 
 	Build leaderboard rows, optionally filtered by gender category.
 
 	Now cached in memory for LEADERBOARD_CACHE_TTL seconds so we
