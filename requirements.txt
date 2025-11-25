@@ -2,5 +2,7 @@
 Flask==3.0.3
 Flask-SQLAlchemy==3.1.1
 SQLAlchemy==2.0.36
+# Postgres driver
+psycopg2-binary==2.9.9
 # For production serving (optional)
 Gunicorn==21.2.0

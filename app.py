@@ -10,7 +10,17 @@ import time
 app = Flask(__name__)
 
 # --- Core config / secrets ---
-DB_URL = os.getenv("DATABASE_URL", "sqlite:///scoring.db")
+raw_db_url = os.getenv("DATABASE_URL")
+
+# If DATABASE_URL is set (e.g. on Render), normalise it for SQLAlchemy
+if raw_db_url:
+    if raw_db_url.startswith("postgres://"):
+        raw_db_url = raw_db_url.replace("postgres://", "postgresql://", 1)
+    DB_URL = raw_db_url
+else:
+    # Local dev fallback: SQLite file
+    DB_URL = "sqlite:///scoring.db"
+
 app.config["SQLALCHEMY_DATABASE_URI"] = DB_URL
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 # Needed for session-based admin + remembering competitor
