@@ -13,44 +13,36 @@
 		</div>
 	</nav>
 
-	<main class="container">
+	<main class="container landing">
 		<section class="hero">
-			<h1>Log your sends</h1>
+			<h1>Urban Climb Comp</h1>
 			<p class="muted">
-				Already registered? Enter your competitor number to jump back into your scorecard.
+				Log your sends, track your points, and climb your way up the leaderboard.
 			</p>
 		</section>
 
-		<section class="card enter-card">
-			<form method="post" action="/competitor" class="enter-form">
-				<label for="competitor_id">Competitor number</label>
-				<div class="input-row">
-					<input
-						id="competitor_id"
-						name="competitor_id"
-						type="number"
-						min="1"
-						placeholder="e.g. 23"
-						required
-					/>
-					<button type="submit" class="primary">
-						Continue
-					</button>
-				</div>
-
-				{% if error %}
-					<p class="error" style="margin-top:12px;">{{ error }}</p>
-				{% endif %}
-
-				<p class="form-hint">
-					Your competitor number is assigned when you join the comp at the front desk.
-					Scan the <strong>registration QR code</strong> there to sign up.
+		<section class="card enter-card" style="display:flex; flex-direction:column; gap:18px;">
+			<div>
+				<h2 style="margin-bottom:6px;">New to this comp?</h2>
+				<p class="muted" style="margin:0 0 10px 0;">
+					Register once with your name, category, and email. You’ll go straight to your scoring page.
 				</p>
+				<a class="primary" href="/join" style="display:inline-block; text-align:center; padding:10px 16px;">
+					Register as a new competitor
+				</a>
+			</div>
 
-				<div class="quick-links" style="margin-top:14px;">
-					<a href="/leaderboard" class="ghost">View leaderboard →</a>
-				</div>
-			</form>
+			<hr style="border:none; border-top:1px solid #2a2f36;">
+
+			<div>
+				<h2 style="margin-bottom:6px;">Already registered?</h2>
+				<p class="muted" style="margin:0 0 10px 0;">
+					Use your email to get a 6-digit login code and jump back into your scorecard.
+				</p>
+				<a class="ghost" href="/login" style="display:inline-block; text-align:center; padding:10px 16px;">
+					Log back into my scoring
+				</a>
+			</div>
 		</section>
 
 		<section class="info-grid">
@@ -63,8 +55,8 @@
 				<p>Log honestly. If you make a mistake, just update the climb and hit Save again.</p>
 			</div>
 			<div class="card info">
-				<h3>New here?</h3>
-				<p>Go to the front desk, scan the QR code, and we’ll give you a competitor number.</p>
+				<h3>Need help?</h3>
+				<p>Ask the desk to check your registration email or help you log back in.</p>
 			</div>
 		</section>
 	</main>

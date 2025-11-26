@@ -42,6 +42,18 @@
 					</div>
 
 					<div style="width:100%;">
+						<label for="email">Email address</label>
+						<input
+							id="email"
+							name="email"
+							type="email"
+							required
+							placeholder="you@example.com"
+							value="{{ email or '' }}"
+						/>
+					</div>
+
+					<div style="width:100%;">
 						<label for="gender">Category</label>
 						<select
 							id="gender"
@@ -73,8 +85,8 @@
 				</button>
 
 				<p class="form-hint" style="margin-top:10px;">
-				 Already registered? Ask the desk for your competitor number and use the
-				 <a href="/" class="back" style="text-decoration:underline;">number entry page</a>.
+					Already registered? Use your email to
+					<a href="/login" class="back" style="text-decoration:underline;">log back into your scoring</a>.
 				</p>
 			</form>
 		</section>

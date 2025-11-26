@@ -6,3 +6,5 @@ SQLAlchemy==2.0.36
 psycopg2-binary==2.9.9
 # For production serving (optional)
 Gunicorn==21.2.0
+# For email login password sending
+resend==1.0.4
