@@ -7,7 +7,7 @@ import sys
 import re
 import time
 import secrets  # for 6-digit codes
-import resend   # NEW: for real email sending
+import resend
 
 app = Flask(__name__)
 
@@ -32,12 +32,19 @@ app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "change-me-dev-secret")
 
 db = SQLAlchemy(app)
 
-# --- Resend email config ---
-RESEND_API_KEY = os.getenv("RESEND_API_KEY", "")
+# --- Resend config ---
+
+RESEND_API_KEY = os.getenv("RESEND_API_KEY")
+RESEND_FROM_EMAIL = os.getenv(
+    "RESEND_FROM_EMAIL",
+    "Urban Climb Comp <onboarding@resend.dev>",  # fallback; override in Render
+)
+
 if RESEND_API_KEY:
     resend.api_key = RESEND_API_KEY
+    print("[RESEND] API key loaded", file=sys.stderr)
 else:
-    print("WARNING: RESEND_API_KEY not set; login emails will NOT actually send.", file=sys.stderr)
+    print("[RESEND] RESEND_API_KEY not set – emails will be logged only", file=sys.stderr)
 
 
 # --- Leaderboard cache ---
@@ -299,36 +306,36 @@ def competitor_total_points(comp_id: int) -> int:
 
 def send_login_code_via_email(email: str, code: str):
     """
-    Send the 6-digit login code via Resend.
-    If RESEND_API_KEY is not set, just log the code to stderr.
+    Send the 6-digit login code via Resend in production.
+
+    - If RESEND_API_KEY is not set, just log to stderr (local dev).
     """
+    # Dev / fallback path
     if not RESEND_API_KEY:
-        print(
-            f"[LOGIN CODE] Would send login code {code} to {email} "
-            f"(but RESEND_API_KEY is not set).",
-            file=sys.stderr,
-        )
+        print(f"[LOGIN CODE - DEV ONLY] {email} -> {code}", file=sys.stderr)
         return
 
+    html = f"""
+      <div style="font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; padding: 16px;">
+        <p>Hey climber 👋</p>
+        <p>Your Urban Climb Comp login code is:</p>
+        <p style="font-size: 24px; font-weight: 700; letter-spacing: 4px; margin: 12px 0;">{code}</p>
+        <p>This code will expire in 10 minutes. If you didn’t request this, you can ignore this email.</p>
+      </div>
+    """
+
     try:
-        # You can customise the "from" later with a verified domain.
-        resend.Emails.send(
-            {
-                "from": "Urban Climb Comp <onboarding@resend.dev>",
-                "to": email,
-                "subject": "Your Urban Climb Comp login code",
-                "html": f"""
-                    <h2>Your login code</h2>
-                    <p style="font-size: 24px; font-weight: bold; letter-spacing: 4px;">
-                        {code}
-                    </p>
-                    <p>This code expires in 10 minutes. If you didn't request it, you can ignore this email.</p>
-                """,
-            }
-        )
-        print(f"[LOGIN CODE] Sent login code {code} to {email}", file=sys.stderr)
+        params = {
+            "from": RESEND_FROM_EMAIL,
+            "to": [email],
+            "subject": "Your Urban Climb Comp login code",
+            "html": html,
+        }
+        resend.Emails.send(params)  # 
+        print(f"[LOGIN CODE] Sent login code to {email}", file=sys.stderr)
     except Exception as e:
-        print("EMAIL SEND ERROR:", e, file=sys.stderr)
+        # Don't crash the app if email fails; just log it.
+        print(f"[LOGIN CODE] Failed to send via Resend: {e}", file=sys.stderr)
 
 
 # --- Routes ---
@@ -396,7 +403,7 @@ def enter_competitor():
 @app.route("/login", methods=["GET", "POST"])
 def login_request():
     """
-    Step 1: user enters their email, we generate a 6-digit code and email it.
+    Step 1: user enters their email, we generate a 6-digit code and send it.
     """
     error = None
     message = None
@@ -472,7 +479,7 @@ def login_verify():
                 error = "We couldn't find that email. Please check or register first."
             else:
                 now = datetime.utcnow()
-                # Get the most recent unused code for this competitor with this exact code
+                # Get the most recent unused code for this competitor
                 login_code = (
                     LoginCode.query
                     .filter_by(competitor_id=comp.id, code=code, used=False)
@@ -996,7 +1003,7 @@ def public_register():
             return render_template(
                 "register_public.html",
                 error=error,
-                name=name,
+               	name=name,
                 gender=gender,
                 email=email,
             )
@@ -1452,3 +1459,4 @@ if __name__ == "__main__":
         except Exception:
             pass
     app.run(debug=False, port=port)
+
