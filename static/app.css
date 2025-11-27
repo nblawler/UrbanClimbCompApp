@@ -1090,3 +1090,11 @@ body {
 		display:none;
 	}
 }
+
+/* Prevent iPhone auto-zoom */
+input, select, textarea {
+    font-size: 16px !important;
+}
+label {
+    font-size: 16px !important;
+}
