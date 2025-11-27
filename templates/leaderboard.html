@@ -2,21 +2,42 @@
 <html lang="en">
 <head>
 	<meta charset="utf-8" />
-	<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
 	<title>Leaderboard · Urban Climb Comp</title>
 	<link rel="stylesheet" href="/static/app.css" />
 </head>
 <body>
-	{% set viewer_id = session.get('competitor_id') %}
+	{% set viewer_id = viewer_id if viewer_id is defined else session.get('competitor_id') %}
 	<nav class="container top-nav">
 		<div class="nav-links">
-			<a class="back" href="/leaderboard{% if viewer_id %}?cid={{ viewer_id }}{% endif %}">
+			<a
+				class="back {% if nav_active == 'login' %}active{% endif %}"
+				href="/login"
+			>
+				Login
+			</a>
+
+			{% if viewer_id %}
+				<a
+					class="back {% if nav_active == 'sections' %}active{% endif %}"
+					href="/competitor/{{ viewer_id }}/sections"
+				>
+					Enter Scores
+				</a>
+				<a
+					class="back {% if nav_active == 'stats' %}active{% endif %}"
+					href="/competitor/{{ viewer_id }}/stats"
+				>
+					Stats
+				</a>
+			{% endif %}
+
+			<a
+				class="back {% if nav_active == 'leaderboard' %}active{% endif %}"
+				href="/leaderboard{% if viewer_id %}?cid={{ viewer_id }}{% endif %}"
+			>
 				Leaderboard
 			</a>
-			{% if viewer_id %}
-				<a class="back" href="/competitor/{{ viewer_id }}/sections">Enter Scores</a>
-				<a class="back" href="/competitor/{{ viewer_id }}/stats">Stats</a>
-			{% endif %}
 		</div>
 	</nav>
 

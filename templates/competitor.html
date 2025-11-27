@@ -2,7 +2,7 @@
 <html lang="en">
 	<head>
 		<meta charset="utf-8" />
-		<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
 		<title>Competitor {{ competitor.id }} · Urban Climb Comp</title>
 		<link rel="stylesheet" href="/static/app.css" />
 	</head>
@@ -12,11 +12,12 @@
 		<nav class="container top-nav">
 			<div class="nav-links">
 				<a
-					class="back {% if nav_active == 'leaderboard' %}active{% endif %}"
-					href="/leaderboard{% if viewer_id %}?cid={{ viewer_id }}{% endif %}"
+					class="back {% if nav_active == 'login' %}active{% endif %}"
+					href="/login"
 				>
-					Leaderboard
+					Login
 				</a>
+
 				{% if viewer_id %}
 					<a
 						class="back {% if nav_active == 'sections' %}active{% endif %}"
@@ -24,6 +25,7 @@
 					>
 						Enter Scores
 					</a>
+
 					<a
 						class="back {% if nav_active == 'stats' %}active{% endif %}"
 						href="/competitor/{{ viewer_id }}/stats"
@@ -31,6 +33,13 @@
 						Stats
 					</a>
 				{% endif %}
+
+				<a
+					class="back {% if nav_active == 'leaderboard' %}active{% endif %}"
+					href="/leaderboard{% if viewer_id %}?cid={{ viewer_id }}{% endif %}"
+				>
+					Leaderboard
+				</a>
 			</div>
 		</nav>
 

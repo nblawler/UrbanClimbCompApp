@@ -2,21 +2,52 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-    <title>Log back into scoring · Urban Climb Comp</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Login · Urban Climb Comp</title>
     <link rel="stylesheet" href="/static/app.css" />
   </head>
   <body>
+    {% set viewer_id = viewer_id if viewer_id is defined else session.get('competitor_id') %}
     <nav class="container top-nav">
       <div class="nav-links">
-        <a class="back" href="/">← Back to start</a>
+        <a
+          class="back {% if nav_active == 'login' %}active{% endif %}"
+          href="/login"
+        >
+          Login
+        </a>
+
+        {% if viewer_id %}
+          <a
+            class="back {% if nav_active == 'sections' %}active{% endif %}"
+            href="/competitor/{{ viewer_id }}/sections"
+          >
+            Enter Scores
+          </a>
+          <a
+            class="back {% if nav_active == 'stats' %}active{% endif %}"
+            href="/competitor/{{ viewer_id }}/stats"
+          >
+            Stats
+          </a>
+        {% endif %}
+
+        <a
+          class="back {% if nav_active == 'leaderboard' %}active{% endif %}"
+          href="/leaderboard{% if viewer_id %}?cid={{ viewer_id }}{% endif %}"
+        >
+          Leaderboard
+        </a>
       </div>
     </nav>
 
     <main class="container">
       <header class="comp-header">
         <h1>Log back into your scoring</h1>
-        <p>Enter the email you used when you registered for this comp.</p>
+        <p>
+          Enter the email you registered with and we’ll send you a
+          one-time 6-digit code to continue logging scores.
+        </p>
       </header>
 
       {% if error %}
@@ -37,9 +68,13 @@
         />
 
         <button class="btn primary" type="submit">
-          Send me a login code
+          Send me a code
         </button>
       </form>
+
+      <p style="margin-top: 12px; color: var(--muted); font-size: 0.9rem;">
+        New here? Register first via the QR code or registration link provided by staff.
+      </p>
     </main>
   </body>
 </html>
