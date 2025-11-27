@@ -68,7 +68,7 @@ class Competitor(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(120), nullable=False)
     gender = db.Column(db.String(20), nullable=False, default="Inclusive")
-    email = db.Column(db.String(255), nullable=True, unique=True)  # NEW
+    email = db.Column(db.String(255), nullable=True, unique=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
 
@@ -331,7 +331,7 @@ def send_login_code_via_email(email: str, code: str):
             "subject": "Your Urban Climb Comp login code",
             "html": html,
         }
-        resend.Emails.send(params)  # 
+        resend.Emails.send(params)
         print(f"[LOGIN CODE] Sent login code to {email}", file=sys.stderr)
     except Exception as e:
         # Don't crash the app if email fails; just log it.
@@ -379,7 +379,7 @@ def enter_competitor():
 
     if not cid_raw.isdigit():
         return render_template(
-            "index.html",  # index no longer has this form, so this is effectively unused
+            "index.html",
             error="Please enter a valid competitor number.",
         )
 
@@ -437,13 +437,8 @@ def login_request():
                 # Store email in session just for convenience between forms
                 session["login_email"] = email
 
-                message = "We've emailed you a 6-digit code. Enter it below to log back into your scoring."
-                return render_template(
-                    "login_verify.html",
-                    email=email,
-                    error=None,
-                    message=message,
-                )
+                # IMPORTANT: redirect to the verify route, so form posts to /login/verify
+                return redirect("/login/verify")
 
     return render_template(
         "login_request.html",
@@ -501,6 +496,10 @@ def login_verify():
                     session.pop("login_email", None)
 
                     return redirect(f"/competitor/{comp.id}/sections")
+    else:
+        # GET: if we already have an email (i.e. just sent a code), show a helpful message
+        if email and not message:
+            message = "We've emailed you a 6-digit code. Enter it below to log back into your scoring."
 
     return render_template(
         "login_verify.html",
@@ -1003,7 +1002,7 @@ def public_register():
             return render_template(
                 "register_public.html",
                 error=error,
-               	name=name,
+                name=name,
                 gender=gender,
                 email=email,
             )
@@ -1459,4 +1458,3 @@ if __name__ == "__main__":
         except Exception:
             pass
     app.run(debug=False, port=port)
-
