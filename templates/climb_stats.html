@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 	<meta charset="utf-8" />
-	<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
 	<title>
 		{% if competitor %}
 			{{ competitor.name }} · Climb {{ climb_number }} Stats
@@ -13,61 +13,37 @@
 	<link rel="stylesheet" href="/static/app.css" />
 </head>
 <body>
-	{% set viewer_id = session.get('competitor_id') %}
+	{% set viewer_id = viewer_id if viewer_id is defined else session.get('competitor_id') %}
 	<nav class="container top-nav">
 		<div class="nav-links">
-			{% if competitor %}
+			<a
+				class="back {% if nav_active == 'login' %}active{% endif %}"
+				href="/login"
+			>
+				Login
+			</a>
+
+			{% if viewer_id %}
 				<a
-					class="back {% if nav_active == 'leaderboard' %}active{% endif %}"
-					href="/leaderboard?cid={{ competitor.id }}"
+					class="back {% if nav_active == 'sections' %}active{% endif %}"
+					href="/competitor/{{ viewer_id }}/sections"
 				>
-					Leaderboard
+					Enter Scores
 				</a>
-
-				{% if viewer_is_self %}
-					<a
-						class="back {% if nav_active == 'sections' %}active{% endif %}"
-						href="/competitor/{{ competitor.id }}/sections"
-					>
-						Enter Scores
-					</a>
-				{% else %}
-					<span
-						class="back back-disabled"
-						title="Only this competitor can use the Enter Scores page to log climbs."
-					>
-						Enter Scores
-					</span>
-				{% endif %}
-
 				<a
 					class="back {% if nav_active == 'stats' %}active{% endif %}"
-					href="/competitor/{{ competitor.id }}/stats{% if not viewer_is_self %}?view=public{% endif %}"
+					href="/competitor/{{ viewer_id }}/stats"
 				>
 					Stats
 				</a>
-			{% else %}
-				<a
-					class="back {% if nav_active == 'leaderboard' %}active{% endif %}"
-					href="/leaderboard{% if viewer_id %}?cid={{ viewer_id }}{% endif %}"
-				>
-					Leaderboard
-				</a>
-				{% if viewer_id %}
-					<a
-						class="back {% if nav_active == 'sections' %}active{% endif %}"
-						href="/competitor/{{ viewer_id }}/sections"
-					>
-						Enter Scores
-					</a>
-					<a
-						class="back {% if nav_active == 'stats' %}active{% endif %}"
-						href="/competitor/{{ viewer_id }}/stats"
-					>
-						Stats
-					</a>
-				{% endif %}
 			{% endif %}
+
+			<a
+				class="back {% if nav_active == 'leaderboard' %}active{% endif %}"
+				href="/leaderboard{% if viewer_id %}?cid={{ viewer_id }}{% endif %}"
+			>
+				Leaderboard
+			</a>
 		</div>
 	</nav>
 
@@ -444,3 +420,4 @@
 	{% endif %}
 </body>
 </html>
+
