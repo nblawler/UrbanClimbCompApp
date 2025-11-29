@@ -1,225 +1,211 @@
 <!doctype html>
 <html lang="en">
-<head>
-	<meta charset="utf-8" />
-	<meta name="viewport" content="width=device-width, initial-scale=1" />
-	<title>
-		{{ competitor.name }} · Stats
-	</title>
-	<link rel="stylesheet" href="/static/app.css" />
-</head>
-<body>
-	{% set viewer_id = viewer_id if viewer_id is defined else session.get('competitor_id') %}
-	<nav class="container top-nav">
-		<div class="nav-links">
-			<a
-				class="back {% if nav_active == 'login' %}active{% endif %}"
-				href="/login"
-			>
-				Login
-			</a>
-
-			{% if viewer_id %}
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<title>Stats · {{ competitor.name }} · Urban Climb Comp</title>
+		<link rel="stylesheet" href="/static/app.css" />
+	</head>
+	<body>
+		{% set viewer_id = viewer_id if viewer_id is defined else session.get('competitor_id') %}
+		<nav class="container top-nav">
+			<div class="nav-links">
 				<a
-					class="back {% if nav_active == 'sections' %}active{% endif %}"
-					href="/competitor/{{ viewer_id }}/sections"
+					class="back {% if nav_active == 'login' %}active{% endif %}"
+					href="/login"
 				>
-					Enter Scores
+					Login
 				</a>
+
+				{% if viewer_id %}
+					<a
+						class="back {% if nav_active == 'sections' %}active{% endif %}"
+						href="/competitor/{{ viewer_id }}/sections"
+					>
+						Enter Scores
+					</a>
+
+					<a
+						class="back {% if nav_active == 'my_stats' %}active{% endif %}"
+						href="/competitor/{{ viewer_id }}/stats/my"
+					>
+						My Stats
+					</a>
+
+					<a
+						class="back {% if nav_active == 'overall_stats' %}active{% endif %}"
+						href="/competitor/{{ viewer_id }}/stats/overall"
+					>
+						Overall Stats
+					</a>
+				{% endif %}
+
 				<a
-					class="back {% if nav_active == 'stats' %}active{% endif %}"
-					href="/competitor/{{ viewer_id }}/stats"
+					class="back {% if nav_active == 'leaderboard' %}active{% endif %}"
+					href="/leaderboard{% if viewer_id %}?cid={{ viewer_id }}{% endif %}"
 				>
-					Stats
+					Leaderboard
 				</a>
-			{% endif %}
+			</div>
+		</nav>
 
-			<a
-				class="back {% if nav_active == 'leaderboard' %}active{% endif %}"
-				href="/leaderboard{% if viewer_id %}?cid={{ viewer_id }}{% endif %}"
-			>
-				Leaderboard
-			</a>
-		</div>
-	</nav>
+		<main class="container">
 
-	<main class="container">
+			{% if mode == "my" %}
+			<!-- ===================== SHOW HEADER ONLY ON MY STATS ===================== -->
+			<header class="comp-header">
+				<h1 class="comp-name">
+					<span class="comp-label">Name:</span>
+					<span class="comp-value">{{ competitor.name }}</span>
+				</h1>
 
-		<!-- Unified header (same pattern as sections / climb_stats) -->
-		<header class="comp-header">
-			<h1 class="comp-name">
-				<span class="comp-label">Name:</span>
-				<span class="comp-value">{{ competitor.name }}</span>
-			</h1>
+				<div class="comp-meta-row">
+					<div class="comp-pill">
+						<span class="comp-pill-label">Competitor</span>
+						<span class="comp-pill-value">{{ competitor.id }}</span>
+					</div>
 
-			<div class="comp-meta-row">
-				<div class="comp-pill">
-					<span class="comp-pill-label">Competitor</span>
-					<span class="comp-pill-value">{{ competitor.id }}</span>
-				</div>
-
-				{% if total_points is not none %}
 					<div class="comp-pill">
 						<span class="comp-pill-label">Points</span>
 						<span class="comp-pill-value">{{ total_points }}</span>
 					</div>
-				{% endif %}
 
-				{% if position is not none %}
-					<div class="comp-pill">
-						<span class="comp-pill-label">Position</span>
-						<span class="comp-pill-value">{{ position }}</span>
-					</div>
-				{% endif %}
-			</div>
-		</header>
+					{% if position is defined and position is not none %}
+						<div class="comp-pill">
+							<span class="comp-pill-label">Position</span>
+							<span class="comp-pill-value">{{ position }}</span>
+						</div>
+					{% endif %}
+				</div>
+			</header>
+			{% endif %}
 
-		<h2 class="stats-title" style="margin-top: 0; margin-bottom: 12px;">
-			Overall Performance
-		</h2>
+			{# ===================== MY STATS ===================== #}
+			{% if mode == "my" %}
+				<section class="stats-card">
+					<h2 class="stats-title">My Heatmap</h2>
 
-		<!-- PERFORMANCE BY SECTION -->
-		<section class="stats-card">
-			<h2 class="stats-title">Performance by Section</h2>
+					{% for block in heatmap_sections %}
+						<h3 class="heatmap-section-title">
+							{{ block.section.name }}
+						</h3>
 
-			{% if section_stats %}
-				<div class="stats-table-wrapper">
-					<table class="stats-table section-performance-table">
-						<thead>
-							<tr>
-								<th>Section</th>
-								<th>Tops</th>
-								<th>Attempts</th>
-								<th>Efficiency</th>
-								<th>Points</th>
-							</tr>
-						</thead>
-						<tbody>
-							{% for row in section_stats %}
-								<tr>
-									<td>{{ row.section.name }}</td>
-									<td>{{ row.tops }}</td>
-									<td>{{ row.attempts }}</td>
-									<td>
-										{% if row.attempts > 0 %}
-											{{ (row.efficiency * 100) | round(1) }}%
-										{% else %}
-											–
-										{% endif %}
-									</td>
-									<td>{{ row.points }}</td>
-								</tr>
+						<div class="heatmap-grid">
+							{% for cell in block.climbs %}
+								<a
+									class="heat-cell-link"
+									href="/climb/{{ cell.climb_number }}/stats?cid={{ competitor.id }}"
+								>
+									<div class="heat-cell status-{{ cell.status }}">
+										{{ cell.climb_number }}
+									</div>
+								</a>
 							{% endfor %}
-						</tbody>
-					</table>
-				</div>
+						</div>
+					{% endfor %}
+
+					<div class="heatmap-legend">
+						<div class="legend-item">
+							<span class="legend-box status-flashed"></span>
+							<span>Flashed (topped first go)</span>
+						</div>
+						<div class="legend-item">
+							<span class="legend-box status-topped-late"></span>
+							<span>Topped (multiple attempts)</span>
+						</div>
+						<div class="legend-item">
+							<span class="legend-box status-not-topped"></span>
+							<span>Attempted but not topped</span>
+						</div>
+						<div class="legend-item">
+							<span class="legend-box status-skipped"></span>
+							<span>Not tried yet</span>
+						</div>
+					</div>
+				</section>
+
+			{# ===================== OVERALL STATS ===================== #}
 			{% else %}
-				<p style="margin:0; color:var(--muted);">
-					This climber has not logged any climbs yet.
-				</p>
+				<!-- Performance by section -->
+				<section class="stats-card">
+					<h2 class="stats-title">Performance by Section</h2>
+
+					<div class="stats-table-wrapper">
+						<table class="stats-table section-performance-table">
+							<thead>
+								<tr>
+									<th>Section</th>
+									<th>Tops</th>
+									<th>Attempts</th>
+									<th>Efficiency</th>
+									<th>Points</th>
+								</tr>
+							</thead>
+							<tbody>
+								{% for row in section_stats %}
+									<tr>
+										<td>{{ row.section.name }}</td>
+										<td>{{ row.tops }}</td>
+										<td>{{ row.attempts }}</td>
+										<td>
+											{% if row.attempts > 0 %}
+												{{ (100.0 * row.efficiency) | round(1) }}%
+											{% else %}
+												—
+											{% endif %}
+										</td>
+										<td>{{ row.points }}</td>
+									</tr>
+								{% endfor %}
+							</tbody>
+						</table>
+					</div>
+				</section>
+
+				<!-- Global difficulty heatmap -->
+				<section class="stats-card">
+					<h2 class="stats-title">Global Difficulty Heatmap</h2>
+
+					{% for block in global_heatmap_sections %}
+						<h3 class="heatmap-section-title">
+							{{ block.section.name }}
+						</h3>
+
+						<div class="heatmap-grid">
+							{% for cell in block.climbs %}
+								<a
+									class="heat-cell-link"
+									href="/climb/{{ cell.climb_number }}/stats?cid={{ competitor.id }}"
+								>
+									<div class="heat-cell global-{{ cell.status }}">
+										{{ cell.climb_number }}
+									</div>
+								</a>
+							{% endfor %}
+						</div>
+					{% endfor %}
+
+					<div class="heatmap-legend">
+						<div class="legend-item">
+							<span class="legend-box global-easy"></span>
+							<span>Most competitors topping – easier</span>
+						</div>
+						<div class="legend-item">
+							<span class="legend-box global-medium"></span>
+							<span>Mixed tops – medium</span>
+						</div>
+						<div class="legend-item">
+							<span class="legend-box global-hard"></span>
+							<span>Few tops – harder</span>
+						</div>
+						<div class="legend-item">
+							<span class="legend-box global-no-data"></span>
+							<span>No data yet</span>
+						</div>
+					</div>
+				</section>
 			{% endif %}
-		</section>
-
-		<!-- PERSONAL HEATMAP -->
-		<section class="stats-card">
-			<h2 class="stats-title">
-				{{ competitor.name }}’s Climb Heatmap
-			</h2>
-
-			{% if heatmap_sections %}
-				{% for block in heatmap_sections %}
-					<h3 class="heatmap-section-title">
-						{{ block.section.name }}
-					</h3>
-
-					<div class="heatmap-grid">
-						{% for cell in block.climbs %}
-							<a
-								href="/climb/{{ cell.climb_number }}/stats?cid={{ competitor.id }}"
-								class="heat-cell heat-cell-link status-{{ cell.status }}"
-							>
-								{{ cell.climb_number }}
-							</a>
-						{% endfor %}
-					</div>
-				{% endfor %}
-
-				<!-- Legend for personal status -->
-				<div class="heatmap-legend">
-					<div class="legend-item">
-						<span class="legend-box status-flashed"></span>
-						<span>Flashed</span>
-					</div>
-					<div class="legend-item">
-						<span class="legend-box status-topped-late"></span>
-						<span>Topped (not flash)</span>
-					</div>
-					<div class="legend-item">
-						<span class="legend-box status-not-topped"></span>
-						<span>Attempted, not topped</span>
-					</div>
-					<div class="legend-item">
-						<span class="legend-box status-skipped"></span>
-						<span>Not attempted</span>
-					</div>
-				</div>
-			{% else %}
-				<p style="margin:0; color:var(--muted);">
-					No climbs configured for heatmap display yet.
-				</p>
-			{% endif %}
-		</section>
-
-		<!-- GLOBAL DIFFICULTY HEATMAP -->
-		<section class="stats-card">
-			<h2 class="stats-title">
-				Overall Difficulty Heatmap
-			</h2>
-
-			{% if global_heatmap_sections %}
-				{% for block in global_heatmap_sections %}
-					<h3 class="heatmap-section-title">
-						{{ block.section.name }}
-					</h3>
-
-					<div class="heatmap-grid">
-						{% for cell in block.climbs %}
-							<a
-								href="/climb/{{ cell.climb_number }}/stats?cid={{ competitor.id }}"
-								class="heat-cell heat-cell-link {{ cell.status }}"
-							>
-								{{ cell.climb_number }}
-							</a>
-						{% endfor %}
-					</div>
-				{% endfor %}
-
-				<!-- Legend for global difficulty -->
-				<div class="heatmap-legend">
-					<div class="legend-item">
-						<span class="legend-box global-easy"></span>
-						<span>Easy (high top rate)</span>
-					</div>
-					<div class="legend-item">
-						<span class="legend-box global-medium"></span>
-						<span>Medium</span>
-					</div>
-					<div class="legend-item">
-						<span class="legend-box global-hard"></span>
-						<span>Hard (low top rate)</span>
-					</div>
-					<div class="legend-item">
-						<span class="legend-box global-no-data"></span>
-						<span>No attempts yet</span>
-					</div>
-				</div>
-			{% else %}
-				<p style="margin:0; color:var(--muted);">
-					No global data available yet.
-				</p>
-			{% endif %}
-		</section>
-
-	</main>
-</body>
+		</main>
+	</body>
 </html>
+

@@ -8,6 +8,7 @@
 </head>
 
 <body>
+	{# Unified nav: uses session competitor as "you", nav_active for highlight #}
 	{% set viewer_id = viewer_id if viewer_id is defined else session.get('competitor_id') %}
 	<nav class="container top-nav">
 		<div class="nav-links">
@@ -27,10 +28,17 @@
 				</a>
 
 				<a
-					class="back {% if nav_active == 'stats' %}active{% endif %}"
-					href="/competitor/{{ viewer_id }}/stats"
+					class="back {% if nav_active == 'my_stats' %}active{% endif %}"
+					href="/competitor/{{ viewer_id }}/stats/my"
 				>
-					Stats
+					My Stats
+				</a>
+
+				<a
+					class="back {% if nav_active == 'overall_stats' %}active{% endif %}"
+					href="/competitor/{{ viewer_id }}/stats/overall"
+				>
+					Overall Stats
 				</a>
 			{% endif %}
 
@@ -102,4 +110,3 @@
 	</main>
 </body>
 </html>
-

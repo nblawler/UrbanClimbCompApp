@@ -570,17 +570,23 @@ def competitor_sections(competitor_id):
     )
 
 
-# --- Competitor stats page (personal + global heatmaps) ---
+# --- Competitor stats page: My Stats + Overall Stats ---
 
 
 @app.route("/competitor/<int:competitor_id>/stats")
-def competitor_stats(competitor_id):
+@app.route("/competitor/<int:competitor_id>/stats/<string:mode>")
+def competitor_stats(competitor_id, mode="my"):
     """
-    Stats page for a competitor:
-    - Performance by section (tops, attempts, efficiency, points)
-    - Personal heatmap (this competitor's status on each climb)
-    - Global heatmap (how hard each climb is across all competitors)
+    Stats for a competitor, split into two modes:
+
+    - mode="my"       -> My Stats page (personal heatmap only)
+    - mode="overall"  -> Overall Stats page (section performance + global heatmap)
     """
+    # Normalise mode
+    mode = (mode or "my").lower()
+    if mode not in ("my", "overall"):
+        mode = "my"
+
     comp = Competitor.query.get_or_404(competitor_id)
     total_points = competitor_total_points(competitor_id)
 
@@ -596,7 +602,7 @@ def competitor_stats(competitor_id):
 
     # --- get leaderboard position for this competitor ---
     rows, _ = build_leaderboard(None)
-    position = None
+    position = None    # noqa: A001
     for r in rows:
         if r["competitor_id"] == competitor_id:
             position = r["position"]
@@ -724,6 +730,9 @@ def competitor_stats(competitor_id):
             }
         )
 
+    # nav_active changes depending on which page we’re on
+    nav_active = "my_stats" if mode == "my" else "overall_stats"
+
     return render_template(
         "competitor_stats.html",
         competitor=comp,
@@ -735,7 +744,8 @@ def competitor_stats(competitor_id):
         is_public_view=is_public_view,
         viewer_id=viewer_id,
         viewer_is_self=viewer_is_self,
-        nav_active="stats",
+        mode=mode,
+        nav_active=nav_active,
     )
 
 
@@ -779,7 +789,7 @@ def climb_stats(climb_number):
             competitor=competitor,
             total_points=total_points,
             position=position,
-            nav_active="stats",
+            nav_active="overall_stats",
         )
 
     section_ids = {sc.section_id for sc in section_climbs}
@@ -860,7 +870,7 @@ def climb_stats(climb_number):
         competitor=competitor,
         total_points=total_points,
         position=position,
-        nav_active="stats",
+        nav_active="overall_stats",
     )
 
 
