@@ -919,6 +919,12 @@ def competitor_section_climbs(competitor_id, section_slug):
     scores = Score.query.filter_by(competitor_id=target_id).all()
     existing = {s.climb_number: s for s in scores}
 
+    # NEW: pre-compute per-climb points for this competitor
+    per_climb_points = {
+        s.climb_number: points_for(s.climb_number, s.attempts, s.topped)
+        for s in scores
+    }
+
     total_points = competitor_total_points(target_id)
 
     can_edit = True  # if you got here, you're either that competitor or admin
@@ -933,6 +939,7 @@ def competitor_section_climbs(competitor_id, section_slug):
         colours=colours,
         position=position,
         max_points=max_points,
+        per_climb_points=per_climb_points,  # 👈 passes to template
         nav_active="sections",
         can_edit=can_edit,
         viewer_id=viewer_id,

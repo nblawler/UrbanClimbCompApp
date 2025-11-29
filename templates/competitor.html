@@ -125,9 +125,21 @@
 
 							{% if max_pts is not none %}
 								<p style="margin:4px 0 0; color: var(--climb-text);">
-									Max points: {{ max_pts }}
+									Max Points: {{ max_pts }}
 								</p>
 							{% endif %}
+
+							{# Points scored line under Max points #}
+							<p style="margin:2px 0 0; color: var(--climb-text); font-size:0.9rem;">
+								Points Scored:
+								<span class="points-scored-value">
+									{% if per_climb_points is defined %}
+										{{ per_climb_points.get(n, 0) }}
+									{% else %}
+										0
+									{% endif %}
+								</span>
+							</p>
 
 							<div class="row">
 								<label style="color: var(--climb-text);">Attempts</label>
@@ -226,8 +238,14 @@
 						return;
 					}
 
-					await res.json();
+					const data = await res.json();
 					showStatus(status, "Saved");
+
+					// Update per-climb "Points scored" from API response
+					const pointsSpan = card.querySelector(".points-scored-value");
+					if (pointsSpan && data && typeof data.points === "number") {
+						pointsSpan.textContent = data.points;
+					}
 
 					await refreshTotalPoints();
 					refreshPosition();
