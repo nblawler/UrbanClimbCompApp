@@ -58,32 +58,32 @@
 		<main class="container">
 
 			{% if mode == "my" %}
-			<!-- ===================== SHOW HEADER ONLY ON MY STATS ===================== -->
-			<header class="comp-header">
-				<h1 class="comp-name">
-					<span class="comp-label">Name:</span>
-					<span class="comp-value">{{ competitor.name }}</span>
-				</h1>
+				<!-- ===================== HEADER ONLY ON MY STATS ===================== -->
+				<header class="comp-header">
+					<h1 class="comp-name">
+						<span class="comp-label">Name:</span>
+						<span class="comp-value">{{ competitor.name }}</span>
+					</h1>
 
-				<div class="comp-meta-row">
-					<div class="comp-pill">
-						<span class="comp-pill-label">Competitor</span>
-						<span class="comp-pill-value">{{ competitor.id }}</span>
-					</div>
-
-					<div class="comp-pill">
-						<span class="comp-pill-label">Points</span>
-						<span class="comp-pill-value">{{ total_points }}</span>
-					</div>
-
-					{% if position is defined and position is not none %}
+					<div class="comp-meta-row">
 						<div class="comp-pill">
-							<span class="comp-pill-label">Position</span>
-							<span class="comp-pill-value">{{ position }}</span>
+							<span class="comp-pill-label">Competitor</span>
+							<span class="comp-pill-value">{{ competitor.id }}</span>
 						</div>
-					{% endif %}
-				</div>
-			</header>
+
+						<div class="comp-pill">
+							<span class="comp-pill-label">Points</span>
+							<span class="comp-pill-value">{{ total_points }}</span>
+						</div>
+
+						{% if position is defined and position is not none %}
+							<div class="comp-pill">
+								<span class="comp-pill-label">Position</span>
+								<span class="comp-pill-value">{{ position }}</span>
+							</div>
+						{% endif %}
+					</div>
+				</header>
 			{% endif %}
 
 			{# ===================== MY STATS ===================== #}
@@ -121,7 +121,7 @@
 						</div>
 						<div class="legend-item">
 							<span class="legend-box status-not-topped"></span>
-							<span>Attempted but not topped</span>
+							<span>Attempted (not topped)</span>
 						</div>
 						<div class="legend-item">
 							<span class="legend-box status-skipped"></span>
@@ -194,19 +194,19 @@
 					<div class="heatmap-legend">
 						<div class="legend-item">
 							<span class="legend-box global-easy"></span>
-							<span>Most competitors topping – easier</span>
+							<span>Easy</span>
 						</div>
 						<div class="legend-item">
 							<span class="legend-box global-medium"></span>
-							<span>Mixed tops – medium</span>
+							<span>Medium</span>
 						</div>
 						<div class="legend-item">
 							<span class="legend-box global-hard"></span>
-							<span>Few tops – harder</span>
+							<span>Hard</span>
 						</div>
 						<div class="legend-item">
 							<span class="legend-box global-no-data"></span>
-							<span>No data yet</span>
+							<span>Not tried yet</span>
 						</div>
 					</div>
 				</section>
@@ -214,3 +214,4 @@
 		</main>
 	</body>
 </html>
+

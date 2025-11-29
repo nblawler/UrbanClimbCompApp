@@ -691,11 +691,11 @@ def competitor_stats(competitor_id, mode="my"):
                 top_rate = tops / total_comp if total_comp > 0 else 0.0
 
                 if top_rate >= 0.8:
-                    g_status = "global-easy"
+                    g_status = "easy"
                 elif top_rate >= 0.4:
-                    g_status = "global-medium"
+                    g_status = "medium"
                 else:
-                    g_status = "global-hard"
+                    g_status = "hard"
 
             global_cells.append(
                 {

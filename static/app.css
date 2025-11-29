@@ -912,6 +912,7 @@ body {
 .heat-cell {
 	height: 36px;
 	border-radius: 12px;
+	border: 1px solid rgba(0,0,0,0.2); /* subtle outline for accessibility */
 	display: flex;
 	align-items: center;
 	justify-content: center;
@@ -937,18 +938,57 @@ body {
 	cursor: pointer;
 }
 
-/* Status colours – personal heatmap */
+/* ========================================================================= */
+/* COLOUR-BLIND-SAFE PERSONAL HEATMAP (with patterns)                        */
+/* Uses Okabe–Ito palette                                                    */
+/* ========================================================================= */
+
+/* Flashed – blue stripes */
 .status-flashed {
-	background: #2d9f6f;  /* green-ish */
+	background: repeating-linear-gradient(
+		45deg,
+		#0072B2,
+		#0072B2 6px,
+		#005B8A 6px,
+		#005B8A 12px
+	);
+	color: #ffffff;
 }
+
+/* Topped (multiple attempts) – teal stripes */
 .status-topped-late {
-	background: #3478d1;  /* blue-ish */
+	background: repeating-linear-gradient(
+		45deg,
+		#009E73,
+		#009E73 6px,
+		#007F5D 6px,
+		#007F5D 12px
+	);
+	color: #ffffff;
 }
+
+/* Attempted but not topped – orange stripes */
 .status-not-topped {
-	background: #d18a34;  /* amber */
+	background: repeating-linear-gradient(
+		45deg,
+		#D55E00,
+		#D55E00 6px,
+		#B74F00 6px,
+		#B74F00 12px
+	);
+	color: #ffffff;
 }
+
+/* Not tried yet – grey stripes */
 .status-skipped {
-	background: #555;     /* grey */
+	background: repeating-linear-gradient(
+		45deg,
+		#BBBBBB,
+		#BBBBBB 6px,
+		#999999 6px,
+		#999999 12px
+	);
+	color: #ffffff;
 }
 
 /* Legend */
@@ -975,35 +1015,98 @@ body {
 	display: inline-block;
 }
 
-/* Global difficulty heatmap colours */
+/* ========================================================================= */
+/* GLOBAL DIFFICULTY HEATMAP – COLOUR-BLIND-SAFE                             */
+/* ========================================================================= */
+
+/* ========================================================================= */
+/* GLOBAL DIFFICULTY HEATMAP – COLOUR-BLIND-SAFE + PATTERNS                  */
+/* ========================================================================= */
+
 .global-easy {
-	background: #2d9f6f;  /* green-ish */
+	background: repeating-linear-gradient(
+		45deg,
+		#009E73,
+		#009E73 6px,
+		#007F5D 6px,
+		#007F5D 12px
+	);
+	color: #000000;
 }
 
 .global-medium {
-	background: #d18a34;  /* amber */
+	background: repeating-linear-gradient(
+		45deg,
+		#F0E442,
+		#F0E442 6px,
+		#C9C037 6px,
+		#C9C037 12px
+	);
+	color: #000000;
 }
 
 .global-hard {
-	background: #c0392b;  /* red-ish */
+	background: repeating-linear-gradient(
+		45deg,
+		#D55E00,
+		#D55E00 6px,
+		#B74F00 6px,
+		#B74F00 12px
+	);
+	color: #ffffff;
 }
 
 .global-no-data {
-	background: #555;     /* grey */
+	background: repeating-linear-gradient(
+		45deg,
+		#CCCCCC,
+		#CCCCCC 6px,
+		#AAAAAA 6px,
+		#AAAAAA 12px
+	);
+	color: #000000;
 }
 
-/* legend boxes reuse the same colours */
+/* Legend boxes reuse same colours/patterns */
+
 .legend-box.global-easy {
-	background:#2d9f6f;
+	background: repeating-linear-gradient(
+		45deg,
+		#009E73,
+		#009E73 6px,
+		#007F5D 6px,
+		#007F5D 12px
+	);
 }
+
 .legend-box.global-medium {
-	background:#d18a34;
+	background: repeating-linear-gradient(
+		45deg,
+		#F0E442,
+		#F0E442 6px,
+		#C9C037 6px,
+		#C9C037 12px
+	);
 }
+
 .legend-box.global-hard {
-	background:#c0392b;
+	background: repeating-linear-gradient(
+		45deg,
+		#D55E00,
+		#D55E00 6px,
+		#B74F00 6px,
+		#B74F00 12px
+	);
 }
+
 .legend-box.global-no-data {
-	background:#555;
+	background: repeating-linear-gradient(
+		45deg,
+		#CCCCCC,
+		#CCCCCC 6px,
+		#AAAAAA 6px,
+		#AAAAAA 12px
+	);
 }
 
 /* --- Responsive tweaks for stats table --- */
