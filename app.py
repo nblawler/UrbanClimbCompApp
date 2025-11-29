@@ -749,15 +749,25 @@ def competitor_stats(competitor_id, mode="my"):
     )
 
 
-# --- Per-climb stats page (global) ---
+# --- Per-climb stats page (personal/global view) ---
 
 
 @app.route("/climb/<int:climb_number>/stats")
 def climb_stats(climb_number):
     """
-    Global stats for a single climb across all competitors.
-    Optionally in the context of a specific competitor (?cid=123).
+    Stats for a single climb across all competitors.
+
+    - Optional competitor context via ?cid=123
+    - Optional mode via ?mode=personal|global
+
+      mode=personal -> emphasise this competitor's performance
+      mode=global   -> emphasise global difficulty (default)
     """
+
+    # --- Mode selection: personal vs global context ---
+    mode = (request.args.get("mode", "global") or "global").strip().lower()
+    if mode not in ("personal", "global"):
+        mode = "global"
 
     # --- Optional competitor context via ?cid= ---
     cid_raw = request.args.get("cid", "").strip()
@@ -789,7 +799,8 @@ def climb_stats(climb_number):
             competitor=competitor,
             total_points=total_points,
             position=position,
-            nav_active="overall_stats",
+            mode=mode,
+            nav_active="my_stats" if mode == "personal" else "overall_stats",
         )
 
     section_ids = {sc.section_id for sc in section_climbs}
@@ -870,7 +881,8 @@ def climb_stats(climb_number):
         competitor=competitor,
         total_points=total_points,
         position=position,
-        nav_active="overall_stats",
+        mode=mode,
+        nav_active="my_stats" if mode == "personal" else "overall_stats",
     )
 
 

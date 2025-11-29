@@ -5,7 +5,11 @@
 	<meta name="viewport" content="width=device-width, initial-scale=1" />
 	<title>
 		{% if competitor %}
-			{{ competitor.name }} · Climb {{ climb_number }} Stats
+			{% if mode == "personal" %}
+				{{ competitor.name }} · Your Performance · Climb {{ climb_number }}
+			{% else %}
+				{{ competitor.name }} · Global Stats · Climb {{ climb_number }}
+			{% endif %}
 		{% else %}
 			Climb {{ climb_number }} · Stats
 		{% endif %}
@@ -13,7 +17,6 @@
 	<link rel="stylesheet" href="/static/app.css" />
 </head>
 <body>
-	{# Unified nav: uses session competitor as "you", nav_active for highlight #}
 	{% set viewer_id = viewer_id if viewer_id is defined else session.get('competitor_id') %}
 	<nav class="container top-nav">
 		<div class="nav-links">
@@ -71,34 +74,41 @@
 						<span class="comp-pill-value">{{ competitor.id }}</span>
 					</div>
 
-					{% if total_points is defined and total_points is not none %}
+					{% if total_points is not none %}
 						<div class="comp-pill">
 							<span class="comp-pill-label">Points</span>
-							<span class="comp-pill-value" id="total-points">
-								{{ total_points }}
-							</span>
+							<span class="comp-pill-value">{{ total_points }}</span>
 						</div>
 					{% endif %}
 
-					{% if position is defined and position is not none %}
+					{% if position is not none %}
 						<div class="comp-pill">
 							<span class="comp-pill-label">Position</span>
-							<span class="comp-pill-value" id="position-value">
-								{{ position }}
-							</span>
+							<span class="comp-pill-value">{{ position }}</span>
 						</div>
 					{% endif %}
 				</div>
 			</header>
 
 			<h2 class="stats-title" style="margin-top: 0;">
-				Climb #{{ climb_number }} Stats
+				{% if mode == "personal" %}
+					Your Performance · Climb #{{ climb_number }}
+				{% else %}
+					Global Stats · Climb #{{ climb_number }}
+				{% endif %}
 			</h2>
 		{% else %}
 			<header class="header" style="margin-bottom: 16px;">
 				<h1 style="margin:0 0 4px 0; font-size:1.9rem;">
 					Climb #{{ climb_number }} Stats
 				</h1>
+				<p class="comp-subtitle">
+					{% if mode == "personal" %}
+						Personal and global stats for this climb.
+					{% else %}
+						Global performance and difficulty for this climb.
+					{% endif %}
+				</p>
 			</header>
 		{% endif %}
 
@@ -110,12 +120,18 @@
 			</section>
 		{% else %}
 
-			<!-- OVERVIEW -->
+			{# =============== OVERVIEW (PERSONAL + GLOBAL) =============== #}
 			<section class="stats-card">
-				<h2 class="stats-title">Overview</h2>
+				<h2 class="stats-title">
+					{% if mode == "personal" %}
+						Your Result & Overview
+					{% else %}
+						Overview
+					{% endif %}
+				</h2>
 
-				{# --- Show this specific competitor's result (visible to everyone) --- #}
-				{% if competitor %}
+				{# --- PERSONAL SUMMARY ONLY IN PERSONAL MODE --- #}
+				{% if competitor and mode == "personal" %}
 					{% if personal_row %}
 						<p style="margin: 0 0 8px 0; font-size:0.95rem; color:var(--text);">
 							<strong>{{ competitor.name }}:</strong>
@@ -238,9 +254,15 @@
 				</table>
 			</section>
 
-			<!-- PER-COMPETITOR -->
+			{# =============== PER-COMPETITOR TABLE =============== #}
 			<section class="stats-card">
-				<h2 class="stats-title">Per-Competitor Breakdown</h2>
+				<h2 class="stats-title">
+					{% if mode == "personal" %}
+						How Everyone Else Did
+					{% else %}
+						Per-Competitor Breakdown
+					{% endif %}
+				</h2>
 
 				{% if per_competitor %}
 					{% set total_rows = per_competitor|length %}
@@ -433,3 +455,4 @@
 	{% endif %}
 </body>
 </html>
+

@@ -3,7 +3,13 @@
 	<head>
 		<meta charset="utf-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
-		<title>Stats · {{ competitor.name }} · Urban Climb Comp</title>
+		<title>
+			{% if mode == "my" %}
+				My Stats · {{ competitor.name }} · Urban Climb Comp
+			{% else %}
+				Overall Stats · {{ competitor.name }} · Urban Climb Comp
+			{% endif %}
+		</title>
 		<link rel="stylesheet" href="/static/app.css" />
 	</head>
 	<body>
@@ -94,7 +100,7 @@
 							{% for cell in block.climbs %}
 								<a
 									class="heat-cell-link"
-									href="/climb/{{ cell.climb_number }}/stats?cid={{ competitor.id }}"
+									href="/climb/{{ cell.climb_number }}/stats?cid={{ competitor.id }}&mode=personal"
 								>
 									<div class="heat-cell status-{{ cell.status }}">
 										{{ cell.climb_number }}
@@ -175,7 +181,7 @@
 							{% for cell in block.climbs %}
 								<a
 									class="heat-cell-link"
-									href="/climb/{{ cell.climb_number }}/stats?cid={{ competitor.id }}"
+									href="/climb/{{ cell.climb_number }}/stats?cid={{ competitor.id }}&mode=global"
 								>
 									<div class="heat-cell global-{{ cell.status }}">
 										{{ cell.climb_number }}
@@ -208,4 +214,3 @@
 		</main>
 	</body>
 </html>
-
