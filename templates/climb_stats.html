@@ -4,14 +4,12 @@
 	<meta charset="utf-8" />
 	<meta name="viewport" content="width=device-width, initial-scale=1" />
 	<title>
-		{% if competitor %}
-			{% if mode == "personal" %}
-				{{ competitor.name }} · Your Performance · Climb {{ climb_number }}
-			{% else %}
-				{{ competitor.name }} · Global Stats · Climb {{ climb_number }}
-			{% endif %}
+		{% if competitor and mode == "personal" %}
+			{{ competitor.name }} · Your Performance · Climb {{ climb_number }}
+		{% elif mode == "personal" %}
+			Your Performance · Climb {{ climb_number }}
 		{% else %}
-			Climb {{ climb_number }} · Stats
+			Global Stats · Climb {{ climb_number }}
 		{% endif %}
 	</title>
 	<link rel="stylesheet" href="/static/app.css" />
@@ -61,7 +59,7 @@
 
 	<main class="container">
 
-		{% if competitor %}
+		{% if competitor and mode == "personal" %}
 			<header class="comp-header">
 				<h1 class="comp-name">
 					<span class="comp-label">Name:</span>
@@ -91,23 +89,15 @@
 			</header>
 
 			<h2 class="stats-title" style="margin-top: 0;">
-				{% if mode == "personal" %}
-					Your Performance · Climb #{{ climb_number }}
-				{% else %}
-					Global Stats · Climb #{{ climb_number }}
-				{% endif %}
+				Your Performance · Climb #{{ climb_number }}
 			</h2>
 		{% else %}
 			<header class="header" style="margin-bottom: 16px;">
 				<h1 style="margin:0 0 4px 0; font-size:1.9rem;">
-					Climb #{{ climb_number }} Stats
+					Global Stats · Climb #{{ climb_number }}
 				</h1>
 				<p class="comp-subtitle">
-					{% if mode == "personal" %}
-						Personal and global stats for this climb.
-					{% else %}
-						Global performance and difficulty for this climb.
-					{% endif %}
+					Global performance and difficulty for this climb.
 				</p>
 			</header>
 		{% endif %}
@@ -472,3 +462,4 @@
 	{% endif %}
 </body>
 </html>
+
