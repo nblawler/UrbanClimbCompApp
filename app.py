@@ -684,7 +684,8 @@ def competitor_stats(competitor_id, mode="my"):
             # --- Global classification for this climb ---
             g = global_by_climb.get(sc.climb_number)
             if not g or len(g["competitors"]) == 0:
-                g_status = "global-no-data"
+                # "no-data" pairs with CSS .global-no-data via class="global-{{ cell.status }}"
+                g_status = "no-data"
             else:
                 total_comp = len(g["competitors"])
                 tops = g["tops"]
@@ -826,6 +827,21 @@ def climb_stats(climb_number):
         if tops > 0 else 0.0
     )
 
+    # --- Global difficulty band for this climb (matches global heatmap) ---
+    if num_competitors == 0:
+        global_difficulty_key = "no-data"
+        global_difficulty_label = "Not tried yet (no data)"
+    else:
+        if top_rate >= 0.8:
+            global_difficulty_key = "easy"
+            global_difficulty_label = "Easier"
+        elif top_rate >= 0.4:
+            global_difficulty_key = "medium"
+            global_difficulty_label = "Medium"
+        else:
+            global_difficulty_key = "hard"
+            global_difficulty_label = "Harder"
+
     # Per-competitor breakdown
     comps = {}
     if competitor_ids:
@@ -883,6 +899,8 @@ def climb_stats(climb_number):
         position=position,
         mode=mode,
         nav_active="my_stats" if mode == "personal" else "overall_stats",
+        global_difficulty_key=global_difficulty_key,
+        global_difficulty_label=global_difficulty_label,
     )
 
 
@@ -1487,3 +1505,4 @@ if __name__ == "__main__":
         except Exception:
             pass
     app.run(debug=False, port=port)
+

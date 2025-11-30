@@ -112,6 +112,32 @@
 			</header>
 		{% endif %}
 
+		{# === Difficulty band pill (Easy / Medium / Hard / Not tried yet) === #}
+		{% if has_config and global_difficulty_key is defined and global_difficulty_label is defined %}
+			<section class="stats-card" style="margin-bottom: 16px; padding: 10px 16px;">
+				<p style="margin: 0; font-size: 0.95rem; color: var(--text); display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+					<span style="font-weight:600;">Difficulty:</span>
+					<span
+						class="heat-cell global-{{ global_difficulty_key }}"
+						style="
+							height: auto;
+							padding: 4px 12px;
+							min-height: 0;
+							border-radius: 999px;
+							font-size: 0.85rem;
+						"
+					>
+						{{ global_difficulty_label }}
+					</span>
+					{% if num_competitors == 0 %}
+						<span style="font-size: 0.85rem; color: var(--muted);">
+							No competitors have logged this climb yet.
+						</span>
+					{% endif %}
+				</p>
+			</section>
+		{% endif %}
+
 		{% if not has_config %}
 			<section class="stats-card">
 				<p style="margin:0;">
@@ -146,7 +172,6 @@
 											padding:2px 10px;
 											border-radius:999px;
 											font-size:0.8rem;
-											color:#fff;
 										"
 									>
 										Flashed
@@ -160,7 +185,6 @@
 											padding:2px 10px;
 											border-radius:999px;
 											font-size:0.8rem;
-											color:#fff;
 										"
 									>
 										Topped
@@ -175,7 +199,6 @@
 										padding:2px 10px;
 										border-radius:999px;
 										font-size:0.8rem;
-										color:#000;
 									"
 								>
 									Not topped
@@ -455,4 +478,3 @@
 	{% endif %}
 </body>
 </html>
-
