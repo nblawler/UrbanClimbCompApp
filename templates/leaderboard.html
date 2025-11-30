@@ -113,10 +113,8 @@
 							<td>{{ row.position }}</td>
 							<td>
 								{% if current_competitor_id and row.competitor_id == current_competitor_id %}
-									{# Your own row → My Stats #}
-									<a href="/competitor/{{ row.competitor_id }}/stats">
-										{{ row.name }}
-									</a>
+									{# Your own row → plain text, not clickable #}
+									<span>{{ row.name }}</span>
 								{% else %}
 									{# Other competitors → Climber Stats #}
 									<a href="/competitor/{{ row.competitor_id }}/stats/climber">
@@ -137,6 +135,7 @@
 
 	<script>
 		const leaderboardBody = document.getElementById("leaderboard-body");
+		const viewerId = {{ current_competitor_id if current_competitor_id is not none else 'null' }};
 
 		function getCategoryFromPath() {
 			const parts = window.location.pathname.split("/").filter(Boolean);
@@ -171,11 +170,17 @@
 					tr.appendChild(tdPos);
 
 					const tdName = document.createElement("td");
-					// JS refresh: always point to Climber Stats
-					const a = document.createElement("a");
-					a.href = `/competitor/${r.competitor_id}/stats/climber`;
-					a.textContent = r.name;
-					tdName.appendChild(a);
+
+					// If this row is the logged-in competitor, render plain text
+					if (viewerId !== null && r.competitor_id === viewerId) {
+						tdName.textContent = r.name;
+					} else {
+						// Other competitors → Climber Stats
+						const a = document.createElement("a");
+						a.href = `/competitor/${r.competitor_id}/stats/climber`;
+						a.textContent = r.name;
+						tdName.appendChild(a);
+					}
 					tr.appendChild(tdName);
 
 					const tdTops = document.createElement("td");
@@ -211,3 +216,4 @@
 	</script>
 </body>
 </html>
+
