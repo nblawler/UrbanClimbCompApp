@@ -113,11 +113,13 @@
 							<td>{{ row.position }}</td>
 							<td>
 								{% if current_competitor_id and row.competitor_id == current_competitor_id %}
+									{# Your own row → My Stats #}
 									<a href="/competitor/{{ row.competitor_id }}/stats">
 										{{ row.name }}
 									</a>
 								{% else %}
-									<a href="/competitor/{{ row.competitor_id }}/stats?view=public">
+									{# Other competitors → Climber Stats #}
+									<a href="/competitor/{{ row.competitor_id }}/stats/climber">
 										{{ row.name }}
 									</a>
 								{% endif %}
@@ -169,9 +171,9 @@
 					tr.appendChild(tdPos);
 
 					const tdName = document.createElement("td");
-					// JS refresh uses public view links so no one accidentally gets edit access
+					// JS refresh: always point to Climber Stats
 					const a = document.createElement("a");
-					a.href = `/competitor/${r.competitor_id}/stats?view=public`;
+					a.href = `/competitor/${r.competitor_id}/stats/climber`;
 					a.textContent = r.name;
 					tdName.appendChild(a);
 					tr.appendChild(tdName);

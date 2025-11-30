@@ -6,6 +6,8 @@
 		<title>
 			{% if mode == "my" %}
 				My Stats · {{ competitor.name }} · Urban Climb Comp
+			{% elif mode == "climber" %}
+				Climber Stats · {{ competitor.name }} · Urban Climb Comp
 			{% else %}
 				Overall Stats · {{ competitor.name }} · Urban Climb Comp
 			{% endif %}
@@ -38,6 +40,16 @@
 						My Stats
 					</a>
 
+					{# NEW: Climber Stats tab, only shown when in climber mode #}
+					{% if mode == "climber" %}
+						<a
+							class="back {% if nav_active == 'climber_stats' %}active{% endif %}"
+							href="/competitor/{{ competitor.id }}/stats/climber"
+						>
+							Climber Stats
+						</a>
+					{% endif %}
+
 					<a
 						class="back {% if nav_active == 'overall_stats' %}active{% endif %}"
 						href="/competitor/{{ viewer_id }}/stats/overall"
@@ -57,8 +69,15 @@
 
 		<main class="container">
 
-			{% if mode == "my" %}
-				<!-- ===================== HEADER ONLY ON MY STATS ===================== -->
+			{# Optional big header only for the dedicated Climber Stats page #}
+			{% if mode == "climber" %}
+				<h1 class="page-title" style="margin: 0 0 12px 0;">
+					Climber Stats
+				</h1>
+			{% endif %}
+
+			{% if mode in ("my", "climber") %}
+				<!-- ===================== HEADER FOR MY / CLIMBER STATS ===================== -->
 				<header class="comp-header">
 					<h1 class="comp-name">
 						<span class="comp-label">Name:</span>
@@ -86,10 +105,16 @@
 				</header>
 			{% endif %}
 
-			{# ===================== MY STATS ===================== #}
-			{% if mode == "my" %}
+			{# ===================== MY / CLIMBER STATS ===================== #}
+			{% if mode in ("my", "climber") %}
 				<section class="stats-card">
-					<h2 class="stats-title">My Heatmap</h2>
+					<h2 class="stats-title">
+						{% if mode == "climber" %}
+							Climber Heatmap
+						{% else %}
+							My Heatmap
+						{% endif %}
+					</h2>
 
 					{% for block in heatmap_sections %}
 						<h3 class="heatmap-section-title">
@@ -214,4 +239,3 @@
 		</main>
 	</body>
 </html>
-

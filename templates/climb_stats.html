@@ -112,7 +112,7 @@
 			</header>
 		{% endif %}
 
-		{# === Difficulty band pill (Easy / Medium / Hard / Not tried yet) === #}
+		{# === Difficulty pill (Easy / Medium / Hard / Not tried yet) === #}
 		{% if has_config and global_difficulty_key is defined and global_difficulty_label is defined %}
 			<section class="stats-card" style="margin-bottom: 16px; padding: 10px 16px;">
 				<p style="margin: 0; font-size: 0.95rem; color: var(--text); display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
@@ -277,19 +277,13 @@
 				</table>
 			</section>
 
-			{# =============== PER-COMPETITOR TABLE =============== #}
+			{# =============== PER-COMPETITOR TABLE (TOP 5) =============== #}
 			<section class="stats-card">
-				<h2 class="stats-title">
-					{% if mode == "personal" %}
-						How Everyone Else Did
-					{% else %}
-						Per-Competitor Breakdown
-					{% endif %}
-				</h2>
+				<h2 class="stats-title">Top 5 Competitors</h2>
 
 				{% if per_competitor %}
 					{% set total_rows = per_competitor|length %}
-					{% set default_limit = 2 %}
+					{% set default_limit = 5 %}
 
 					<div
 						id="per-comp-controls"

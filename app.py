@@ -577,14 +577,15 @@ def competitor_sections(competitor_id):
 @app.route("/competitor/<int:competitor_id>/stats/<string:mode>")
 def competitor_stats(competitor_id, mode="my"):
     """
-    Stats for a competitor, split into two modes:
+    Stats for a competitor, split into three modes:
 
     - mode="my"       -> My Stats page (personal heatmap only)
     - mode="overall"  -> Overall Stats page (section performance + global heatmap)
+    - mode="climber"  -> Climber Stats page (spectator view, same data as "my")
     """
     # Normalise mode
     mode = (mode or "my").lower()
-    if mode not in ("my", "overall"):
+    if mode not in ("my", "overall", "climber"):
         mode = "my"
 
     comp = Competitor.query.get_or_404(competitor_id)
@@ -595,18 +596,8 @@ def competitor_stats(competitor_id, mode="my"):
     viewer_id = session.get("competitor_id")
     viewer_is_self = (viewer_id == competitor_id)
 
-    # Spectator mode ONLY when:
-    # - URL has ?view=public
-    # - and viewer is NOT this competitor
+    # Spectator mode from old ?view=public flag (still supported)
     is_public_view = (view_mode == "public" and not viewer_is_self)
-
-    # --- get leaderboard position for this competitor ---
-    rows, _ = build_leaderboard(None)
-    position = None    # noqa: A001
-    for r in rows:
-        if r["competitor_id"] == competitor_id:
-            position = r["position"]
-            break
 
     sections = Section.query.order_by(Section.name).all()
 
@@ -633,6 +624,14 @@ def competitor_stats(competitor_id, mode="my"):
             info["tops"] += 1
             if s.attempts == 1:
                 info["flashes"] += 1
+
+    # --- get leaderboard position for this competitor ---
+    rows, _ = build_leaderboard(None)
+    position = None    # noqa: A001
+    for r in rows:
+        if r["competitor_id"] == competitor_id:
+            position = r["position"]
+            break
 
     section_stats = []
     personal_heatmap_sections = []
@@ -732,7 +731,12 @@ def competitor_stats(competitor_id, mode="my"):
         )
 
     # nav_active changes depending on which page we’re on
-    nav_active = "my_stats" if mode == "my" else "overall_stats"
+    if mode == "my":
+        nav_active = "my_stats"
+    elif mode == "overall":
+        nav_active = "overall_stats"
+    else:
+        nav_active = "climber_stats"
 
     return render_template(
         "competitor_stats.html",
@@ -748,6 +752,7 @@ def competitor_stats(competitor_id, mode="my"):
         mode=mode,
         nav_active=nav_active,
     )
+
 
 
 # --- Per-climb stats page (personal/global view) ---
@@ -1505,4 +1510,3 @@ if __name__ == "__main__":
         except Exception:
             pass
     app.run(debug=False, port=port)
-
