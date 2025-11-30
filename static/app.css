@@ -1209,6 +1209,13 @@ body {
 	}
 }
 
+/* Remove highklight from buttons */
+a.back,
+a.primary,
+.nav-links a {
+    text-decoration: none;
+}
+
 /* Prevent iPhone auto-zoom */
 input, select, textarea {
     font-size: 16px !important;

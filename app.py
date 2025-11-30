@@ -757,7 +757,6 @@ def competitor_stats(competitor_id, mode="my"):
 
 # --- Per-climb stats page (personal/global view) ---
 
-
 @app.route("/climb/<int:climb_number>/stats")
 def climb_stats(climb_number):
     """
@@ -774,6 +773,9 @@ def climb_stats(climb_number):
     mode = (request.args.get("mode", "global") or "global").strip().lower()
     if mode not in ("personal", "global"):
         mode = "global"
+
+    # Did we come here from the Climber Stats page?
+    from_climber = (request.args.get("from_climber", "0") == "1")
 
     # --- Optional competitor context via ?cid= ---
     cid_raw = request.args.get("cid", "").strip()
@@ -798,6 +800,9 @@ def climb_stats(climb_number):
     section_climbs = SectionClimb.query.filter_by(climb_number=climb_number).all()
     if not section_climbs:
         # If the climb isn't configured at all, show not-configured message
+        nav_active = "climber_stats" if from_climber else (
+            "my_stats" if mode == "personal" else "overall_stats"
+        )
         return render_template(
             "climb_stats.html",
             climb_number=climb_number,
@@ -806,7 +811,8 @@ def climb_stats(climb_number):
             total_points=total_points,
             position=position,
             mode=mode,
-            nav_active="my_stats" if mode == "personal" else "overall_stats",
+            nav_active=nav_active,
+            from_climber=from_climber,
         )
 
     section_ids = {sc.section_id for sc in section_climbs}
@@ -880,6 +886,11 @@ def climb_stats(climb_number):
                 personal_row = row
                 break
 
+    # nav_active: respect Climber Stats when we came from there
+    nav_active = "climber_stats" if from_climber else (
+        "my_stats" if mode == "personal" else "overall_stats"
+    )
+
     return render_template(
         "climb_stats.html",
         climb_number=climb_number,
@@ -903,11 +914,11 @@ def climb_stats(climb_number):
         total_points=total_points,
         position=position,
         mode=mode,
-        nav_active="my_stats" if mode == "personal" else "overall_stats",
+        nav_active=nav_active,
         global_difficulty_key=global_difficulty_key,
         global_difficulty_label=global_difficulty_label,
+        from_climber=from_climber,
     )
-
 
 @app.route("/competitor/<int:competitor_id>/section/<section_slug>")
 def competitor_section_climbs(competitor_id, section_slug):

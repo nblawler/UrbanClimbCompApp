@@ -40,7 +40,7 @@
 						My Stats
 					</a>
 
-					{# NEW: Climber Stats tab, only shown when in climber mode #}
+					{# Climber Stats tab, only shown when in climber mode #}
 					{% if mode == "climber" %}
 						<a
 							class="back {% if nav_active == 'climber_stats' %}active{% endif %}"
@@ -125,7 +125,7 @@
 							{% for cell in block.climbs %}
 								<a
 									class="heat-cell-link"
-									href="/climb/{{ cell.climb_number }}/stats?cid={{ competitor.id }}&mode=personal"
+									href="/climb/{{ cell.climb_number }}/stats?cid={{ competitor.id }}&mode=personal{% if mode == 'climber' %}&view_from=climber{% endif %}"
 								>
 									<div class="heat-cell status-{{ cell.status }}">
 										{{ cell.climb_number }}
@@ -206,7 +206,7 @@
 							{% for cell in block.climbs %}
 								<a
 									class="heat-cell-link"
-									href="/climb/{{ cell.climb_number }}/stats?cid={{ competitor.id }}&mode=global"
+									href="/climb/{{ cell.climb_number }}/stats?cid={{ competitor.id }}&mode=global&view_from=overall"
 								>
 									<div class="heat-cell global-{{ cell.status }}">
 										{{ cell.climb_number }}
@@ -239,3 +239,4 @@
 		</main>
 	</body>
 </html>
+

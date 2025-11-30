@@ -4,18 +4,23 @@
 	<meta charset="utf-8" />
 	<meta name="viewport" content="width=device-width, initial-scale=1" />
 	<title>
-		{% if competitor and mode == "personal" %}
-			{{ competitor.name }} · Your Performance · Climb {{ climb_number }}
-		{% elif mode == "personal" %}
-			Your Performance · Climb {{ climb_number }}
+		{% if competitor %}
+			{% if mode == "personal" %}
+				{{ competitor.name }} · Your Performance · Climb {{ climb_number }}
+			{% else %}
+				{{ competitor.name }} · Global Stats · Climb {{ climb_number }}
+			{% endif %}
 		{% else %}
-			Global Stats · Climb {{ climb_number }}
+			Climb {{ climb_number }} · Stats
 		{% endif %}
 	</title>
 	<link rel="stylesheet" href="/static/app.css" />
 </head>
 <body>
 	{% set viewer_id = viewer_id if viewer_id is defined else session.get('competitor_id') %}
+	{% set view_from = request.args.get('view_from', '') %}
+	{% set is_climb_context = view_from in ('climber', 'overall') %}
+
 	<nav class="container top-nav">
 		<div class="nav-links">
 			<a
@@ -34,14 +39,25 @@
 				</a>
 
 				<a
-					class="back {% if nav_active == 'my_stats' %}active{% endif %}"
+					class="back {% if nav_active == 'my_stats' and not is_climb_context %}active{% endif %}"
 					href="/competitor/{{ viewer_id }}/stats/my"
 				>
 					My Stats
 				</a>
 
+				{# Show a dedicated Climb Stats tab only while viewing a climb reached from stats #}
+				{% if is_climb_context %}
+					<a
+						class="back active"
+						href="#"
+						style="pointer-events:none; cursor:default;"
+					>
+						Climb Stats
+					</a>
+				{% endif %}
+
 				<a
-					class="back {% if nav_active == 'overall_stats' %}active{% endif %}"
+					class="back {% if nav_active == 'overall_stats' and not is_climb_context %}active{% endif %}"
 					href="/competitor/{{ viewer_id }}/stats/overall"
 				>
 					Overall Stats
@@ -58,8 +74,30 @@
 	</nav>
 
 	<main class="container">
+		{# Back button + "Climb Stats" heading when coming from climber/overall stats #}
+		{% if view_from in ('climber', 'overall') and competitor %}
+			<div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:14px;">
+				{% if view_from == 'climber' %}
+					<a
+						href="/competitor/{{ competitor.id }}/stats/climber"
+						class="primary"
+						style="text-decoration:none; padding:6px 12px; border-radius:999px; font-size:0.9rem;"
+					>
+						← Back to Climber Stats
+					</a>
+				{% elif view_from == 'overall' %}
+					<a
+						href="/competitor/{{ competitor.id }}/stats/overall"
+						class="primary"
+						style="text-decoration:none; padding:6px 12px; border-radius:999px; font-size:0.9rem;"
+					>
+						← Back to Overall Stats
+					</a>
+				{% endif %}
+			</div>
+		{% endif %}
 
-		{% if competitor and mode == "personal" %}
+		{% if competitor %}
 			<header class="comp-header">
 				<h1 class="comp-name">
 					<span class="comp-label">Name:</span>
@@ -89,15 +127,23 @@
 			</header>
 
 			<h2 class="stats-title" style="margin-top: 0;">
-				Your Performance · Climb #{{ climb_number }}
+				{% if mode == "personal" %}
+					Climb #{{ climb_number }}
+				{% else %}
+					Global Stats · Climb #{{ climb_number }}
+				{% endif %}
 			</h2>
 		{% else %}
 			<header class="header" style="margin-bottom: 16px;">
 				<h1 style="margin:0 0 4px 0; font-size:1.9rem;">
-					Global Stats · Climb #{{ climb_number }}
+					Climb #{{ climb_number }} Stats
 				</h1>
 				<p class="comp-subtitle">
-					Global performance and difficulty for this climb.
+					{% if mode == "personal" %}
+						Personal and global stats for this climb.
+					{% else %}
+						Global performance and difficulty for this climb.
+					{% endif %}
 				</p>
 			</header>
 		{% endif %}
@@ -139,10 +185,12 @@
 			{# =============== OVERVIEW (PERSONAL + GLOBAL) =============== #}
 			<section class="stats-card">
 				<h2 class="stats-title">
-					{% if mode == "personal" %}
+					{% if mode == "personal" and competitor and viewer_id and viewer_id == competitor.id %}
 						Your Result & Overview
-					{% else %}
+					{% elif view_from == "overall" %}
 						Overview
+					{% else %}
+						Result & Overview
 					{% endif %}
 				</h2>
 
@@ -363,7 +411,6 @@
 			</section>
 
 		{% endif %}
-
 	</main>
 
 	{% if per_competitor and per_competitor|length > 0 %}
@@ -462,4 +509,5 @@
 	{% endif %}
 </body>
 </html>
+
 
