@@ -23,18 +23,12 @@
 
 		.map-marker {
 			position: absolute;
-			width: 24px;
-			height: 24px;
+			width: 18px;
+			height: 18px;
 			border-radius: 999px;
 			border: 2px solid #ffffff;
 			transform: translate(-50%, -50%);
 			box-shadow: var(--shadow-subtle);
-			display: flex;
-			align-items: center;
-			justify-content: center;
-			font-size: 0.8rem;
-			font-weight: 600;
-			text-decoration: none;
 		}
 
 		.map-marker.disabled {
@@ -124,31 +118,37 @@
 			</p>
 		{% endif %}
 
-		{# ===== Section toggle tabs on the main gym map page ===== #}
-		{% if sections %}
-			<nav class="section-tabs">
-				{% for sec in sections %}
-					<a
-						class="section-tab"
-						href="/competitor/{{ competitor.id }}/section/{{ sec.slug }}"
-					>
-						<span class="section-tab-title">{{ sec.name }}</span>
-					</a>
-				{% endfor %}
-			</nav>
-		{% endif %}
-
-		<section class="card">
+		<section class="card map-card">
 			<header class="section-header">
-				<h2 class="section-title">Gym wall map</h2>
+				<h2 class="section-title">Wall map</h2>
 				<p class="comp-subtitle">
 					{% if can_edit %}
-						Tap a coloured dot to jump straight to that climb’s section and log your attempts.
+						Tap a climb on the map to log your attempts.
 					{% else %}
 						Climbs are displayed for reference only.
 					{% endif %}
 				</p>
 			</header>
+
+			{# ===== SECTION FILTER PILLS ===== #}
+			{% if sections %}
+				<div class="section-filter-row">
+					<div class="section-filter-label">
+						Filter sections:
+					</div>
+					<div class="section-filter-pills">
+						{% for sec in sections %}
+							<button
+								type="button"
+								class="section-filter-pill is-active"
+								data-section-id="{{ sec.id }}"
+							>
+								{{ sec.name }}
+							</button>
+						{% endfor %}
+					</div>
+				</div>
+			{% endif %}
 
 			<div class="map-wrapper">
 				<img
@@ -160,60 +160,109 @@
 				{# Markers for each climb with coords #}
 				{% for c in map_climbs %}
 					{% if c.x_percent is not none and c.y_percent is not none %}
-						{# --- Colour mapping, same rules as competitor page --- #}
-						{% set col_raw = c.colour %}
-						{% if col_raw %}
-							{% set lc = col_raw|lower %}
-							{% if lc == "red" %}
-								{% set bg = "#b32121" %}
-							{% elif lc in ["white", "#fff", "#ffffff"] %}
-								{% set bg = "#ffffff" %}
-							{% else %}
-								{% set bg = col_raw %}
-							{% endif %}
-						{% else %}
-							{# fallback accent #}
-							{% set bg = "#5df29c" %}
-						{% endif %}
-
-						{% if bg|lower in ["white", "#fff", "#ffffff"] %}
-							{% set text_color = "#000000" %}
-						{% else %}
-							{% set text_color = "#000000" %}
-						{% endif %}
-
+						{% set bg = c.colour or '#ff4081' %}
 						{% if can_edit %}
 							<a
 								class="map-marker"
+								data-section-id="{{ c.section.id }}"
 								style="
 									left: {{ c.x_percent }}%;
 									top: {{ c.y_percent }}%;
 									background: {{ bg }};
-									color: {{ text_color }};
 								"
 								href="/competitor/{{ competitor.id }}/section/{{ c.section.slug }}#climb-{{ c.climb_number }}"
-								title="{{ c.section.name }} · Climb #{{ c.climb_number }}{% if c.colour %} · {{ c.colour }}{% endif %}"
-							>
-								{{ c.climb_number }}
-							</a>
+								title="Section {{ c.section.name }} · Climb #{{ c.climb_number }}"
+							></a>
 						{% else %}
 							<div
 								class="map-marker disabled"
+								data-section-id="{{ c.section.id }}"
 								style="
 									left: {{ c.x_percent }}%;
 									top: {{ c.y_percent }}%;
 									background: {{ bg }};
-									color: {{ text_color }};
 								"
-								title="{{ c.section.name }} · Climb #{{ c.climb_number }}{% if c.colour %} · {{ c.colour }}{% endif %}"
-							>
-								{{ c.climb_number }}
-							</div>
+								title="Section {{ c.section.name }} · Climb #{{ c.climb_number }}"
+							></div>
 						{% endif %}
 					{% endif %}
 				{% endfor %}
 			</div>
 		</section>
 	</main>
+
+	<script>
+		// Simple section filter logic for the main gym map page.
+		// Pills go green when active; dots are shown/hidden based on selected sections.
+		document.addEventListener("DOMContentLoaded", function () {
+			const pills = Array.from(document.querySelectorAll(".section-filter-pill"));
+			const markers = Array.from(document.querySelectorAll(".map-marker"));
+
+			if (!pills.length || !markers.length) {
+				return;
+			}
+
+			// Start with ALL sections active
+			let activeIds = new Set(
+				pills
+					.map((p) => p.dataset.sectionId)
+					.filter((id) => !!id)
+			);
+			pills.forEach((p) => p.classList.add("is-active"));
+
+			function applyFilter() {
+				// If somehow nothing is active, treat as "show all"
+				if (!activeIds.size) {
+					markers.forEach((m) => {
+						m.style.display = "";
+					});
+					return;
+				}
+
+				markers.forEach((m) => {
+					const sid = m.dataset.sectionId;
+					if (!sid || activeIds.has(sid)) {
+						m.style.display = "";
+					} else {
+						m.style.display = "none";
+					}
+				});
+			}
+
+			pills.forEach((pill) => {
+				pill.addEventListener("click", () => {
+					const sid = pill.dataset.sectionId;
+					if (!sid) return;
+
+					const isActive = pill.classList.contains("is-active");
+
+					if (isActive) {
+						// turning OFF this section
+						pill.classList.remove("is-active");
+						activeIds.delete(sid);
+					} else {
+						// turning ON this section
+						pill.classList.add("is-active");
+						activeIds.add(sid);
+					}
+
+					// If user turns everything off, snap back to "all on"
+					const anyActive = pills.some((p) => p.classList.contains("is-active"));
+					if (!anyActive) {
+						activeIds = new Set(
+							pills
+								.map((p) => p.dataset.sectionId)
+								.filter((id) => !!id)
+						);
+						pills.forEach((p) => p.classList.add("is-active"));
+					}
+
+					applyFilter();
+				});
+			});
+
+			applyFilter();
+		});
+	</script>
 </body>
 </html>
