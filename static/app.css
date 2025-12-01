@@ -1216,6 +1216,153 @@ a.primary,
     text-decoration: none;
 }
 
+/* ================== WALL MAP (ADMIN + COMPETITOR) ================== */
+
+.map-card {
+	margin-bottom: 16px;
+}
+
+.map-wrapper {
+	position: relative;
+	width: 100%;
+	border-radius: 14px;
+	overflow: hidden;
+	border: 1px solid var(--border-subtle, rgba(255,255,255,0.05));
+	background: #000;
+}
+
+.map-image {
+	display: block;
+	width: 100%;
+	height: auto;
+	user-select: none;
+}
+
+/* Dot style shared by admin + competitor */
+.map-dot {
+	position: absolute;
+	min-width: 24px;
+	min-height: 24px;
+	padding: 0 4px;
+	border-radius: 999px;
+	background: var(--accent, #5df29c);
+	box-shadow: 0 0 0 2px rgba(0,0,0,0.6);
+	transform: translate(-50%, -50%);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	font-size: 11px;
+	font-weight: 600;
+	color: #000;
+	border: none;
+	cursor: pointer;
+}
+
+/* ghost dot in admin */
+.map-dot--ghost {
+	background: transparent;
+	border: 2px dashed var(--accent, #5df29c);
+	color: var(--accent, #5df29c);
+}
+
+/* hover state for clickable dots (competitor + admin) */
+.map-dot-interactive:hover {
+	transform: translate(-50%, -52%);
+	box-shadow: 0 8px 20px rgba(0,0,0,0.85);
+}
+
+/* Highlight climb card when jumped to from map */
+.climb-row-highlight {
+	outline: 2px solid var(--accent);
+	box-shadow: 0 0 0 1px rgba(93, 242, 156, 0.5);
+	background: rgba(93, 242, 156, 0.08);
+	transition: background 0.3s ease, box-shadow 0.3s ease, outline 0.3s ease;
+}
+
+/* ========= Wall map on competitor page ========= */
+
+.map-card {
+	margin-bottom: 18px;
+}
+
+.map-wrapper {
+	position: relative;
+	width: 100%;
+	border-radius: 14px;
+	overflow: hidden;
+	border: 1px solid var(--border-subtle);
+	background: #000;
+}
+
+.map-image {
+	display: block;
+	width: 100%;
+	height: auto;
+	user-select: none;
+	pointer-events: none; /* clicks go to the dots */
+}
+
+/* Base dot style – reused for admin + competitor */
+.map-dot {
+	position: absolute;
+	width: 20px;
+	height: 20px;
+	border-radius: 999px;
+	background: var(--accent);
+	box-shadow: 0 0 0 2px rgba(0,0,0,0.6);
+	transform: translate(-50%, -50%);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	font-size: 11px;
+	font-weight: 700;
+	color: #000;
+}
+
+/* Clickable version on competitor page */
+.map-dot-interactive {
+	border: none;
+	cursor: pointer;
+}
+
+/* Little flash when you scroll to a climb card */
+.climb-row-highlight {
+	outline: 2px solid var(--accent);
+	outline-offset: 3px;
+	box-shadow: 0 0 0 2px rgba(93,242,156,0.5);
+	transition: box-shadow 150ms ease-out, outline-color 150ms ease-out;
+}
+
+.back-to-map-bar {
+    margin: 0 0 16px 0;
+    display: flex;
+    justify-content: flex-start;
+}
+
+.back-to-map-btn {
+    display: inline-block;
+    padding: 10px 18px;
+    background: var(--accent);
+    color: #000;
+    border-radius: var(--radius-pill);
+    font-size: 1rem;
+    font-weight: 600;
+    text-decoration: none;
+    box-shadow: var(--shadow-subtle);
+    transition: background 0.2s ease, transform 0.1s ease;
+}
+
+.back-to-map-btn:hover {
+    background: #7fffb7; /* lighter accent for hover */
+    transform: translateY(-2px);
+}
+
+.back-to-map-btn:active {
+    transform: translateY(0);
+}
+
+
+
 /* Prevent iPhone auto-zoom */
 input, select, textarea {
     font-size: 16px !important;

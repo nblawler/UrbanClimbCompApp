@@ -5,6 +5,43 @@
 	<meta name="viewport" content="width=device-width, initial-scale=1" />
 	<title>{{ competitor.name }} · Enter Scores</title>
 	<link rel="stylesheet" href="/static/app.css" />
+	<style>
+		.map-wrapper {
+			position: relative;
+			max-width: 100%;
+			border-radius: var(--radius-lg);
+			overflow: hidden;
+			box-shadow: var(--shadow-subtle);
+			margin-top: 16px;
+		}
+
+		.gym-map-image {
+			display: block;
+			width: 100%;
+			height: auto;
+		}
+
+		.map-marker {
+			position: absolute;
+			width: 24px;
+			height: 24px;
+			border-radius: 999px;
+			border: 2px solid #ffffff;
+			transform: translate(-50%, -50%);
+			box-shadow: var(--shadow-subtle);
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			font-size: 0.8rem;
+			font-weight: 600;
+			text-decoration: none;
+		}
+
+		.map-marker.disabled {
+			opacity: 0.4;
+			cursor: default;
+		}
+	</style>
 </head>
 
 <body>
@@ -82,31 +119,101 @@
 
 		{% if not can_edit %}
 			<p class="view-only-note">
-				You’re viewing sections for <strong>{{ competitor.name }}</strong> in read-only mode.
-				Only this competitor (or a staff member) can log climbs from their own device.
+				You’re viewing climbs for <strong>{{ competitor.name }}</strong> in read-only mode.
+				Log attempts on your own competitor page.
 			</p>
 		{% endif %}
 
-		<section class="section-grid">
-			{% for s in sections %}
-				{% if can_edit %}
+		{# ===== Section toggle tabs on the main gym map page ===== #}
+		{% if sections %}
+			<nav class="section-tabs">
+				{% for sec in sections %}
 					<a
-						href="/competitor/{{ competitor.id }}/section/{{ s.slug }}"
-						class="section-btn-big"
+						class="section-tab"
+						href="/competitor/{{ competitor.id }}/section/{{ sec.slug }}"
 					>
-						{{ s.name }}
+						<span class="section-tab-title">{{ sec.name }}</span>
 					</a>
-				{% else %}
-					<div class="section-btn-big section-btn-disabled">
-						<div>{{ s.name }}</div>
-						<span class="section-btn-note">
-							View only – log attempts on your own competitor page.
-						</span>
-					</div>
-				{% endif %}
-			{% endfor %}
-		</section>
+				{% endfor %}
+			</nav>
+		{% endif %}
 
+		<section class="card">
+			<header class="section-header">
+				<h2 class="section-title">Gym wall map</h2>
+				<p class="comp-subtitle">
+					{% if can_edit %}
+						Tap a coloured dot to jump straight to that climb’s section and log your attempts.
+					{% else %}
+						Climbs are displayed for reference only.
+					{% endif %}
+				</p>
+			</header>
+
+			<div class="map-wrapper">
+				<img
+					src="/static/Collingwood_Gym_Map.png"
+					alt="Collingwood Gym Map"
+					class="gym-map-image"
+				/>
+
+				{# Markers for each climb with coords #}
+				{% for c in map_climbs %}
+					{% if c.x_percent is not none and c.y_percent is not none %}
+						{# --- Colour mapping, same rules as competitor page --- #}
+						{% set col_raw = c.colour %}
+						{% if col_raw %}
+							{% set lc = col_raw|lower %}
+							{% if lc == "red" %}
+								{% set bg = "#b32121" %}
+							{% elif lc in ["white", "#fff", "#ffffff"] %}
+								{% set bg = "#ffffff" %}
+							{% else %}
+								{% set bg = col_raw %}
+							{% endif %}
+						{% else %}
+							{# fallback accent #}
+							{% set bg = "#5df29c" %}
+						{% endif %}
+
+						{% if bg|lower in ["white", "#fff", "#ffffff"] %}
+							{% set text_color = "#000000" %}
+						{% else %}
+							{% set text_color = "#000000" %}
+						{% endif %}
+
+						{% if can_edit %}
+							<a
+								class="map-marker"
+								style="
+									left: {{ c.x_percent }}%;
+									top: {{ c.y_percent }}%;
+									background: {{ bg }};
+									color: {{ text_color }};
+								"
+								href="/competitor/{{ competitor.id }}/section/{{ c.section.slug }}#climb-{{ c.climb_number }}"
+								title="{{ c.section.name }} · Climb #{{ c.climb_number }}{% if c.colour %} · {{ c.colour }}{% endif %}"
+							>
+								{{ c.climb_number }}
+							</a>
+						{% else %}
+							<div
+								class="map-marker disabled"
+								style="
+									left: {{ c.x_percent }}%;
+									top: {{ c.y_percent }}%;
+									background: {{ bg }};
+									color: {{ text_color }};
+								"
+								title="{{ c.section.name }} · Climb #{{ c.climb_number }}{% if c.colour %} · {{ c.colour }}{% endif %}"
+							>
+								{{ c.climb_number }}
+							</div>
+						{% endif %}
+					{% endif %}
+				{% endfor %}
+			</div>
+		</section>
 	</main>
 </body>
 </html>

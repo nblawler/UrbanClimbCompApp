@@ -79,13 +79,99 @@
 				</div>
 			</header>
 
+			{# ===== Section toggle tabs (switch between sections from here) ===== #}
+			{% if section and sections %}
+				<nav class="section-tabs">
+					{% for sec in sections %}
+						<a
+							class="section-tab {% if sec.id == section.id %}active{% endif %}"
+							href="/competitor/{{ competitor.id }}/section/{{ sec.slug }}"
+						>
+							<span class="section-tab-title">{{ sec.name }}</span>
+						</a>
+					{% endfor %}
+				</nav>
+			{% endif %}
+
+			<!-- Back to Gym Map button -->
+			<div class="back-to-map-bar">
+				<a class="back-to-map-btn" href="/competitor/{{ competitor.id }}/sections">
+					Back to Gym Map
+				</a>
+			</div>
+
+			{# ===================== WALL MAP (COMPETITOR VIEW) ===================== #}
+			{% if section_climbs is defined %}
+				<section class="card map-card">
+					<header class="section-header">
+						<h2 class="section-title">
+							Wall map · {{ section.name }}
+						</h2>
+						<p class="section-subtitle">
+							Tap a number to jump to that climb below.
+						</p>
+					</header>
+
+					<div class="map-wrapper">
+						<img
+							src="{{ url_for('static', filename='Collingwood_Gym_Map.png') }}"
+							alt="Collingwood wall map"
+							class="map-image"
+						/>
+
+						{% for sc in section_climbs %}
+							{% if sc.x_percent is not none and sc.y_percent is not none %}
+								{# --- Work out background + text colour from sc.colour --- #}
+								{% set col_raw = sc.colour %}
+								{% if col_raw %}
+									{% set lc = col_raw|lower %}
+									{% if lc == "red" %}
+										{% set bg = "#b32121" %}
+									{% elif lc in ["white", "#fff", "#ffffff"] %}
+										{% set bg = "#ffffff" %}
+									{% else %}
+										{% set bg = col_raw %}
+									{% endif %}
+								{% else %}
+									{# fallback to accent green if no colour set #}
+									{% set bg = "#5df29c" %}
+								{% endif %}
+
+								{# black text on white holds, otherwise dark text is fine #}
+								{% if bg|lower in ["white", "#fff", "#ffffff"] %}
+									{% set text_color = "#000000" %}
+								{% else %}
+									{% set text_color = "#000000" %}
+								{% endif %}
+
+								<button
+									type="button"
+									class="map-dot map-dot-interactive"
+									style="
+										left: {{ sc.x_percent }}%;
+										top: {{ sc.y_percent }}%;
+										background: {{ bg }};
+										color: {{ text_color }};
+									"
+									data-climb="{{ sc.climb_number }}"
+									title="Climb {{ sc.climb_number }}{% if sc.colour %} · {{ sc.colour }}{% endif %}"
+								>
+									{{ sc.climb_number }}
+								</button>
+							{% endif %}
+						{% endfor %}
+					</div>
+				</section>
+			{% endif %}
+
+			{# ===================== CLIMB CARDS ===================== #}
 			<section class="card" style="margin-bottom:16px;">
 				<header class="section-header">
 					<h2 class="section-title">
 						{% if section %} {{ section.name }} {% else %} Climbs {% endif %}
 					</h2>
 				</header>
-			
+
 				<section class="grid">
 					{% for n in climbs %}
 						{% set s = existing.get(n) %}
@@ -112,10 +198,12 @@
 						{% else %}
 							{% set text_color = "white" %}
 						{% endif %}
-						
+
 						<div
-							class="climb-card"
+							class="climb-card climb-row"
+							id="climb-{{ n }}"
 							data-climb="{{ n }}"
+							data-climb-row="{{ n }}"
 							style="
 								background-color: {{ col_bg if col_bg else '#1a1a1a' }};
 								color: var(--climb-text);
@@ -136,7 +224,6 @@
 								</p>
 							{% endif %}
 
-							{# Points scored line under Max points #}
 							<p style="margin:2px 0 0; color: var(--climb-text); font-size:0.9rem;">
 								Points Scored:
 								<span class="points-scored-value">
@@ -299,11 +386,30 @@
 
 			if (canEdit) {
 				cards.forEach((card) => {
-					card.querySelector(".save").addEventListener("click", async () => {
-						await save(card);
-					});
+					const btn = card.querySelector(".save");
+					if (btn) {
+						btn.addEventListener("click", async () => {
+							await save(card);
+						});
+					}
 				});
 			}
+
+			// Map dots -> scroll to climb card
+			document.addEventListener("click", function (event) {
+				const dot = event.target.closest(".map-dot-interactive");
+				if (!dot) return;
+
+				const climb = dot.dataset.climb;
+				const row = document.querySelector('.climb-row[data-climb-row="' + climb + '"]');
+				if (!row) return;
+
+				row.scrollIntoView({ behavior: "smooth", block: "center" });
+				row.classList.add("climb-row-highlight");
+				setTimeout(() => {
+					row.classList.remove("climb-row-highlight");
+				}, 1500);
+			});
 
 			// Initial load
 			refreshTotalPoints();
@@ -311,3 +417,4 @@
 		</script>
 	</body>
 </html>
+

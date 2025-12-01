@@ -1,0 +1,367 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Admin · Climb Map</title>
+  <link rel="stylesheet" href="/static/app.css" />
+  <style>
+    .admin-map-page {
+      max-width: 1100px;
+      margin: 32px auto;
+      padding: 0 16px 48px;
+      display: grid;
+      grid-template-columns: minmax(0, 2fr) minmax(0, 1.4fr);
+      gap: 24px;
+      align-items: flex-start;
+    }
+
+    .map-card,
+    .form-card {
+      background: var(--bg-elevated-soft, #151824);
+      border-radius: var(--radius-lg, 18px);
+      box-shadow: var(--shadow-soft, 0 18px 45px rgba(0, 0, 0, 0.55));
+      padding: 18px 18px 22px;
+    }
+
+    .map-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+
+    .map-wrapper {
+      position: relative;
+      width: 100%;
+      border-radius: 14px;
+      overflow: hidden;
+      border: 1px solid var(--border-subtle, rgba(255,255,255,0.05));
+      cursor: crosshair;
+    }
+
+    .map-image {
+      display: block;
+      width: 100%;
+      height: auto;
+      user-select: none;
+      pointer-events: none; /* clicks go to wrapper */
+    }
+
+    .map-dot {
+      position: absolute;
+      width: 16px;
+      height: 16px;
+      border-radius: 999px;
+      background: var(--accent, #5df29c);
+      box-shadow: 0 0 0 2px rgba(0,0,0,0.6);
+      transform: translate(-50%, -50%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      font-weight: 600;
+      color: #000;
+    }
+
+    .map-dot--ghost {
+      background: transparent;
+      border: 2px dashed var(--accent, #5df29c);
+      color: var(--accent, #5df29c);
+    }
+
+    .map-coords {
+      margin-top: 8px;
+      font-size: 12px;
+      color: var(--text-muted, #9aa3b5);
+    }
+
+    .form-card h2 {
+      margin-top: 0;
+      margin-bottom: 8px;
+      font-size: 18px;
+    }
+
+    .field {
+      margin-bottom: 10px;
+    }
+
+    .field label {
+      display: block;
+      font-size: 13px;
+      margin-bottom: 4px;
+      color: var(--text-muted, #9aa3b5);
+    }
+
+    .field input,
+    .field select {
+      width: 100%;
+      padding: 6px 10px;
+      border-radius: 999px;
+      border: 1px solid var(--border-subtle, rgba(255,255,255,0.05));
+      background: rgba(0,0,0,0.4);
+      color: var(--text, #f5f7fb);
+      font-size: 14px;
+    }
+
+    .field-row {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .field-row-2 {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .pill-button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 8px 18px;
+      border-radius: 999px;
+      border: none;
+      background: var(--accent, #5df29c);
+      color: #000;
+      font-weight: 600;
+      cursor: pointer;
+      font-size: 14px;
+      margin-top: 6px;
+    }
+
+    .pill-button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .tiny-muted {
+      font-size: 11px;
+      color: var(--text-muted, #9aa3b5);
+      margin-top: 2px;
+    }
+
+    .section-list {
+      margin-top: 16px;
+      font-size: 13px;
+    }
+
+    .section-list li {
+      margin-bottom: 4px;
+    }
+
+    @media (max-width: 800px) {
+      .admin-map-page {
+        grid-template-columns: minmax(0, 1fr);
+      }
+    }
+  </style>
+</head>
+<body>
+  <nav class="container top-nav">
+    <div class="nav-links">
+      <a class="back" href="/admin">← Back to admin</a>
+    </div>
+  </nav>
+
+  <main class="admin-map-page">
+    <!-- Left: map -->
+    <section class="map-card">
+      <div class="map-header">
+        <h1 class="page-title">Collingwood Wall Map</h1>
+        <span class="page-tag">Admin · Click to place climbs</span>
+      </div>
+
+      <div
+        id="mapWrapper"
+        class="map-wrapper"
+      >
+        <!-- Replace /static/collingwood-map.png with your actual image -->
+        <img
+          src="/static/Collingwood_Gym_Map.png"
+          alt="Collingwood wall map"
+          class="map-image"
+        />
+
+        {# Existing climbs: render as dots #}
+        {% for c in climbs %}
+          {% if c.x_percent is not none and c.y_percent is not none %}
+            <div
+              class="map-dot"
+              style="left: {{ c.x_percent }}%; top: {{ c.y_percent }}%;"
+              title="Climb {{ c.climb_number }} · {{ c.section.name if c.section else 'No section' }}"
+            >
+              {{ c.climb_number }}
+            </div>
+          {% endif %}
+        {% endfor %}
+
+        {# Ghost dot for the current click position #}
+        <div id="ghostDot" class="map-dot map-dot--ghost" style="display:none;">
+          +
+        </div>
+      </div>
+
+      <div class="map-coords" id="coordsDisplay">
+        Click on the map to choose a location for a new climb.
+      </div>
+    </section>
+
+    <!-- Right: form -->
+    <section class="form-card">
+      <h2>Add climb from map</h2>
+      <p class="tiny-muted">
+        Click on the map first to set the position, then fill the details and save.
+      </p>
+
+      <form method="POST" action="/admin/map/add-climb">
+        <!-- Section selection -->
+        <div class="field">
+          <label for="section_id">Existing section</label>
+          <select name="section_id" id="section_id">
+            <option value="">— Choose section —</option>
+            {% for s in sections %}
+              <option value="{{ s.id }}">{{ s.name }} (id {{ s.id }})</option>
+            {% endfor %}
+          </select>
+          <div class="tiny-muted">
+            Or create a new section below.
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="new_section_name">New section name (optional)</label>
+          <input
+            type="text"
+            id="new_section_name"
+            name="new_section_name"
+            placeholder="e.g. Slab Left"
+          />
+        </div>
+
+        <div class="field">
+          <label for="climb_number">Climb number</label>
+          <input
+            type="number"
+            id="climb_number"
+            name="climb_number"
+            min="1"
+            step="1"
+            required
+          />
+        </div>
+
+        <div class="field">
+          <label for="colour">Colour / hold set (optional)</label>
+          <input
+            type="text"
+            id="colour"
+            name="colour"
+            placeholder="e.g. Green, Pink Volumes"
+          />
+        </div>
+
+        <div class="field field-row">
+          <div>
+            <label for="base_points">Base points</label>
+            <input
+              type="number"
+              id="base_points"
+              name="base_points"
+              min="0"
+              step="1"
+              required
+            />
+          </div>
+          <div>
+            <label for="penalty_per_attempt">Penalty / attempt</label>
+            <input
+              type="number"
+              id="penalty_per_attempt"
+              name="penalty_per_attempt"
+              min="0"
+              step="1"
+              required
+            />
+          </div>
+          <div>
+            <label for="attempt_cap">Attempt cap</label>
+            <input
+              type="number"
+              id="attempt_cap"
+              name="attempt_cap"
+              min="1"
+              step="1"
+              value="5"
+              required
+            />
+          </div>
+        </div>
+
+        <!-- Hidden coordinates that the JS will fill in -->
+        <input type="hidden" name="x_percent" id="x_percent" />
+        <input type="hidden" name="y_percent" id="y_percent" />
+
+        <button type="submit" class="pill-button" id="submitBtn" disabled>
+          Save climb at clicked position
+        </button>
+
+        <div class="tiny-muted">
+          Button unlocks once you’ve clicked on the map.
+        </div>
+      </form>
+
+      <div class="section-list">
+        <strong>Existing sections:</strong>
+        <ul>
+          {% for s in sections %}
+            <li>{{ s.name }} (id {{ s.id }})</li>
+          {% endfor %}
+        </ul>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    (function () {
+      const mapWrapper = document.getElementById("mapWrapper");
+      const ghostDot = document.getElementById("ghostDot");
+      const xInput = document.getElementById("x_percent");
+      const yInput = document.getElementById("y_percent");
+      const coordsDisplay = document.getElementById("coordsDisplay");
+      const submitBtn = document.getElementById("submitBtn");
+
+      if (!mapWrapper) return;
+
+      mapWrapper.addEventListener("click", function (e) {
+        const rect = mapWrapper.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+        const xPercent = (x / rect.width) * 100;
+        const yPercent = (y / rect.height) * 100;
+
+        // Set hidden inputs
+        xInput.value = xPercent.toFixed(2);
+        yInput.value = yPercent.toFixed(2);
+
+        // Move ghost dot
+        ghostDot.style.left = xPercent + "%";
+        ghostDot.style.top = yPercent + "%";
+        ghostDot.style.display = "flex";
+
+        // Enable submit button
+        submitBtn.disabled = false;
+
+        coordsDisplay.textContent =
+          "Clicked at: " +
+          xPercent.toFixed(1) +
+          "% / " +
+          yPercent.toFixed(1) +
+          "%";
+      });
+    })();
+  </script>
+</body>
+</html>
+
