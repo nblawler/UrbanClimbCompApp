@@ -32,81 +32,81 @@
 }
 
 * {
-	box-sizing:border-box;
+	box-sizing: border-box;
 }
 
 body {
-	margin:0;
-	font-family:"Inter", system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-	color:var(--text);
+	margin: 0;
+	font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+	color: var(--text);
 	background:
-		radial-gradient(1200px 600px at 20% -10%, rgba(93,242,156,0.07), transparent 60%),
-		radial-gradient(800px 500px at 120% 10%, rgba(93,242,156,0.04), transparent 55%),
+		radial-gradient(1200px 600px at 20% -10%, rgba(93, 242, 156, 0.07), transparent 60%),
+		radial-gradient(800px 500px at 120% 10%, rgba(93, 242, 156, 0.04), transparent 55%),
 		var(--bg);
 }
 
 /* Layout shell */
 
 .container {
-	max-width:960px;
-	margin:0 auto;
-	padding:24px 20px 40px;
+	max-width: 960px;
+	margin: 0 auto;
+	padding: 24px 20px 40px;
 }
 
 .muted {
-	color:var(--muted);
+	color: var(--muted);
 }
 
 /* --- Top nav & brand --- */
 
 .top-nav {
-	display:flex;
-	justify-content:space-between;
-	align-items:center;
-	padding:16px 0 10px;
-	position:sticky;
-	top:0;
-	z-index:20;
-	background:linear-gradient(to bottom,
-		rgba(5,6,10,0.98),
-		rgba(5,6,10,0.9),
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	padding: 16px 0 10px;
+	position: sticky;
+	top: 0;
+	z-index: 20;
+	background: linear-gradient(to bottom,
+		rgba(5, 6, 10, 0.98),
+		rgba(5, 6, 10, 0.9),
 		transparent
 	);
-	backdrop-filter:blur(10px);
+	backdrop-filter: blur(10px);
 }
 
 .brand {
-	display:flex;
-	align-items:center;
-	gap:10px;
+	display: flex;
+	align-items: center;
+	gap: 10px;
 }
 
 .brand-mark {
-	font-size:22px;
+	font-size: 22px;
 }
 
 .brand-name {
-	font-weight:800;
-	letter-spacing:.2px;
+	font-weight: 800;
+	letter-spacing: .2px;
 }
 
 .nav-links {
-	display:flex;
-	gap:12px;
+	display: flex;
+	gap: 12px;
 }
 
 .back {
-	color:var(--muted);
-	text-decoration:none;
-	font-size:0.9rem;
+	color: var(--muted);
+	text-decoration: none;
+	font-size: 0.9rem;
 }
 
 .nav-links .back {
-	padding:6px 10px;
-	border-radius:var(--radius-pill);
-	border:1px solid transparent;
-	color:var(--text-muted);
-	text-decoration:none;
+	padding: 6px 10px;
+	border-radius: var(--radius-pill);
+	border: 1px solid transparent;
+	color: var(--text-muted);
+	text-decoration: none;
 	transition:
 		background var(--transition-fast),
 		color var(--transition-fast),
@@ -115,77 +115,77 @@ body {
 }
 
 .nav-links .back:hover {
-	background:rgba(255,255,255,0.04);
-	color:var(--text);
-	border-color:rgba(255,255,255,0.06);
-	transform:translateY(-1px);
+	background: rgba(255, 255, 255, 0.04);
+	color: var(--text);
+	border-color: rgba(255, 255, 255, 0.06);
+	transform: translateY(-1px);
 }
 
 /* Disabled nav pill used on climb_stats when spectator */
 .back.back-disabled {
-	opacity:0.5;
-	cursor:default;
-	pointer-events:none;
-	border-color:transparent;
+	opacity: 0.5;
+	cursor: default;
+	pointer-events: none;
+	border-color: transparent;
 }
 
 /* optional: when you add .active in templates */
 .nav-links .back.active {
-	background:var(--accent-soft);
-	color:var(--accent);
-	border-color:rgba(93,242,156,0.5);
+	background: var(--accent-soft);
+	color: var(--accent);
+	border-color: rgba(93, 242, 156, 0.5);
 }
 
 /* --- Global header + card basics --- */
 
 .header {
-	display:flex;
-	align-items:flex-start;
-	justify-content:space-between;
-	flex-wrap:wrap;
-	row-gap:4px;
-	margin-bottom:16px;
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	flex-wrap: wrap;
+	row-gap: 4px;
+	margin-bottom: 16px;
 }
 
 /* header helper layout for Name/Competitor # vs Points/Position */
 .header-column {
-	display:flex;
-	flex-direction:column;
-	gap:2px;
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
 }
 
 .header-column.right {
-	text-align:right;
+	text-align: right;
 }
 
 .header-line-main,
 .header-line-sub {
-	display:flex;
-	align-items:baseline;
-	gap:6px;
+	display: flex;
+	align-items: baseline;
+	gap: 6px;
 }
 
 .header-line-main {
-	font-size:1.9rem;
-	font-weight:700;
+	font-size: 1.9rem;
+	font-weight: 700;
 }
 
 .header-line-sub {
-	font-size:1.1rem;
-	color:var(--muted);
+	font-size: 1.1rem;
+	color: var(--muted);
 }
 
 .header-column.right .header-line-main,
 .header-column.right .header-line-sub {
-	justify-content:flex-end;
+	justify-content: flex-end;
 }
 
 .header-label {
-	font-weight:700;
+	font-weight: 700;
 }
 
 .header-name {
-	overflow-wrap:anywhere;
+	overflow-wrap: anywhere;
 }
 
 /* Unified card style */
@@ -195,26 +195,26 @@ body {
 .stats-card,
 .enter-card,
 .info.card {
-	background:var(--bg-elevated-soft);
-	border-radius:var(--radius-lg);
-	border:1px solid var(--border-subtle);
-	box-shadow:var(--shadow-soft);
+	background: var(--bg-elevated-soft);
+	border-radius: var(--radius-lg);
+	border: 1px solid var(--border-subtle);
+	box-shadow: var(--shadow-soft);
 }
 
 /* Specific padding where needed */
 
 .card,
 .climb-card {
-	padding:16px;
+	padding: 16px;
 }
 
 .enter-card {
-	margin-top:16px;
-	padding:20px;
+	margin-top: 16px;
+	padding: 20px;
 }
 
 .info.card {
-	padding:16px;
+	padding: 16px;
 }
 
 /* --- Unified competitor header: big name + stat pills --- */
@@ -256,17 +256,17 @@ body {
 
 .comp-pill {
 	background:
-		radial-gradient(circle at top left, rgba(255,255,255,0.06), transparent 55%),
+		radial-gradient(circle at top left, rgba(255, 255, 255, 0.06), transparent 55%),
 		var(--bg-elevated);
-	border-radius:14px;
-	border:1px solid rgba(255,255,255,0.08);
-	box-shadow:0 8px 24px rgba(0,0,0,0.45);
-	padding:10px 16px;
-	min-width:110px;
-	display:flex;
-	flex-direction:column;
-	align-items:center;
-	justify-content:center;
+	border-radius: 14px;
+	border: 1px solid rgba(255, 255, 255, 0.08);
+	box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+	padding: 10px 16px;
+	min-width: 110px;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
 	transition:
 		transform var(--transition-fast),
 		box-shadow var(--transition-fast),
@@ -274,9 +274,9 @@ body {
 }
 
 .comp-pill:hover {
-	transform:translateY(-1px);
-	box-shadow:0 12px 30px rgba(0,0,0,0.6);
-	border-color:rgba(93,242,156,0.5);
+	transform: translateY(-1px);
+	box-shadow: 0 12px 30px rgba(0, 0, 0, 0.6);
+	border-color: rgba(93, 242, 156, 0.5);
 }
 
 .comp-pill-label {
@@ -312,88 +312,102 @@ body {
 /* --- Forms & inputs --- */
 
 .card label {
-	display:block;
-	margin-bottom:8px;
-	color:var(--muted);
+	display: block;
+	margin-bottom: 8px;
+	color: var(--muted);
 }
 
 .card input {
-	width:100%;
-	padding:10px 12px;
-	border-radius:8px;
-	border:1px solid #2a2f36;
-	background:var(--bg-elevated);
-	color:var(--text);
-	outline:none;
-	transition:border-color var(--transition-fast), box-shadow var(--transition-fast), background var(--transition-fast);
+	width: 100%;
+	padding: 10px 12px;
+	border-radius: 8px;
+	border: 1px solid #2a2f36;
+	background: var(--bg-elevated);
+	color: var(--text);
+	outline: none;
+	transition: border-color var(--transition-fast), box-shadow var(--transition-fast), background var(--transition-fast);
 }
 
 .card input:focus {
-	border-color:var(--accent);
-	box-shadow:0 0 0 2px var(--accent-soft);
-	background:#0b0d12;
+	border-color: var(--accent);
+	box-shadow: 0 0 0 2px var(--accent-soft);
+	background: #0b0d12;
 }
 
 .card button {
-	margin-top:12px;
-	padding:10px 14px;
-	border:0;
-	border-radius:10px;
-	background:var(--accent);
-	color:#0a0a0a;
-	font-weight:600;
-	cursor:pointer;
-	transition:filter var(--transition-fast), transform var(--transition-fast), box-shadow var(--transition-fast);
-	box-shadow:0 10px 20px rgba(0,0,0,0.4);
+	margin-top: 12px;
+	padding: 10px 14px;
+	border: 0;
+	border-radius: 10px;
+	background: var(--accent);
+	color: #0a0a0a;
+	font-weight: 600;
+	cursor: pointer;
+	transition: filter var(--transition-fast), transform var(--transition-fast), box-shadow var(--transition-fast);
+	box-shadow: 0 10px 20px rgba(0, 0, 0, 0.4);
 }
 
 .card button:hover {
-	filter:brightness(1.05);
-	transform:translateY(-1px);
-	box-shadow:0 14px 28px rgba(0,0,0,0.6);
+	filter: brightness(1.05);
+	transform: translateY(-1px);
+	box-shadow: 0 14px 28px rgba(0, 0, 0, 0.6);
 }
 
 .error {
-	margin:12px 0;
-	color:#fff;
-	background:#8b1e1e;
-	padding:10px 12px;
-	border-radius:8px;
+	margin: 12px 0;
+	color: #fff;
+	background: #8b1e1e;
+	padding: 10px 12px;
+	border-radius: 8px;
 }
 
 /* --- Grid of climbs --- */
 
 .grid {
-	display:grid;
-	grid-template-columns:repeat(auto-fill,minmax(220px,1fr));
-	gap:12px;
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+	gap: 12px;
+}
+
+/* Override climb logging cards: white box, dark text */
+.climb-card {
+	background: #ffffff;
+	color: #05060a;
+	border-radius: var(--radius-lg);
+	border: 1px solid rgba(0, 0, 0, 0.08);
+	box-shadow: var(--shadow-soft);
+}
+
+.climb-card h3,
+.climb-card p {
+	color: #05060a;
 }
 
 .climb-card h3 {
-	margin-top:0;
-	font-size:1.1rem;
+	margin-top: 0;
+	font-size: 1.1rem;
 }
 
 .climb-colour {
-	margin:4px 0 6px;
-	color:var(--text);
-	font-size:1.1rem;
-	font-weight:600;
+	margin: 4px 0 6px;
+	color: var(--text);
+	font-size: 1.1rem;
+	font-weight: 600;
 }
 
 .row {
-	display:flex;
-	align-items:center;
-	gap:10px;
-	margin:10px 0;
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	margin: 10px 0;
 }
 
 .row input[type=number] {
-	width:100%;
-	padding:8px;
-	border-radius:8px;
-	border:1px solid #333;
-	background:var(--bg-elevated);
+	width: 100%;
+	padding: 8px;
+	border-radius: 8px;
+	border: 1px solid #333;
+	background: var(--bg-elevated);
 	color: var(--text);
 }
 
@@ -408,244 +422,244 @@ body {
 
 /* override generic card label layout for checkbox rows */
 .card label.check {
-	display:flex;
-	align-items:center;
-	gap:6px;
-	margin-bottom:0;
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	margin-bottom: 0;
 }
 
 .save {
-	width:100%;
-	padding:8px 10px;
-	border-radius:8px;
-	border:0;
-	background:var(--accent);
-	font-weight:700;
-	cursor:pointer;
-	transition:filter var(--transition-fast), transform var(--transition-fast), box-shadow var(--transition-fast);
-	box-shadow:0 8px 18px rgba(0,0,0,0.4);
+	width: 100%;
+	padding: 8px 10px;
+	border-radius: 8px;
+	border: 0;
+	background: var(--accent);
+	font-weight: 700;
+	cursor: pointer;
+	transition: filter var(--transition-fast), transform var(--transition-fast), box-shadow var(--transition-fast);
+	box-shadow: 0 8px 18px rgba(0, 0, 0, 0.4);
 }
 
 .save:hover {
-	filter:brightness(1.06);
-	transform:translateY(-1px);
-	box-shadow:0 12px 26px rgba(0,0,0,0.6);
+	filter: brightness(1.06);
+	transform: translateY(-1px);
+	box-shadow: 0 12px 26px rgba(0, 0, 0, 0.6);
 }
 
 .status {
-	min-height:1em;
-	font-size:12px;
-	color:var(--muted);
-	margin-top:6px;
+	min-height: 1em;
+	font-size: 12px;
+	color: var(--muted);
+	margin-top: 6px;
 }
 
 .status.ok {
-	color:var(--accent);
+	color: var(--accent);
 }
 
 .status.err {
-	color:var(--danger);
+	color: var(--danger);
 }
 
 /* --- Summary --- */
 
 .summary {
-	margin-top:24px;
+	margin-top: 24px;
 }
 
 .summary ul {
-	list-style:none;
-	padding:0;
-	margin:0;
+	list-style: none;
+	padding: 0;
+	margin: 0;
 }
 
 .summary li {
-	padding:8px 12px;
-	border-bottom:1px solid #262a30;
+	padding: 8px 12px;
+	border-bottom: 1px solid #262a30;
 }
 
 /* --- Section header inside competitor card --- */
 
 .section-header {
-	text-align:center;
-	margin-bottom:12px;
+	text-align: center;
+	margin-bottom: 12px;
 }
 
 .section-title {
-	margin:0;
-	font-size:1.8rem;
+	margin: 0;
+	font-size: 1.8rem;
 }
 
 .section-subtitle {
-	margin:4px 0 0;
-	font-size:0.9rem;
+	margin: 4px 0 0;
+	font-size: 0.9rem;
 }
 
 /* --- Hero (index page) --- */
 
 .hero {
-	margin:24px 0 12px;
+	margin: 24px 0 12px;
 }
 
 .hero h1 {
-	margin:0 0 8px;
-	font-size:clamp(28px,4vw,36px);
+	margin: 0 0 8px;
+	font-size: clamp(28px, 4vw, 36px);
 }
 
 .hero p {
-	color:var(--muted);
-	margin:0;
+	color: var(--muted);
+	margin: 0;
 }
 
 /* --- Enter card (index) --- */
 
 .enter-form label {
-	color:var(--muted);
-	display:block;
-	margin-bottom:8px;
+	color: var(--muted);
+	display: block;
+	margin-bottom: 8px;
 }
 
 .input-row {
-	display:flex;
-	gap:10px;
-	align-items:center;
+	display: flex;
+	gap: 10px;
+	align-items: center;
 }
 
 .input-row input {
-	flex:1;
-	padding:12px 14px;
-	border-radius:10px;
-	border:1px solid #2a2f36;
-	background:var(--bg-elevated);
-	color:#fff;
-	outline:none;
+	flex: 1;
+	padding: 12px 14px;
+	border-radius: 10px;
+	border: 1px solid #2a2f36;
+	background: var(--bg-elevated);
+	color: #fff;
+	outline: none;
 }
 
 .input-row input:focus {
-	border-color:var(--accent);
-	box-shadow:0 0 0 3px var(--accent-soft);
+	border-color: var(--accent);
+	box-shadow: 0 0 0 3px var(--accent-soft);
 }
 
 .primary {
-	padding:12px 16px;
-	border:0;
-	border-radius:10px;
-	background:var(--accent);
-	color:#0a0a0a;
-	font-weight:800;
-	cursor:pointer;
-	transition:filter var(--transition-fast), transform var(--transition-fast), box-shadow var(--transition-fast);
-	box-shadow:0 10px 22px rgba(0,0,0,0.45);
+	padding: 12px 16px;
+	border: 0;
+	border-radius: 10px;
+	background: var(--accent);
+	color: #0a0a0a;
+	font-weight: 800;
+	cursor: pointer;
+	transition: filter var(--transition-fast), transform var(--transition-fast), box-shadow var(--transition-fast);
+	box-shadow: 0 10px 22px rgba(0, 0, 0, 0.45);
 }
 
 .primary:hover {
-	filter:brightness(1.05);
-	transform:translateY(-1px);
-	box-shadow:0 14px 30px rgba(0,0,0,0.6);
+	filter: brightness(1.05);
+	transform: translateY(-1px);
+	box-shadow: 0 14px 30px rgba(0, 0, 0, 0.6);
 }
 
 .form-hint {
-	margin-top:10px;
-	color:var(--muted);
-	font-size:14px;
+	margin-top: 10px;
+	color: var(--muted);
+	font-size: 14px;
 }
 
 /* ghost link button */
 
 .ghost {
-	display:inline-block;
-	padding:10px 12px;
-	border-radius:10px;
-	border:1px solid #2a2f36;
-	color:var(--text);
-	text-decoration:none;
-	transition:background var(--transition-fast), border-color var(--transition-fast), transform var(--transition-fast);
+	display: inline-block;
+	padding: 10px 12px;
+	border-radius: 10px;
+	border: 1px solid #2a2f36;
+	color: var(--text);
+	text-decoration: none;
+	transition: background var(--transition-fast), border-color var(--transition-fast), transform var(--transition-fast);
 }
 
 .ghost:hover {
-	background:#121418;
-	border-color:var(--border-subtle);
-	transform:translateY(-1px);
+	background: #121418;
+	border-color: var(--border-subtle);
+	transform: translateY(-1px);
 }
 
 .quick-links {
-	margin-top:12px;
+	margin-top: 12px;
 }
 
 /* --- Info grid (index) --- */
 
 .info-grid {
-	display:grid;
-	grid-template-columns:repeat(auto-fit, minmax(240px,1fr));
-	gap:12px;
-	margin-top:20px;
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+	gap: 12px;
+	margin-top: 20px;
 }
 
 .info.card h3 {
-	margin:0 0 6px;
+	margin: 0 0 6px;
 }
 
 .info.card p {
-	margin:0;
-	color:var(--muted);
+	margin: 0;
+	color: var(--muted);
 }
 
 /* --- Leaderboard table --- */
 
 .leaderboard {
-	width:100%;
-	border-collapse:collapse;
-	background:var(--bg-elevated-soft);
-	border-radius:var(--radius-lg);
-	overflow:hidden;
-	box-shadow:var(--shadow-soft);
+	width: 100%;
+	border-collapse: collapse;
+	background: var(--bg-elevated-soft);
+	border-radius: var(--radius-lg);
+	overflow: hidden;
+	box-shadow: var(--shadow-soft);
 }
 
 .leaderboard thead th {
-	text-align:left;
-	font-weight:700;
-	padding:12px 14px;
-	border-bottom:1px solid var(--border-subtle);
-	color:var(--muted);
-	font-size:0.9rem;
-	letter-spacing:0.03em;
-	text-transform:uppercase;
-	background:rgba(255,255,255,0.02);
+	text-align: left;
+	font-weight: 700;
+	padding: 12px 14px;
+	border-bottom: 1px solid var(--border-subtle);
+	color: var(--muted);
+	font-size: 0.9rem;
+	letter-spacing: 0.03em;
+	text-transform: uppercase;
+	background: rgba(255, 255, 255, 0.02);
 }
 
 .leaderboard tbody td {
-	padding:12px 14px;
-	border-bottom:1px solid rgba(255,255,255,0.04);
-	color:var(--text);
-	font-size:0.95rem;
+	padding: 12px 14px;
+	border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+	color: var(--text);
+	font-size: 0.95rem;
 }
 
 .leaderboard tbody tr:nth-child(even) {
-	background:rgba(255,255,255,0.01);
+	background: rgba(255, 255, 255, 0.01);
 }
 
 .leaderboard tbody tr:hover {
-	background:rgba(93,242,156,0.05);
+	background: rgba(93, 242, 156, 0.05);
 }
 
 /* Top 3 highlight */
 .leaderboard tbody tr:nth-child(1) {
-	box-shadow:inset 3px 0 0 var(--accent);
+	box-shadow: inset 3px 0 0 var(--accent);
 }
 .leaderboard tbody tr:nth-child(2),
 .leaderboard tbody tr:nth-child(3) {
-	box-shadow:inset 3px 0 0 rgba(93,242,156,0.5);
+	box-shadow: inset 3px 0 0 rgba(93, 242, 156, 0.5);
 }
 
 /* fix link colors inside tables */
 .leaderboard a {
-	color:var(--accent);
-	text-decoration:none;
+	color: var(--accent);
+	text-decoration: none;
 }
 
 .leaderboard a:hover {
-	color:#7fffa4;
-	text-decoration:underline;
+	color: #7fffa4;
+	text-decoration: underline;
 }
 
 /* Center the numeric columns on the leaderboard:
@@ -661,7 +675,7 @@ body {
 
 /* Wrapper so the leaderboard fills the viewport nicely even with few rows */
 .leaderboard-wrapper {
-	min-height: calc(100vh - 160px); /* adjust if nav/header height changes */
+	min-height: calc(100vh - 160px);
 	display: flex;
 	flex-direction: column;
 	justify-content: flex-start;
@@ -670,24 +684,24 @@ body {
 /* --- Section tabs / buttons (competitor + section selection) --- */
 
 .section-tabs {
-	display:flex;
-	flex-wrap:wrap;
-	gap:8px;
-	margin:8px 0 16px;
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+	margin: 8px 0 16px;
 }
 
 .section-tab {
-	display:inline-block;
-	padding:10px 14px;
-	border-radius:var(--radius-pill);
-	border:1px solid #2a2f36;
-	background:#121418;
-	color:var(--text);
-	text-decoration:none;
-	font-size:14px;
-	font-weight:500;
-	text-align:left;
-	min-width:160px;
+	display: inline-block;
+	padding: 10px 14px;
+	border-radius: var(--radius-pill);
+	border: 1px solid #2a2f36;
+	background: #121418;
+	color: var(--text);
+	text-decoration: none;
+	font-size: 14px;
+	font-weight: 500;
+	text-align: left;
+	min-width: 160px;
 	transition:
 		background var(--transition-fast),
 		border-color var(--transition-fast),
@@ -696,32 +710,32 @@ body {
 }
 
 .section-tab-title {
-	font-weight:600;
+	font-weight: 600;
 }
 
 .section-tab-sub {
-	font-size:12px;
-	color:var(--muted);
+	font-size: 12px;
+	color: var(--muted);
 }
 
 .section-tab:hover {
-	background:#171b21;
-	border-color:var(--border-subtle);
-	transform:translateY(-1px);
-	box-shadow:var(--shadow-subtle);
+	background: #171b21;
+	border-color: var(--border-subtle);
+	transform: translateY(-1px);
+	box-shadow: var(--shadow-subtle);
 }
 
 .section-tab:visited,
 .section-tab:active,
 .section-tab:focus {
-	color:var(--text);
+	color: var(--text);
 }
 
 .section-tab.active {
-	background:var(--accent);
-	color:#0a0a0a;
-	border-color:var(--accent);
-	box-shadow:0 10px 24px rgba(93,242,156,0.45);
+	background: var(--accent);
+	color: #0a0a0a;
+	border-color: var(--accent);
+	box-shadow: 0 10px 24px rgba(93, 242, 156, 0.45);
 }
 
 /* BIG section buttons on competitor_sections.html */
@@ -749,23 +763,23 @@ body {
 
 /* read-only version of the big section button */
 .section-btn-disabled {
-	cursor:default;
-	border-style:dashed;
-	opacity:0.85;
+	cursor: default;
+	border-style: dashed;
+	opacity: 0.85;
 }
 
 .section-btn-note {
-	display:block;
-	margin-top:6px;
-	font-size:0.8rem;
-	color:var(--text-muted);
+	display: block;
+	margin-top: 6px;
+	font-size: 0.8rem;
+	color: var(--text-muted);
 }
 
 /* small note above grid when in read-only mode */
 .view-only-note {
-	margin:0 0 8px 0;
-	font-size:0.9rem;
-	color:var(--text-muted);
+	margin: 0 0 8px 0;
+	font-size: 0.9rem;
+	color: var(--text-muted);
 }
 
 .section-btn-big:hover {
@@ -787,17 +801,16 @@ body {
 /* --- Points header (used on competitor + sections pages) --- */
 
 .points-header {
-	font-size:1.8rem;
-	font-weight:700;
-	color:var(--text);
+	font-size: 1.8rem;
+	font-weight: 700;
+	color: var(--text);
 }
 
 /* STATS CARD LAYOUT */
 .stats-card {
-	/* core card styling already applied above */
 	padding: 16px 20px;
 	margin-bottom: 20px;
-	overflow:hidden; /* keep contents inside rounded card */
+	overflow: hidden;
 }
 
 .stats-title {
@@ -823,11 +836,11 @@ body {
 .stats-table th {
 	font-weight: 600;
 	color: var(--muted);
-	border-bottom: 1px solid rgba(255,255,255,0.08);
+	border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .stats-table tbody tr:nth-child(even) {
-	background: rgba(255,255,255,0.02);
+	background: rgba(255, 255, 255, 0.02);
 }
 
 /* Allow first column (usually names/sections) to wrap nicely */
@@ -837,8 +850,7 @@ body {
 	max-width: 180px;
 }
 
-/* --- Performance by Section table (competitor_stats) ---
-   All numeric columns aligned like Efficiency (right-aligned) */
+/* --- Performance by Section table (competitor_stats) --- */
 
 .section-performance-table th:nth-child(2),
 .section-performance-table td:nth-child(2),
@@ -852,29 +864,27 @@ body {
 	white-space: nowrap;
 }
 
-/* --- Per-competitor breakdown (climb_stats) ---
-   No horizontal scroll, table only as wide as content, columns closer */
+/* --- Per-competitor breakdown (climb_stats) --- */
 
 .per-competitor-container .stats-table-wrapper {
-	overflow-x: visible;    /* no sideways scroll */
+	overflow-x: visible;
 }
 
 .per-competitor-container .stats-table {
-	width: auto;            /* don't stretch to full card width */
-	min-width: 0;           /* allow shrinking on phone */
+	width: auto;
+	min-width: 0;
 }
 
-/* keep simple alignment only */
 .per-competitor-table th:nth-child(2),
 .per-competitor-table td:nth-child(2) {
-	text-align: right;      /* Attempts */
+	text-align: right;
 	white-space: nowrap;
 }
 
 .per-competitor-table th:nth-child(3),
 .per-competitor-table td:nth-child(3) {
-	text-align: left;       /* Status */
-	white-space: normal;    /* can wrap if needed */
+	text-align: left;
+	white-space: normal;
 }
 
 /* Overview table: wrap labels, keep numbers snug on the right */
@@ -912,7 +922,7 @@ body {
 .heat-cell {
 	height: 36px;
 	border-radius: 12px;
-	border: 1px solid rgba(0,0,0,0.2); /* subtle outline for accessibility */
+	border: 1px solid rgba(0, 0, 0, 0.2);
 	display: flex;
 	align-items: center;
 	justify-content: center;
@@ -933,7 +943,7 @@ body {
 
 .heat-cell:hover {
 	transform: translateY(-1px);
-	box-shadow: 0 6px 16px rgba(0,0,0,0.6);
+	box-shadow: 0 6px 16px rgba(0, 0, 0, 0.6);
 	filter: brightness(1.1);
 	cursor: pointer;
 }
@@ -989,6 +999,40 @@ body {
 		#999999 12px
 	);
 	color: #ffffff;
+}
+
+/* ============================
+   LOGGING BUTTON ACTIVE STATES
+   Using heatmap patterns
+   ============================ */
+
+/* Flashed (active) → blue striped pattern */
+.flash-btn.is-active {
+	background: repeating-linear-gradient(
+		45deg,
+		#0072B2,
+		#0072B2 6px,
+		#005B8A 6px,
+		#005B8A 12px
+	) !important;
+	color: #ffffff !important;
+	border-color: #0072B2 !important;
+	box-shadow: 0 6px 16px rgba(0, 114, 178, 0.45) !important;
+}
+
+/* Topped + Attempts (active) → teal striped pattern */
+.topped-toggle-btn.is-active,
+.attempt-pill.is-active {
+	background: repeating-linear-gradient(
+		45deg,
+		#009E73,
+		#009E73 6px,
+		#007F5D 6px,
+		#007F5D 12px
+	) !important;
+	color: #ffffff !important;
+	border-color: #009E73 !important;
+	box-shadow: 0 6px 16px rgba(0, 158, 115, 0.45) !important;
 }
 
 /* Legend */
@@ -1111,29 +1155,26 @@ body {
 .status-topped,
 .status-flash,
 .status-ok {
-    color: #ffffff !important;
+	color: #ffffff !important;
 }
 
 .status-not-topped,
 .status-attempted {
-    color: #ffffff !important;
+	color: #ffffff !important;
 }
 
 /* --- Responsive tweaks for stats table --- */
 
-/* Horizontal scroll wrapper for wide stats tables (per-competitor etc.) */
 .stats-table-wrapper {
 	width: 100%;
 	overflow-x: auto;
 	-webkit-overflow-scrolling: touch;
 }
 
-/* default min-width for big tables; per-competitor overrides this */
 .stats-table-wrapper .stats-table {
 	min-width: 480px;
 }
 
-/* tighten padding + font size on smaller screens */
 @media (max-width: 600px) {
 	.stats-table th,
 	.stats-table td {
@@ -1148,67 +1189,71 @@ body {
 	padding: 6px 12px;
 	font-size: 0.85rem;
 	border-radius: 8px;
-	border: 1px solid var(--accent);
-	background: var(--accent);   /* green by default */
-	color: #0a0a0a;
+	border: 1px solid rgba(255, 255, 255, 0.18);
+	background: #151824;   /* neutral by default */
+	color: var(--text-muted);
 	cursor: pointer;
 	font-weight: 600;
 	transition:
-		filter var(--transition-fast),
+		background var(--transition-fast),
+		color var(--transition-fast),
+		border-color var(--transition-fast),
 		transform var(--transition-fast),
 		box-shadow var(--transition-fast);
-	box-shadow:0 8px 18px rgba(0,0,0,0.4);
+	box-shadow: 0 8px 18px rgba(0, 0, 0, 0.4);
 }
 
 .filter-btn:hover {
-	filter: brightness(1.05);
-	transform:translateY(-1px);
-	box-shadow:0 12px 24px rgba(0,0,0,0.6);
+	background: #1f2430;
+	border-color: var(--accent-soft);
+	transform: translateY(-1px);
+	box-shadow: 0 12px 24px rgba(0, 0, 0, 0.6);
 }
 
 .filter-btn.active {
-	filter: brightness(1.12);    /* slightly brighter when active */
+	background: var(--accent);
+	color: #0a0a0a;
+	border-color: var(--accent);
+	filter: brightness(1.08);
 }
 
 /* --- Global mobile pass --- */
 
 @media (max-width: 640px) {
 	.container {
-		padding:16px 14px 32px;
+		padding: 16px 14px 32px;
 	}
 
-	/* keep Competitor # / Points / Position in one row */
 	.comp-meta-row {
-		display:flex;
-		flex-direction:row;
-		flex-wrap:nowrap;
-		gap:8px;
-		overflow-x:auto;
-		-webkit-overflow-scrolling:touch;
-		padding-bottom:4px;
+		display: flex;
+		flex-direction: row;
+		flex-wrap: nowrap;
+		gap: 8px;
+		overflow-x: auto;
+		-webkit-overflow-scrolling: touch;
+		padding-bottom: 4px;
 	}
 
 	.comp-pill {
-		flex:1 1 0;   /* 3 equal-width pills */
-		min-width:0;  /* allow them to shrink to fit */
+		flex: 1 1 0;
+		min-width: 0;
 	}
 
 	.section-grid {
-		grid-template-columns:1fr;
+		grid-template-columns: 1fr;
 	}
 
-	/* Example: hide Attempts column on tiny screens if needed */
 	.leaderboard thead th:nth-child(4),
 	.leaderboard tbody td:nth-child(4) {
-		display:none;
+		display: none;
 	}
 }
 
-/* Remove highklight from buttons */
+/* Remove highlight from buttons */
 a.back,
 a.primary,
 .nav-links a {
-    text-decoration: none;
+	text-decoration: none;
 }
 
 /* ================== WALL MAP (ADMIN + COMPETITOR) ================== */
@@ -1222,7 +1267,7 @@ a.primary,
 	width: 100%;
 	border-radius: 14px;
 	overflow: hidden;
-	border: 1px solid var(--border-subtle, rgba(255,255,255,0.05));
+	border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.05));
 	background: #000;
 }
 
@@ -1241,7 +1286,7 @@ a.primary,
 	padding: 0 4px;
 	border-radius: 999px;
 	background: var(--accent, #5df29c);
-	box-shadow: 0 0 0 2px rgba(0,0,0,0.6);
+	box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.6);
 	transform: translate(-50%, -50%);
 	display: flex;
 	align-items: center;
@@ -1263,7 +1308,7 @@ a.primary,
 /* hover state for clickable dots (competitor + admin) */
 .map-dot-interactive:hover {
 	transform: translate(-50%, -52%);
-	box-shadow: 0 8px 20px rgba(0,0,0,0.85);
+	box-shadow: 0 8px 20px rgba(0, 0, 0, 0.85);
 }
 
 /* Highlight climb card when jumped to from map */
@@ -1294,7 +1339,7 @@ a.primary,
 	width: 100%;
 	height: auto;
 	user-select: none;
-	pointer-events: none; /* clicks go to the dots */
+	pointer-events: none;
 }
 
 /* Base dot style – reused for admin + competitor */
@@ -1304,8 +1349,7 @@ a.primary,
 	height: 20px;
 	border-radius: 999px;
 	background: var(--accent);
-	box-shadow: 0 0 0 2px rgba(0,0,0,0.6);
-	transform: translate(-50%, -50%);
+	box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.6);
 	display: flex;
 	align-items: center;
 	justify-content: center;
@@ -1324,70 +1368,232 @@ a.primary,
 .climb-row-highlight {
 	outline: 2px solid var(--accent);
 	outline-offset: 3px;
-	box-shadow: 0 0 0 2px rgba(93,242,156,0.5);
+	box-shadow: 0 0 0 2px rgba(93, 242, 156, 0.5);
 	transition: box-shadow 150ms ease-out, outline-color 150ms ease-out;
 }
 
 .back-to-map-bar {
-    margin: 0 0 16px 0;
-    display: flex;
-    justify-content: flex-start;
+	margin: 0 0 16px 0;
+	display: flex;
+	justify-content: flex-start;
 }
 
+/* Aligns the Back to Gym Map button to the right under the header pills */
+.back-to-map-bar.right-align {
+	width: 100%;
+	display: flex;
+	justify-content: flex-end;   /* moves button to the right */
+	margin-top: -6px;            /* optional: adjust spacing tighter to header */
+	margin-bottom: 12px;
+}
+
+/* Slight spacing tweak so it visually lines up with the pills row */
 .back-to-map-btn {
-    display: inline-block;
-    padding: 10px 18px;
-    background: var(--accent);
-    color: #000;
-    border-radius: var(--radius-pill);
-    font-size: 1rem;
-    font-weight: 600;
-    text-decoration: none;
-    box-shadow: var(--shadow-subtle);
-    transition: background 0.2s ease, transform 0.1s ease;
+	margin-left: auto;
+}
+
+
+.back-to-map-btn {
+	display: inline-block;
+	padding: 10px 18px;
+	background: var(--accent);
+	color: #000;
+	border-radius: var(--radius-pill);
+	font-size: 1rem;
+	font-weight: 600;
+	text-decoration: none;
+	box-shadow: var(--shadow-subtle);
+	transition: background 0.2s ease, transform 0.1s ease;
 }
 
 .back-to-map-btn:hover {
-    background: #7fffb7; /* lighter accent for hover */
-    transform: translateY(-2px);
+	background: #7fffb7;
+	transform: translateY(-2px);
 }
 
 .back-to-map-btn:active {
-    transform: translateY(0);
+	transform: translateY(0);
 }
 
-.section-filter-label {
-    font-size: 0.95rem;
-    color: var(--text);
-    margin-bottom: 6px;
-    margin-top: 8px;
-    letter-spacing: 0.3px;
+/* Wrapper row for Sections + Back to Gym button on competitor page */
+.section-filter-row--with-button {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	gap: 16px;
+	margin: 12px 0 18px;
 }
 
-/* ====== NEW: section filter pill styling ====== */
-
-.section-filter-row {
+/* Stack label + pills nicely on the left */
+.section-filter-left {
 	display: flex;
 	flex-direction: column;
 	gap: 6px;
-	margin: 8px 0 12px;
 }
 
-.section-filter-pills {
-	display: flex;
-	flex-wrap: wrap;
-	gap: 8px;
+/* Inline version of the Back to Gym button */
+.back-to-map-btn-inline {
+	margin: 0;                 /* remove any previous margin */
+	white-space: nowrap;       /* keep it on one line */
 }
+
+.back-to-map-btn-inline.adjust-up {
+	margin-top: 24px;   /* move the button slightly lower */
+}
+
+.section-filter-header {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;   /* this aligns the map button with the pills */
+	margin: 12px 0 24px;
+	gap: 16px;
+}
+
+.section-filter-left {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+}
+
+.back-to-map-btn-inline {
+	margin: 0;        /* remove previous spacing */
+}
+
+.section-filter-row.section-filter-row--with-button {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;   
+	margin: 16px 0 28px;
+	gap: 20px;
+}
+
+.section-filter-left {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+}
+
+
+/* Mobile: stack button under the toggles */
+@media (max-width: 640px) {
+	.section-filter-row--with-button {
+		flex-direction: column;
+		align-items: flex-start;
+	}
+}
+
+
+.section-filter-label {
+	font-size: 0.95rem;
+	color: var(--text);
+	margin-bottom: 6px;
+	margin-top: 8px;
+	letter-spacing: 0.3px;
+	font-weight: 600;
+}
+
+/* ====== section filter pill styling ====== */
+
+/* -------- FILTER PILLS: MAX VISIBILITY MODE -------- */
 
 .section-filter-pill {
-	padding: 6px 12px;
+	padding: 8px 14px;
 	border-radius: var(--radius-pill);
-	border: 1px solid rgba(255,255,255,0.14);
-	background: rgba(10,12,18,0.95);
-	color: var(--text-muted);
-	font-size: 0.85rem;
-	font-weight: 500;
+
+	/* SUPER CLEAR BORDER  */
+	border: 2px solid #ffffff !important;
+
+	background: rgba(0,0,0,0.2) !important;   /* slightly dark so the border pops */
+	color: #ffffff !important;
+	font-size: 0.9rem;
+	font-weight: 700;
+
 	cursor: pointer;
+	transition:
+		background var(--transition-fast),
+		color var(--transition-fast),
+		transform var(--transition-fast),
+		box-shadow var(--transition-fast);
+}
+
+/* Hover (NOT active) */
+.section-filter-pill:hover:not(.is-active) {
+	background: rgba(255,255,255,0.10) !important;
+	border-color: #ffffff !important;       /* stays crisp */
+	transform: translateY(-2px);
+	box-shadow: 0 6px 14px rgba(0,0,0,0.6);
+}
+
+/* ACTIVE (clicked) */
+.section-filter-pill.is-active,
+.section-filter-pill.is-active:hover {
+	background: var(--accent) !important;   /* bright green */
+	border: 2px solid #ffffff !important;    /* BORDER STAYS WHITE */
+	color: #000000 !important;               /* black text on green */
+	transform: translateY(-2px);
+	box-shadow: 0 12px 20px rgba(93,242,156,0.55);
+}
+
+/* Keyboard focus outline */
+.section-filter-pill:focus-visible {
+	outline: 3px solid #ffffff;
+	outline-offset: 3px;
+}
+
+a.section-filter-pill,
+.section-filter-pill {
+	text-decoration: none !important;
+}
+
+/* ================== Compact climb logging controls ================== */
+
+.climb-actions {
+	margin-top: 10px;
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+}
+
+.climb-actions-row {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	flex-wrap: wrap;
+}
+
+.attempts-row {
+	margin-top: 2px;
+}
+
+.attempts-label {
+	font-size: 0.8rem;
+	text-transform: uppercase;
+	letter-spacing: 0.06em;
+	color: #05060a; /* dark on white card */
+}
+
+.attempts-pill-row {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+}
+
+/* Base pill style for all the small buttons – NEUTRAL (white) */
+.action-pill,
+.attempt-pill,
+.topped-toggle-btn,
+.flash-btn,
+.log-btn {
+	border-radius: var(--radius-pill);
+	border: 1px solid rgba(255, 255, 255, 0.35);
+	background: #ffffff;          /* white before clicked */
+	color: #05060a;               /* dark text for contrast */
+	font-size: 0.85rem;
+	padding: 6px 10px;
+	cursor: pointer;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
 	transition:
 		background var(--transition-fast),
 		color var(--transition-fast),
@@ -1396,30 +1602,72 @@ a.primary,
 		box-shadow var(--transition-fast);
 }
 
-.section-filter-pill:hover {
-	background: rgba(18,22,30,1);
-	border-color: rgba(255,255,255,0.25);
+/* Hover state – still neutral until active */
+.action-pill:hover,
+.attempt-pill:hover,
+.topped-toggle-btn:hover,
+.flash-btn:hover,
+.log-btn:hover {
+	background: #f3f4f6;          /* light grey hover */
+	border-color: rgba(255, 255, 255, 0.7);
 	transform: translateY(-1px);
-	box-shadow: var(--shadow-subtle);
+	box-shadow: 0 6px 14px rgba(0, 0, 0, 0.35);
 }
 
-.section-filter-pill.is-active {
-	background: var(--accent-soft);
-	color: var(--accent);
-	border-color: rgba(93,242,156,0.7);
-	box-shadow: 0 10px 24px rgba(93,242,156,0.45);
-	transform: translateY(-1px);
+/* Flash base: neutral but slightly bolder text */
+.flash-btn {
+	font-weight: 600;
 }
 
-.section-filter-pill:focus-visible {
-	outline: 2px solid var(--accent);
-	outline-offset: 2px;
+/* Save/log button (if used somewhere else) */
+.log-btn {
+	width: 100%;
+	justify-content: center;
+	text-align: center;
+	margin-top: 4px;
+}
+
+/* Small-screen tweaks */
+@media (max-width: 600px) {
+	.climb-actions-row {
+		flex-direction: row;
+		align-items: flex-start;
+	}
+}
+
+/* Header row inside each climb card */
+.climb-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+	margin-bottom: 6px;
+}
+
+/* “Climb #X” text */
+.climb-title {
+	font-size: 1.05rem;
+	font-weight: 700;
+	color: #05060a;
+}
+
+/* Colour pill – default style; actual colour comes from inline style or extra class */
+.climb-colour-pill {
+	padding: 3px 10px;
+	border-radius: 999px;
+	font-size: 0.8rem;
+	font-weight: 600;
+	color: #05060a; /* assume lightish backgrounds, override via inline style if needed */
+	border: 1px solid rgba(0, 0, 0, 0.15);
+	white-space: nowrap;
+	background: #e5e7eb; /* fallback if no specific colour set */
 }
 
 /* Prevent iPhone auto-zoom */
 input, select, textarea {
-    font-size: 16px !important;
+	font-size: 16px !important;
 }
+
 label {
-    font-size: 16px !important;
+	font-size: 16px !important;
 }

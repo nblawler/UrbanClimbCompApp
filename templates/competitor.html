@@ -56,7 +56,7 @@
 			<header class="comp-header">
 				<h1 class="comp-name">
 					<span class="comp-label">Name:</span>
-					<span class="comp-value">{{ competitor.name }}</span>
+  					<span class="comp-value">{{ competitor.name }}</span>
 				</h1>
 
 				<div class="comp-meta-row">
@@ -79,89 +79,92 @@
 				</div>
 			</header>
 
-			{# ===== Section toggle tabs (switch between sections from here) ===== #}
-			{% if section and sections %}
-				<nav class="section-tabs">
-					{% for sec in sections %}
-						<a
-							class="section-tab {% if sec.id == section.id %}active{% endif %}"
-							href="/competitor/{{ competitor.id }}/section/{{ sec.slug }}"
-						>
-							<span class="section-tab-title">{{ sec.name }}</span>
-						</a>
-					{% endfor %}
-				</nav>
-			{% endif %}
-
-			<!-- Back to Gym Map button -->
-			<div class="back-to-map-bar">
-				<a class="back-to-map-btn" href="/competitor/{{ competitor.id }}/sections">
+			{# ============ SECTIONS TOGGLE + BACK TO MAP BUTTON ROW ============ #}
+			{% if sections is defined and sections %}
+			<div class="section-filter-row section-filter-row--with-button">
+				<div class="section-filter-left">
+					<div class="section-filter-label">
+						Sections:
+					</div>
+					<div class="section-filter-pills">
+						{% for sec in sections %}
+							<a
+								href="/competitor/{{ competitor.id }}/section/{{ sec.slug }}"
+								class="section-filter-pill {% if section is defined and section and section.id == sec.id %}is-active{% endif %}"
+							>
+								{{ sec.name }}
+							</a>
+						{% endfor %}
+					</div>
+				</div>
+		
+				<a class="back-to-map-btn back-to-map-btn-inline"
+				   href="/competitor/{{ competitor.id }}/sections">
 					Back to Gym Map
 				</a>
 			</div>
+		{% endif %}
+		
 
 			{# ===================== WALL MAP (COMPETITOR VIEW) ===================== #}
 			{% if section_climbs is defined %}
-				<section class="card map-card">
-					<header class="section-header">
-						<h2 class="section-title">
-							{{ section.name }}
-						</h2>
-						<p class="section-subtitle">
-							Tap a number to jump to that climb below.
-						</p>
-					</header>
+			<section class="card map-card">
+				<header class="section-header">
+					<h2 class="section-title">
+						{{ section.name }}
+					</h2>
+				</header>
 
-					<div class="map-wrapper">
-						<img
-							src="{{ url_for('static', filename='Collingwood_Gym_Map.png') }}"
-							alt="Collingwood wall map"
-							class="map-image"
-						/>
+				<div class="map-wrapper">
+					<img
+						src="{{ url_for('static', filename='Collingwood_Gym_Map.png') }}"
+						alt="Collingwood wall map"
+						class="map-image"
+					/>
 
-						{% for sc in section_climbs %}
-							{% if sc.x_percent is not none and sc.y_percent is not none %}
-								{# --- Work out background + text colour from sc.colour --- #}
-								{% set col_raw = sc.colour %}
-								{% if col_raw %}
-									{% set lc = col_raw|lower %}
-									{% if lc == "red" %}
-										{% set bg = "#b32121" %}
-									{% elif lc in ["white", "#fff", "#ffffff"] %}
-										{% set bg = "#ffffff" %}
-									{% else %}
-										{% set bg = col_raw %}
-									{% endif %}
+					{% for sc in section_climbs %}
+						{% if sc.x_percent is not none and sc.y_percent is not none %}
+							{# --- Work out background + text colour from sc.colour --- #}
+							{% set col_raw = sc.colour %}
+							{% if col_raw %}
+								{% set lc = col_raw|lower %}
+								{% if lc == "red" %}
+									{% set bg = "#b32121" %}
+								{% elif lc in ["white", "#fff", "#ffffff"] %}
+									{% set bg = "#ffffff" %}
 								{% else %}
-									{# fallback to accent green if no colour set #}
-									{% set bg = "#5df29c" %}
+									{% set bg = col_raw %}
 								{% endif %}
-
-								{# black text on white holds, otherwise dark text is fine #}
-								{% if bg|lower in ["white", "#fff", "#ffffff"] %}
-									{% set text_color = "#000000" %}
-								{% else %}
-									{% set text_color = "#000000" %}
-								{% endif %}
-
-								<button
-									type="button"
-									class="map-dot map-dot-interactive"
-									style="
-										left: {{ sc.x_percent }}%;
-										top: {{ sc.y_percent }}%;
-										background: {{ bg }};
-										color: {{ text_color }};
-									"
-									data-climb="{{ sc.climb_number }}"
-									title="Climb {{ sc.climb_number }}{% if sc.colour %} · {{ sc.colour }}{% endif %}"
-								>
-									{{ sc.climb_number }}
-								</button>
+							{% else %}
+								{# fallback to accent green if no colour set #}
+								{% set bg = "#5df29c" %}
 							{% endif %}
-						{% endfor %}
-					</div>
-				</section>
+
+							{# black text on white holds, otherwise dark text is fine #}
+							{% if bg|lower in ["white", "#fff", "#ffffff"] %}
+								{% set text_color = "#000000" %}
+							{% else %}
+								{% set text_color = "#000000" %}
+							{% endif %}
+
+							<button
+								type="button"
+								class="map-dot map-dot-interactive"
+								style="
+									left: {{ sc.x_percent }}%;
+									top: {{ sc.y_percent }}%;
+									background: {{ bg }};
+									color: {{ text_color }};
+								"
+								data-climb="{{ sc.climb_number }}"
+								title="Climb {{ sc.climb_number }}{% if sc.colour %} · {{ sc.colour }}{% endif %}"
+							>
+								{{ sc.climb_number }}
+							</button>
+						{% endif %}
+					{% endfor %}
+				</div>
+			</section>
 			{% endif %}
 
 			{# ===================== CLIMB CARDS ===================== #}
@@ -178,7 +181,7 @@
 						{% set max_pts = max_points.get(n) if max_points is defined else None %}
 						{% set col_raw = colours.get(n) if colours is defined else None %}
 
-						{# --- Background selection (special red, white handling) --- #}
+						{# --- Background colour for the COLOUR PILL (not the card) --- #}
 						{% if col_raw %}
 							{% set lc = col_raw|lower %}
 							{% if lc == "red" %}
@@ -189,14 +192,34 @@
 								{% set col_bg = col_raw %}
 							{% endif %}
 						{% else %}
-							{% set col_bg = None %}
+							{% set col_bg = "#e5e7eb" %}
 						{% endif %}
 
-						{# --- TEXT COLOUR: black if white background, else white --- #}
-						{% if col_bg and col_bg|lower in ["white", "#fff", "#ffffff"] %}
-							{% set text_color = "black" %}
+						{# --- Text colour for pill: black on light, white on strong colours --- #}
+						{% if col_bg|lower in ["white", "#fff", "#ffffff", "#e5e7eb", "#facc15", "#fef9c3"] %}
+							{% set pill_text_color = "#05060a" %}
 						{% else %}
-							{% set text_color = "white" %}
+							{% set pill_text_color = "#ffffff" %}
+						{% endif %}
+
+						{# --- Attempt cap from SectionClimb for this climb (fallback 5) --- #}
+						{% set cap = 5 %}
+						{% if section_climbs is defined %}
+							{% for sc in section_climbs %}
+								{% if sc.climb_number == n and sc.attempt_cap %}
+									{% set cap = sc.attempt_cap %}
+								{% endif %}
+							{% endfor %}
+						{% endif %}
+
+						{# Selected attempt for logic; visually neutral until clicked #}
+						{% if s %}
+							{% set sel_attempt = s.attempts %}
+						{% else %}
+							{% set sel_attempt = 1 %}
+						{% endif %}
+						{% if sel_attempt > cap %}
+							{% set sel_attempt = cap %}
 						{% endif %}
 
 						<div
@@ -204,27 +227,29 @@
 							id="climb-{{ n }}"
 							data-climb="{{ n }}"
 							data-climb-row="{{ n }}"
-							style="
-								background-color: {{ col_bg if col_bg else '#1a1a1a' }};
-								color: var(--climb-text);
-								--climb-text: {{ text_color }};
-							"
+							data-attempt-cap="{{ cap }}"
 						>
-							<h3 style="color: var(--climb-text);">Climb #{{ n }}</h3>
+							<div class="climb-header">
+								<span class="climb-title">Climb #{{ n }}</span>
 
-							{% if col_raw %}
-								<p class="climb-colour" style="color: var(--climb-text);">
-									{{ col_raw }}
-								</p>
-							{% endif %}
+								{% if col_raw %}
+									<span
+										class="climb-colour-pill"
+										style="background: {{ col_bg }}; color: {{ pill_text_color }};"
+									>
+										{{ col_raw }}
+									</span>
+								{% endif %}
+							</div>
 
 							{% if max_pts is not none %}
-								<p style="margin:4px 0 0; color: var(--climb-text);">
+								<p style="margin:4px 0 0;">
 									Max Points: {{ max_pts }}
 								</p>
 							{% endif %}
 
-							<p style="margin:2px 0 0; color: var(--climb-text); font-size:0.9rem;">
+							{# Points scored line under Max points #}
+							<p style="margin:2px 0 8px; font-size:0.9rem;">
 								Points Scored:
 								<span class="points-scored-value">
 									{% if per_climb_points is defined %}
@@ -235,40 +260,47 @@
 								</span>
 							</p>
 
-							<div class="row">
-								<label style="color: var(--climb-text);">Attempts</label>
-								<input
-									type="number"
-									min="1"
-									max="50"
-									value="{{ s.attempts if s else 1 }}"
-									class="attempts"
-									style="color: var(--climb-text); background:#ffffff30; border-color:#00000040;"
-									{% if not can_edit %}disabled{% endif %}
-								/>
-							</div>
-
-							<div class="row">
-								<label class="check" style="color: var(--climb-text);">
-									<input
-										type="checkbox"
-										class="topped"
-										{% if s and s.topped %}checked{% endif %}
+							<div class="climb-actions">
+								<div class="climb-actions-row">
+									<button
+										type="button"
+										class="flash-btn action-pill"
 										{% if not can_edit %}disabled{% endif %}
-									/>
-									<span style="color: var(--climb-text);">Topped</span>
-								</label>
+									>
+										Flash
+									</button>
+
+									<button
+										type="button"
+										class="topped-toggle-btn action-pill"
+										{% if not can_edit %}disabled{% endif %}
+									>
+										Topped
+									</button>
+								</div>
+
+								<div class="climb-actions-row attempts-row">
+									<span class="attempts-label">Attempts</span>
+									<div
+										class="attempts-pill-row"
+										data-selected-attempt="{{ sel_attempt }}"
+									>
+										{% for i in range(1, cap + 1) %}
+											<button
+												type="button"
+												class="attempt-pill"
+												data-attempt="{{ i }}"
+												{% if not can_edit %}disabled{% endif %}
+											>
+												{{ i }}
+											</button>
+										{% endfor %}
+									</div>
+								</div>
+
+								{# No manual Save button anymore – auto-save on Flash/Topped/Attempts #}
+								<div class="status" aria-live="polite"></div>
 							</div>
-
-							<button
-								class="save"
-								style="color: var(--climb-text); border-color: var(--climb-text);"
-								{% if not can_edit %}disabled{% endif %}
-							>
-								Save
-							</button>
-
-							<div class="status" aria-live="polite" style="color: var(--climb-text);"></div>
 						</div>
 					{% endfor %}
 				</section>
@@ -285,32 +317,53 @@
 			const cards = document.querySelectorAll(".climb-card");
 
 			function showStatus(el, msg, ok = true) {
+				if (!el) return;
 				el.textContent = msg;
 				el.className = "status " + (ok ? "ok" : "err");
 				setTimeout(() => {
 					el.textContent = "";
+					el.className = "status";
 				}, 1500);
 			}
 
-			async function save(card) {
+			function getCurrentState(card) {
+				const attemptsContainer = card.querySelector(".attempts-pill-row");
+				const toppedToggle = card.querySelector(".topped-toggle-btn");
+
+				let attempts = 1;
+				if (attemptsContainer) {
+					const raw = attemptsContainer.dataset.selectedAttempt || "1";
+					const parsed = parseInt(raw, 10);
+					if (!isNaN(parsed) && parsed >= 1) {
+						attempts = parsed;
+					}
+				}
+
+				const topped = !!(toppedToggle && toppedToggle.classList.contains("is-active"));
+
+				return { attempts, topped };
+			}
+
+			async function save(card, override) {
 				if (!canEdit || viewerId === null) {
 					showStatus(card.querySelector(".status"), "Not allowed", false);
 					return;
 				}
 
-				const climb = parseInt(card.dataset.climb);
-				let attempts = parseInt(card.querySelector(".attempts").value || "1");
-				const topped = card.querySelector(".topped").checked;
+				const climb = parseInt(card.dataset.climb, 10);
 				const status = card.querySelector(".status");
 
-				if (isNaN(attempts) || attempts < 1) {
-					attempts = 1;
-					card.querySelector(".attempts").value = 1;
+				let { attempts, topped } = getCurrentState(card);
+
+				if (override && typeof override.attempts === "number") {
+					attempts = override.attempts;
 				}
-				if (attempts > 50) {
-					attempts = 50;
-					card.querySelector(".attempts").value = 50;
+				if (override && typeof override.topped === "boolean") {
+					topped = override.topped;
 				}
+
+				if (isNaN(attempts) || attempts < 1) attempts = 1;
+				if (attempts > 50) attempts = 50;
 
 				try {
 					const res = await fetch("/api/score", {
@@ -386,12 +439,66 @@
 
 			if (canEdit) {
 				cards.forEach((card) => {
-					const btn = card.querySelector(".save");
-					if (btn) {
-						btn.addEventListener("click", async () => {
+					const flashBtn = card.querySelector(".flash-btn");
+					const toppedToggle = card.querySelector(".topped-toggle-btn");
+					const attemptsContainer = card.querySelector(".attempts-pill-row");
+					const attemptButtons = attemptsContainer
+						? Array.from(attemptsContainer.querySelectorAll(".attempt-pill"))
+						: [];
+
+					// Flash button: set attempts = 1, topped = true, auto-save
+					if (flashBtn) {
+						flashBtn.addEventListener("click", async () => {
+							if (!attemptsContainer) return;
+
+							// Set attempts = 1 visually + in data
+							attemptsContainer.dataset.selectedAttempt = "1";
+							attemptButtons.forEach((btn) => {
+								btn.classList.toggle(
+									"is-active",
+									btn.dataset.attempt === "1"
+								);
+							});
+
+							// Visual state: Flash on, Topped off (mutually exclusive)
+							flashBtn.classList.add("is-active");
+							if (toppedToggle) {
+								toppedToggle.classList.remove("is-active");
+							}
+
+							await save(card, { attempts: 1, topped: true });
+						});
+					}
+
+					// Topped toggle – mutually exclusive with Flash, auto-save
+					if (toppedToggle) {
+						toppedToggle.addEventListener("click", async () => {
+							const nowActive = !toppedToggle.classList.contains("is-active");
+							toppedToggle.classList.toggle("is-active", nowActive);
+
+							// If Topped is active, clear Flash visual
+							if (flashBtn && nowActive) {
+								flashBtn.classList.remove("is-active");
+							}
+
+							// Auto-save with current attempts + topped state
 							await save(card);
 						});
 					}
+
+					// Attempt buttons: pick 1..cap, auto-save when changed
+					attemptButtons.forEach((btn) => {
+						btn.addEventListener("click", async () => {
+							const attempt = btn.dataset.attempt;
+							attemptsContainer.dataset.selectedAttempt = attempt;
+							attemptButtons.forEach((b) => {
+								b.classList.toggle("is-active", b === btn);
+							});
+
+							// Auto-save new attempts with current flashed/topped state
+							await save(card);
+						});
+					});
 				});
 			}
 
@@ -417,4 +524,3 @@
 		</script>
 	</body>
 </html>
-

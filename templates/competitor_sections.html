@@ -35,6 +35,71 @@
 			opacity: 0.4;
 			cursor: default;
 		}
+
+		/* === SECTION FILTER PILL STYLING (MATCH COMPETITOR.HTML TOGGLES) === */
+
+		.section-filter-row {
+			display: flex;
+			flex-direction: column;
+			gap: 6px;
+			margin: 8px 0 12px;
+		}
+
+		.section-filter-label {
+			font-size: 0.95rem;
+			color: var(--text);
+			margin-bottom: 6px;
+			margin-top: 8px;
+			letter-spacing: 0.3px;
+			font-weight: 600; /* bold label */
+		}
+
+		.section-filter-pills {
+			display: flex;
+			flex-wrap: wrap;
+			gap: 8px;
+		}
+
+		.section-filter-pill {
+			display: inline-flex;
+			align-items: center;
+			justify-content: center;
+			padding: 6px 14px;
+			border-radius: var(--radius-pill);  /* pill shape */
+			border: 1px solid rgba(255, 255, 255, 0.9); /* clear, visible border */
+			background: transparent;            /* no colour by default */
+			color: var(--text);                 /* white text by default */
+			font-size: 0.85rem;
+			font-weight: 500;
+			cursor: pointer;
+			text-decoration: none;              /* works for <a> or <button> */
+			transition:
+				background var(--transition-fast),
+				color var(--transition-fast),
+				border-color var(--transition-fast),
+				transform var(--transition-fast),
+				box-shadow var(--transition-fast);
+		}
+
+		.section-filter-pill:hover {
+			background: rgba(18, 22, 30, 1);
+			border-color: rgba(255, 255, 255, 1);
+			transform: translateY(-1px);
+			box-shadow: var(--shadow-subtle);
+		}
+
+		.section-filter-pill.is-active {
+			background: var(--accent);     /* green when active */
+			color: #05060a;                /* black/dark text when active */
+			border-color: var(--accent);
+			box-shadow: 0 10px 24px rgba(93, 242, 156, 0.45);
+			transform: translateY(-1px);
+		}
+
+		.section-filter-pill:focus-visible {
+			outline: 2px solid var(--accent);
+			outline-offset: 2px;
+		}
 	</style>
 </head>
 
@@ -84,7 +149,6 @@
 
 	<main class="container">
 
-		<!-- Unified header: same as competitor.html -->
 		<header class="comp-header">
 			<h1 class="comp-name">
 				<span class="comp-label">Name:</span>
@@ -120,17 +184,9 @@
 
 		<section class="card map-card">
 			<header class="section-header">
-				<h2 class="section-title">Wall map</h2>
-				<p class="comp-subtitle">
-					{% if can_edit %}
-						Tap a climb on the map to log your attempts.
-					{% else %}
-						Climbs are displayed for reference only.
-					{% endif %}
-				</p>
+				<h2 class="section-title">Gym Map</h2>
 			</header>
 
-			{# ===== SECTION FILTER PILLS ===== #}
 			{% if sections %}
 				<div class="section-filter-row">
 					<div class="section-filter-label">
@@ -140,7 +196,7 @@
 						{% for sec in sections %}
 							<button
 								type="button"
-								class="section-filter-pill is-active"
+								class="section-filter-pill"
 								data-section-id="{{ sec.id }}"
 							>
 								{{ sec.name }}
@@ -192,40 +248,32 @@
 	</main>
 
 	<script>
-		// Simple section filter logic for the main gym map page.
-		// Pills go green when active; dots are shown/hidden based on selected sections.
+		// Section filter logic for the gym map page.
+		// Pills:
+		//   - neutral by default
+		//   - go green with black text when active (.is-active)
+		//   - multi-select supported
+		// Markers:
+		//   - if no pills active -> show ALL markers
+		//   - otherwise show only markers whose section id is active
 		document.addEventListener("DOMContentLoaded", function () {
-			const pills = Array.from(document.querySelectorAll(".section-filter-pill"));
+			const pills   = Array.from(document.querySelectorAll(".section-filter-pill"));
 			const markers = Array.from(document.querySelectorAll(".map-marker"));
 
-			if (!pills.length || !markers.length) {
-				return;
-			}
+			if (!pills.length || !markers.length) return;
 
-			// Start with ALL sections active
-			let activeIds = new Set(
-				pills
-					.map((p) => p.dataset.sectionId)
-					.filter((id) => !!id)
-			);
-			pills.forEach((p) => p.classList.add("is-active"));
+			// start with none active → show all markers
+			let activeIds = new Set();
 
 			function applyFilter() {
-				// If somehow nothing is active, treat as "show all"
 				if (!activeIds.size) {
-					markers.forEach((m) => {
-						m.style.display = "";
-					});
+					markers.forEach((m) => { m.style.display = ""; });
 					return;
 				}
 
 				markers.forEach((m) => {
 					const sid = m.dataset.sectionId;
-					if (!sid || activeIds.has(sid)) {
-						m.style.display = "";
-					} else {
-						m.style.display = "none";
-					}
+					m.style.display = (!sid || activeIds.has(sid)) ? "" : "none";
 				});
 			}
 
@@ -237,24 +285,17 @@
 					const isActive = pill.classList.contains("is-active");
 
 					if (isActive) {
-						// turning OFF this section
 						pill.classList.remove("is-active");
 						activeIds.delete(sid);
 					} else {
-						// turning ON this section
 						pill.classList.add("is-active");
 						activeIds.add(sid);
 					}
 
-					// If user turns everything off, snap back to "all on"
+					// if everything turned off, treat as "show all"
 					const anyActive = pills.some((p) => p.classList.contains("is-active"));
 					if (!anyActive) {
-						activeIds = new Set(
-							pills
-								.map((p) => p.dataset.sectionId)
-								.filter((id) => !!id)
-						);
-						pills.forEach((p) => p.classList.add("is-active"));
+						activeIds.clear();
 					}
 
 					applyFilter();
