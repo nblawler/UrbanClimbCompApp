@@ -2387,6 +2387,127 @@ def admin_map():
 		sections=sections,
 		climbs=climbs
   )
+ 
+@app.route("/admin/comps", methods=["GET", "POST"])
+def admin_competitions():
+	"""
+	Admin UI to manage competitions:
+	- List all competitions
+	- Create a new competition
+	- Set a competition as the single active comp
+	- Archive (deactivate) a competition
+	"""
+	if not session.get("admin_ok"):
+		return redirect("/admin")
+
+	message = None
+	error = None
+
+	if request.method == "POST":
+		action = request.form.get("action", "").strip()
+
+		if action == "create_comp":
+			name = (request.form.get("name") or "").strip()
+			gym_name = (request.form.get("gym_name") or "").strip() or None
+			slug_raw = (request.form.get("slug") or "").strip().lower()
+
+			start_date = (request.form.get("start_date") or "").strip()
+			start_time = (request.form.get("start_time") or "").strip()
+			end_date = (request.form.get("end_date") or "").strip()
+			end_time = (request.form.get("end_time") or "").strip()
+
+			is_active_flag = bool(request.form.get("is_active"))
+
+			if not name:
+				error = "Competition name is required."
+			else:
+				# slug: either provided or derived from name
+				slug_val = slug_raw or slugify(name)
+				existing_slug = Competition.query.filter_by(slug=slug_val).first()
+				if existing_slug:
+					# ensure uniqueness by timestamp suffix
+					slug_val = f"{slug_val}-{int(datetime.utcnow().timestamp())}"
+
+				def parse_dt(date_str, time_str):
+					if not date_str:
+						return None
+					try:
+						if not time_str:
+							return datetime.strptime(date_str, "%Y-%m-%d")
+						return datetime.strptime(
+							f"{date_str} {time_str}",
+							"%Y-%m-%d %H:%M",
+						)
+					except ValueError:
+						return None
+
+				start_at = parse_dt(start_date, start_time)
+				end_at = parse_dt(end_date, end_time)
+
+				comp = Competition(
+					name=name,
+					gym_name=gym_name,
+					slug=slug_val,
+					start_at=start_at,
+					end_at=end_at,
+					is_active=is_active_flag,
+				)
+				db.session.add(comp)
+				db.session.commit()
+
+				# If this new comp is active, make all others inactive
+				if is_active_flag:
+					all_comps = Competition.query.all()
+					for c in all_comps:
+						c.is_active = (c.id == comp.id)
+					db.session.commit()
+
+				message = f"Competition '{comp.name}' created."
+
+		elif action == "set_active":
+			raw_id = (request.form.get("competition_id") or "").strip()
+			if not raw_id.isdigit():
+				error = "Invalid competition id."
+			else:
+				cid = int(raw_id)
+				comp = Competition.query.get(cid)
+				if not comp:
+					error = "Competition not found."
+				else:
+					all_comps = Competition.query.all()
+					for c in all_comps:
+						c.is_active = (c.id == comp.id)
+					db.session.commit()
+					message = f"'{comp.name}' is now the active competition."
+
+		elif action == "archive":
+			raw_id = (request.form.get("competition_id") or "").strip()
+			if not raw_id.isdigit():
+				error = "Invalid competition id."
+			else:
+				cid = int(raw_id)
+				comp = Competition.query.get(cid)
+				if not comp:
+					error = "Competition not found."
+				else:
+					comp.is_active = False
+					db.session.commit()
+					message = f"Competition '{comp.name}' has been archived (inactive)."
+
+	# Always show current list
+	comps = (
+		Competition.query
+		.order_by(Competition.start_at.asc(), Competition.created_at.asc())
+		.all()
+	)
+
+	return render_template(
+		"admin_comps.html",
+		competitions=comps,
+		message=message,
+		error=error,
+	)
+
 	
 
 @app.route("/admin/map/add-climb", methods=["POST"])
