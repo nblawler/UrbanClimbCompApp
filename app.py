@@ -570,6 +570,27 @@ def login_request():
 			error = "Please enter your email."
 		else:
 			comp = Competitor.query.filter_by(email=email).first()
+
+			# 🔹 If no competitor, but this is an admin email, auto-create an admin competitor
+			if not comp and is_admin_email(email):
+				# attach admin to the current active competition
+				current_comp = (
+					Competition.query
+					.filter_by(is_active=True)
+					.order_by(Competition.start_at.asc())
+					.first()
+				)
+
+				comp = Competitor(
+					name="Admin",
+					gender="Inclusive",
+					email=email,
+					competition_id=current_comp.id if current_comp else None,
+				)
+				db.session.add(comp)
+				db.session.commit()
+				print(f"[ADMIN BOOTSTRAP] Created admin competitor for {email} -> id={comp.id}", file=sys.stderr)
+
 			if not comp:
 				error = "We couldn't find that email. If you're new, please register first."
 			else:
@@ -601,6 +622,7 @@ def login_request():
 		error=error,
 		message=message,
 	)
+
 
 
 # --- Email login: verify code ---
@@ -657,6 +679,7 @@ def login_verify():
 					session.pop("login_email", None)
 
 					return redirect(f"/competitor/{comp.id}/sections")
+
 	else:
 		# GET: if we already have an email (i.e. just sent a code), show a helpful message
 		if email and not message:
@@ -2040,6 +2063,17 @@ def api_leaderboard():
 # --- Admin (simple password-protected utility) ---
 
 ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "letmein123")
+
+ADMIN_EMAILS_RAW = os.getenv("ADMIN_EMAILS", "")
+ADMIN_EMAILS = {
+	e.strip().lower()
+	for e in ADMIN_EMAILS_RAW.split(",")
+	if e.strip()
+}
+
+
+def is_admin_email(email: str) -> bool:
+	return (email or "").strip().lower() in ADMIN_EMAILS
 
 
 @app.route("/admin", methods=["GET", "POST"])
