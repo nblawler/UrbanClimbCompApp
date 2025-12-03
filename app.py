@@ -411,6 +411,44 @@ def build_leaderboard(category=None):
 
 	return rows, category_label
 
+@app.before_first_request
+def init_db_and_default_comp():
+	"""
+	Ensure DB tables exist and there is at least one active competition.
+
+	This makes a fresh Render Postgres (or a nuked schema) usable
+	with no manual migration commands.
+	"""
+	# Create all tables (no-op if they already exist)
+	db.create_all()
+
+	# If there is already an active competition, do nothing
+	active_comp = (
+		Competition.query
+		.filter_by(is_active=True)
+		.order_by(Competition.start_at.asc())
+		.first()
+	)
+	if active_comp:
+		return
+
+	# Otherwise, create a simple default competition.
+	default_comp = Competition(
+		name="UC Collingwood Boulder Bash",
+		gym_name="Urban Climb Collingwood",
+		slug="uc-collingwood-boulder-bash",
+		start_at=datetime(2025, 2, 1, 10, 0),
+		end_at=None,
+		is_active=True,
+	)
+	db.session.add(default_comp)
+	db.session.commit()
+
+	print(
+		f"[BOOTSTRAP] Created default competition with slug={default_comp.slug}",
+		file=sys.stderr,
+	)
+
 
 def competitor_total_points(comp_id: int) -> int:
 	scores = Score.query.filter_by(competitor_id=comp_id).all()
