@@ -192,7 +192,15 @@
 												{{ comp.end_at.strftime("%d %b %Y %H:%M") }}
 											{% endif %}
 										</td>
-										<td style="text-align: right;">
+										<td style="text-align: right; white-space: nowrap;">
+											<a
+												href="/admin/comp/{{ comp.id }}/configure"
+												class="btn-primary"
+												style="margin-right: 6px;"
+											>
+												Configure
+											</a>
+
 											<form method="post" style="display: inline-block; margin-right: 6px;">
 												<input type="hidden" name="action" value="set_active" />
 												<input
@@ -237,3 +245,4 @@
 		</main>
 	</body>
 </html>
+

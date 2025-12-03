@@ -665,21 +665,27 @@ def login_verify():
 					error = "That code has expired. Please request a new one."
 				else:
 					# Mark code as used and log in the user
+					# Mark code as used
 					login_code.used = True
 					db.session.commit()
-
-					session["competitor_id"] = comp.id
-
-					# NEW: if this email is in ADMIN_EMAILS, grant admin access
-					if is_admin_email(email):
-						session["admin_ok"] = True
-						print(f"[ADMIN LOGIN] {email} is an admin; admin_ok set in session", file=sys.stderr)
 
 					# Clear transient login email
 					session.pop("login_email", None)
 
-					return redirect(f"/competitor/{comp.id}/sections")
-
+					if is_admin_email(email):
+						# Admin login: grant admin access and send straight to comps dashboard
+						session["admin_ok"] = True
+						if comp:
+							session["competitor_id"] = comp.id
+						print(
+							f"[ADMIN LOGIN] {email} is an admin; admin_ok set in session",
+							file=sys.stderr,
+						)
+						return redirect("/admin/comps")
+					else:
+						# Normal competitor login: go to their sections page
+						session["competitor_id"] = comp.id
+						return redirect(f"/competitor/{comp.id}/sections")
 	else:
 		# GET: if we already have an email (i.e. just sent a code), show a helpful message
 		if email and not message:
@@ -2507,6 +2513,29 @@ def admin_competitions():
 		message=message,
 		error=error,
 	)
+
+@app.route("/admin/comp/<int:competition_id>/configure")
+def admin_configure_competition(competition_id):
+	"""
+	Set this competition as the active one for editing
+	and then send the admin to the main admin page where
+	they can manage sections, climbs, map, etc.
+	"""
+	if not session.get("admin_ok"):
+		return redirect("/admin")
+
+	comp = Competition.query.get_or_404(competition_id)
+
+	# Make this the active competition (editing context)
+	all_comps = Competition.query.all()
+	for c in all_comps:
+		c.is_active = (c.id == comp.id)
+	db.session.commit()
+
+	print(f"[ADMIN CONFIGURE] Now editing competition #{comp.id} – {comp.name}", file=sys.stderr)
+
+	# Send them to the existing admin hub where they can create sections, climbs, etc.
+	return redirect("/admin")
 
 	
 
