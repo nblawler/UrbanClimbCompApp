@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Competitions · Urban Climb Comp</title>
+  <link rel="stylesheet" href="/static/app.css" />
+</head>
+<body>
+  <nav class="container top-nav">
+    <div class="nav-links">
+      <a class="back" href="/">Home</a>
+      <a class="back" href="/leaderboard">Leaderboard</a>
+      <a class="back" href="/login">Login</a>
+      <a class="back" href="/join">Join</a>
+    </div>
+  </nav>
+
+  <main class="container">
+    <header class="comp-header">
+      <h1 class="comp-name">Competitions</h1>
+      <p class="comp-subtitle">
+        All comps configured in this app. Right now you’re using the active one
+        everywhere; later we’ll let you jump into each comp directly.
+      </p>
+    </header>
+
+    {% if competitions %}
+      <div class="card-list">
+        {% for comp in competitions %}
+          <section class="card">
+            <header class="card-header">
+              <h2 class="card-title">{{ comp.name }}</h2>
+              {% if comp.gym_name %}
+                <p class="card-meta">{{ comp.gym_name }}</p>
+              {% endif %}
+            </header>
+
+            <div class="card-body">
+              <p class="card-line">
+                <strong>Slug:</strong> <code>{{ comp.slug }}</code>
+              </p>
+
+              <p class="card-line">
+                <strong>Status:</strong>
+                {% if comp.is_active %}
+                  Active
+                {% else %}
+                  Archived
+                {% endif %}
+              </p>
+
+              <p class="card-line">
+                <strong>Dates:</strong>
+                {% if comp.start_at %}
+                  {{ comp.start_at.strftime("%d %b %Y %H:%M") }}
+                {% else %}
+                  (no start date)
+                {% endif %}
+                –
+                {% if comp.end_at %}
+                  {{ comp.end_at.strftime("%d %b %Y %H:%M") }}
+                {% else %}
+                  (no end date)
+                {% endif %}
+              </p>
+            </div>
+
+            <footer class="card-footer">
+              <!-- For now these are generic; later they’ll become /comp/{{ comp.slug }}/... -->
+              {% if comp.is_active %}
+                <a class="pill-button" href="/comp/{{ comp.slug }}/join">Join this comp</a>
+                <a class="pill-button pill-ghost" href="/leaderboard">View leaderboard</a>
+              {% else %}
+                <span class="pill-badge">Archived</span>
+              {% endif %}
+            </footer>
+          </section>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p>No competitions configured yet. Create one in the database to get started.</p>
+    {% endif %}
+  </main>
+</body>
+</html>

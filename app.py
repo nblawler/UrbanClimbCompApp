@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, jsonify, session
+from flask import Flask, render_template, request, redirect, jsonify, session, abort
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import UniqueConstraint
 from datetime import datetime, timedelta
@@ -46,6 +46,23 @@ if RESEND_API_KEY:
 else:
 	print("[RESEND] RESEND_API_KEY not set – emails will be logged only", file=sys.stderr)
 
+# --- Admin via email ---
+
+ADMIN_EMAILS_RAW = os.getenv("ADMIN_EMAILS", "")
+# Comma-separated list of admin emails, e.g. "host@urbanclimb.com,other@uc.com"
+ADMIN_EMAILS = {
+	e.strip().lower()
+	for e in ADMIN_EMAILS_RAW.split(",")
+	if e.strip()
+}
+
+
+def is_admin_email(email: str) -> bool:
+	"""Return True if this email is configured as an admin."""
+	if not email:
+		return False
+	return email.strip().lower() in ADMIN_EMAILS
+
 
 # --- Leaderboard cache ---
 
@@ -63,6 +80,43 @@ def invalidate_leaderboard_cache():
 # --- Models ---
 
 
+class Competition(db.Model):
+	__tablename__ = "competition"
+
+	id = db.Column(db.Integer, primary_key=True)
+
+	# Public-facing name, e.g. "UC Collingwood Boulder Blitz"
+	name = db.Column(db.String(160), nullable=False)
+
+	# Optional extra context
+	gym_name = db.Column(db.String(160), nullable=True)
+
+	# For pretty URLs later, e.g. "uc-collingwood-boulder-blitz"
+	slug = db.Column(db.String(160), nullable=False, unique=True)
+
+	# When the comp runs (optional for now)
+	start_at = db.Column(db.DateTime, nullable=True)
+	end_at = db.Column(db.DateTime, nullable=True)
+
+	# Let you “archive” comps without deleting them
+	is_active = db.Column(db.Boolean, nullable=False, default=True)
+
+	created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+
+	# Relationships
+	sections = db.relationship(
+		"Section",
+		back_populates="competition",
+		lazy=True,
+	)
+
+	competitors = db.relationship(
+		"Competitor",
+		back_populates="competition",
+		lazy=True,
+	)
+
+
 class Competitor(db.Model):
 	# competitor number (auto-incremented)
 	id = db.Column(db.Integer, primary_key=True)
@@ -70,6 +124,19 @@ class Competitor(db.Model):
 	gender = db.Column(db.String(20), nullable=False, default="Inclusive")
 	email = db.Column(db.String(255), nullable=True, unique=True)
 	created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+	# which competition this competitor belongs to
+	competition_id = db.Column(
+		db.Integer,
+		db.ForeignKey("competition.id"),
+		nullable=True,
+		index=True,
+	)
+
+	competition = db.relationship(
+		"Competition",
+		back_populates="competitors",
+	)
 
 
 class Score(db.Model):
@@ -110,6 +177,19 @@ class Section(db.Model):
 	start_climb = db.Column(db.Integer, nullable=False, default=0)
 	end_climb = db.Column(db.Integer, nullable=False, default=0)
 
+	# which competition this section belongs to
+	competition_id = db.Column(
+		db.Integer,
+		db.ForeignKey("competition.id"),
+		nullable=True,
+		index=True,
+	)
+
+	competition = db.relationship(
+		"Competition",
+		back_populates="sections",
+	)
+
 
 class SectionClimb(db.Model):
 	id = db.Column(db.Integer, primary_key=True)
@@ -148,6 +228,32 @@ class LoginCode(db.Model):
 
 	competitor = db.relationship("Competitor")
 
+
+# --- Competition helper ---
+
+
+def get_current_comp():
+	"""
+	For now: single active competition.
+	Later we can pick by slug / subdomain / QR etc.
+	"""
+	comp = (
+		Competition.query
+		.filter_by(is_active=True)
+		.order_by(Competition.start_at.asc())
+		.first()
+	)
+	if not comp:
+		abort(500, "No active competition configured")
+	return comp
+
+def get_comp_or_404(slug: str) -> Competition:
+	"""
+	Look up a competition by slug.
+	For now we allow any slug; later you can restrict to is_active=True.
+	"""
+	comp = Competition.query.filter_by(slug=slug).first_or_404()
+	return comp
 
 # --- Scoring function ---
 
@@ -212,7 +318,7 @@ def _normalise_category_key(category):
 
 
 def build_leaderboard(category=None):
-	""" 
+	"""
 	Build leaderboard rows, optionally filtered by gender category.
 
 	Now cached in memory for LEADERBOARD_CACHE_TTL seconds so we
@@ -227,8 +333,10 @@ def build_leaderboard(category=None):
 		if now - ts <= LEADERBOARD_CACHE_TTL:
 			return rows, category_label
 
-	# --- original logic ---
-	q = Competitor.query
+	current_comp = get_current_comp()
+
+	# --- base query, scoped to current competition ---
+	q = Competitor.query.filter(Competitor.competition_id == current_comp.id)
 	category_label = "All"
 
 	if category:
@@ -355,6 +463,25 @@ def index():
 	"""
 	return render_template("index.html")
 
+@app.route("/competitions")
+def competitions_index():
+    """
+    Simple list of all competitions.
+    For now it's read-only; later we'll wire this into per-comp flows.
+    """
+    comps = (
+        Competition.query
+        .order_by(Competition.start_at.asc().nullsfirst())  # if start_at mostly filled
+        .all()
+    )
+
+    # If your SQLAlchemy / SQLite combo complains about nullsfirst(),
+    # just fall back to created_at:
+    # comps = Competition.query.order_by(Competition.created_at.desc()).all()
+
+    return render_template("competitions.html", competitions=comps)
+
+
 
 @app.route("/resume")
 def resume_competitor():
@@ -373,33 +500,15 @@ def resume_competitor():
 		session.pop("competitor_id", None)
 		return redirect("/")
 
+	# If this competitor is tied to a competition, send them to the slugged URL
+	if comp.competition_id:
+		comp_row = Competition.query.get(comp.competition_id)
+		if comp_row and comp_row.slug:
+			return redirect(f"/comp/{comp_row.slug}/competitor/{cid}/sections")
+
+	# Fallback: old-style URL
 	return redirect(f"/competitor/{cid}/sections")
 
-
-# NOTE: we no longer expose competitor-number login in the UI.
-# This route is left as-is, but nothing on the frontend points to it now.
-@app.route("/competitor", methods=["POST"])
-def enter_competitor():
-	cid_raw = request.form.get("competitor_id", "").strip()
-
-	if not cid_raw.isdigit():
-		return render_template(
-			"index.html",
-			error="Please enter a valid competitor number.",
-		)
-
-	cid = int(cid_raw)
-	comp = Competitor.query.get(cid)
-	if not comp:
-		return render_template(
-			"index.html",
-			error="Competitor not found. Please check with the desk.",
-		)
-
-	# Remember this competitor on this device
-	session["competitor_id"] = cid
-
-	return redirect(f"/competitor/{cid}/sections")
 
 
 # --- Email login: request code ---
@@ -497,6 +606,12 @@ def login_verify():
 					db.session.commit()
 
 					session["competitor_id"] = comp.id
+
+					# NEW: if this email is in ADMIN_EMAILS, grant admin access
+					if is_admin_email(email):
+						session["admin_ok"] = True
+						print(f"[ADMIN LOGIN] {email} is an admin; admin_ok set in session", file=sys.stderr)
+
 					# Clear transient login email
 					session.pop("login_email", None)
 
@@ -516,94 +631,206 @@ def login_verify():
 
 @app.route("/competitor/<int:competitor_id>")
 def competitor_redirect(competitor_id):
-	# Backwards compatibility: redirect plain competitor URL to sections
-	_return = redirect(f"/competitor/{competitor_id}/sections")
-	return _return
+	"""
+	Backwards compatibility: if we know the competitor's competition,
+	redirect to the slugged sections URL. Otherwise, fall back to
+	the old /competitor/<id>/sections route.
+	"""
+	comp = Competitor.query.get_or_404(competitor_id)
+
+	if comp.competition_id:
+		comp_row = Competition.query.get(comp.competition_id)
+		if comp_row and comp_row.slug:
+			return redirect(f"/comp/{comp_row.slug}/competitor/{competitor_id}/sections")
+
+	# Fallback: older non-slug URL
+	return redirect(f"/competitor/{competitor_id}/sections")
+
 
 
 @app.route("/competitor/<int:competitor_id>/sections")
 def competitor_sections(competitor_id):
-    """
-    Sections index page.
+	"""
+	Sections index page (legacy URL).
 
-    Non-admins are *forced* to their own competitor id from the session.
-    Changing the id in the URL does not let you see or edit someone else's sections.
-    """
-    viewer_id = session.get("competitor_id")
-    is_admin = session.get("admin_ok", False)
+	Non-admins are *forced* to their own competitor id from the session.
+	Changing the id in the URL does not let you see or edit someone else's sections.
+	"""
+	viewer_id = session.get("competitor_id")
+	is_admin = session.get("admin_ok", False)
 
-    # Not logged in as competitor and not admin -> no access
-    if not viewer_id and not is_admin:
-        return redirect("/")
+	# Not logged in as competitor and not admin -> no access
+	if not viewer_id and not is_admin:
+		return redirect("/")
 
-    # Determine which competitor to show
-    if is_admin:
-        target_id = competitor_id
-    else:
-        target_id = viewer_id
-        if competitor_id != viewer_id:
-            return redirect(f"/competitor/{viewer_id}/sections")
+	# Determine which competitor to show
+	if is_admin:
+		target_id = competitor_id
+	else:
+		target_id = viewer_id
+		if competitor_id != viewer_id:
+			return redirect(f"/competitor/{viewer_id}/sections")
 
-    comp = Competitor.query.get_or_404(target_id)
-    sections = Section.query.order_by(Section.name).all()
-    total_points = competitor_total_points(target_id)
+	comp = Competitor.query.get_or_404(target_id)
 
-    # Leaderboard position
-    rows, _ = build_leaderboard(None)
-    position = None
-    for r in rows:
-        if r["competitor_id"] == target_id:
-            position = r["position"]
-            break
+	# 🔹 Try to infer this competitor's competition + slug (if any)
+	comp_row = None
+	comp_slug = None
+	if comp.competition_id:
+		comp_row = Competition.query.get(comp.competition_id)
+		if comp_row and comp_row.slug:
+			comp_slug = comp_row.slug
 
-    # Whether this viewer can edit attempts
-    can_edit = (viewer_id == target_id or is_admin)
+	# Legacy behaviour: still show all sections (or you can scope by comp_row if you want)
+	sections = Section.query.order_by(Section.name).all()
+	total_points = competitor_total_points(target_id)
 
-    # All climbs with coordinates → feed dots to map
-    map_climbs = (
-        SectionClimb.query
-        .filter(
-            SectionClimb.x_percent.isnot(None),
-            SectionClimb.y_percent.isnot(None),
-        )
-        .order_by(SectionClimb.climb_number)
-        .all()
-    )
+	# Leaderboard position
+	rows, _ = build_leaderboard(None)
+	position = None
+	for r in rows:
+		if r["competitor_id"] == target_id:
+			position = r["position"]
+			break
 
-    return render_template(
-        "competitor_sections.html",
-        competitor=comp,
-        sections=sections,
-        total_points=total_points,
-        position=position,
-        nav_active="sections",
-        viewer_id=viewer_id,
-        is_admin=is_admin,
-        can_edit=can_edit,
-        map_climbs=map_climbs,   # ADDED
-    )
+	# Whether this viewer can edit attempts
+	can_edit = (viewer_id == target_id or is_admin)
 
+	# All climbs with coordinates → feed dots to map
+	map_climbs = (
+		SectionClimb.query
+		.filter(
+			SectionClimb.x_percent.isnot(None),
+			SectionClimb.y_percent.isnot(None),
+		)
+		.order_by(SectionClimb.climb_number)
+		.all()
+	)
+
+	return render_template(
+		"competitor_sections.html",
+		competitor=comp,
+		sections=sections,
+		total_points=total_points,
+		position=position,
+		nav_active="sections",
+		viewer_id=viewer_id,
+		is_admin=is_admin,
+		can_edit=can_edit,
+		map_climbs=map_climbs,
+		comp=comp_row,       # may be None
+		comp_slug=comp_slug, # may be None
+	)
+
+
+@app.route("/comp/<slug>/competitor/<int:competitor_id>/sections")
+def comp_competitor_sections(slug, competitor_id):
+	"""
+	Sections index page, scoped to a specific competition slug.
+
+	Non-admins are *forced* to their own competitor id from the session.
+	Changing the id in the URL does not let you see or edit someone else's sections.
+	"""
+	current_comp = get_comp_or_404(slug)
+
+	viewer_id = session.get("competitor_id")
+	is_admin = session.get("admin_ok", False)
+
+	# Not logged in as competitor and not admin -> no access
+	if not viewer_id and not is_admin:
+		return redirect("/")
+
+	# Determine which competitor to show
+	if is_admin:
+		target_id = competitor_id
+	else:
+		target_id = viewer_id
+		if competitor_id != viewer_id:
+			# If they mess with the URL, push them back to their own competitor in this comp
+			return redirect(f"/comp/{slug}/competitor/{viewer_id}/sections")
+
+	comp = Competitor.query.get_or_404(target_id)
+
+	# Make sure this competitor actually belongs to this competition
+	if comp.competition_id != current_comp.id:
+		abort(404)
+
+	sections = (
+		Section.query
+		.filter(Section.competition_id == current_comp.id)
+		.order_by(Section.name)
+		.all()
+	)
+	total_points = competitor_total_points(target_id)
+
+	# Leaderboard position (still using current-comp-scoped leaderboard)
+	rows, _ = build_leaderboard(None)
+	position = None
+	for r in rows:
+		if r["competitor_id"] == target_id:
+			position = r["position"]
+			break
+
+	# Whether this viewer can edit attempts
+	can_edit = (viewer_id == target_id or is_admin)
+
+	# All climbs with coordinates → feed dots to map, scoped to this comp's sections
+	if sections:
+		section_ids = [s.id for s in sections]
+		map_climbs = (
+			SectionClimb.query
+			.filter(
+				SectionClimb.section_id.in_(section_ids),
+				SectionClimb.x_percent.isnot(None),
+				SectionClimb.y_percent.isnot(None),
+			)
+			.order_by(SectionClimb.climb_number)
+			.all()
+		)
+	else:
+		map_climbs = []
+
+	return render_template(
+		"competitor_sections.html",
+		competitor=comp,
+		sections=sections,
+		total_points=total_points,
+		position=position,
+		nav_active="sections",
+		viewer_id=viewer_id,
+		is_admin=is_admin,
+		can_edit=can_edit,
+		map_climbs=map_climbs,
+        comp=current_comp,
+		comp_slug=slug,
+	)
 
 
 # --- Competitor stats page: My Stats + Overall Stats ---
 
-
-@app.route("/competitor/<int:competitor_id>/stats")
-@app.route("/competitor/<int:competitor_id>/stats/<string:mode>")
-def competitor_stats(competitor_id, mode="my"):
+@app.route("/comp/<slug>/competitor/<int:competitor_id>/stats")
+@app.route("/comp/<slug>/competitor/<int:competitor_id>/stats/<string:mode>")
+def comp_competitor_stats(slug, competitor_id, mode="my"):
 	"""
-	Stats for a competitor, split into three modes:
+	Stats for a competitor, scoped to a specific competition slug.
 
 	- mode="my"       -> My Stats page (personal heatmap only)
 	- mode="overall"  -> Overall Stats page (section performance + global heatmap)
 	- mode="climber"  -> Climber Stats page (spectator view, same data as "my")
 	"""
+	current_comp = get_comp_or_404(slug)
+
 	# Normalise mode
 	mode = (mode or "my").lower()
 	if mode not in ("my", "overall", "climber"):
 		mode = "my"
 
 	comp = Competitor.query.get_or_404(competitor_id)
+
+	# Make sure competitor belongs to this competition
+	if comp.competition_id != current_comp.id:
+		abort(404)
+
 	total_points = competitor_total_points(competitor_id)
 
 	# Who is viewing?
@@ -614,14 +841,25 @@ def competitor_stats(competitor_id, mode="my"):
 	# Spectator mode from old ?view=public flag (still supported)
 	is_public_view = (view_mode == "public" and not viewer_is_self)
 
-	sections = Section.query.order_by(Section.name).all()
+	# Sections only for this competition
+	sections = (
+		Section.query
+		.filter_by(competition_id=current_comp.id)
+		.order_by(Section.name)
+		.all()
+	)
 
 	# Personal scores for this competitor
 	personal_scores = Score.query.filter_by(competitor_id=competitor_id).all()
 	personal_by_climb = {s.climb_number: s for s in personal_scores}
 
-	# Global aggregate for every climb across all competitors
-	all_scores = Score.query.all()
+	# Global aggregate: ONLY scores from this competition
+	all_scores = (
+		db.session.query(Score)
+		.join(Competitor, Competitor.id == Score.competitor_id)
+		.filter(Competitor.competition_id == current_comp.id)
+		.all()
+	)
 	global_by_climb = {}
 	for s in all_scores:
 		info = global_by_climb.setdefault(
@@ -640,9 +878,9 @@ def competitor_stats(competitor_id, mode="my"):
 			if s.attempts == 1:
 				info["flashes"] += 1
 
-	# --- get leaderboard position for this competitor ---
+	# Leaderboard position (still using shared helper for now)
 	rows, _ = build_leaderboard(None)
-	position = None    # noqa: A001
+	position = None
 	for r in rows:
 		if r["competitor_id"] == competitor_id:
 			position = r["position"]
@@ -668,9 +906,8 @@ def competitor_stats(competitor_id, mode="my"):
 		global_cells = []
 
 		for sc in climbs:
-			# --- Personal classification ---
+			# Personal
 			score = personal_by_climb.get(sc.climb_number)
-
 			if score:
 				sec_attempts += score.attempts
 				if score.topped:
@@ -695,10 +932,9 @@ def competitor_stats(competitor_id, mode="my"):
 				}
 			)
 
-			# --- Global classification for this climb ---
+			# Global
 			g = global_by_climb.get(sc.climb_number)
 			if not g or len(g["competitors"]) == 0:
-				# "no-data" pairs with CSS .global-no-data via class="global-{{ cell.status }}"
 				g_status = "no-data"
 			else:
 				total_comp = len(g["competitors"])
@@ -709,6 +945,7 @@ def competitor_stats(competitor_id, mode="my"):
 					g_status = "easy"
 				elif top_rate >= 0.4:
 					g_status = "medium"
+					# Top band is "harder" below
 				else:
 					g_status = "hard"
 
@@ -766,7 +1003,197 @@ def competitor_stats(competitor_id, mode="my"):
 		viewer_is_self=viewer_is_self,
 		mode=mode,
 		nav_active=nav_active,
+		comp=current_comp,
+		comp_slug=slug,
 	)
+
+
+@app.route("/competitor/<int:competitor_id>/stats")
+@app.route("/competitor/<int:competitor_id>/stats/<string:mode>")
+def competitor_stats(competitor_id, mode="my"):
+	"""
+	Legacy stats route.
+
+	If the competitor belongs to a competition with a slug, redirect to:
+	  /comp/<slug>/competitor/<id>/stats/<mode>
+
+	Otherwise, fall back to the old behaviour (single-comp mode).
+	"""
+	comp = Competitor.query.get_or_404(competitor_id)
+
+	# If this competitor is attached to a competition with a slug, use the new route
+	if comp.competition_id:
+		comp_row = Competition.query.get(comp.competition_id)
+		if comp_row and comp_row.slug:
+			return redirect(f"/comp/{comp_row.slug}/competitor/{competitor_id}/stats/{mode}")
+
+	# --- Fallback: your original single-comp logic (unchanged) ---
+
+	# Normalise mode
+	mode = (mode or "my").lower()
+	if mode not in ("my", "overall", "climber"):
+		mode = "my"
+
+	total_points = competitor_total_points(competitor_id)
+
+	# Who is viewing?
+	view_mode = request.args.get("view", "").lower()
+	viewer_id = session.get("competitor_id")
+	viewer_is_self = (viewer_id == competitor_id)
+
+	# Spectator mode from old ?view=public flag (still supported)
+	is_public_view = (view_mode == "public" and not viewer_is_self)
+
+	sections = Section.query.order_by(Section.name).all()
+
+	# Personal scores for this competitor
+	personal_scores = Score.query.filter_by(competitor_id=competitor_id).all()
+	personal_by_climb = {s.climb_number: s for s in personal_scores}
+
+	# Global aggregate for every climb across all competitors (no comp scoping)
+	all_scores = Score.query.all()
+	global_by_climb = {}
+	for s in all_scores:
+		info = global_by_climb.setdefault(
+			s.climb_number,
+			{
+				"attempts_total": 0,
+				"tops": 0,
+				"flashes": 0,
+				"competitors": set(),
+			},
+		)
+		info["attempts_total"] += s.attempts
+		info["competitors"].add(s.competitor_id)
+		if s.topped:
+			info["tops"] += 1
+			if s.attempts == 1:
+				info["flashes"] += 1
+
+	# --- get leaderboard position for this competitor ---
+	rows, _ = build_leaderboard(None)
+	position = None
+	for r in rows:
+		if r["competitor_id"] == competitor_id:
+			position = r["position"]
+			break
+
+	section_stats = []
+	personal_heatmap_sections = []
+	global_heatmap_sections = []
+
+	for sec in sections:
+		climbs = (
+			SectionClimb.query
+			.filter_by(section_id=sec.id)
+			.order_by(SectionClimb.climb_number)
+			.all()
+		)
+
+		sec_tops = 0
+		sec_attempts = 0
+		sec_points = 0
+
+		personal_cells = []
+		global_cells = []
+
+		for sc in climbs:
+			score = personal_by_climb.get(sc.climb_number)
+
+			if score:
+				sec_attempts += score.attempts
+				if score.topped:
+					sec_tops += 1
+				sec_points += points_for(
+					score.climb_number, score.attempts, score.topped
+				)
+
+				if score.topped and score.attempts == 1:
+					status = "flashed"
+				elif score.topped:
+					status = "topped-late"
+				else:
+					status = "not-topped"
+			else:
+				status = "skipped"
+
+			personal_cells.append(
+				{
+					"climb_number": sc.climb_number,
+					"status": status,
+				}
+			)
+
+			g = global_by_climb.get(sc.climb_number)
+			if not g or len(g["competitors"]) == 0:
+				g_status = "no-data"
+			else:
+				total_comp = len(g["competitors"])
+				tops = g["tops"]
+				top_rate = tops / total_comp if total_comp > 0 else 0.0
+
+				if top_rate >= 0.8:
+					g_status = "easy"
+				elif top_rate >= 0.4:
+					g_status = "medium"
+				else:
+					g_status = "hard"
+
+			global_cells.append(
+				{
+					"climb_number": sc.climb_number,
+					"status": g_status,
+				}
+			)
+
+		efficiency = (sec_tops / sec_attempts) if sec_attempts > 0 else 0.0
+
+		section_stats.append(
+			{
+				"section": sec,
+				"tops": sec_tops,
+				"attempts": sec_attempts,
+				"efficiency": efficiency,
+				"points": sec_points,
+			}
+		)
+
+		personal_heatmap_sections.append(
+			{
+				"section": sec,
+				"climbs": personal_cells,
+			}
+		)
+
+		global_heatmap_sections.append(
+			{
+				"section": sec,
+				"climbs": global_cells,
+			}
+		)
+
+	if mode == "my":
+		nav_active = "my_stats"
+	elif mode == "overall":
+		nav_active = "overall_stats"
+	else:
+		nav_active = "climber_stats"
+
+	return render_template(
+		"competitor_stats.html",
+		competitor=comp,
+		total_points=total_points,
+		position=position,
+		section_stats=section_stats,
+		heatmap_sections=personal_heatmap_sections,
+		global_heatmap_sections=global_heatmap_sections,
+		is_public_view=is_public_view,
+		viewer_id=viewer_id,
+		viewer_is_self=viewer_is_self,
+		mode=mode,
+		nav_active=nav_active,
+	)
+
 
 
 # --- Per-climb stats page (personal/global view) ---
@@ -783,6 +1210,8 @@ def climb_stats(climb_number):
 	  mode=personal -> emphasise this competitor's performance
 	  mode=global   -> emphasise global difficulty (default)
 	"""
+
+	current_comp = get_current_comp()
 
 	# --- Mode selection: personal vs global context ---
 	mode = (request.args.get("mode", "global") or "global").strip().lower()
@@ -811,10 +1240,25 @@ def climb_stats(climb_number):
 					position = r["position"]
 					break
 
-	# All section mappings for this climb
-	section_climbs = SectionClimb.query.filter_by(climb_number=climb_number).all()
+	# All section mappings for this climb, scoped to current competition's sections
+	comp_sections = (
+		Section.query
+		.filter(Section.competition_id == current_comp.id)
+		.all()
+	)
+	section_ids_for_comp = {s.id for s in comp_sections}
+
+	section_climbs = (
+		SectionClimb.query
+		.filter(
+			SectionClimb.climb_number == climb_number,
+			SectionClimb.section_id.in_(section_ids_for_comp),
+		)
+		.all()
+	)
+
 	if not section_climbs:
-		# If the climb isn't configured at all, show not-configured message
+		# If the climb isn't configured at all (for this comp), show not-configured message
 		nav_active = "climber_stats" if from_climber else (
 			"my_stats" if mode == "personal" else "overall_stats"
 		)
@@ -834,8 +1278,16 @@ def climb_stats(climb_number):
 	sections = Section.query.filter(Section.id.in_(section_ids)).all()
 	sections_by_id = {s.id: s for s in sections}
 
-	# All scores for this climb
-	scores = Score.query.filter_by(climb_number=climb_number).all()
+	# All scores for this climb, but only for competitors in this competition
+	scores = (
+		Score.query
+		.join(Competitor, Score.competitor_id == Competitor.id)
+		.filter(
+			Score.climb_number == climb_number,
+			Competitor.competition_id == current_comp.id,
+		)
+		.all()
+	)
 
 	total_attempts = sum(s.attempts for s in scores)
 	tops = sum(1 for s in scores if s.topped)
@@ -935,15 +1387,16 @@ def climb_stats(climb_number):
 		from_climber=from_climber,
 	)
 
-
-@app.route("/competitor/<int:competitor_id>/section/<section_slug>")
-def competitor_section_climbs(competitor_id, section_slug):
+@app.route("/comp/<slug>/competitor/<int:competitor_id>/section/<section_slug>")
+def comp_competitor_section_climbs(slug, competitor_id, section_slug):
 	"""
-	Per-section climbs page.
+	Per-section climbs page, scoped to a specific competition slug.
 
 	Non-admins are *forced* to use their own competitor id from the session.
 	This prevents URL tampering from giving edit access to other competitors.
 	"""
+	current_comp = get_comp_or_404(slug)
+
 	viewer_id = session.get("competitor_id")
 	is_admin = session.get("admin_ok", False)
 
@@ -951,19 +1404,35 @@ def competitor_section_climbs(competitor_id, section_slug):
 	if not viewer_id and not is_admin:
 		return redirect("/")
 
+	# Determine which competitor to show
 	if is_admin:
 		target_id = competitor_id
 	else:
 		target_id = viewer_id
-		# If they mess with the URL, force them back to their own competitor id
+		# If they mess with the URL, push them back to their own competitor in this comp
 		if competitor_id != viewer_id:
-			return redirect(f"/competitor/{viewer_id}/section/{section_slug}")
+			return redirect(f"/comp/{slug}/competitor/{viewer_id}/section/{section_slug}")
 
 	comp = Competitor.query.get_or_404(target_id)
-	section = Section.query.filter_by(slug=section_slug).first_or_404()
 
-	# 🔹 All sections for the tabs (toggle between sections from here)
-	all_sections = Section.query.order_by(Section.name).all()
+	# Make sure this competitor actually belongs to this competition
+	if comp.competition_id != current_comp.id:
+		abort(404)
+
+	# Section must also belong to this competition
+	section = (
+		Section.query
+		.filter_by(slug=section_slug, competition_id=current_comp.id)
+		.first_or_404()
+	)
+
+	# All sections for the tabs (only this comp)
+	all_sections = (
+		Section.query
+		.filter_by(competition_id=current_comp.id)
+		.order_by(Section.name)
+		.all()
+	)
 
 	# Leaderboard rows to figure out competitor position
 	rows, _ = build_leaderboard(None)
@@ -974,7 +1443,7 @@ def competitor_section_climbs(competitor_id, section_slug):
 			break
 
 	# ------------- SECTION CLIMBS (what feeds the map) ----------------
-	# First: only climbs for this section *with* coordinates
+	# Climbs for THIS section with coordinates
 	section_climbs = (
 		SectionClimb.query
 		.filter(
@@ -986,7 +1455,6 @@ def competitor_section_climbs(competitor_id, section_slug):
 		.all()
 	)
 
-	# DEBUG: print what we actually got
 	print("=== SECTION CLIMBS FOR", section.id, section.name, "===")
 	print([
 		{
@@ -999,18 +1467,23 @@ def competitor_section_climbs(competitor_id, section_slug):
 		for sc in section_climbs
 	])
 
-	# TEMP: if this comes back empty, show ALL climbs so we can see the dot
+	# TEMP: if this comes back empty, show ALL climbs (with coords) for this comp
 	if not section_climbs:
-		print("No climbs matched this section – DEBUG: falling back to ALL climbs")
-		section_climbs = (
-			SectionClimb.query
-			.filter(
-				SectionClimb.x_percent.isnot(None),
-				SectionClimb.y_percent.isnot(None),
+		print("No climbs matched this section – DEBUG: falling back to ALL climbs for this comp")
+		section_ids = [s.id for s in all_sections]
+		if section_ids:
+			section_climbs = (
+				SectionClimb.query
+				.filter(
+					SectionClimb.section_id.in_(section_ids),
+					SectionClimb.x_percent.isnot(None),
+					SectionClimb.y_percent.isnot(None),
+				)
+				.order_by(SectionClimb.climb_number)
+				.all()
 			)
-			.order_by(SectionClimb.climb_number)
-			.all()
-		)
+		else:
+			section_climbs = []
 
 	# ------------- CLIMB NUMBERS / COLOURS / POINTS -------------------
 	climbs = [sc.climb_number for sc in section_climbs]
@@ -1061,6 +1534,140 @@ def competitor_section_climbs(competitor_id, section_slug):
 	)
 
 
+@app.route("/competitor/<int:competitor_id>/section/<section_slug>")
+def competitor_section_climbs(competitor_id, section_slug):
+	"""
+	Legacy route for per-section climbs.
+
+	If the competitor belongs to a competition with a slug, redirect to the
+	slugged route:
+	  /comp/<slug>/competitor/<id>/section/<section_slug>
+
+	Otherwise, fall back to the old behaviour.
+	"""
+	comp = Competitor.query.get_or_404(competitor_id)
+
+	if comp.competition_id:
+		comp_row = Competition.query.get(comp.competition_id)
+		if comp_row and comp_row.slug:
+			return redirect(
+				f"/comp/{comp_row.slug}/competitor/{competitor_id}/section/{section_slug}"
+			)
+
+	# --- Fallback: old behaviour (no competition attached) ---
+
+	viewer_id = session.get("competitor_id")
+	is_admin = session.get("admin_ok", False)
+
+	# Not logged in as competitor and not admin -> no access to climbs page
+	if not viewer_id and not is_admin:
+		return redirect("/")
+
+	if is_admin:
+		target_id = competitor_id
+	else:
+		target_id = viewer_id
+		if competitor_id != viewer_id:
+			return redirect(f"/competitor/{viewer_id}/section/{section_slug}")
+
+	comp = Competitor.query.get_or_404(target_id)
+	section = Section.query.filter_by(slug=section_slug).first_or_404()
+
+	# 🔹 All sections for the tabs (toggle between sections from here)
+	all_sections = Section.query.order_by(Section.name).all()
+
+	# Leaderboard rows to figure out competitor position
+	rows, _ = build_leaderboard(None)
+	position = None
+	for r in rows:
+		if r["competitor_id"] == target_id:
+			position = r["position"]
+			break
+
+	# ------------- SECTION CLIMBS (what feeds the map) ----------------
+	section_climbs = (
+		SectionClimb.query
+		.filter(
+			SectionClimb.section_id == section.id,
+			SectionClimb.x_percent.isnot(None),
+			SectionClimb.y_percent.isnot(None),
+		)
+		.order_by(SectionClimb.climb_number)
+		.all()
+	)
+
+	print("=== SECTION CLIMBS FOR", section.id, section.name, "===")
+	print([
+		{
+			"id": sc.id,
+			"climb_number": sc.climb_number,
+			"section_id": sc.section_id,
+			"x": sc.x_percent,
+			"y": sc.y_percent,
+		}
+		for sc in section_climbs
+	])
+
+	if not section_climbs:
+		print("No climbs matched this section – DEBUG: falling back to ALL climbs")
+		section_climbs = (
+			SectionClimb.query
+			.filter(
+				SectionClimb.x_percent.isnot(None),
+				SectionClimb.y_percent.isnot(None),
+			)
+			.order_by(SectionClimb.climb_number)
+			.all()
+		)
+
+	# ------------- CLIMB NUMBERS / COLOURS / POINTS -------------------
+	climbs = [sc.climb_number for sc in section_climbs]
+
+	colours = {
+		sc.climb_number: sc.colour
+		for sc in section_climbs
+		if sc.colour
+	}
+
+	max_points = {
+		sc.climb_number: sc.base_points
+		for sc in section_climbs
+		if sc.base_points is not None
+	}
+
+	scores = Score.query.filter_by(competitor_id=target_id).all()
+	existing = {s.climb_number: s for s in scores}
+
+	per_climb_points = {
+		s.climb_number: points_for(s.climb_number, s.attempts, s.topped)
+		for s in scores
+	}
+
+	total_points = competitor_total_points(target_id)
+
+	can_edit = True  # if you got here, you're either that competitor or admin
+
+	return render_template(
+		"competitor.html",
+		competitor=comp,
+		climbs=climbs,
+		existing=existing,
+		total_points=total_points,
+		section=section,
+		colours=colours,
+		position=position,
+		max_points=max_points,
+		per_climb_points=per_climb_points,
+		nav_active="sections",
+		can_edit=can_edit,
+		viewer_id=viewer_id,
+		is_admin=is_admin,
+		section_climbs=section_climbs,
+		sections=all_sections,
+	)
+
+
+
 # --- Register new competitors (staff use only, separate page for now) ---
 
 
@@ -1078,7 +1685,13 @@ def register_competitor():
 		if gender not in ("Male", "Female", "Inclusive"):
 			gender = "Inclusive"
 
-		comp = Competitor(name=name, gender=gender)
+		current_comp = get_current_comp()
+
+		comp = Competitor(
+			name=name,
+			gender=gender,
+			competition_id=current_comp.id,
+		)
 		db.session.add(comp)
 		db.session.commit()
 		invalidate_leaderboard_cache()
@@ -1088,6 +1701,70 @@ def register_competitor():
 		)
 
 	return render_template("register.html", error=None, competitor=None)
+
+@app.route("/comp/<slug>/join", methods=["GET", "POST"])
+def public_register_for_comp(slug):
+	"""
+	Self-service registration for a specific competition, chosen by slug.
+
+	URL example:
+	  /comp/uc-collingwood-boulder-bash/join
+	"""
+	comp = get_comp_or_404(slug)
+
+	if request.method == "POST":
+		name = request.form.get("name", "").strip()
+		gender = request.form.get("gender", "Inclusive").strip()
+		email = (request.form.get("email") or "").strip().lower()
+
+		error = None
+		if not name:
+			error = "Please enter your name."
+		elif not email:
+			error = "Please enter your email."
+
+		if gender not in ("Male", "Female", "Inclusive"):
+			gender = "Inclusive"
+
+		# Check uniqueness of email (global for now; you *could* scope per comp later)
+		if not error and email:
+			existing = Competitor.query.filter_by(email=email).first()
+			if existing:
+				error = "That email is already registered. Use it to log back into your scoring."
+
+		if error:
+			return render_template(
+				"register_public.html",
+				error=error,
+				name=name,
+				gender=gender,
+				email=email,
+			)
+
+		# Create competitor tied to THIS competition
+		new_competitor = Competitor(
+			name=name,
+			gender=gender,
+			email=email,
+			competition_id=comp.id,
+		)
+		db.session.add(new_competitor)
+		db.session.commit()
+		invalidate_leaderboard_cache()
+
+		# Remember this competitor on this device
+		session["competitor_id"] = new_competitor.id
+
+		return redirect(f"/comp/{slug}/competitor/{new_competitor.id}/sections")
+
+	# GET: show blank form
+	return render_template(
+		"register_public.html",
+		error=None,
+		name="",
+		gender="Inclusive",
+		email="",
+	)
 
 
 @app.route("/join", methods=["GET", "POST"])
@@ -1128,8 +1805,15 @@ def public_register():
 				email=email,
 			)
 
+		current_comp = get_current_comp()
+
 		# Create competitor
-		comp = Competitor(name=name, gender=gender, email=email)
+		comp = Competitor(
+			name=name,
+			gender=gender,
+			email=email,
+			competition_id=current_comp.id,
+		)
 		db.session.add(comp)
 		db.session.commit()
 		invalidate_leaderboard_cache()
@@ -1382,7 +2066,12 @@ def admin_page():
 					else:
 						if gender not in ("Male", "Female", "Inclusive"):
 							gender = "Inclusive"
-						comp = Competitor(name=name, gender=gender)
+						current_comp = get_current_comp()
+						comp = Competitor(
+							name=name,
+							gender=gender,
+							competition_id=current_comp.id,
+						)
 						db.session.add(comp)
 						db.session.commit()
 						invalidate_leaderboard_cache()
@@ -1399,6 +2088,8 @@ def admin_page():
 						if existing:
 							slug = f"{slug}-{int(datetime.utcnow().timestamp())}"
 
+						current_comp = get_current_comp()
+
 						# start_climb / end_climb are not used to define climbs anymore;
 						# they can stay as 0 or be used later for metadata if you want.
 						s = Section(
@@ -1406,6 +2097,7 @@ def admin_page():
 							slug=slug,
 							start_climb=0,
 							end_climb=0,
+							competition_id=current_comp.id,
 						)
 						db.session.add(s)
 						db.session.commit()
@@ -1418,16 +2110,35 @@ def admin_page():
 						error = "Please enter a name to search."
 					else:
 						pattern = f"%{search_query}%"
+						current_comp = get_current_comp()
 						search_results = (
 							Competitor.query
-							.filter(Competitor.name.ilike(pattern))
+							.filter(
+								Competitor.competition_id == current_comp.id,
+								Competitor.name.ilike(pattern),
+							)
 							.order_by(Competitor.name, Competitor.id)
 							.all()
 						)
 						if not search_results:
 							message = f"No competitors found matching '{search_query}'."
 
-	sections = Section.query.order_by(Section.name).all()
+	current_comp = None
+	try:
+		current_comp = get_current_comp()
+	except Exception:
+		current_comp = None
+
+	if current_comp:
+		sections = (
+			Section.query
+			.filter(Section.competition_id == current_comp.id)
+			.order_by(Section.name)
+			.all()
+		)
+	else:
+		sections = Section.query.order_by(Section.name).all()
+
 	return render_template(
 		"admin.html",
 		message=message,
@@ -1446,6 +2157,10 @@ def edit_section(section_id):
 		return redirect("/admin")
 
 	section = Section.query.get_or_404(section_id)
+	current_comp = get_current_comp()
+	if section.competition_id is not None and section.competition_id != current_comp.id:
+		abort(404)
+
 	error = None
 	message = None
 
@@ -1573,15 +2288,31 @@ def admin_map():
 	if not session.get("admin_ok"):
 		return redirect("/admin")
 
-	sections = Section.query.order_by(Section.name).all()
-	climbs = SectionClimb.query.all()
+	current_comp = get_current_comp()
+
+	sections = (
+		Section.query
+		.filter(Section.competition_id == current_comp.id)
+		.order_by(Section.name)
+		.all()
+	)
+
+	section_ids = [s.id for s in sections]
+	if section_ids:
+		climbs = (
+			SectionClimb.query
+			.filter(SectionClimb.section_id.in_(section_ids))
+			.all()
+		)
+	else:
+		climbs = []
 
 	return render_template(
 		"admin_map.html",
 		sections=sections,
-		climbs=climbs,
-	)
-
+		climbs=climbs
+  )
+	
 
 @app.route("/admin/map/add-climb", methods=["POST"])
 def admin_map_add_climb():
@@ -1590,6 +2321,8 @@ def admin_map_add_climb():
 	"""
 	if not session.get("admin_ok"):
 		return redirect("/admin")
+
+	current_comp = get_current_comp()
 
 	section_id_raw = request.form.get("section_id", "").strip()
 	new_section_name = (request.form.get("new_section_name") or "").strip()
@@ -1609,6 +2342,8 @@ def admin_map_add_climb():
 	section = None
 	if section_id_raw and section_id_raw.isdigit():
 		section = Section.query.get(int(section_id_raw))
+		if section and section.competition_id != current_comp.id:
+			section = None
 
 	if not section and new_section_name:
 		slug = slugify(new_section_name)
@@ -1621,6 +2356,7 @@ def admin_map_add_climb():
 			slug=slug,
 			start_climb=0,
 			end_climb=0,
+			competition_id=current_comp.id,
 		)
 		db.session.add(section)
 		db.session.flush()  # get section.id without full commit
@@ -1650,7 +2386,7 @@ def admin_map_add_climb():
 		if climb_number <= 0:
 			error = "Climb number must be positive."
 		elif base_points < 0 or penalty_per_attempt < 0 or attempt_cap <= 0:
-			error = "Base points and penalty must be ≥ 0 and attempt cap > 0."
+			error = "Base points, penalty must be ≥ 0 and attempt cap > 0."
 
 	# 3) Coordinates
 	if not error:
@@ -1691,10 +2427,6 @@ def admin_map_add_climb():
 
 # --- Startup ---
 
-
-with app.app_context():
-	db.create_all()
-
 if __name__ == "__main__":
 	port = 5001
 	if "--port" in sys.argv:
@@ -1704,3 +2436,4 @@ if __name__ == "__main__":
 		except Exception:
 			pass
 	app.run(debug=False, port=port)
+

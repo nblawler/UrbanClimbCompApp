@@ -116,12 +116,22 @@
 			</a>
 
 			{% if viewer_id %}
-				<a
-					class="back {% if nav_active == 'sections' %}active{% endif %}"
-					href="/competitor/{{ viewer_id }}/sections"
-				>
-					Enter Scores
-				</a>
+				{# Enter Scores link: prefer slugged URL if comp_slug is available #}
+				{% if comp_slug is defined and comp_slug %}
+					<a
+						class="back {% if nav_active == 'sections' %}active{% endif %}"
+						href="/comp/{{ comp_slug }}/competitor/{{ viewer_id }}/sections"
+					>
+						Enter Scores
+					</a>
+				{% else %}
+					<a
+						class="back {% if nav_active == 'sections' %}active{% endif %}"
+						href="/competitor/{{ viewer_id }}/sections"
+					>
+						Enter Scores
+					</a>
+				{% endif %}
 
 				<a
 					class="back {% if nav_active == 'my_stats' %}active{% endif %}"
@@ -218,17 +228,32 @@
 					{% if c.x_percent is not none and c.y_percent is not none %}
 						{% set bg = c.colour or '#ff4081' %}
 						{% if can_edit %}
-							<a
-								class="map-marker"
-								data-section-id="{{ c.section.id }}"
-								style="
-									left: {{ c.x_percent }}%;
-									top: {{ c.y_percent }}%;
-									background: {{ bg }};
-								"
-								href="/competitor/{{ competitor.id }}/section/{{ c.section.slug }}#climb-{{ c.climb_number }}"
-								title="Section {{ c.section.name }} · Climb #{{ c.climb_number }}"
-							></a>
+							{# Prefer slugged URL if comp_slug is available #}
+							{% if comp_slug is defined and comp_slug %}
+								<a
+									class="map-marker"
+									data-section-id="{{ c.section.id }}"
+									style="
+										left: {{ c.x_percent }}%;
+										top: {{ c.y_percent }}%;
+										background: {{ bg }};
+									"
+									href="/comp/{{ comp_slug }}/competitor/{{ competitor.id }}/section/{{ c.section.slug }}#climb-{{ c.climb_number }}"
+									title="Section {{ c.section.name }} · Climb #{{ c.climb_number }}"
+								></a>
+							{% else %}
+								<a
+									class="map-marker"
+									data-section-id="{{ c.section.id }}"
+									style="
+										left: {{ c.x_percent }}%;
+										top: {{ c.y_percent }}%;
+										background: {{ bg }};
+									"
+									href="/competitor/{{ competitor.id }}/section/{{ c.section.slug }}#climb-{{ c.climb_number }}"
+									title="Section {{ c.section.name }} · Climb #{{ c.climb_number }}"
+								></a>
+							{% endif %}
 						{% else %}
 							<div
 								class="map-marker disabled"
@@ -307,3 +332,4 @@
 	</script>
 </body>
 </html>
+
