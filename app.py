@@ -411,7 +411,6 @@ def build_leaderboard(category=None):
 
 	return rows, category_label
 
-@app.before_first_request
 def init_db_and_default_comp():
 	"""
 	Ensure DB tables exist and there is at least one active competition.
@@ -448,6 +447,10 @@ def init_db_and_default_comp():
 		f"[BOOTSTRAP] Created default competition with slug={default_comp.slug}",
 		file=sys.stderr,
 	)
+ 
+ # Run bootstrap once at startup so tables + default competition exist
+with app.app_context():
+	init_db_and_default_comp()
 
 
 def competitor_total_points(comp_id: int) -> int:
