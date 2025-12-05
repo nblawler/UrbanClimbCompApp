@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<title>Sign Up · Urban Climb Comp</title>
+	<link rel="stylesheet" href="/static/app.css" />
+</head>
+<body>
+	<nav class="container top-nav">
+		<div class="nav-links">
+			<a class="back" href="/">Home</a>
+			<a class="back" href="/login">Log in</a>
+		</div>
+	</nav>
+
+	<main class="container">
+		<header class="page-header">
+			<h1 class="page-title">Sign up</h1>
+			<p class="page-subtitle">
+				Create your account with your name and email. We'll send you a 6-digit code to verify.
+			</p>
+		</header>
+
+		<section class="form-card card">
+			{% if error %}
+				<p class="error">{{ error }}</p>
+			{% endif %}
+			{% if message %}
+				<p class="message">{{ message }}</p>
+			{% endif %}
+
+			<form method="post" class="stacked-form">
+				<label class="field">
+					<span class="field-label">Name</span>
+					<input
+						type="text"
+						name="name"
+						value="{{ name }}"
+						required
+					/>
+				</label>
+
+				<label class="field">
+					<span class="field-label">Email</span>
+					<input
+						type="email"
+						name="email"
+						value="{{ email }}"
+						required
+					/>
+				</label>
+
+				<button type="submit" class="btn primary">
+					Send verification code
+				</button>
+			</form>
+		</section>
+	</main>
+</body>
+</html>

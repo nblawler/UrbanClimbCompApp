@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="en">
+<head>
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<title>
+		{% if competitor %}
+			Home · Upcoming Competitions · {{ competitor.name }}
+		{% else %}
+			Home · Upcoming Competitions · Urban Climb Comp
+		{% endif %}
+	</title>
+	<link rel="stylesheet" href="/static/app.css" />
+</head>
+<body>
+	{# Top nav using your existing patterns #}
+	<nav class="container top-nav">
+		<div class="nav-links">
+			{% if competitor %}
+				<a
+					class="back {% if nav_active == 'my_comps' %}active{% endif %}"
+					href="/my-comps"
+				>
+					Home
+				</a>
+				<a
+					class="back {% if nav_active == 'sections' %}active{% endif %}"
+					href="/competitor/{{ competitor.id }}/sections"
+				>
+					My Scoring
+				</a>
+				<a
+					class="back {% if nav_active == 'leaderboard' %}active{% endif %}"
+					href="/leaderboard?cid={{ competitor.id }}"
+				>
+					Leaderboard
+				</a>
+				<a
+					class="back {% if nav_active == 'login' %}active{% endif %}"
+					href="/login"
+				>
+					Log in
+				</a>
+			{% else %}
+				<a
+					class="back {% if nav_active == 'my_comps' %}active{% endif %}"
+					href="/my-comps"
+				>
+					Home
+				</a>
+				<a
+					class="back {% if nav_active == 'leaderboard' %}active{% endif %}"
+					href="/leaderboard"
+				>
+					Leaderboard
+				</a>
+				<a
+					class="back {% if nav_active == 'login' %}active{% endif %}"
+					href="/login"
+				>
+					Log in
+				</a>
+			{% endif %}
+		</div>
+	</nav>
+
+	<main class="container">
+		<header class="page-header">
+			<h1 class="page-title">
+				Upcoming Competitions
+			</h1>
+
+			<p class="page-subtitle">
+				{% if competitor %}
+					Welcome back, {{ competitor.name }}.
+					This is your home base for upcoming climbing comps.
+				{% else %}
+					Browse upcoming climbing competitions and check when they go live.
+				{% endif %}
+			</p>
+
+			<p class="page-hint">
+				When a comp is live, head to the gym and scan the QR code to register.
+				If you're already registered, you'll see a link to your scoring.
+			</p>
+		</header>
+
+		{% if not cards or cards|length == 0 %}
+			<section class="empty-state">
+				<div class="card">
+					<h2>No competitions yet</h2>
+					<p>
+						There are currently no upcoming competitions in the system.
+						Check back here when your gym announces their next event.
+					</p>
+				</div>
+			</section>
+		{% else %}
+			<section class="pill-grid">
+				{% for card in cards %}
+					{% set c = card.comp %}
+
+					<article class="section-pill comp-pill">
+						<div class="pill-header">
+							<h2 class="pill-title">
+								{{ c.name }}
+							</h2>
+
+							{% if c.gym_name %}
+								<p class="pill-subtitle">
+									{{ c.gym_name }}
+								</p>
+							{% endif %}
+						</div>
+
+						<div class="pill-meta">
+							{% if c.start_at or c.end_at %}
+								<p class="pill-dates">
+									{% if c.start_at %}
+										<span class="pill-date-label">Starts:</span>
+										<span class="pill-date-value">
+											{{ c.start_at.strftime('%d %b %Y, %I:%M %p') }}
+										</span>
+									{% endif %}
+
+									{% if c.end_at %}
+										<span class="pill-date-separator">·</span>
+										<span class="pill-date-label">Ends:</span>
+										<span class="pill-date-value">
+											{{ c.end_at.strftime('%d %b %Y, %I:%M %p') }}
+										</span>
+									{% endif %}
+								</p>
+							{% else %}
+								<p class="pill-dates pill-dates--tbc">
+									Dates TBC
+								</p>
+							{% endif %}
+
+							<div class="pill-status">
+								{% if card.status == 'live' %}
+									<span class="status-badge status-badge--live">
+										Live now
+									</span>
+								{% else %}
+									<span class="status-badge status-badge--scheduled">
+										Upcoming
+									</span>
+								{% endif %}
+							</div>
+						</div>
+
+						<p class="pill-description">
+							{{ card.status_label }}
+						</p>
+
+						<div class="pill-actions">
+							{% if card.status == 'live' %}
+								{% if card.my_scoring_url %}
+									<a
+										href="{{ card.my_scoring_url }}"
+										class="btn primary"
+									>
+										View my scoring
+									</a>
+								{% else %}
+									<p class="pill-note">
+										Scan the QR code at the gym desk to join this comp.
+									</p>
+									{% if c.slug %}
+										<a
+											href="/comp/{{ c.slug }}/join"
+											class="btn subtle"
+										>
+											Register (demo link)
+										</a>
+									{% endif %}
+								{% endif %}
+							{% else %}
+								<p class="pill-note">
+									Registration will open when this competition goes live.
+								</p>
+							{% endif %}
+						</div>
+					</article>
+				{% endfor %}
+			</section>
+		{% endif %}
+	</main>
+</body>
+</html>

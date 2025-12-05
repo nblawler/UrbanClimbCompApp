@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<title>Urban Climb Comp · Login or Sign Up</title>
+	<link rel="stylesheet" href="/static/app.css" />
+</head>
+<body>
+	<nav class="container top-nav">
+		<div class="nav-links">
+			<a class="back active" href="/">Home</a>
+			<a class="back" href="/leaderboard">Leaderboard</a>
+		</div>
+	</nav>
+
+	<main class="container">
+		<header class="page-header">
+			<h1 class="page-title">Welcome to Urban Climb Comp</h1>
+			<p class="page-subtitle">
+				Sign up or log in to see upcoming competitions and track your scoring.
+			</p>
+		</header>
+
+		<section class="auth-choices">
+			<div class="card auth-card">
+				<h2>Create an account</h2>
+				<p>
+					Sign up once with your name and email, then use it for all future competitions.
+				</p>
+				<a href="/signup" class="btn primary">
+					Sign up
+				</a>
+			</div>
+
+			<div class="card auth-card">
+				<h2>Log in</h2>
+				<p>
+					Already have an account? We'll email you a 6-digit code to log back in.
+				</p>
+				<a href="/login" class="btn secondary">
+					Log in
+				</a>
+			</div>
+		</section>
+	</main>
+</body>
+</html>

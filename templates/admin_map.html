@@ -45,7 +45,7 @@
       width: 100%;
       height: auto;
       user-select: none;
-      pointer-events: none; /* clicks go to wrapper */
+      pointer-events: none;
     }
 
     .map-dot {
@@ -161,30 +161,25 @@
 <body>
   <nav class="container top-nav">
     <div class="nav-links">
-      <a class="back" href="/admin">← Back to admin</a>
+      <a class="back" href="/login">Login</a>
+      <a class="back" href="/admin/comps">Admin Home</a>
     </div>
   </nav>
 
   <main class="admin-map-page">
-    <!-- Left: map -->
     <section class="map-card">
       <div class="map-header">
         <h1 class="page-title">Collingwood Wall Map</h1>
         <span class="page-tag">Admin · Click to place climbs</span>
       </div>
 
-      <div
-        id="mapWrapper"
-        class="map-wrapper"
-      >
-        <!-- Replace /static/collingwood-map.png with your actual image -->
+      <div id="mapWrapper" class="map-wrapper">
         <img
           src="/static/Collingwood_Gym_Map.png"
           alt="Collingwood wall map"
           class="map-image"
         />
 
-        {# Existing climbs: render as dots #}
         {% for c in climbs %}
           {% if c.x_percent is not none and c.y_percent is not none %}
             <div
@@ -197,7 +192,6 @@
           {% endif %}
         {% endfor %}
 
-        {# Ghost dot for the current click position #}
         <div id="ghostDot" class="map-dot map-dot--ghost" style="display:none;">
           +
         </div>
@@ -208,7 +202,6 @@
       </div>
     </section>
 
-    <!-- Right: form -->
     <section class="form-card">
       <h2>Add climb from map</h2>
       <p class="tiny-muted">
@@ -216,7 +209,6 @@
       </p>
 
       <form method="POST" action="/admin/map/add-climb">
-        <!-- Section selection -->
         <div class="field">
           <label for="section_id">Existing section</label>
           <select name="section_id" id="section_id">
@@ -299,7 +291,6 @@
           </div>
         </div>
 
-        <!-- Hidden coordinates that the JS will fill in -->
         <input type="hidden" name="x_percent" id="x_percent" />
         <input type="hidden" name="y_percent" id="y_percent" />
 
@@ -341,16 +332,13 @@
         const xPercent = (x / rect.width) * 100;
         const yPercent = (y / rect.height) * 100;
 
-        // Set hidden inputs
         xInput.value = xPercent.toFixed(2);
         yInput.value = yPercent.toFixed(2);
 
-        // Move ghost dot
         ghostDot.style.left = xPercent + "%";
         ghostDot.style.top = yPercent + "%";
         ghostDot.style.display = "flex";
 
-        // Enable submit button
         submitBtn.disabled = false;
 
         coordsDisplay.textContent =
@@ -364,4 +352,5 @@
   </script>
 </body>
 </html>
+
 

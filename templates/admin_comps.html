@@ -9,9 +9,7 @@
 	<body>
 		<nav class="container top-nav">
 			<div class="nav-links">
-				<a class="back" href="/admin">Admin Home</a>
-				<a class="back active" href="/admin/comps">Competitions</a>
-				<a class="back" href="/">Back to site</a>
+				<a class="back" href="/login">Login</a>
 			</div>
 		</nav>
 
@@ -149,7 +147,7 @@
 				<header class="section-header">
 					<h2 class="section-title">All competitions</h2>
 					<p class="section-subtitle">
-						You can switch the active competition or archive past events.
+						Click a competition to manage its sections, climbs and wall map.
 					</p>
 				</header>
 
@@ -171,7 +169,11 @@
 								{% for comp in competitions %}
 									<tr>
 										<td>#{{ comp.id }}</td>
-										<td>{{ comp.name }}</td>
+										<td>
+											<a href="/admin/comp/{{ comp.slug }}" class="table-link">
+												{{ comp.name }}
+											</a>
+										</td>
 										<td>{{ comp.gym_name or "—" }}</td>
 										<td><code>{{ comp.slug }}</code></td>
 										<td>
@@ -192,13 +194,13 @@
 												{{ comp.end_at.strftime("%d %b %Y %H:%M") }}
 											{% endif %}
 										</td>
-										<td style="text-align: right; white-space: nowrap;">
+										<td style="text-align: right;">
 											<a
-												href="/admin/comp/{{ comp.id }}/configure"
-												class="btn-primary"
+												href="/admin/comp/{{ comp.slug }}"
+												class="btn-ghost"
 												style="margin-right: 6px;"
 											>
-												Configure
+												Manage
 											</a>
 
 											<form method="post" style="display: inline-block; margin-right: 6px;">
@@ -245,4 +247,5 @@
 		</main>
 	</body>
 </html>
+
 
