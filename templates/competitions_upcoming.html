@@ -13,13 +13,37 @@
 	<link rel="stylesheet" href="/static/app.css" />
 </head>
 <body>
-	{# Who's logged in? #}
+	{# Logged-in info #}
 	{% set viewer_id = viewer_id if viewer_id is defined else session.get('competitor_id') %}
 	{% set is_admin = session.get('admin_ok', False) %}
 
 	<nav class="container top-nav">
 		<div class="nav-links">
-			{% if competitor %}
+			{% if is_admin %}
+				{# 🔐 ADMIN VIEW: only Home, Admin, Login #}
+				<a
+					class="back {% if nav_active == 'my_comps' %}active{% endif %}"
+					href="/my-comps"
+				>
+					Home
+				</a>
+
+				<a
+					class="back {% if nav_active == 'admin' %}active{% endif %}"
+					href="/admin/comps"
+				>
+					Admin
+				</a>
+
+				<a
+					class="back {% if nav_active == 'login' %}active{% endif %}"
+					href="/login"
+				>
+					Log in
+				</a>
+
+			{% elif competitor %}
+				{# NORMAL COMPETITOR VIEW #}
 				<a
 					class="back {% if nav_active == 'my_comps' %}active{% endif %}"
 					href="/my-comps"
@@ -48,16 +72,8 @@
 					Log in
 				</a>
 
-				{# 🔐 Admin-only nav item #}
-				{% if is_admin %}
-					<a
-						class="back {% if nav_active == 'admin' %}active{% endif %}"
-						href="/admin/comps"
-					>
-						Admin
-					</a>
-				{% endif %}
 			{% else %}
+				{# NOT LOGGED IN #}
 				<a
 					class="back {% if nav_active == 'my_comps' %}active{% endif %}"
 					href="/my-comps"
@@ -78,17 +94,6 @@
 				>
 					Log in
 				</a>
-
-				{# If someone is logged in but this template wasn't given "competitor",
-				   we still respect their admin flag. #}
-				{% if is_admin %}
-					<a
-						class="back {% if nav_active == 'admin' %}active{% endif %}"
-						href="/admin/comps"
-					>
-						Admin
-					</a>
-				{% endif %}
 			{% endif %}
 		</div>
 	</nav>
@@ -219,3 +224,4 @@
 	</main>
 </body>
 </html>
+
