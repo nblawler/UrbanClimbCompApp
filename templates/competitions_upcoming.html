@@ -13,7 +13,10 @@
 	<link rel="stylesheet" href="/static/app.css" />
 </head>
 <body>
-	{# Top nav using your existing patterns #}
+	{# Who's logged in? #}
+	{% set viewer_id = viewer_id if viewer_id is defined else session.get('competitor_id') %}
+	{% set is_admin = session.get('admin_ok', False) %}
+
 	<nav class="container top-nav">
 		<div class="nav-links">
 			{% if competitor %}
@@ -23,24 +26,37 @@
 				>
 					Home
 				</a>
+
 				<a
 					class="back {% if nav_active == 'sections' %}active{% endif %}"
 					href="/competitor/{{ competitor.id }}/sections"
 				>
 					My Scoring
 				</a>
+
 				<a
 					class="back {% if nav_active == 'leaderboard' %}active{% endif %}"
 					href="/leaderboard?cid={{ competitor.id }}"
 				>
 					Leaderboard
 				</a>
+
 				<a
 					class="back {% if nav_active == 'login' %}active{% endif %}"
 					href="/login"
 				>
 					Log in
 				</a>
+
+				{# 🔐 Admin-only nav item #}
+				{% if is_admin %}
+					<a
+						class="back {% if nav_active == 'admin' %}active{% endif %}"
+						href="/admin/comps"
+					>
+						Admin
+					</a>
+				{% endif %}
 			{% else %}
 				<a
 					class="back {% if nav_active == 'my_comps' %}active{% endif %}"
@@ -48,18 +64,31 @@
 				>
 					Home
 				</a>
+
 				<a
 					class="back {% if nav_active == 'leaderboard' %}active{% endif %}"
 					href="/leaderboard"
 				>
 					Leaderboard
 				</a>
+
 				<a
 					class="back {% if nav_active == 'login' %}active{% endif %}"
 					href="/login"
 				>
 					Log in
 				</a>
+
+				{# If someone is logged in but this template wasn't given "competitor",
+				   we still respect their admin flag. #}
+				{% if is_admin %}
+					<a
+						class="back {% if nav_active == 'admin' %}active{% endif %}"
+						href="/admin/comps"
+					>
+						Admin
+					</a>
+				{% endif %}
 			{% endif %}
 		</div>
 	</nav>
@@ -75,7 +104,8 @@
 					Welcome back, {{ competitor.name }}.
 					This is your home base for upcoming climbing comps.
 				{% else %}
-					Browse upcoming climbing competitions and check when they go live.
+					Welcome to Urban Climb Comp.
+					Sign up or log in to see upcoming competitions and track your scoring.
 				{% endif %}
 			</p>
 
