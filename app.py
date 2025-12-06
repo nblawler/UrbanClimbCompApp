@@ -774,6 +774,9 @@ def login_request():
 def login_verify():
     """
     Step 2: user enters the 6-digit code they received.
+    - If their email is in ADMIN_EMAILS, they get admin powers (session["admin_ok"] = True)
+      but still land on Home (/my-comps).
+    - Everyone else is a normal competitor and also lands on Home.
     """
     error = None
     message = None
@@ -813,20 +816,19 @@ def login_verify():
                     # Clear transient login email
                     session.pop("login_email", None)
 
+                    # Everyone gets competitor_id in session
+                    session["competitor_id"] = comp.id
+
+                    # If this email is configured as an admin, give admin powers
                     if is_admin_email(email):
-                        # Admin login: grant admin access and send straight to comps dashboard
                         session["admin_ok"] = True
-                        if comp:
-                            session["competitor_id"] = comp.id
                         print(
                             f"[ADMIN LOGIN] {email} is an admin; admin_ok set in session",
                             file=sys.stderr,
                         )
-                        return redirect("/admin/comps")
-                    else:
-                        # Normal competitor login: go to Home (Upcoming Comps)
-                        session["competitor_id"] = comp.id
-                        return redirect("/my-comps")
+
+                    # ✅ For both admins and normal users, go to Home
+                    return redirect("/my-comps")
     else:
         # GET: if we already have an email (i.e. just sent a code), show a helpful message
         if email and not message:
@@ -838,6 +840,7 @@ def login_verify():
         error=error,
         message=message,
     )
+
 
 
 @app.route("/competitor/<int:competitor_id>")
