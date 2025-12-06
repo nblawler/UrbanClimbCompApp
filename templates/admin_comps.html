@@ -9,9 +9,34 @@
 	<body>
 		<nav class="container top-nav">
 			<div class="nav-links">
-				<a class="back" href="/login">Login</a>
+				{# Always show Home #}
+				<a
+					class="back {% if nav_active == 'my_comps' %}active{% endif %}"
+					href="/my-comps"
+				>
+					Home
+				</a>
+		
+				{# Admin only #}
+				{% if session.get('admin_ok') %}
+					<a
+						class="back {% if nav_active == 'admin' %}active{% endif %}"
+						href="/admin/comps"
+					>
+						Admin
+					</a>
+				{% endif %}
+		
+				{# Login always shown (can swap to Logout later) #}
+				<a
+					class="back {% if nav_active == 'login' %}active{% endif %}"
+					href="/login"
+				>
+					Log in
+				</a>
 			</div>
 		</nav>
+		
 
 		<main class="container">
 			<header class="page-header">
