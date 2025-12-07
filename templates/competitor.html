@@ -117,10 +117,10 @@
 
 				<div class="map-wrapper">
 					<img
-						src="{{ url_for('static', filename='Collingwood_Gym_Map.png') }}"
-						alt="Collingwood wall map"
-						class="map-image"
-					/>
+						class="gym-map"
+						src="{{ gym_map_url or '/static/maps/collingwood-map.png' }}"
+						alt="Gym map"
+			  		/>
 
 					{% for sc in section_climbs %}
 						{% if sc.x_percent is not none and sc.y_percent is not none %}

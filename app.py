@@ -79,6 +79,28 @@ def invalidate_leaderboard_cache():
 
 # --- Models ---
 
+class Gym(db.Model):
+    __tablename__ = "gym"
+
+    id = db.Column(db.Integer, primary_key=True)
+
+    # Public name of the gym, e.g. "UC Collingwood"
+    name = db.Column(db.String(160), nullable=False)
+
+    # For pretty URLs and also for mapping to a static map image if you want
+    slug = db.Column(db.String(160), nullable=False, unique=True)
+
+    # Path or URL to the map image for this gym
+    # Example: "/static/maps/collingwood-map.png"
+    map_image_path = db.Column(db.String(255), nullable=True)
+
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+
+    competitions = db.relationship(
+        "Competition",
+        back_populates="gym",
+        lazy=True,
+    )
 
 class Competition(db.Model):
     __tablename__ = "competition"
@@ -88,8 +110,20 @@ class Competition(db.Model):
     # Public-facing name, e.g. "UC Collingwood Boulder Blitz"
     name = db.Column(db.String(160), nullable=False)
 
-    # Optional extra context
+    # Optional extra context (legacy free-text)
     gym_name = db.Column(db.String(160), nullable=True)
+
+    # NEW: formal gym relationship
+    gym_id = db.Column(
+        db.Integer,
+        db.ForeignKey("gym.id"),
+        nullable=True,
+        index=True,
+    )
+    gym = db.relationship(
+        "Gym",
+        back_populates="competitions",
+    )
 
     # For pretty URLs later, e.g. "uc-collingwood-boulder-blitz"
     slug = db.Column(db.String(160), nullable=False, unique=True)
@@ -115,7 +149,6 @@ class Competition(db.Model):
         back_populates="competition",
         lazy=True,
     )
-
 
 class Competitor(db.Model):
     # competitor number (auto-incremented)
@@ -304,6 +337,50 @@ def slugify(name: str) -> str:
     """Create URL friendly string ("The Slab" -> "the-slab")"""
     s = re.sub(r"[^a-zA-Z0-9]+", "-", name.strip().lower()).strip("-")
     return s or "section"
+
+def get_or_create_gym_by_name(name: str):
+    """
+    Lightweight helper used by the admin 'create competition' form.
+
+    - Normalises name -> slug
+    - Reuses an existing Gym row if the slug already exists
+    - Otherwise creates a new Gym with that name
+    """
+    clean = (name or "").strip()
+    if not clean:
+        return None
+
+    slug_val = slugify(clean)
+    gym = Gym.query.filter_by(slug=slug_val).first()
+    if gym:
+        return gym
+
+    gym = Gym(
+        name=clean,
+        slug=slug_val,
+        # map_image_path can be filled later via DB or a future UI
+    )
+    db.session.add(gym)
+    # NOTE: caller is responsible for committing; they may also
+    # be creating a Competition in the same transaction.
+    return gym
+
+def get_gym_map_url_for_competition(comp):
+    """
+    Resolve the map image URL for a given competition's gym.
+
+    - If the competition has a Gym with map_image_path set, use that.
+    - Otherwise fall back to a single default map.
+    """
+    if not comp:
+        return None
+
+    if comp.gym and comp.gym.map_image_path:
+        return comp.gym.map_image_path
+
+    # Fallback: your existing single-gym map (adjust to your actual file)
+    return "/static/maps/collingwood-map.png"
+
 
 
 def _normalise_category_key(category):
@@ -894,6 +971,9 @@ def competitor_sections(competitor_id):
         if comp_row and comp_row.slug:
             comp_slug = comp_row.slug
 
+    # NEW: resolve map image for this competition's gym
+    gym_map_url = get_gym_map_url_for_competition(comp_row)
+
     # Legacy behaviour: still show all sections (or you can scope by comp_row if you want)
     sections = Section.query.order_by(Section.name).all()
     total_points = competitor_total_points(target_id)
@@ -933,6 +1013,7 @@ def competitor_sections(competitor_id):
         map_climbs=map_climbs,
         comp=comp_row,       # may be None
         comp_slug=comp_slug, # may be None
+        gym_map_url=gym_map_url,
     )
 
 
@@ -1003,6 +1084,8 @@ def comp_competitor_sections(slug, competitor_id):
     else:
         map_climbs = []
 
+    gym_map_url = get_gym_map_url_for_competition(current_comp)
+
     return render_template(
         "competitor_sections.html",
         competitor=comp,
@@ -1016,7 +1099,9 @@ def comp_competitor_sections(slug, competitor_id):
         map_climbs=map_climbs,
         comp=current_comp,
         comp_slug=slug,
+        gym_map_url=gym_map_url,
     )
+
 
 
 # --- Competitor stats page: My Stats + Overall Stats ---
@@ -1734,6 +1819,8 @@ def comp_competitor_section_climbs(slug, competitor_id, section_slug):
 
     can_edit = True  # if you got here, you're either that competitor or admin
 
+    gym_map_url = get_gym_map_url_for_competition(current_comp)
+
     return render_template(
         "competitor.html",
         competitor=comp,
@@ -1751,6 +1838,7 @@ def comp_competitor_section_climbs(slug, competitor_id, section_slug):
         is_admin=is_admin,
         section_climbs=section_climbs,   # map dots for THIS section
         sections=all_sections,           # all sections for the tabs
+        gym_map_url=gym_map_url,
     )
 
 
@@ -1867,6 +1955,10 @@ def competitor_section_climbs(competitor_id, section_slug):
 
     can_edit = True  # if you got here, you're either that competitor or admin
 
+    # There is no competition context here, so we can't resolve a specific gym.
+    # You can later update this to infer a default gym if you like.
+    gym_map_url = None
+
     return render_template(
         "competitor.html",
         competitor=comp,
@@ -1884,7 +1976,9 @@ def competitor_section_climbs(competitor_id, section_slug):
         is_admin=is_admin,
         section_climbs=section_climbs,
         sections=all_sections,
+        gym_map_url=gym_map_url,
     )
+
 
 
 # --- Register new competitors (staff use only, separate page for now) ---
@@ -2569,6 +2663,7 @@ def admin_map():
         return redirect("/admin")
 
     current_comp = get_current_comp()
+    gym_map_url = get_gym_map_url_for_competition(current_comp)
 
     sections = (
         Section.query
@@ -2590,8 +2685,10 @@ def admin_map():
     return render_template(
         "admin_map.html",
         sections=sections,
-        climbs=climbs
+        climbs=climbs,
+        gym_map_url=gym_map_url,
     )
+
 
 
 @app.route("/admin/comps", methods=["GET", "POST"])
@@ -2650,9 +2747,13 @@ def admin_competitions():
                 start_at = parse_dt(start_date, start_time)
                 end_at = parse_dt(end_date, end_time)
 
+                # NEW: look up or create the Gym record from the free-text gym_name
+                gym = get_or_create_gym_by_name(gym_name) if gym_name else None
+
                 comp = Competition(
                     name=name,
                     gym_name=gym_name,
+                    gym=gym,  # <-- this wires the competition to the gym
                     slug=slug_val,
                     start_at=start_at,
                     end_at=end_at,
