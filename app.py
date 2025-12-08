@@ -102,6 +102,31 @@ class Gym(db.Model):
         lazy=True,
     )
 
+
+class GymAdmin(db.Model):
+    __tablename__ = "gym_admin"
+
+    id = db.Column(db.Integer, primary_key=True)
+
+    # which competitor (user) is the admin
+    competitor_id = db.Column(
+        db.Integer,
+        db.ForeignKey("competitor.id"),
+        nullable=False,
+        index=True,
+    )
+
+    # which gym they are allowed to manage
+    gym_id = db.Column(
+        db.Integer,
+        db.ForeignKey("gym.id"),
+        nullable=False,
+        index=True,
+    )
+
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+
+
 class Competition(db.Model):
     __tablename__ = "competition"
 
@@ -149,6 +174,7 @@ class Competition(db.Model):
         back_populates="competition",
         lazy=True,
     )
+
 
 class Competitor(db.Model):
     # competitor number (auto-incremented)
@@ -239,7 +265,7 @@ class SectionClimb(db.Model):
     penalty_per_attempt = db.Column(db.Integer, nullable=True)   # e.g. 10
     attempt_cap = db.Column(db.Integer, nullable=True)           # e.g. 5
 
-    # where this climb sits on the Collingwood map (% of width/height)
+    # where this climb sits on the map (% of width/height)
     x_percent = db.Column(db.Float, nullable=True)
     y_percent = db.Column(db.Float, nullable=True)
 
@@ -260,6 +286,7 @@ class LoginCode(db.Model):
     used = db.Column(db.Boolean, default=False, nullable=False)
 
     competitor = db.relationship("Competitor")
+
 
 
 # --- Competition helper ---
@@ -380,6 +407,58 @@ def get_gym_map_url_for_competition(comp):
 
     # Fallback: your existing single-gym map (adjust to your actual file)
     return "/static/maps/collingwood-map.png"
+
+def get_session_admin_gym_ids():
+    """
+    Return a set of gym_ids this admin is allowed to manage
+    (for non-super admins). Stored in the session as a list.
+    """
+    raw = session.get("admin_gym_ids")
+    if not raw:
+        return set()
+    try:
+        return {int(x) for x in raw if x is not None}
+    except Exception:
+        return set()
+
+
+def admin_is_super():
+    """
+    True if this admin is a global/super admin (can manage all gyms).
+    """
+    return bool(session.get("admin_is_super"))
+
+
+def admin_can_manage_gym(gym):
+    """
+    Check whether the logged-in admin can manage a given gym.
+    - Super admins: always True
+    - Gym admins: gym_id must be in admin_gym_ids
+    """
+    if not session.get("admin_ok"):
+        return False
+
+    # No specific gym? Super admin only
+    if gym is None:
+        return admin_is_super()
+
+    if admin_is_super():
+        return True
+
+    allowed = get_session_admin_gym_ids()
+    if not allowed:
+        return False
+
+    return gym.id in allowed
+
+
+def admin_can_manage_competition(comp):
+    """
+    Check whether the logged-in admin can manage a given competition.
+    """
+    if comp is None:
+        return False
+    return admin_can_manage_gym(comp.gym)
 
 
 
@@ -846,14 +925,13 @@ def login_request():
 
 # --- Email login: verify code ---
 
-
 @app.route("/login/verify", methods=["GET", "POST"])
 def login_verify():
     """
     Step 2: user enters the 6-digit code they received.
-    - If their email is in ADMIN_EMAILS, they get admin powers (session["admin_ok"] = True)
-      but still land on Home (/my-comps).
-    - Everyone else is a normal competitor and also lands on Home.
+    - If their email is in ADMIN_EMAILS, they are a *super admin* (global).
+    - If they are listed in GymAdmin rows, they are a *gym admin*.
+    - Everyone else is a normal competitor.
     """
     error = None
     message = None
@@ -896,15 +974,27 @@ def login_verify():
                     # Everyone gets competitor_id in session
                     session["competitor_id"] = comp.id
 
-                    # If this email is configured as an admin, give admin powers
-                    if is_admin_email(email):
-                        session["admin_ok"] = True
-                        print(
-                            f"[ADMIN LOGIN] {email} is an admin; admin_ok set in session",
-                            file=sys.stderr,
-                        )
+                    # ----- ADMIN FLAGS -----
+                    # Super admin = email in ADMIN_EMAILS
+                    is_super = is_admin_email(email)
 
-                    # ✅ For both admins and normal users, go to Home
+                    # Gym admin = at least one GymAdmin row
+                    gym_admin_rows = GymAdmin.query.filter_by(
+                        competitor_id=comp.id
+                    ).all()
+                    gym_ids = [ga.gym_id for ga in gym_admin_rows]
+
+                    if is_super or gym_ids:
+                        session["admin_ok"] = True
+                        session["admin_is_super"] = bool(is_super)
+                        session["admin_gym_ids"] = gym_ids
+                    else:
+                        # Make sure we don't accidentally keep old flags
+                        session.pop("admin_ok", None)
+                        session.pop("admin_is_super", None)
+                        session.pop("admin_gym_ids", None)
+
+                    # For both admins and normal users, go to Home
                     return redirect("/my-comps")
     else:
         # GET: if we already have an email (i.e. just sent a code), show a helpful message
@@ -1049,6 +1139,10 @@ def comp_competitor_sections(slug, competitor_id):
     if comp.competition_id != current_comp.id:
         abort(404)
 
+    # If admin is viewing, enforce gym-level permissions
+    if is_admin and not admin_can_manage_competition(current_comp):
+        abort(403)
+
     sections = (
         Section.query
         .filter(Section.competition_id == current_comp.id)
@@ -1101,7 +1195,6 @@ def comp_competitor_sections(slug, competitor_id):
         comp_slug=slug,
         gym_map_url=gym_map_url,
     )
-
 
 
 # --- Competitor stats page: My Stats + Overall Stats ---
@@ -1723,6 +1816,11 @@ def comp_competitor_section_climbs(slug, competitor_id, section_slug):
     # Make sure this competitor actually belongs to this competition
     if comp.competition_id != current_comp.id:
         abort(404)
+        
+    # If admin is viewing, enforce gym-level permissions
+    if is_admin and not admin_can_manage_competition(current_comp):
+        abort(403)
+
 
     # Section must also belong to this competition
     section = (
@@ -2358,9 +2456,13 @@ def admin_page():
             if password != ADMIN_PASSWORD:
                 error = "Incorrect admin password."
             else:
+                # Password-based admin = super admin
                 session["admin_ok"] = True
+                session["admin_is_super"] = True
+                session["admin_gym_ids"] = None
                 is_admin = True
                 message = "Admin access granted."
+
         else:
             # For all other actions, require that admin has been unlocked
             if not is_admin:
@@ -2488,7 +2590,6 @@ def admin_page():
         is_admin=is_admin,
     )
 
-
 @app.route("/admin/comp/<slug>")
 def admin_comp(slug):
     """
@@ -2501,11 +2602,14 @@ def admin_comp(slug):
     """
     # Make sure only admins can see this
     if not session.get("admin_ok"):
-        # You can change this to redirect somewhere else if you like
         return redirect("/login")
 
     # Find the competition or 404 if the slug is invalid
     comp = Competition.query.filter_by(slug=slug).first_or_404()
+
+    # Gym-level permission check
+    if not admin_can_manage_competition(comp):
+        abort(403)
 
     # Load sections for this competition (if Section has competition_id)
     sections = (
@@ -2522,6 +2626,7 @@ def admin_comp(slug):
         competition=comp,
         sections=sections,
     )
+
 
 
 @app.route("/admin/section/<int:section_id>/edit", methods=["GET", "POST"])
@@ -2652,7 +2757,6 @@ def edit_section(section_id):
         message=message,
     )
 
-
 @app.route("/admin/map")
 def admin_map():
     """
@@ -2663,6 +2767,11 @@ def admin_map():
         return redirect("/admin")
 
     current_comp = get_current_comp()
+
+    # Only allow admins who can manage this competition's gym
+    if current_comp and not admin_can_manage_competition(current_comp):
+        abort(403)
+
     gym_map_url = get_gym_map_url_for_competition(current_comp)
 
     sections = (
@@ -2689,14 +2798,12 @@ def admin_map():
         gym_map_url=gym_map_url,
     )
 
-
-
 @app.route("/admin/comps", methods=["GET", "POST"])
 def admin_competitions():
     """
     Admin UI to manage competitions:
     - List all competitions
-    - Create a new competition
+    - Create a new competition (super admin only)
     - Set a competition as the single active comp
     - Archive (deactivate) a competition
     """
@@ -2705,71 +2812,75 @@ def admin_competitions():
 
     message = None
     error = None
+    is_super = admin_is_super()
 
     if request.method == "POST":
         action = request.form.get("action", "").strip()
 
         if action == "create_comp":
-            name = (request.form.get("name") or "").strip()
-            gym_name = (request.form.get("gym_name") or "").strip() or None
-            slug_raw = (request.form.get("slug") or "").strip().lower()
-
-            start_date = (request.form.get("start_date") or "").strip()
-            start_time = (request.form.get("start_time") or "").strip()
-            end_date = (request.form.get("end_date") or "").strip()
-            end_time = (request.form.get("end_time") or "").strip()
-
-            is_active_flag = bool(request.form.get("is_active"))
-
-            if not name:
-                error = "Competition name is required."
+            if not is_super:
+                error = "Only super admins can create competitions."
             else:
-                # slug: either provided or derived from name
-                slug_val = slug_raw or slugify(name)
-                existing_slug = Competition.query.filter_by(slug=slug_val).first()
-                if existing_slug:
-                    # ensure uniqueness by timestamp suffix
-                    slug_val = f"{slug_val}-{int(datetime.utcnow().timestamp())}"
+                name = (request.form.get("name") or "").strip()
+                gym_name = (request.form.get("gym_name") or "").strip() or None
+                slug_raw = (request.form.get("slug") or "").strip().lower()
 
-                def parse_dt(date_str, time_str):
-                    if not date_str:
-                        return None
-                    try:
-                        if not time_str:
-                            return datetime.strptime(date_str, "%Y-%m-%d")
-                        return datetime.strptime(
-                            f"{date_str} {time_str}",
-                            "%Y-%m-%d %H:%M",
-                        )
-                    except ValueError:
-                        return None
+                start_date = (request.form.get("start_date") or "").strip()
+                start_time = (request.form.get("start_time") or "").strip()
+                end_date = (request.form.get("end_date") or "").strip()
+                end_time = (request.form.get("end_time") or "").strip()
 
-                start_at = parse_dt(start_date, start_time)
-                end_at = parse_dt(end_date, end_time)
+                is_active_flag = bool(request.form.get("is_active"))
 
-                # NEW: look up or create the Gym record from the free-text gym_name
-                gym = get_or_create_gym_by_name(gym_name) if gym_name else None
+                if not name:
+                    error = "Competition name is required."
+                else:
+                    # slug: either provided or derived from name
+                    slug_val = slug_raw or slugify(name)
+                    existing_slug = Competition.query.filter_by(slug=slug_val).first()
+                    if existing_slug:
+                        # ensure uniqueness by timestamp suffix
+                        slug_val = f"{slug_val}-{int(datetime.utcnow().timestamp())}"
 
-                comp = Competition(
-                    name=name,
-                    gym_name=gym_name,
-                    gym=gym,  # <-- this wires the competition to the gym
-                    slug=slug_val,
-                    start_at=start_at,
-                    end_at=end_at,
-                    is_active=is_active_flag,
-                )
-                db.session.add(comp)
-                db.session.commit()
+                    def parse_dt(date_str, time_str):
+                        if not date_str:
+                            return None
+                        try:
+                            if not time_str:
+                                return datetime.strptime(date_str, "%Y-%m-%d")
+                            return datetime.strptime(
+                                f"{date_str} {time_str}",
+                                "%Y-%m-%d %H:%M",
+                            )
+                        except ValueError:
+                            return None
 
-                # If this new comp is active, make all others inactive
-                if is_active_flag:
-                    all_comps = Competition.query.all()
-                    for c in all_comps:
-                        c.is_active = (c.id == comp.id)
+                    start_at = parse_dt(start_date, start_time)
+                    end_at = parse_dt(end_date, end_time)
+
+                    # NEW: look up or create the Gym record from the free-text gym_name
+                    gym = get_or_create_gym_by_name(gym_name) if gym_name else None
+
+                    comp = Competition(
+                        name=name,
+                        gym_name=gym_name,
+                        gym=gym,  # <-- this wires the competition to the gym
+                        slug=slug_val,
+                        start_at=start_at,
+                        end_at=end_at,
+                        is_active=is_active_flag,
+                    )
+                    db.session.add(comp)
                     db.session.commit()
 
-                message = f"Competition '{comp.name}' created."
+                    # If this new comp is active, make all others inactive
+                    if is_active_flag:
+                        all_comps = Competition.query.all()
+                        for c in all_comps:
+                            c.is_active = (c.id == comp.id)
+                        db.session.commit()
+
+                    message = f"Competition '{comp.name}' created."
 
         elif action == "set_active":
             raw_id = (request.form.get("competition_id") or "").strip()
@@ -2780,6 +2891,8 @@ def admin_competitions():
                 comp = Competition.query.get(cid)
                 if not comp:
                     error = "Competition not found."
+                elif not admin_can_manage_competition(comp):
+                    error = "You are not allowed to manage this competition."
                 else:
                     all_comps = Competition.query.all()
                     for c in all_comps:
@@ -2796,14 +2909,24 @@ def admin_competitions():
                 comp = Competition.query.get(cid)
                 if not comp:
                     error = "Competition not found."
+                elif not admin_can_manage_competition(comp):
+                    error = "You are not allowed to manage this competition."
                 else:
                     comp.is_active = False
                     db.session.commit()
                     message = f"Competition '{comp.name}' has been archived (inactive)."
 
-    # Always show current list
+    # Always show current list, but filter for gym admins
+    comps_query = Competition.query
+    if not admin_is_super():
+        allowed_gym_ids = get_session_admin_gym_ids()
+        if allowed_gym_ids:
+            comps_query = comps_query.filter(Competition.gym_id.in_(allowed_gym_ids))
+        else:
+            comps_query = comps_query.filter(False)  # no comps
+
     comps = (
-        Competition.query
+        comps_query
         .order_by(Competition.start_at.asc(), Competition.created_at.asc())
         .all()
     )
@@ -2814,7 +2937,7 @@ def admin_competitions():
         message=message,
         error=error,
     )
-
+    
 
 @app.route("/admin/comp/<int:competition_id>/configure")
 def admin_configure_competition(competition_id):
@@ -2828,16 +2951,24 @@ def admin_configure_competition(competition_id):
 
     comp = Competition.query.get_or_404(competition_id)
 
+    # Only allow admins who can manage this gym
+    if not admin_can_manage_competition(comp):
+        abort(403)
+
     # Make this the active competition (editing context)
     all_comps = Competition.query.all()
     for c in all_comps:
         c.is_active = (c.id == comp.id)
     db.session.commit()
 
-    print(f"[ADMIN CONFIGURE] Now editing competition #{comp.id} – {comp.name}", file=sys.stderr)
+    print(
+        f"[ADMIN CONFIGURE] Now editing competition #{comp.id} – {comp.name}",
+        file=sys.stderr,
+    )
 
     # Send them to the existing admin hub where they can create sections, climbs, etc.
     return redirect("/admin")
+
 
 
 @app.route("/admin/map/add-climb", methods=["POST"])
