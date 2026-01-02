@@ -1,4 +1,4 @@
-\<!doctype html>
+<!doctype html>
 <html lang="en">
 <head>
 	<meta charset="utf-8" />
@@ -20,97 +20,33 @@
 	<nav class="container top-nav">
 		<div class="nav-links">
 			{% if is_admin %}
-				{# 🔐 ADMIN VIEW: only Home, Admin, Login #}
-				<a
-					class="back {% if nav_active == 'my_comps' %}active{% endif %}"
-					href="/my-comps"
-				>
-					Home
-				</a>
-
-				<a
-					class="back {% if nav_active == 'admin' %}active{% endif %}"
-					href="/admin/comps"
-				>
-					Admin
-				</a>
-
-				<a
-					class="back {% if nav_active == 'login' %}active{% endif %}"
-					href="/login"
-				>
-					Log in
-				</a>
+				<a class="back {% if nav_active == 'my_comps' %}active{% endif %}" href="/my-comps">Home</a>
+				<a class="back {% if nav_active == 'admin' %}active{% endif %}" href="/admin/comps">Admin</a>
+				<a class="back {% if nav_active == 'login' %}active{% endif %}" href="/login">Log in</a>
 
 			{% elif competitor %}
-				{# NORMAL COMPETITOR VIEW #}
-				<a
-					class="back {% if nav_active == 'my_comps' %}active{% endif %}"
-					href="/my-comps"
-				>
-					Home
-				</a>
-
-				<a
-					class="back {% if nav_active == 'sections' %}active{% endif %}"
-					href="/competitor/{{ competitor.id }}/sections"
-				>
-					My Scoring
-				</a>
-
-				<a
-					class="back {% if nav_active == 'leaderboard' %}active{% endif %}"
-					href="/leaderboard?cid={{ competitor.id }}"
-				>
-					Leaderboard
-				</a>
-
-				<a
-					class="back {% if nav_active == 'login' %}active{% endif %}"
-					href="/login"
-				>
-					Log in
-				</a>
+				<a class="back {% if nav_active == 'my_comps' %}active{% endif %}" href="/my-comps">Home</a>
+				<a class="back {% if nav_active == 'sections' %}active{% endif %}" href="/competitor/{{ competitor.id }}/sections">My Scoring</a>
+				<a class="back {% if nav_active == 'leaderboard' %}active{% endif %}" href="/leaderboard?cid={{ competitor.id }}">Leaderboard</a>
+				<a class="back {% if nav_active == 'login' %}active{% endif %}" href="/login">Log in</a>
 
 			{% else %}
-				{# NOT LOGGED IN #}
-				<a
-					class="back {% if nav_active == 'my_comps' %}active{% endif %}"
-					href="/my-comps"
-				>
-					Home
-				</a>
-
-				<a
-					class="back {% if nav_active == 'leaderboard' %}active{% endif %}"
-					href="/leaderboard"
-				>
-					Leaderboard
-				</a>
-
-				<a
-					class="back {% if nav_active == 'login' %}active{% endif %}"
-					href="/login"
-				>
-					Log in
-				</a>
+				<a class="back {% if nav_active == 'my_comps' %}active{% endif %}" href="/my-comps">Home</a>
+				<a class="back {% if nav_active == 'leaderboard' %}active{% endif %}" href="/leaderboard">Leaderboard</a>
+				<a class="back {% if nav_active == 'login' %}active{% endif %}" href="/login">Log in</a>
 			{% endif %}
 		</div>
 	</nav>
 
 	<main class="container">
 		<header class="page-header">
-			<h1 class="page-title">
-				Upcoming Competitions
-			</h1>
+			<h1 class="page-title">Upcoming Competitions</h1>
 
 			<p class="page-subtitle">
 				{% if competitor %}
-					Welcome back, {{ competitor.name }}.
-					This is your home base for upcoming climbing comps.
+					Welcome back, {{ competitor.name }}. This is your home base for upcoming climbing comps.
 				{% else %}
-					Welcome to Urban Climb Comp.
-					Sign up or log in to see upcoming competitions and track your scoring.
+					Welcome to Urban Climb Comp. Sign up or log in to see upcoming competitions and track your scoring.
 				{% endif %}
 			</p>
 
@@ -136,14 +72,20 @@
 					{% set c = card.comp %}
 					{% set gym_label = (c.gym.name if c.gym else c.gym_name) %}
 					{% set badge_class = "status-badge--live" if card.status == "live" else "status-badge--scheduled" %}
+					{% set target_href = card.pill_href if (card.pill_href is defined and card.pill_href) else card.my_scoring_url %}
+					{% set is_clickable = target_href is not none and target_href != "" %}
 
-					{# ✅ If it has a destination, make the WHOLE pill a link #}
-					{% if card.pill_href %}
+					{% if is_clickable %}
 						<a
-							href="{{ card.pill_href }}"
+							href="{{ target_href }}"
 							class="section-pill comp-pill comp-pill-link"
-							aria-label="{{ card.pill_title or 'Open' }}: {{ c.name }}"
+							aria-label="{{ c.name }}"
+							style="text-decoration: none;"
 						>
+					{% else %}
+						<article class="section-pill comp-pill">
+					{% endif %}
+
 							<div class="pill-header">
 								<h2 class="pill-title">{{ c.name }}</h2>
 								{% if gym_label %}
@@ -156,17 +98,13 @@
 									<p class="pill-dates">
 										{% if c.start_at %}
 											<span class="pill-date-label">Starts:</span>
-											<span class="pill-date-value">
-												{{ c.start_at.strftime('%d %b %Y, %I:%M %p') }}
-											</span>
+											<span class="pill-date-value">{{ c.start_at.strftime('%d %b %Y, %I:%M %p') }}</span>
 										{% endif %}
 
 										{% if c.end_at %}
 											<span class="pill-date-separator">·</span>
 											<span class="pill-date-label">Ends:</span>
-											<span class="pill-date-value">
-												{{ c.end_at.strftime('%d %b %Y, %I:%M %p') }}
-											</span>
+											<span class="pill-date-value">{{ c.end_at.strftime('%d %b %Y, %I:%M %p') }}</span>
 										{% endif %}
 									</p>
 								{% else %}
@@ -186,74 +124,52 @@
 								</div>
 							</div>
 
-							<p class="pill-description">
-								{{ card.status_label }}
+							{# Show a short sentence, hide the long version behind Details #}
+							<p class="pill-description" style="margin-bottom: 8px;">
+								{% if card.my_scoring_url %}
+									You're registered — tap to continue scoring.
+								{% elif card.status == 'live' %}
+									This comp is live — tap to register.
+								{% else %}
+									Opens {{ c.start_at.strftime('%d %b %Y, %I:%M %p') if c.start_at else "TBC" }}.
+								{% endif %}
 							</p>
 
-							{# Optional: keep a button-looking hint, but NOT a link #}
-							<div class="pill-actions">
-								<span class="btn primary">
-									{% if card.my_scoring_url %}
-										Keep scoring
-									{% else %}
-										Register
-									{% endif %}
-								</span>
-							</div>
-						</a>
-
-					{% else %}
-						{# ❌ Not clickable (scheduled + not registered) #}
-						<article class="section-pill comp-pill">
-							<div class="pill-header">
-								<h2 class="pill-title">{{ c.name }}</h2>
-								{% if gym_label %}
-									<p class="pill-subtitle">{{ gym_label }}</p>
-								{% endif %}
-							</div>
-
-							<div class="pill-meta">
-								{% if c.start_at or c.end_at %}
-									<p class="pill-dates">
-										{% if c.start_at %}
-											<span class="pill-date-label">Starts:</span>
-											<span class="pill-date-value">
-												{{ c.start_at.strftime('%d %b %Y, %I:%M %p') }}
-											</span>
-										{% endif %}
-
-										{% if c.end_at %}
-											<span class="pill-date-separator">·</span>
-											<span class="pill-date-label">Ends:</span>
-											<span class="pill-date-value">
-												{{ c.end_at.strftime('%d %b %Y, %I:%M %p') }}
-											</span>
-										{% endif %}
+							<details class="pill-details" style="margin-top: 6px;">
+								<summary class="pill-details-summary">Details</summary>
+								<p class="pill-details-body" style="margin-top: 10px;">
+									{{ card.status_label }}
+								</p>
+								{% if card.status != 'live' %}
+									<p class="pill-details-body">
+										Registration will open when this competition goes live.
 									</p>
-								{% else %}
-									<p class="pill-dates pill-dates--tbc">Dates TBC</p>
 								{% endif %}
+							</details>
 
-								<div class="pill-status">
-									<span class="status-badge {{ badge_class }}">
-										{% if card.status == 'live' %}
-											Live now
+							{# No buttons/links inside (prevents the “Register link + pill” mess) #}
+							<div class="pill-actions" style="margin-top: 14px;">
+								{% if is_clickable %}
+									<span class="btn primary">
+										{% if card.my_scoring_url %}
+											Keep scoring
+										{% elif card.status == 'live' %}
+											Register
 										{% else %}
-											Upcoming
+											View
 										{% endif %}
 									</span>
-								</div>
+								{% else %}
+									<p class="pill-note">Registration will open when this competition goes live.</p>
+								{% endif %}
 							</div>
 
-							<p class="pill-description">{{ card.status_label }}</p>
-
-							<div class="pill-actions">
-								<p class="pill-note">
-									Registration will open when this competition goes live.
-								</p>
-							</div>
+					{% if is_clickable %}
+						</a>
+					{% else %}
 						</article>
 					{% endif %}
+
 				{% endfor %}
 			</section>
 		{% endif %}

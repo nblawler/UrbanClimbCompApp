@@ -1692,4 +1692,111 @@ label {
 	color: inherit;
 	display: block;
   }
+
+  .comp-grid{
+	display:grid;
+	grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+	gap: 16px;
+  }
+  
+  .comp-card{
+	border-radius: 18px;
+	padding: 18px;
+	background: rgba(255,255,255,0.04);
+	border: 1px solid rgba(255,255,255,0.08);
+	box-shadow: 0 10px 30px rgba(0,0,0,0.25);
+	color: inherit;
+  }
+  
+  .comp-card--clickable{
+	text-decoration: none;
+	display:block;
+	cursor:pointer;
+	transition: transform 120ms ease, border-color 120ms ease, background 120ms ease;
+  }
+  .comp-card--clickable:hover{
+	transform: translateY(-2px);
+	border-color: rgba(255,255,255,0.18);
+	background: rgba(255,255,255,0.06);
+  }
+  
+  .comp-card__top{
+	display:flex;
+	justify-content: space-between;
+	align-items:flex-start;
+	gap: 12px;
+  }
+  
+  .comp-card__title{
+	margin:0;
+	font-size: 22px;
+	line-height: 1.2;
+  }
+  
+  .comp-card__gym{
+	margin-top: 6px;
+	opacity: 0.75;
+	font-size: 14px;
+  }
+  
+  .badge{
+	display:inline-block;
+	padding: 6px 10px;
+	border-radius: 999px;
+	font-size: 12px;
+	font-weight: 700;
+	letter-spacing: 0.02em;
+	border: 1px solid rgba(255,255,255,0.14);
+  }
+  .badge--live{ background: rgba(0,255,140,0.12); }
+  .badge--upcoming{ background: rgba(255,255,255,0.06); }
+  
+  .comp-card__meta{
+	margin-top: 12px;
+	display:flex;
+	flex-wrap: wrap;
+	align-items:center;
+	gap: 10px;
+	font-size: 14px;
+	opacity: 0.9;
+  }
+  .meta-label{ opacity: 0.65; margin-right: 6px; }
+  .meta-dot{ opacity: 0.35; }
+  
+  .comp-card__bottom{
+	margin-top: 14px;
+  }
+  
+  .cta{
+	display:inline-block;
+	padding: 10px 12px;
+	border-radius: 12px;
+	font-weight: 700;
+	font-size: 14px;
+	border: 1px solid rgba(255,255,255,0.12);
+  }
+  .cta--primary{
+	background: rgba(0,255,140,0.18);
+  }
+  .cta--muted{
+	background: rgba(255,255,255,0.05);
+	opacity: 0.85;
+  }
+  
+  .comp-card__details{
+	margin-top: 14px;
+	opacity: 0.9;
+  }
+  .comp-card__details summary{
+	cursor:pointer;
+	font-weight: 600;
+	opacity: 0.75;
+  }
+  .comp-card__desc{
+	margin: 10px 0 0 0;
+	opacity: 0.8;
+	font-size: 14px;
+	line-height: 1.4;
+  }
+  
   
