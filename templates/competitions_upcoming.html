@@ -1,4 +1,4 @@
-<!doctype html>
+\<!doctype html>
 <html lang="en">
 <head>
 	<meta charset="utf-8" />
@@ -134,56 +134,47 @@
 			<section class="pill-grid">
 				{% for card in cards %}
 					{% set c = card.comp %}
+					{% set gym_label = (c.gym.name if c.gym else c.gym_name) %}
+					{% set badge_class = "status-badge--live" if card.status == "live" else "status-badge--scheduled" %}
 
-					<article class="section-pill comp-pill">
-						<div class="pill-header">
-							<h2 class="pill-title">
-								{{ c.name }}
-							</h2>
+					{# ✅ If it has a destination, make the WHOLE pill a link #}
+					{% if card.pill_href %}
+						<a
+							href="{{ card.pill_href }}"
+							class="section-pill comp-pill comp-pill-link"
+							aria-label="{{ card.pill_title or 'Open' }}: {{ c.name }}"
+						>
+							<div class="pill-header">
+								<h2 class="pill-title">{{ c.name }}</h2>
+								{% if gym_label %}
+									<p class="pill-subtitle">{{ gym_label }}</p>
+								{% endif %}
+							</div>
 
-							{# Prefer relational gym name if you have Gym relationship; fallback to old gym_name #}
-							{% set gym_label = (c.gym.name if c.gym else c.gym_name) %}
-							{% if gym_label %}
-								<p class="pill-subtitle">
-									{{ gym_label }}
-								</p>
-							{% endif %}
-						</div>
+							<div class="pill-meta">
+								{% if c.start_at or c.end_at %}
+									<p class="pill-dates">
+										{% if c.start_at %}
+											<span class="pill-date-label">Starts:</span>
+											<span class="pill-date-value">
+												{{ c.start_at.strftime('%d %b %Y, %I:%M %p') }}
+											</span>
+										{% endif %}
 
-						<div class="pill-meta">
-							{% if c.start_at or c.end_at %}
-								<p class="pill-dates">
-									{% if c.start_at %}
-										<span class="pill-date-label">Starts:</span>
-										<span class="pill-date-value">
-											{{ c.start_at.strftime('%d %b %Y, %I:%M %p') }}
-										</span>
-									{% endif %}
+										{% if c.end_at %}
+											<span class="pill-date-separator">·</span>
+											<span class="pill-date-label">Ends:</span>
+											<span class="pill-date-value">
+												{{ c.end_at.strftime('%d %b %Y, %I:%M %p') }}
+											</span>
+										{% endif %}
+									</p>
+								{% else %}
+									<p class="pill-dates pill-dates--tbc">Dates TBC</p>
+								{% endif %}
 
-									{% if c.end_at %}
-										<span class="pill-date-separator">·</span>
-										<span class="pill-date-label">Ends:</span>
-										<span class="pill-date-value">
-											{{ c.end_at.strftime('%d %b %Y, %I:%M %p') }}
-										</span>
-									{% endif %}
-								</p>
-							{% else %}
-								<p class="pill-dates pill-dates--tbc">
-									Dates TBC
-								</p>
-							{% endif %}
-
-							<div class="pill-status">
-								{# ✅ CLICKABLE STATUS PILL (Register / Continue scoring) #}
-								{% if card.pill_href %}
-									<a
-										href="{{ card.pill_href }}"
-										class="status-badge {% if card.status == 'live' %}status-badge--live{% else %}status-badge--scheduled{% endif %}"
-										title="{{ card.pill_title or '' }}"
-										aria-label="{{ card.pill_title or 'Open' }}"
-										style="text-decoration: none;"
-									>
+								<div class="pill-status">
+									<span class="status-badge {{ badge_class }}">
 										{% if card.my_scoring_url %}
 											Keep scoring
 										{% elif card.status == 'live' %}
@@ -191,53 +182,78 @@
 										{% else %}
 											Upcoming
 										{% endif %}
-									</a>
+									</span>
+								</div>
+							</div>
+
+							<p class="pill-description">
+								{{ card.status_label }}
+							</p>
+
+							{# Optional: keep a button-looking hint, but NOT a link #}
+							<div class="pill-actions">
+								<span class="btn primary">
+									{% if card.my_scoring_url %}
+										Keep scoring
+									{% else %}
+										Register
+									{% endif %}
+								</span>
+							</div>
+						</a>
+
+					{% else %}
+						{# ❌ Not clickable (scheduled + not registered) #}
+						<article class="section-pill comp-pill">
+							<div class="pill-header">
+								<h2 class="pill-title">{{ c.name }}</h2>
+								{% if gym_label %}
+									<p class="pill-subtitle">{{ gym_label }}</p>
+								{% endif %}
+							</div>
+
+							<div class="pill-meta">
+								{% if c.start_at or c.end_at %}
+									<p class="pill-dates">
+										{% if c.start_at %}
+											<span class="pill-date-label">Starts:</span>
+											<span class="pill-date-value">
+												{{ c.start_at.strftime('%d %b %Y, %I:%M %p') }}
+											</span>
+										{% endif %}
+
+										{% if c.end_at %}
+											<span class="pill-date-separator">·</span>
+											<span class="pill-date-label">Ends:</span>
+											<span class="pill-date-value">
+												{{ c.end_at.strftime('%d %b %Y, %I:%M %p') }}
+											</span>
+										{% endif %}
+									</p>
 								{% else %}
-									<span class="status-badge {% if card.status == 'live' %}status-badge--live{% else %}status-badge--scheduled{% endif %}">
+									<p class="pill-dates pill-dates--tbc">Dates TBC</p>
+								{% endif %}
+
+								<div class="pill-status">
+									<span class="status-badge {{ badge_class }}">
 										{% if card.status == 'live' %}
 											Live now
 										{% else %}
 											Upcoming
 										{% endif %}
 									</span>
-								{% endif %}
+								</div>
 							</div>
-						</div>
 
-						<p class="pill-description">
-							{{ card.status_label }}
-						</p>
+							<p class="pill-description">{{ card.status_label }}</p>
 
-						<div class="pill-actions">
-							{# ✅ No more "demo link". Use the same targets as the clickable pill. #}
-							{% if card.my_scoring_url %}
-								<a
-									href="{{ card.my_scoring_url }}"
-									class="btn primary"
-								>
-									Keep scoring
-								</a>
-
-							{% elif card.status == 'live' and card.pill_href %}
-								<a
-									href="{{ card.pill_href }}"
-									class="btn primary"
-								>
-									Register
-								</a>
-
-							{% elif card.status == 'live' %}
-								<p class="pill-note">
-									Scan the QR code at the gym desk to join this comp.
-								</p>
-
-							{% else %}
+							<div class="pill-actions">
 								<p class="pill-note">
 									Registration will open when this competition goes live.
 								</p>
-							{% endif %}
-						</div>
-					</article>
+							</div>
+						</article>
+					{% endif %}
 				{% endfor %}
 			</section>
 		{% endif %}

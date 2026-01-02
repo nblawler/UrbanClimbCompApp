@@ -1671,3 +1671,25 @@ input, select, textarea {
 label {
 	font-size: 16px !important;
 }
+
+.comp-pill-link {
+	text-decoration: none;
+	color: inherit;
+	display: block;
+  }
+  
+  .comp-pill-link:hover {
+	transform: translateY(-1px);
+  }
+  
+  .comp-pill-link:focus {
+	outline: 2px solid currentColor;
+	outline-offset: 3px;
+  }
+  
+  .comp-pill-link {
+	text-decoration: none;
+	color: inherit;
+	display: block;
+  }
+  
