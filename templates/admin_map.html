@@ -29,6 +29,7 @@
       justify-content: space-between;
       align-items: center;
       margin-bottom: 12px;
+      gap: 12px;
     }
 
     .map-wrapper {
@@ -40,7 +41,8 @@
       cursor: crosshair;
     }
 
-    .map-image {
+    .map-image,
+    .gym-map {
       display: block;
       width: 100%;
       height: auto;
@@ -110,12 +112,6 @@
       gap: 8px;
     }
 
-    .field-row-2 {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 8px;
-    }
-
     .pill-button {
       display: inline-flex;
       align-items: center;
@@ -151,6 +147,22 @@
       margin-bottom: 4px;
     }
 
+    .alert {
+      padding: 12px 14px;
+      border-radius: 12px;
+      margin: 12px 0 0;
+      border: 1px solid rgba(255,255,255,0.08);
+      background: rgba(0,0,0,0.35);
+      color: var(--text, #f5f7fb);
+      font-size: 13px;
+      line-height: 1.35;
+    }
+
+    .alert-error {
+      border-color: rgba(255,0,0,0.25);
+      background: rgba(139, 30, 30, 0.25);
+    }
+
     @media (max-width: 800px) {
       .admin-map-page {
         grid-template-columns: minmax(0, 1fr);
@@ -169,37 +181,54 @@
   <main class="admin-map-page">
     <section class="map-card">
       <div class="map-header">
-        <h1 class="page-title">Collingwood Wall Map</h1>
+        {# Use a dynamic title if the route passes gym_name or comp_name; fallback gracefully #}
+        <h1 class="page-title">
+          {% if gym_name %}
+            {{ gym_name }} Wall Map
+          {% elif comp_name %}
+            {{ comp_name }} · Wall Map
+          {% else %}
+            Wall Map
+          {% endif %}
+        </h1>
         <span class="page-tag">Admin · Click to place climbs</span>
       </div>
 
-      <div id="mapWrapper" class="map-wrapper">
-        <img
-          src="/static/Collingwood_Gym_Map.png"
-          alt="Collingwood wall map"
-          class="map-image"
-        />
-
-        {% for c in climbs %}
-          {% if c.x_percent is not none and c.y_percent is not none %}
-            <div
-              class="map-dot"
-              style="left: {{ c.x_percent }}%; top: {{ c.y_percent }}%;"
-              title="Climb {{ c.climb_number }} · {{ c.section.name if c.section else 'No section' }}"
-            >
-              {{ c.climb_number }}
-            </div>
-          {% endif %}
-        {% endfor %}
-
-        <div id="ghostDot" class="map-dot map-dot--ghost" style="display:none;">
-          +
+      {% if not gym_map_url %}
+        <div class="alert alert-error">
+          No map is configured for this competition’s gym yet.<br>
+          Set the gym’s <code>map_image_path</code> (e.g. <code>/static/maps/adelaide-map.png</code>)
+          and reload this page.
         </div>
-      </div>
+      {% else %}
+        <div id="mapWrapper" class="map-wrapper">
+          <img
+            class="gym-map"
+            src="{{ gym_map_url }}"
+            alt="Gym map"
+          />
 
-      <div class="map-coords" id="coordsDisplay">
-        Click on the map to choose a location for a new climb.
-      </div>
+          {% for c in climbs %}
+            {% if c.x_percent is not none and c.y_percent is not none %}
+              <div
+                class="map-dot"
+                style="left: {{ c.x_percent }}%; top: {{ c.y_percent }}%;"
+                title="Climb {{ c.climb_number }} · {{ c.section.name if c.section else 'No section' }}"
+              >
+                {{ c.climb_number }}
+              </div>
+            {% endif %}
+          {% endfor %}
+
+          <div id="ghostDot" class="map-dot map-dot--ghost" style="display:none;">
+            +
+          </div>
+        </div>
+
+        <div class="map-coords" id="coordsDisplay">
+          Click on the map to choose a location for a new climb.
+        </div>
+      {% endif %}
     </section>
 
     <section class="form-card">
@@ -294,7 +323,12 @@
         <input type="hidden" name="x_percent" id="x_percent" />
         <input type="hidden" name="y_percent" id="y_percent" />
 
-        <button type="submit" class="pill-button" id="submitBtn" disabled>
+        <button
+          type="submit"
+          class="pill-button"
+          id="submitBtn"
+          {% if not gym_map_url %}disabled{% endif %}
+        >
           Save climb at clicked position
         </button>
 
@@ -323,6 +357,7 @@
       const coordsDisplay = document.getElementById("coordsDisplay");
       const submitBtn = document.getElementById("submitBtn");
 
+      // If there's no map wrapper (no gym_map_url), don't bind clicks
       if (!mapWrapper) return;
 
       mapWrapper.addEventListener("click", function (e) {
@@ -352,5 +387,3 @@
   </script>
 </body>
 </html>
-
-

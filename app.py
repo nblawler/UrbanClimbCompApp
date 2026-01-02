@@ -2729,6 +2729,8 @@ def admin_comp(slug):
     # Gym-level permission check
     if not admin_can_manage_competition(comp):
         abort(403)
+        
+    session["admin_comp_id"] = comp.id
 
     # Load sections for this competition (if Section has competition_id)
     sections = (
@@ -2883,42 +2885,65 @@ def admin_map():
     """
     Map-based climb creation/edit view.
     Admin can click the gym map, then fill climb config and save.
+    Loads the *admin-selected* competition (not the public active comp).
     """
     if not session.get("admin_ok"):
         return redirect("/admin")
 
-    current_comp = get_current_comp()
+    # 1) Prefer explicit comp_id in querystring (coming from Manage page link)
+    comp_id = request.args.get("comp_id", type=int)
+
+    # 2) Fallback to "admin currently editing" comp stored in session
+    if not comp_id:
+        comp_id = session.get("admin_comp_id")
+
+    # 3) Final fallback (not ideal, but avoids hard crash)
+    if comp_id:
+        current_comp = Competition.query.get(comp_id)
+    else:
+        current_comp = get_current_comp()
+
+    if not current_comp:
+        # No competition found — bounce back to admin comps list
+        return redirect("/admin/comps")
 
     # Only allow admins who can manage this competition's gym
-    if current_comp and not admin_can_manage_competition(current_comp):
+    if not admin_can_manage_competition(current_comp):
         abort(403)
 
     gym_map_url = get_gym_map_url_for_competition(current_comp)
 
     sections = (
         Section.query
-        .filter(Section.competition_id == current_comp.id)  # type: ignore[union-attr]
+        .filter(Section.competition_id == current_comp.id)
         .order_by(Section.name)
         .all()
-    ) if current_comp else []
+    )
 
     section_ids = [s.id for s in sections]
     if section_ids:
         climbs = (
             SectionClimb.query
-            .filter(SectionClimb.section_id.in_(section_ids),
-                    SectionClimb.gym_id == current_comp.gym_id,
-                    )
+            .filter(
+                SectionClimb.section_id.in_(section_ids),
+                # keep this only if gym_id is truly correct/needed in your schema
+                SectionClimb.gym_id == current_comp.gym_id,
+            )
             .all()
         )
     else:
         climbs = []
+
+    gym_name = current_comp.gym.name if getattr(current_comp, "gym", None) else None
+    comp_name = current_comp.name
 
     return render_template(
         "admin_map.html",
         sections=sections,
         climbs=climbs,
         gym_map_url=gym_map_url,
+        gym_name=gym_name,
+        comp_name=comp_name,
     )
 
 @app.route("/admin/comps", methods=["GET", "POST"])
