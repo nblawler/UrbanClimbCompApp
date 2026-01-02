@@ -16,7 +16,7 @@
 				>
 					Home
 				</a>
-		
+
 				{# Admin only #}
 				{% if session.get('admin_ok') %}
 					<a
@@ -26,7 +26,7 @@
 						Admin
 					</a>
 				{% endif %}
-		
+
 				{# Login always shown (can swap to Logout later) #}
 				<a
 					class="back {% if nav_active == 'login' %}active{% endif %}"
@@ -36,7 +36,6 @@
 				</a>
 			</div>
 		</nav>
-		
 
 		<main class="container">
 			<header class="page-header">
@@ -83,14 +82,25 @@
 					</div>
 
 					<div class="form-row">
-						<label class="form-label" for="gym_name">Gym name (optional)</label>
-						<input
-							type="text"
-							id="gym_name"
-							name="gym_name"
-							class="form-input"
-							placeholder="e.g. Urban Climb Collingwood"
-						/>
+						<label class="form-label" for="gym_id">
+							Gym
+							<span class="form-label-hint">
+								This links the competition to a gym (and its wall map).
+							</span>
+						</label>
+
+						<select id="gym_id" name="gym_id" class="form-input" required>
+							<option value="">Select a gym…</option>
+							{% for g in gyms %}
+								<option value="{{ g.id }}">{{ g.name }}</option>
+							{% endfor %}
+						</select>
+
+						{% if not gyms %}
+							<p class="form-help" style="margin-top: 8px;">
+								No gyms found in the database yet.
+							</p>
+						{% endif %}
 					</div>
 
 					<div class="form-row">
@@ -155,7 +165,7 @@
 
 					<div class="form-row">
 						<label class="form-checkbox">
-							<input type="checkbox" name="is_active" />
+							<input type="checkbox" name="is_active" value="1" />
 							<span>Set this as the active competition</span>
 						</label>
 					</div>
@@ -199,7 +209,12 @@
 												{{ comp.name }}
 											</a>
 										</td>
-										<td>{{ comp.gym_name or "—" }}</td>
+
+										{# Prefer relational gym name; fallback to old gym_name; then — #}
+										<td>
+											{{ (comp.gym.name if comp.gym else comp.gym_name) or "—" }}
+										</td>
+
 										<td><code>{{ comp.slug }}</code></td>
 										<td>
 											{% if comp.is_active %}
@@ -272,5 +287,3 @@
 		</main>
 	</body>
 </html>
-
-

@@ -2909,69 +2909,85 @@ def admin_map():
 def admin_competitions():
     """
     Admin UI to manage competitions:
-    - List all competitions
-    - Create a new competition (super admin only)
+    - List all competitions (filtered by gym access for gym admins)
+    - Create a new competition:
+        - super admin: can create for any gym
+        - gym admin: can create only for gyms they manage
     - Set a competition as the single active comp
     - Archive (deactivate) a competition
     """
     if not session.get("admin_ok"):
         return redirect("/admin")
+    
+    gyms = Gym.query.order_by(Gym.name).all()
 
     message = None
     error = None
     is_super = admin_is_super()
+    
 
     if request.method == "POST":
-        action = request.form.get("action", "").strip()
+        action = (request.form.get("action") or "").strip()
 
         if action == "create_comp":
-            if not is_super:
-                error = "Only super admins can create competitions."
+            name = (request.form.get("name") or "").strip()
+            slug_raw = (request.form.get("slug") or "").strip().lower()
+
+            start_date = (request.form.get("start_date") or "").strip()
+            start_time = (request.form.get("start_time") or "").strip()
+            end_date = (request.form.get("end_date") or "").strip()
+            end_time = (request.form.get("end_time") or "").strip()
+
+            is_active_flag = bool(request.form.get("is_active"))
+
+            if not name:
+                error = "Competition name is required."
             else:
-                name = (request.form.get("name") or "").strip()
-                gym_name = (request.form.get("gym_name") or "").strip() or None
-                slug_raw = (request.form.get("slug") or "").strip().lower()
+                # slug: either provided or derived from name
+                slug_val = slug_raw or slugify(name)
+                existing_slug = Competition.query.filter_by(slug=slug_val).first()
+                if existing_slug:
+                    # ensure uniqueness by timestamp suffix
+                    slug_val = f"{slug_val}-{int(datetime.utcnow().timestamp())}"
 
-                start_date = (request.form.get("start_date") or "").strip()
-                start_time = (request.form.get("start_time") or "").strip()
-                end_date = (request.form.get("end_date") or "").strip()
-                end_time = (request.form.get("end_time") or "").strip()
+                def parse_dt(date_str, time_str):
+                    if not date_str:
+                        return None
+                    try:
+                        if not time_str:
+                            return datetime.strptime(date_str, "%Y-%m-%d")
+                        return datetime.strptime(f"{date_str} {time_str}", "%Y-%m-%d %H:%M")
+                    except ValueError:
+                        return None
 
-                is_active_flag = bool(request.form.get("is_active"))
+                start_at = parse_dt(start_date, start_time)
+                end_at = parse_dt(end_date, end_time)
 
-                if not name:
-                    error = "Competition name is required."
+                # ✅ NEW: gym selection must come from gym_id (dropdown)
+                gym_id_raw = (request.form.get("gym_id") or "").strip()
+                gym = None
+
+                if not gym_id_raw.isdigit():
+                    error = "Please select a gym."
                 else:
-                    # slug: either provided or derived from name
-                    slug_val = slug_raw or slugify(name)
-                    existing_slug = Competition.query.filter_by(slug=slug_val).first()
-                    if existing_slug:
-                        # ensure uniqueness by timestamp suffix
-                        slug_val = f"{slug_val}-{int(datetime.utcnow().timestamp())}"
+                    gym_id = int(gym_id_raw)
 
-                    def parse_dt(date_str, time_str):
-                        if not date_str:
-                            return None
-                        try:
-                            if not time_str:
-                                return datetime.strptime(date_str, "%Y-%m-%d")
-                            return datetime.strptime(
-                                f"{date_str} {time_str}",
-                                "%Y-%m-%d %H:%M",
-                            )
-                        except ValueError:
-                            return None
+                    if not is_super:
+                        # Gym admins can only create comps for their allowed gyms
+                        allowed = get_session_admin_gym_ids()
+                        if gym_id not in allowed:
+                            error = "You are not allowed to create a competition for that gym."
 
-                    start_at = parse_dt(start_date, start_time)
-                    end_at = parse_dt(end_date, end_time)
+                    if not error:
+                        gym = Gym.query.get(gym_id)
+                        if not gym:
+                            error = "Selected gym not found."
 
-                    # NEW: look up or create the Gym record from the free-text gym_name
-                    gym = get_or_create_gym_by_name(gym_name) if gym_name else None
-
+                if not error:
                     comp = Competition(
                         name=name,
-                        gym_name=gym_name,
-                        gym=gym,  # <-- this wires the competition to the gym
+                        gym_name=gym.name if gym else None,  # legacy text field (optional)
+                        gym=gym,                              # ✅ formal relationship
                         slug=slug_val,
                         start_at=start_at,
                         end_at=end_at,
@@ -3042,8 +3058,10 @@ def admin_competitions():
         "admin_comps.html",
         competitions=comps,
         message=message,
+        gyms=gyms,
         error=error,
     )
+
     
 
 @app.route("/admin/comp/<int:competition_id>/configure")
