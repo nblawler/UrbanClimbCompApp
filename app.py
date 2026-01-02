@@ -432,19 +432,12 @@ def get_or_create_gym_by_name(name: str):
 
 def get_gym_map_url_for_competition(comp):
     """
-    Resolve the map image URL for a given competition's gym.
-
-    - If the competition has a Gym with map_image_path set, use that.
-    - Otherwise fall back to a single default map.
+    Return the map image URL for a competition's gym.
     """
-    if not comp:
+    if not comp or not comp.gym:
         return None
 
-    if comp.gym and comp.gym.map_image_path:
-        return comp.gym.map_image_path
-
-    # Fallback: your existing single-gym map (adjust to your actual file)
-    return "/static/maps/collingwood-map.png"
+    return comp.gym.map_image_path
 
 def get_session_admin_gym_ids():
     """
@@ -1125,7 +1118,7 @@ def competitor_sections(competitor_id):
         abort(403)
 
     # Resolve map image for this competition's gym
-    gym_map_url = get_gym_map_url_for_competition(comp_row)
+    gym_map_url = (comp_row)
 
     # Scope sections to the competitor's competition (if we can)
     if comp_row:
