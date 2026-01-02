@@ -1130,7 +1130,7 @@ def competitor_sections(competitor_id):
         abort(403)
 
     # Resolve map image for this competition's gym
-    gym_map_url = (comp_row)
+    gym_map_url = get_gym_map_url_for_competition(comp_row)
 
     # Scope sections to the competitor's competition (if we can)
     if comp_row:
@@ -2582,6 +2582,10 @@ def admin_page():
                 error = "Please enter the admin password first."
             else:
                 if action == "reset_all":
+                    # ✅ Super-admin only (server-side enforcement)
+                    if not admin_is_super():
+                        abort(403)
+
                     # For this action, require password *again* each time
                     password = request.form.get("password", "")
                     if password != ADMIN_PASSWORD:
@@ -2645,15 +2649,13 @@ def admin_page():
 
                         current_comp = get_current_comp()
 
-                        # start_climb / end_climb are not used to define climbs anymore;
-                        # they can stay as 0 or be used later for metadata if you want.
                         s = Section(
                             name=name,
                             slug=slug,
                             start_climb=0,
                             end_climb=0,
                             competition_id=current_comp.id if current_comp else None,
-                            gym_id=current_comp.gym_id if current_comp else None,   # ✅ NEW
+                            gym_id=current_comp.gym_id if current_comp else None,
                         )
 
                         db.session.add(s)
@@ -2703,7 +2705,9 @@ def admin_page():
         search_results=search_results,
         search_query=search_query,
         is_admin=is_admin,
+        current_comp=current_comp,  
     )
+
 
 @app.route("/admin/comp/<slug>")
 def admin_comp(slug):

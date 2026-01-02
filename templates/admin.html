@@ -48,6 +48,39 @@
 					</form>
 				</section>
 			{% else %}
+
+				{# ✅ Manage Competition context banner #}
+				<section class="card">
+					<h2>Manage competition</h2>
+
+					{% if current_comp %}
+						<p class="muted" style="margin-top:6px;">
+							Currently editing:
+							<strong>{{ current_comp.name }}</strong>
+							{% if current_comp.gym %}
+								· {{ current_comp.gym.name }}
+							{% elif current_comp.gym_name %}
+								· {{ current_comp.gym_name }}
+							{% endif %}
+						</p>
+
+						<div style="margin-top:12px;">
+							<a href="/admin/comps" class="primary" style="display:inline-block; padding:8px 12px; font-size:13px;">
+								Switch competition
+							</a>
+						</div>
+					{% else %}
+						<p class="muted" style="margin-top:6px;">
+							No active competition selected. Choose one to manage.
+						</p>
+						<div style="margin-top:12px;">
+							<a href="/admin/comps" class="primary" style="display:inline-block; padding:8px 12px; font-size:13px;">
+								Choose a competition
+							</a>
+						</div>
+					{% endif %}
+				</section>
+
 				<section class="card">
 					<h2>Create competitor</h2>
 
@@ -186,7 +219,7 @@
 										class="primary"
 										style="padding:4px 8px; font-size:12px; margin-left:12px;"
 									>
-										Edit
+										Edit climbs + scoring
 									</a>
 								</li>
 							{% endfor %}
@@ -196,45 +229,60 @@
 					{% endif %}
 				</section>
 
-				<section class="card">
-					<h2>Wall map (add climbs on map)</h2>
-					<p class="muted">
-						Click the Collingwood layout to place climbs and configure them.
-					</p>
-					<a href="/admin/map" class="primary">
-						Open map editor
-					</a>
-				</section>
+				{# ✅ Only show map editor if a competition is selected #}
+				{% if current_comp %}
+					<section class="card">
+						<h2>Wall map (place climbs on the map)</h2>
+						<p class="muted">
+							Open the map editor for this competition’s gym and click to place climbs.
+						</p>
+						<a href="/admin/map" class="primary">
+							Open map editor
+						</a>
+					</section>
+				{% else %}
+					<section class="card">
+						<h2>Wall map</h2>
+						<p class="muted">
+							Choose a competition first to edit its gym map + climbs.
+						</p>
+						<a href="/admin/comps" class="primary">
+							Choose a competition
+						</a>
+					</section>
+				{% endif %}
 
-				<section class="card">
-					<h2>Reset all competitors & scores</h2>
-					<p class="muted">
-						WARNING: This deletes ALL competitors, ALL scores, ALL sections, and ALL climbs.
-					</p>
+				{# ✅ Super-admin only: Reset All #}
+				{% if session.get("admin_is_super") %}
+					<section class="card">
+						<h2>Reset all competitors & scores</h2>
+						<p class="muted">
+							WARNING: This deletes ALL competitors, ALL scores, ALL sections, and ALL climbs.
+						</p>
 
-					<form method="post">
-						<label>Admin password</label>
-						<input
-							type="password"
-							name="password"
-							required
-							placeholder="Enter admin password"
-						/>
+						<form method="post">
+							<label>Admin password</label>
+							<input
+								type="password"
+								name="password"
+								required
+								placeholder="Enter admin password"
+							/>
 
-						<button
-							type="submit"
-							name="action"
-							value="reset_all"
-							class="primary"
-							style="background:#8b1e1e;"
-						>
-							Reset all data
-						</button>
-					</form>
-				</section>
+							<button
+								type="submit"
+								name="action"
+								value="reset_all"
+								class="primary"
+								style="background:#8b1e1e;"
+							>
+								Reset all data
+							</button>
+						</form>
+					</section>
+				{% endif %}
+
 			{% endif %}
 		</main>
 	</body>
 </html>
-
-

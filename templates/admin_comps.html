@@ -9,7 +9,6 @@
 	<body>
 		<nav class="container top-nav">
 			<div class="nav-links">
-				{# Always show Home #}
 				<a
 					class="back {% if nav_active == 'my_comps' %}active{% endif %}"
 					href="/my-comps"
@@ -17,7 +16,6 @@
 					Home
 				</a>
 
-				{# Admin only #}
 				{% if session.get('admin_ok') %}
 					<a
 						class="back {% if nav_active == 'admin' %}active{% endif %}"
@@ -27,7 +25,6 @@
 					</a>
 				{% endif %}
 
-				{# Login always shown (can swap to Logout later) #}
 				<a
 					class="back {% if nav_active == 'login' %}active{% endif %}"
 					href="/login"
@@ -182,7 +179,7 @@
 				<header class="section-header">
 					<h2 class="section-title">All competitions</h2>
 					<p class="section-subtitle">
-						Click a competition to manage its sections, climbs and wall map.
+						Use <strong>Manage</strong> to switch your admin tools (sections, climbs, map) to that competition.
 					</p>
 				</header>
 
@@ -205,17 +202,15 @@
 									<tr>
 										<td>#{{ comp.id }}</td>
 										<td>
-											<a href="/admin/comp/{{ comp.slug }}" class="table-link">
-												{{ comp.name }}
-											</a>
+											<strong>{{ comp.name }}</strong>
 										</td>
 
-										{# Prefer relational gym name; fallback to old gym_name; then — #}
 										<td>
 											{{ (comp.gym.name if comp.gym else comp.gym_name) or "—" }}
 										</td>
 
 										<td><code>{{ comp.slug }}</code></td>
+
 										<td>
 											{% if comp.is_active %}
 												<span class="pill pill-success">Active</span>
@@ -223,6 +218,7 @@
 												<span class="pill pill-muted">Inactive</span>
 											{% endif %}
 										</td>
+
 										<td>
 											{% if comp.start_at %}
 												{{ comp.start_at.strftime("%d %b %Y %H:%M") }}
@@ -234,22 +230,20 @@
 												{{ comp.end_at.strftime("%d %b %Y %H:%M") }}
 											{% endif %}
 										</td>
+
 										<td style="text-align: right;">
 											<a
-												href="/admin/comp/{{ comp.slug }}"
+												href="/admin/comp/{{ comp.id }}/configure"
 												class="btn-ghost"
 												style="margin-right: 6px;"
+												title="Switch admin tools to this competition"
 											>
 												Manage
 											</a>
 
 											<form method="post" style="display: inline-block; margin-right: 6px;">
 												<input type="hidden" name="action" value="set_active" />
-												<input
-													type="hidden"
-													name="competition_id"
-													value="{{ comp.id }}"
-												/>
+												<input type="hidden" name="competition_id" value="{{ comp.id }}" />
 												<button
 													type="submit"
 													class="btn-ghost"
@@ -261,11 +255,7 @@
 
 											<form method="post" style="display: inline-block;">
 												<input type="hidden" name="action" value="archive" />
-												<input
-													type="hidden"
-													name="competition_id"
-													value="{{ comp.id }}"
-												/>
+												<input type="hidden" name="competition_id" value="{{ comp.id }}" />
 												<button
 													type="submit"
 													class="btn-ghost-danger"
