@@ -255,8 +255,21 @@ class Section(db.Model):
 
 class SectionClimb(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    section_id = db.Column(db.Integer, db.ForeignKey("section.id"), nullable=False)
-    gym_id = db.Column(db.Integer, db.ForeignKey("gym.id"), nullable=True, index=True)
+
+    section_id = db.Column(
+        db.Integer,
+        db.ForeignKey("section.id"),
+        nullable=False,
+        index=True,
+    )
+
+    # Which gym owns this climb config + map coordinate
+    gym_id = db.Column(
+        db.Integer,
+        db.ForeignKey("gym.id"),
+        nullable=True,
+        index=True,
+    )
     gym = db.relationship("Gym")
 
     climb_number = db.Column(
@@ -278,8 +291,10 @@ class SectionClimb(db.Model):
     section = db.relationship("Section", backref=db.backref("climbs", lazy=True))
 
     __table_args__ = (
+        #  keeps your current uniqueness rule (we may change this later)
         UniqueConstraint("section_id", "climb_number", name="uq_section_climb"),
     )
+
 
 
 class LoginCode(db.Model):
@@ -325,19 +340,11 @@ def get_comp_or_404(slug: str) -> Competition:
 # --- Scoring function ---
 
 
-def points_for(climb_number, attempts, topped):
+def points_for(climb_number, attempts, topped, competition_id=None):
     """
-    Calculate points for a climb using ONLY DB config.
+    Calculate points for a climb using ONLY DB config, scoped to a competition.
 
-    Rules:
-    - If not topped -> 0 points.
-    - Full base points on first attempt (no penalty).
-    - From attempt #2 onward, each attempt applies a penalty.
-    - Penalty is capped at `attempt_cap` attempts:
-        attempts beyond the cap are still recorded but do not
-        reduce the score further.
-    - If no SectionClimb config exists for this climb_number, or
-      config fields are missing, return 0.
+    If competition_id is None, we fall back to the current active competition.
     """
     if not topped:
         return 0
@@ -348,8 +355,33 @@ def points_for(climb_number, attempts, topped):
     elif attempts > 50:
         attempts = 50
 
-    # Per-climb config must exist in DB
-    sc = SectionClimb.query.filter_by(climb_number=climb_number).first()
+    # Resolve competition scope
+    comp = None
+    if competition_id:
+        comp = Competition.query.get(competition_id)
+    else:
+        comp = get_current_comp()
+
+    if not comp:
+        # No competition context = no reliable scoring config
+        return 0
+
+    # Per-climb config must exist in DB for THIS competition
+    q = (
+        SectionClimb.query
+        .join(Section, Section.id == SectionClimb.section_id)
+        .filter(
+            SectionClimb.climb_number == climb_number,
+            Section.competition_id == comp.id,
+        )
+    )
+
+    # Optional extra safety: ensure gym matches too (if you’re populating gym_id everywhere)
+    if comp.gym_id:
+        q = q.filter(SectionClimb.gym_id == comp.gym_id)
+
+    sc = q.first()
+
     if not sc or sc.base_points is None or sc.penalty_per_attempt is None:
         return 0
 
@@ -543,9 +575,13 @@ def build_leaderboard(category=None):
         scores = by_comp.get(c.id, [])
         tops = sum(1 for s in scores if s.topped)
         attempts_on_tops = sum(s.attempts for s in scores if s.topped)
+
+        # ✅ FIX: ensure points_for is scoped to THIS active competition
         total_points = sum(
-            points_for(s.climb_number, s.attempts, s.topped) for s in scores
+            points_for(s.climb_number, s.attempts, s.topped, current_comp.id)
+            for s in scores
         )
+
         last_update = None
         if scores:
             last_update = max(s.updated_at for s in scores if s.updated_at is not None)
@@ -598,9 +634,26 @@ with app.app_context():
     init_db()
 
 
-def competitor_total_points(comp_id: int) -> int:
-    scores = Score.query.filter_by(competitor_id=comp_id).all()
-    return sum(points_for(s.climb_number, s.attempts, s.topped) for s in scores)
+def competitor_total_points(comp_id: int, competition_id=None) -> int:
+    # If we know the competition, only count that competition's scores
+    if competition_id:
+        scores = (
+            Score.query
+            .join(Competitor, Competitor.id == Score.competitor_id)
+            .filter(
+                Score.competitor_id == comp_id,
+                Competitor.competition_id == competition_id,
+            )
+            .all()
+        )
+    else:
+        # Fallback: old behaviour
+        scores = Score.query.filter_by(competitor_id=comp_id).all()
+
+    return sum(
+        points_for(s.climb_number, s.attempts, s.topped, competition_id)
+        for s in scores
+    )
 
 
 def send_login_code_via_email(email: str, code: str):
@@ -1059,7 +1112,7 @@ def competitor_sections(competitor_id):
 
     comp = Competitor.query.get_or_404(target_id)
 
-    # 🔹 Try to infer this competitor's competition + slug (if any)
+    # Infer this competitor's competition + slug (if any)
     comp_row = None
     comp_slug = None
     if comp.competition_id:
@@ -1067,14 +1120,31 @@ def competitor_sections(competitor_id):
         if comp_row and comp_row.slug:
             comp_slug = comp_row.slug
 
-    # NEW: resolve map image for this competition's gym
+    # If admin is viewing, enforce gym-level permissions (prevents cross-gym snooping)
+    if is_admin and comp_row and not admin_can_manage_competition(comp_row):
+        abort(403)
+
+    # Resolve map image for this competition's gym
     gym_map_url = get_gym_map_url_for_competition(comp_row)
 
-    # Legacy behaviour: still show all sections (or you can scope by comp_row if you want)
-    sections = Section.query.order_by(Section.name).all()
-    total_points = competitor_total_points(target_id)
+    # Scope sections to the competitor's competition (if we can)
+    if comp_row:
+        sections = (
+            Section.query
+            .filter(Section.competition_id == comp_row.id)
+            .order_by(Section.name)
+            .all()
+        )
+    else:
+        # No competition context -> safest is empty
+        sections = []
 
-    # Leaderboard position
+    total_points = competitor_total_points(
+    target_id,
+    comp_row.id if comp_row else None
+    )
+
+    # Leaderboard position (build_leaderboard is already scoped to active comp)
     rows, _ = build_leaderboard(None)
     position = None
     for r in rows:
@@ -1085,16 +1155,29 @@ def competitor_sections(competitor_id):
     # Whether this viewer can edit attempts
     can_edit = (viewer_id == target_id or is_admin)
 
-    # All climbs with coordinates → feed dots to map
-    map_climbs = (
-        SectionClimb.query
-        .filter(
-            SectionClimb.x_percent.isnot(None),
-            SectionClimb.y_percent.isnot(None),
+    # Map dots: only climbs with coords for THIS competition's sections
+    if sections:
+        section_ids = [s.id for s in sections]
+
+        q = (
+            SectionClimb.query
+            .filter(
+                SectionClimb.section_id.in_(section_ids),
+                SectionClimb.x_percent.isnot(None),
+                SectionClimb.y_percent.isnot(None),
+            )
         )
-        .order_by(SectionClimb.climb_number)
-        .all()
-    )
+
+        # Optional extra safety: also scope by gym_id if the competition has one
+        if comp_row and comp_row.gym_id:
+            q = q.filter(SectionClimb.gym_id == comp_row.gym_id)
+
+        map_climbs = (
+            q.order_by(SectionClimb.climb_number)
+             .all()
+        )
+    else:
+        map_climbs = []
 
     return render_template(
         "competitor_sections.html",
@@ -1155,7 +1238,8 @@ def comp_competitor_sections(slug, competitor_id):
         .order_by(Section.name)
         .all()
     )
-    total_points = competitor_total_points(target_id)
+    total_points = competitor_total_points(target_id, current_comp.id)
+
 
     # Leaderboard position (still using current-comp-scoped leaderboard)
     rows, _ = build_leaderboard(None)
@@ -1919,7 +2003,7 @@ def comp_competitor_section_climbs(slug, competitor_id, section_slug):
         for s in scores
     }
 
-    total_points = competitor_total_points(target_id)
+    total_points = competitor_total_points(target_id, current_comp.id)
 
     can_edit = True  # if you got here, you're either that competitor or admin
 
@@ -2055,7 +2139,11 @@ def competitor_section_climbs(competitor_id, section_slug):
         for s in scores
     }
 
-    total_points = competitor_total_points(target_id)
+    total_points = competitor_total_points(
+        target_id,
+        comp_row.id if comp_row else None
+    )
+
 
     can_edit = True  # if you got here, you're either that competitor or admin
 
@@ -2306,9 +2394,23 @@ def api_save_score():
         return "Competitor not found", 404
 
     # Ensure this climb exists in the DB config
-    sc = SectionClimb.query.filter_by(climb_number=climb_number).first()
+    current_comp = get_current_comp()
+    if not current_comp:
+        return "No active competition", 400
+
+    # Ensure this climb exists in THIS competition (so correct gym/map)
+    sc = (
+        SectionClimb.query
+        .join(Section, Section.id == SectionClimb.section_id)
+        .filter(
+            SectionClimb.climb_number == climb_number,
+            Section.competition_id == current_comp.id,
+        )
+        .first()
+    )
+
     if not sc:
-        return "Unknown climb number", 400
+        return "Unknown climb number for this competition", 400
 
     # enforce at least 1 attempt
     if attempts < 1:
@@ -2675,7 +2777,7 @@ def edit_section(section_id):
             if not climb_raw.isdigit():
                 error = "Please enter a valid climb number."
             elif base_raw == "" or penalty_raw == "" or cap_raw == "":
-                error = "Please enter base points, penalty per attempt, and attempt cap for this climb."
+                error = "Please enter base points, penalty per attempt, and attempt cap."
             elif not (
                 base_raw.lstrip("-").isdigit()
                 and penalty_raw.lstrip("-").isdigit()
@@ -2697,11 +2799,13 @@ def edit_section(section_id):
                         section_id=section.id,
                         climb_number=climb_number
                     ).first()
+
                     if existing:
                         error = f"Climb {climb_number} is already in this section."
                     else:
                         sc = SectionClimb(
                             section_id=section.id,
+                            gym_id=current_comp.gym_id,   # ✅ THIS IS THE KEY LINE
                             climb_number=climb_number,
                             colour=colour or None,
                             base_points=base_points,
@@ -2793,7 +2897,9 @@ def admin_map():
     if section_ids:
         climbs = (
             SectionClimb.query
-            .filter(SectionClimb.section_id.in_(section_ids))
+            .filter(SectionClimb.section_id.in_(section_ids),
+                    SectionClimb.gym_id == current_comp.gym_id,
+                    )
             .all()
         )
     else:
@@ -3081,6 +3187,7 @@ def admin_map_add_climb():
 
     sc = SectionClimb(
         section_id=section.id,
+        gym_id=current_comp.gym_id,
         climb_number=climb_number,
         colour=colour or None,
         base_points=base_points,
