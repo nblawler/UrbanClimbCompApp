@@ -569,7 +569,7 @@ def build_leaderboard(category=None):
         tops = sum(1 for s in scores if s.topped)
         attempts_on_tops = sum(s.attempts for s in scores if s.topped)
 
-        # ✅ FIX: ensure points_for is scoped to THIS active competition
+        # Ensure points_for is scoped to THIS active competition
         total_points = sum(
             points_for(s.climb_number, s.attempts, s.topped, current_comp.id)
             for s in scores
@@ -1209,7 +1209,6 @@ def comp_competitor_sections(slug, competitor_id):
     Non-admins are *forced* to their own competitor id from the session.
     Changing the id in the URL does not let you see or edit someone else's sections.
     """
-    current_comp = get_comp_or_404(slug)
 
     viewer_id = session.get("competitor_id")
     is_admin = session.get("admin_ok", False)
@@ -1227,26 +1226,36 @@ def comp_competitor_sections(slug, competitor_id):
             # If they mess with the URL, push them back to their own competitor in this comp
             return redirect(f"/comp/{slug}/competitor/{viewer_id}/sections")
 
+    # Load competitor
     comp = Competitor.query.get_or_404(target_id)
 
-    # Make sure this competitor actually belongs to this competition
-    if comp.competition_id != current_comp.id:
+    # Competitor MUST belong to a competition for this slugged route
+    if not comp.competition_id:
+        abort(404)
+
+    # ✅ Resolve the competition from the competitor (NOT from "current active")
+    current_comp = Competition.query.get_or_404(comp.competition_id)
+
+    # ✅ Guard: slug must match the competitor’s competition
+    if current_comp.slug != slug:
         abort(404)
 
     # If admin is viewing, enforce gym-level permissions
     if is_admin and not admin_can_manage_competition(current_comp):
         abort(403)
 
+    # Sections scoped to THIS competition
     sections = (
         Section.query
         .filter(Section.competition_id == current_comp.id)
         .order_by(Section.name)
         .all()
     )
+
     total_points = competitor_total_points(target_id, current_comp.id)
 
-
-    # Leaderboard position (still using current-comp-scoped leaderboard)
+    # Leaderboard position (note: build_leaderboard() still uses get_current_comp()
+    # If you want correct leaderboard per slug, we’ll update build_leaderboard next.)
     rows, _ = build_leaderboard(None)
     position = None
     for r in rows:
@@ -1257,22 +1266,31 @@ def comp_competitor_sections(slug, competitor_id):
     # Whether this viewer can edit attempts
     can_edit = (viewer_id == target_id or is_admin)
 
-    # All climbs with coordinates → feed dots to map, scoped to this comp's sections
+    # Map dots: climbs with coords for THIS competition’s sections (+ gym guard)
     if sections:
         section_ids = [s.id for s in sections]
-        map_climbs = (
+
+        q = (
             SectionClimb.query
             .filter(
                 SectionClimb.section_id.in_(section_ids),
                 SectionClimb.x_percent.isnot(None),
                 SectionClimb.y_percent.isnot(None),
             )
-            .order_by(SectionClimb.climb_number)
-            .all()
+        )
+
+        # ✅ extra safety if you're using gym_id properly
+        if current_comp.gym_id:
+            q = q.filter(SectionClimb.gym_id == current_comp.gym_id)
+
+        map_climbs = (
+            q.order_by(SectionClimb.climb_number)
+             .all()
         )
     else:
         map_climbs = []
 
+    # Map image must come from the competitor’s competition gym
     gym_map_url = get_gym_map_url_for_competition(current_comp)
 
     return render_template(
@@ -1290,6 +1308,7 @@ def comp_competitor_sections(slug, competitor_id):
         comp_slug=slug,
         gym_map_url=gym_map_url,
     )
+
 
 
 # --- Competitor stats page: My Stats + Overall Stats ---
@@ -2911,7 +2930,10 @@ def admin_map():
     if not admin_can_manage_competition(current_comp):
         abort(403)
 
-    gym_map_url = get_gym_map_url_for_competition(current_comp)
+    gym_map_url = None
+    if current_comp and current_comp.gym:
+        gym_map_url = current_comp.gym.map_image_path
+
 
     sections = (
         Section.query
