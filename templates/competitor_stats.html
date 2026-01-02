@@ -1,242 +1,246 @@
 <!doctype html>
 <html lang="en">
-	<head>
-		<meta charset="utf-8" />
-		<meta name="viewport" content="width=device-width, initial-scale=1" />
-		<title>
-			{% if mode == "my" %}
-				My Stats · {{ competitor.name }} · Urban Climb Comp
-			{% elif mode == "climber" %}
-				Climber Stats · {{ competitor.name }} · Urban Climb Comp
-			{% else %}
-				Overall Stats · {{ competitor.name }} · Urban Climb Comp
-			{% endif %}
-		</title>
-		<link rel="stylesheet" href="/static/app.css" />
-	</head>
-	<body>
-		{% set viewer_id = viewer_id if viewer_id is defined else session.get('competitor_id') %}
-		<nav class="container top-nav">
-			<div class="nav-links">
+<head>
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<title>
+		{% if competitor %}
+			Home · Upcoming Competitions · {{ competitor.name }}
+		{% else %}
+			Home · Upcoming Competitions · Urban Climb Comp
+		{% endif %}
+	</title>
+	<link rel="stylesheet" href="/static/app.css" />
+</head>
+<body>
+	{# Logged-in info #}
+	{% set viewer_id = viewer_id if viewer_id is defined else session.get('competitor_id') %}
+	{% set is_admin = session.get('admin_ok', False) %}
+
+	<nav class="container top-nav">
+		<div class="nav-links">
+			{% if is_admin %}
+				{# 🔐 ADMIN VIEW: only Home, Admin, Login #}
+				<a
+					class="back {% if nav_active == 'my_comps' %}active{% endif %}"
+					href="/my-comps"
+				>
+					Home
+				</a>
+
+				<a
+					class="back {% if nav_active == 'admin' %}active{% endif %}"
+					href="/admin/comps"
+				>
+					Admin
+				</a>
+
 				<a
 					class="back {% if nav_active == 'login' %}active{% endif %}"
 					href="/login"
 				>
-					Login
+					Log in
 				</a>
 
-				{% if viewer_id %}
-					<a
-						class="back {% if nav_active == 'sections' %}active{% endif %}"
-						href="/competitor/{{ viewer_id }}/sections"
-					>
-						Enter Scores
-					</a>
+			{% elif competitor %}
+				{# NORMAL COMPETITOR VIEW #}
+				<a
+					class="back {% if nav_active == 'my_comps' %}active{% endif %}"
+					href="/my-comps"
+				>
+					Home
+				</a>
 
-					<a
-						class="back {% if nav_active == 'my_stats' %}active{% endif %}"
-						href="/competitor/{{ viewer_id }}/stats/my"
-					>
-						My Stats
-					</a>
-
-					{# Climber Stats tab, only shown when in climber mode #}
-					{% if mode == "climber" %}
-						<a
-							class="back {% if nav_active == 'climber_stats' %}active{% endif %}"
-							href="/competitor/{{ competitor.id }}/stats/climber"
-						>
-							Climber Stats
-						</a>
-					{% endif %}
-
-					<a
-						class="back {% if nav_active == 'overall_stats' %}active{% endif %}"
-						href="/competitor/{{ viewer_id }}/stats/overall"
-					>
-						Overall Stats
-					</a>
-				{% endif %}
+				<a
+					class="back {% if nav_active == 'sections' %}active{% endif %}"
+					href="/competitor/{{ competitor.id }}/sections"
+				>
+					My Scoring
+				</a>
 
 				<a
 					class="back {% if nav_active == 'leaderboard' %}active{% endif %}"
-					href="/leaderboard{% if viewer_id %}?cid={{ viewer_id }}{% endif %}"
+					href="/leaderboard?cid={{ competitor.id }}"
 				>
 					Leaderboard
 				</a>
-			</div>
-		</nav>
 
-		<main class="container">
+				<a
+					class="back {% if nav_active == 'login' %}active{% endif %}"
+					href="/login"
+				>
+					Log in
+				</a>
 
-			{# Optional big header only for the dedicated Climber Stats page #}
-			{% if mode == "climber" %}
-				<h1 class="page-title" style="margin: 0 0 12px 0;">
-					Climber Stats
-				</h1>
-			{% endif %}
-
-			{% if mode in ("my", "climber") %}
-				<!-- ===================== HEADER FOR MY / CLIMBER STATS ===================== -->
-				<header class="comp-header">
-					<h1 class="comp-name">
-						<span class="comp-label">Name:</span>
-						<span class="comp-value">{{ competitor.name }}</span>
-					</h1>
-
-					<div class="comp-meta-row">
-						<div class="comp-pill">
-							<span class="comp-pill-label">Competitor</span>
-							<span class="comp-pill-value">{{ competitor.id }}</span>
-						</div>
-
-						<div class="comp-pill">
-							<span class="comp-pill-label">Points</span>
-							<span class="comp-pill-value">{{ total_points }}</span>
-						</div>
-
-						{% if position is defined and position is not none %}
-							<div class="comp-pill">
-								<span class="comp-pill-label">Position</span>
-								<span class="comp-pill-value">{{ position }}</span>
-							</div>
-						{% endif %}
-					</div>
-				</header>
-			{% endif %}
-
-			{# ===================== MY / CLIMBER STATS ===================== #}
-			{% if mode in ("my", "climber") %}
-				<section class="stats-card">
-					<h2 class="stats-title">
-						{% if mode == "climber" %}
-							Climber Heatmap
-						{% else %}
-							My Heatmap
-						{% endif %}
-					</h2>
-
-					{% for block in heatmap_sections %}
-						<h3 class="heatmap-section-title">
-							{{ block.section.name }}
-						</h3>
-
-						<div class="heatmap-grid">
-							{% for cell in block.climbs %}
-								<a
-									class="heat-cell-link"
-									href="/climb/{{ cell.climb_number }}/stats?cid={{ competitor.id }}&mode=personal{% if mode == 'climber' %}&view_from=climber{% endif %}"
-								>
-									<div class="heat-cell status-{{ cell.status }}">
-										{{ cell.climb_number }}
-									</div>
-								</a>
-							{% endfor %}
-						</div>
-					{% endfor %}
-
-					<div class="heatmap-legend">
-						<div class="legend-item">
-							<span class="legend-box status-flashed"></span>
-							<span>Flashed (topped first go)</span>
-						</div>
-						<div class="legend-item">
-							<span class="legend-box status-topped-late"></span>
-							<span>Topped (multiple attempts)</span>
-						</div>
-						<div class="legend-item">
-							<span class="legend-box status-not-topped"></span>
-							<span>Attempted (not topped)</span>
-						</div>
-						<div class="legend-item">
-							<span class="legend-box status-skipped"></span>
-							<span>Not tried yet</span>
-						</div>
-					</div>
-				</section>
-
-			{# ===================== OVERALL STATS ===================== #}
 			{% else %}
-				<!-- Performance by section -->
-				<section class="stats-card">
-					<h2 class="stats-title">Performance by Section</h2>
+				{# NOT LOGGED IN #}
+				<a
+					class="back {% if nav_active == 'my_comps' %}active{% endif %}"
+					href="/my-comps"
+				>
+					Home
+				</a>
 
-					<div class="stats-table-wrapper">
-						<table class="stats-table section-performance-table">
-							<thead>
-								<tr>
-									<th>Section</th>
-									<th>Tops</th>
-									<th>Attempts</th>
-									<th>Efficiency</th>
-									<th>Points</th>
-								</tr>
-							</thead>
-							<tbody>
-								{% for row in section_stats %}
-									<tr>
-										<td>{{ row.section.name }}</td>
-										<td>{{ row.tops }}</td>
-										<td>{{ row.attempts }}</td>
-										<td>
-											{% if row.attempts > 0 %}
-												{{ (100.0 * row.efficiency) | round(1) }}%
-											{% else %}
-												—
-											{% endif %}
-										</td>
-										<td>{{ row.points }}</td>
-									</tr>
-								{% endfor %}
-							</tbody>
-						</table>
-					</div>
-				</section>
+				<a
+					class="back {% if nav_active == 'leaderboard' %}active{% endif %}"
+					href="/leaderboard"
+				>
+					Leaderboard
+				</a>
 
-				<!-- Global difficulty heatmap -->
-				<section class="stats-card">
-					<h2 class="stats-title">Global Difficulty Heatmap</h2>
-
-					{% for block in global_heatmap_sections %}
-						<h3 class="heatmap-section-title">
-							{{ block.section.name }}
-						</h3>
-
-						<div class="heatmap-grid">
-							{% for cell in block.climbs %}
-								<a
-									class="heat-cell-link"
-									href="/climb/{{ cell.climb_number }}/stats?cid={{ competitor.id }}&mode=global&view_from=overall"
-								>
-									<div class="heat-cell global-{{ cell.status }}">
-										{{ cell.climb_number }}
-									</div>
-								</a>
-							{% endfor %}
-						</div>
-					{% endfor %}
-
-					<div class="heatmap-legend">
-						<div class="legend-item">
-							<span class="legend-box global-easy"></span>
-							<span>Easier</span>
-						</div>
-						<div class="legend-item">
-							<span class="legend-box global-medium"></span>
-							<span>Medium</span>
-						</div>
-						<div class="legend-item">
-							<span class="legend-box global-hard"></span>
-							<span>Harder</span>
-						</div>
-						<div class="legend-item">
-							<span class="legend-box global-no-data"></span>
-							<span>Not tried yet</span>
-						</div>
-					</div>
-				</section>
+				<a
+					class="back {% if nav_active == 'login' %}active{% endif %}"
+					href="/login"
+				>
+					Log in
+				</a>
 			{% endif %}
-		</main>
-	</body>
-</html>
+		</div>
+	</nav>
 
+	<main class="container">
+		<header class="page-header">
+			<h1 class="page-title">
+				Upcoming Competitions
+			</h1>
+
+			<p class="page-subtitle">
+				{% if competitor %}
+					Welcome back, {{ competitor.name }}.
+					This is your home base for upcoming climbing comps.
+				{% else %}
+					Welcome to Urban Climb Comp.
+					Sign up or log in to see upcoming competitions and track your scoring.
+				{% endif %}
+			</p>
+
+			<p class="page-hint">
+				When a comp is live, head to the gym and scan the QR code to register.
+				If you're already registered, you'll see a link to your scoring.
+			</p>
+		</header>
+
+		{% if not cards or cards|length == 0 %}
+			<section class="empty-state">
+				<div class="card">
+					<h2>No competitions yet</h2>
+					<p>
+						There are currently no upcoming competitions in the system.
+						Check back here when your gym announces their next event.
+					</p>
+				</div>
+			</section>
+		{% else %}
+			<section class="pill-grid">
+				{% for card in cards %}
+					{% set c = card.comp %}
+
+					<article class="section-pill comp-pill">
+						<div class="pill-header">
+							<h2 class="pill-title">
+								{{ c.name }}
+							</h2>
+
+							{# Prefer relational gym name if you have Gym relationship; fallback to old gym_name #}
+							{% set gym_label = (c.gym.name if c.gym else c.gym_name) %}
+							{% if gym_label %}
+								<p class="pill-subtitle">
+									{{ gym_label }}
+								</p>
+							{% endif %}
+						</div>
+
+						<div class="pill-meta">
+							{% if c.start_at or c.end_at %}
+								<p class="pill-dates">
+									{% if c.start_at %}
+										<span class="pill-date-label">Starts:</span>
+										<span class="pill-date-value">
+											{{ c.start_at.strftime('%d %b %Y, %I:%M %p') }}
+										</span>
+									{% endif %}
+
+									{% if c.end_at %}
+										<span class="pill-date-separator">·</span>
+										<span class="pill-date-label">Ends:</span>
+										<span class="pill-date-value">
+											{{ c.end_at.strftime('%d %b %Y, %I:%M %p') }}
+										</span>
+									{% endif %}
+								</p>
+							{% else %}
+								<p class="pill-dates pill-dates--tbc">
+									Dates TBC
+								</p>
+							{% endif %}
+
+							<div class="pill-status">
+								{# ✅ CLICKABLE STATUS PILL (Register / Continue scoring) #}
+								{% if card.pill_href %}
+									<a
+										href="{{ card.pill_href }}"
+										class="status-badge {% if card.status == 'live' %}status-badge--live{% else %}status-badge--scheduled{% endif %}"
+										title="{{ card.pill_title or '' }}"
+										aria-label="{{ card.pill_title or 'Open' }}"
+										style="text-decoration: none;"
+									>
+										{% if card.my_scoring_url %}
+											Keep scoring
+										{% elif card.status == 'live' %}
+											Register
+										{% else %}
+											Upcoming
+										{% endif %}
+									</a>
+								{% else %}
+									<span class="status-badge {% if card.status == 'live' %}status-badge--live{% else %}status-badge--scheduled{% endif %}">
+										{% if card.status == 'live' %}
+											Live now
+										{% else %}
+											Upcoming
+										{% endif %}
+									</span>
+								{% endif %}
+							</div>
+						</div>
+
+						<p class="pill-description">
+							{{ card.status_label }}
+						</p>
+
+						<div class="pill-actions">
+							{# ✅ No more "demo link". Use the same targets as the clickable pill. #}
+							{% if card.my_scoring_url %}
+								<a
+									href="{{ card.my_scoring_url }}"
+									class="btn primary"
+								>
+									Keep scoring
+								</a>
+
+							{% elif card.status == 'live' and card.pill_href %}
+								<a
+									href="{{ card.pill_href }}"
+									class="btn primary"
+								>
+									Register
+								</a>
+
+							{% elif card.status == 'live' %}
+								<p class="pill-note">
+									Scan the QR code at the gym desk to join this comp.
+								</p>
+
+							{% else %}
+								<p class="pill-note">
+									Registration will open when this competition goes live.
+								</p>
+							{% endif %}
+						</div>
+					</article>
+				{% endfor %}
+			</section>
+		{% endif %}
+	</main>
+</body>
+</html>
