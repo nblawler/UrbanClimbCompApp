@@ -2919,7 +2919,19 @@ def admin_competitions():
     if not session.get("admin_ok"):
         return redirect("/admin")
     
-    gyms = Gym.query.order_by(Gym.name).all()
+    if admin_is_super():
+        gyms = Gym.query.order_by(Gym.name).all()
+    else:
+        allowed_gym_ids = get_session_admin_gym_ids()
+        if allowed_gym_ids:
+            gyms = (
+                Gym.query
+                .filter(Gym.id.in_(allowed_gym_ids))
+                .order_by(Gym.name)
+                .all()
+            )
+        else:
+            gyms = []
 
     message = None
     error = None
