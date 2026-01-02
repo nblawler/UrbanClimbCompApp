@@ -142,7 +142,7 @@ class Competition(db.Model):
     gym_id = db.Column(
         db.Integer,
         db.ForeignKey("gym.id"),
-        nullable=True,
+        nullable=False,
         index=True,
     )
     gym = db.relationship(
@@ -235,6 +235,9 @@ class Section(db.Model):
     # start_climb / end_climb are now effectively metadata; sections are defined by SectionClimb rows
     start_climb = db.Column(db.Integer, nullable=False, default=0)
     end_climb = db.Column(db.Integer, nullable=False, default=0)
+    gym_id = db.Column(db.Integer, db.ForeignKey("gym.id"), nullable=True, index=True)
+    gym = db.relationship("Gym")
+
 
     # which competition this section belongs to
     competition_id = db.Column(
@@ -253,6 +256,9 @@ class Section(db.Model):
 class SectionClimb(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     section_id = db.Column(db.Integer, db.ForeignKey("section.id"), nullable=False)
+    gym_id = db.Column(db.Integer, db.ForeignKey("gym.id"), nullable=True, index=True)
+    gym = db.relationship("Gym")
+
     climb_number = db.Column(
         db.Integer,
         nullable=False,
@@ -2540,7 +2546,9 @@ def admin_page():
                             start_climb=0,
                             end_climb=0,
                             competition_id=current_comp.id if current_comp else None,
+                            gym_id=current_comp.gym_id if current_comp else None,   # ✅ NEW
                         )
+
                         db.session.add(s)
                         db.session.commit()
                         message = f"Section created: {name}. You can now add climbs via Edit."
@@ -3011,13 +3019,15 @@ def admin_map_add_climb():
         if existing:
             slug = f"{slug}-{int(datetime.utcnow().timestamp())}"
 
-        section = Section(
-            name=new_section_name,
-            slug=slug,
-            start_climb=0,
-            end_climb=0,
-            competition_id=current_comp.id,
-        )
+        section = Section( 
+                        name=new_section_name,
+                        slug=slug,
+                        start_climb=0,
+                        end_climb=0,
+                        competition_id=current_comp.id,
+                        gym_id=current_comp.gym_id,   
+                    )
+
         db.session.add(section)
         db.session.flush()  # get section.id without full commit
 
