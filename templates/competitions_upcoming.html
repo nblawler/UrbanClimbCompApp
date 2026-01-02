@@ -80,7 +80,6 @@
 							href="{{ target_href }}"
 							class="section-pill comp-pill comp-pill-link"
 							aria-label="{{ c.name }}"
-							style="text-decoration: none;"
 						>
 					{% else %}
 						<article class="section-pill comp-pill">
@@ -95,7 +94,7 @@
 
 							<div class="pill-meta">
 								{% if c.start_at or c.end_at %}
-									<p class="pill-dates">
+									<div class="pill-dates">
 										{% if c.start_at %}
 											<span class="pill-date-label">Starts:</span>
 											<span class="pill-date-value">{{ c.start_at.strftime('%d %b %Y, %I:%M %p') }}</span>
@@ -106,7 +105,7 @@
 											<span class="pill-date-label">Ends:</span>
 											<span class="pill-date-value">{{ c.end_at.strftime('%d %b %Y, %I:%M %p') }}</span>
 										{% endif %}
-									</p>
+									</div>
 								{% else %}
 									<p class="pill-dates pill-dates--tbc">Dates TBC</p>
 								{% endif %}
@@ -116,7 +115,7 @@
 										{% if card.my_scoring_url %}
 											Keep scoring
 										{% elif card.status == 'live' %}
-											Register
+											Live Now
 										{% else %}
 											Upcoming
 										{% endif %}
@@ -124,8 +123,8 @@
 								</div>
 							</div>
 
-							{# Show a short sentence, hide the long version behind Details #}
-							<p class="pill-description" style="margin-bottom: 8px;">
+							{# Show a short sentence #}
+							<p class="pill-description">
 								{% if card.my_scoring_url %}
 									You're registered — tap to continue scoring.
 								{% elif card.status == 'live' %}
@@ -135,11 +134,11 @@
 								{% endif %}
 							</p>
 
-							<details class="pill-details" style="margin-top: 6px;">
+							<details class="pill-details">
 								<summary class="pill-details-summary">Details</summary>
-								<p class="pill-details-body" style="margin-top: 10px;">
+								<div class="pill-details-body">
 									{{ card.status_label }}
-								</p>
+								</div>
 								{% if card.status != 'live' %}
 									<p class="pill-details-body">
 										Registration will open when this competition goes live.
@@ -147,16 +146,16 @@
 								{% endif %}
 							</details>
 
-							{# No buttons/links inside (prevents the “Register link + pill” mess) #}
-							<div class="pill-actions" style="margin-top: 14px;">
+							{# Action button or note #}
+							<div class="pill-actions">
 								{% if is_clickable %}
 									<span class="btn primary">
 										{% if card.my_scoring_url %}
-											Keep scoring
+											Keep scoring →
 										{% elif card.status == 'live' %}
-											Register
+											Register Now →
 										{% else %}
-											View
+											View Details
 										{% endif %}
 									</span>
 								{% else %}
