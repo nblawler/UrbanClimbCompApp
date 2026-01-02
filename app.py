@@ -800,96 +800,89 @@ def competitions_index():
 
 @app.route("/my-comps")
 def my_competitions():
-	"""
-	Competitor-facing hub showing all upcoming competitions.
+    """
+    Competitor-facing hub showing all upcoming competitions.
 
-	This is the Home page competitors land on right after logging in.
+    - Shows comps with end_at in the future (or no end_at)
+    - If comp is live (is_active=True):
+        - If competitor is already registered -> "Keep scoring" (go to sections)
+        - Else -> "Register" (go to /comp/<slug>/join)
+    - If comp is not live -> Upcoming (no register link yet)
+    """
+    viewer_id = session.get("competitor_id")
+    competitor = Competitor.query.get(viewer_id) if viewer_id else None
 
-	- Shows all comps with end_at in the future (or no end_at)
-	- For live comps (is_active=True), tells them to scan on-site QR to register
-	- For scheduled comps, shows 'opens on' text
-	- If the logged-in competitor is already registered for a comp, we expose a
-	  'keep scoring' URL in the card data.
-	- NEW: adds pill_href + pill_title so the status pill can be clickable.
-	"""
-	viewer_id = session.get("competitor_id")
-	competitor = Competitor.query.get(viewer_id) if viewer_id else None
+    now = datetime.utcnow()
 
-	now = datetime.utcnow()
+    upcoming_q = Competition.query.filter(
+        (Competition.end_at == None) | (Competition.end_at >= now)
+    )
 
-	upcoming_q = Competition.query
-	# Upcoming = no end_at OR end_at in the future
-	upcoming_q = upcoming_q.filter(
-		(Competition.end_at == None) | (Competition.end_at >= now)
-	)
+    competitions = (
+        upcoming_q
+        .order_by(Competition.start_at.asc().nullsfirst(), Competition.name.asc())
+        .all()
+    )
 
-	competitions = (
-		upcoming_q
-		.order_by(Competition.start_at.asc().nullsfirst(), Competition.name.asc())
-		.all()
-	)
+    cards = []
+    for c in competitions:
+        # status + label
+        if c.is_active:
+            status = "live"
+            status_label = "Comp currently live – scan the on-site QR code to register."
+            opens_at = None
+        else:
+            status = "scheduled"
+            opens_at = c.start_at
+            if opens_at:
+                status_label = (
+                    "Comp currently not live – opens on "
+                    f"{opens_at.strftime('%d %b %Y, %I:%M %p')}."
+                )
+            else:
+                status_label = "Comp currently not live – opening time TBC."
 
-	cards = []
-	for c in competitions:
-		# Status (drives pill styling + label)
-		if c.is_active:
-			status = "live"
-			status_label = "Comp currently live – scan the on-site QR code to register."
-			opens_at = None
-		else:
-			status = "scheduled"
-			opens_at = c.start_at
-			if opens_at:
-				status_label = (
-					"Comp currently not live – opens on "
-					f"{opens_at.strftime('%d %b %Y, %I:%M %p')}."
-				)
-			else:
-				status_label = "Comp currently not live – opening time TBC."
+        # scoring URL if you're already in that competition
+        my_scoring_url = None
+        if competitor and competitor.competition_id == c.id:
+            if c.slug:
+                my_scoring_url = f"/comp/{c.slug}/competitor/{competitor.id}/sections"
+            else:
+                my_scoring_url = f"/competitor/{competitor.id}/sections"
 
-		# If this logged-in competitor belongs to this competition, expose a direct scoring URL
-		my_scoring_url = None
-		if competitor and competitor.competition_id == c.id:
-			if c.slug:
-				my_scoring_url = f"/comp/{c.slug}/competitor/{competitor.id}/sections"
-			else:
-				my_scoring_url = f"/competitor/{competitor.id}/sections"
+        # ✅ clickable pill target
+        pill_href = None
+        pill_title = None
 
-		# NEW: clickable pill target
-		pill_href = None
-		pill_title = None
+        if my_scoring_url:
+            pill_href = my_scoring_url
+            pill_title = "Keep scoring"
+        elif status == "live" and c.slug:
+            pill_href = f"/comp/{c.slug}/join"
+            pill_title = "Register"
+        else:
+            pill_href = None
+            pill_title = None
 
-		# Priority: if already registered -> Keep scoring
-		if my_scoring_url:
-			pill_href = my_scoring_url
-			pill_title = "Continue scoring"
-		else:
-			# Otherwise, if comp is live, allow clicking pill to register
-			# (If you want to allow early registration too, remove "and c.is_active")
-			if c.slug and c.is_active:
-				pill_href = f"/comp/{c.slug}/join"
-				pill_title = "Register"
+        cards.append(
+            {
+                "comp": c,
+                "status": status,
+                "status_label": status_label,
+                "opens_at": opens_at,
+                "my_scoring_url": my_scoring_url,
+                "pill_href": pill_href,
+                "pill_title": pill_title,
+            }
+        )
 
-		cards.append(
-			{
-				"comp": c,
-				"status": status,
-				"status_label": status_label,
-				"opens_at": opens_at,
-				"my_scoring_url": my_scoring_url,
-				"pill_href": pill_href,     #  NEW
-				"pill_title": pill_title,   # NEW
-			}
-		)
-
-	# We still render even if there are zero competitions
-	return render_template(
-		"competitions_upcoming.html",
-		competitions=competitions,
-		cards=cards,
-		competitor=competitor,
-		nav_active="my_comps",
-	)
+    return render_template(
+        "competitions_upcoming.html",
+        competitions=competitions,
+        cards=cards,
+        competitor=competitor,
+        nav_active="my_comps",
+    )
 
 
 @app.route("/resume")
