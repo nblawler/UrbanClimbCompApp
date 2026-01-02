@@ -3162,6 +3162,10 @@ def admin_map_add_climb():
         # No active comp configured; safest is to just bounce them back
         return redirect("/admin/comps")
 
+    # Only allow admins who can manage this competition's gym
+    if not admin_can_manage_competition(current_comp):
+        abort(403)
+
     section_id_raw = request.form.get("section_id", "").strip()
     new_section_name = (request.form.get("new_section_name") or "").strip()
     climb_raw = request.form.get("climb_number", "").strip()
@@ -3189,14 +3193,14 @@ def admin_map_add_climb():
         if existing:
             slug = f"{slug}-{int(datetime.utcnow().timestamp())}"
 
-        section = Section( 
-                        name=new_section_name,
-                        slug=slug,
-                        start_climb=0,
-                        end_climb=0,
-                        competition_id=current_comp.id,
-                        gym_id=current_comp.gym_id,   
-                    )
+        section = Section(
+            name=new_section_name,
+            slug=slug,
+            start_climb=0,
+            end_climb=0,
+            competition_id=current_comp.id,
+            gym_id=current_comp.gym_id,
+        )
 
         db.session.add(section)
         db.session.flush()  # get section.id without full commit
@@ -3237,16 +3241,19 @@ def admin_map_add_climb():
             error = "Internal error: invalid click coordinates. Please try again."
 
     if error:
-        # Simple redirect for now (could add flash messaging)
         return redirect("/admin/map")
 
-    # 4) Check climb uniqueness within section
-    existing = SectionClimb.query.filter_by(
-        section_id=section.id,
-        climb_number=climb_number
-    ).first()
+    # 4) Check climb uniqueness within section (+ gym)
+    existing = (
+        SectionClimb.query
+        .filter_by(
+            section_id=section.id,
+            climb_number=climb_number,
+            gym_id=current_comp.gym_id,
+        )
+        .first()
+    )
     if existing:
-        # Just redirect; in real life you'd show a targeted error
         return redirect("/admin/map")
 
     sc = SectionClimb(
