@@ -141,9 +141,11 @@
 								{{ c.name }}
 							</h2>
 
-							{% if c.gym_name %}
+							{# Prefer relational gym name if you have Gym relationship; fallback to old gym_name #}
+							{% set gym_label = (c.gym.name if c.gym else c.gym_name) %}
+							{% if gym_label %}
 								<p class="pill-subtitle">
-									{{ c.gym_name }}
+									{{ gym_label }}
 								</p>
 							{% endif %}
 						</div>
@@ -173,13 +175,30 @@
 							{% endif %}
 
 							<div class="pill-status">
-								{% if card.status == 'live' %}
-									<span class="status-badge status-badge--live">
-										Live now
-									</span>
+								{# ✅ CLICKABLE STATUS PILL (Register / Continue scoring) #}
+								{% if card.pill_href %}
+									<a
+										href="{{ card.pill_href }}"
+										class="status-badge {% if card.status == 'live' %}status-badge--live{% else %}status-badge--scheduled{% endif %}"
+										title="{{ card.pill_title or '' }}"
+										aria-label="{{ card.pill_title or 'Open' }}"
+										style="text-decoration: none;"
+									>
+										{% if card.my_scoring_url %}
+											Keep scoring
+										{% elif card.status == 'live' %}
+											Register
+										{% else %}
+											Upcoming
+										{% endif %}
+									</a>
 								{% else %}
-									<span class="status-badge status-badge--scheduled">
-										Upcoming
+									<span class="status-badge {% if card.status == 'live' %}status-badge--live{% else %}status-badge--scheduled{% endif %}">
+										{% if card.status == 'live' %}
+											Live now
+										{% else %}
+											Upcoming
+										{% endif %}
 									</span>
 								{% endif %}
 							</div>
@@ -190,27 +209,28 @@
 						</p>
 
 						<div class="pill-actions">
-							{% if card.status == 'live' %}
-								{% if card.my_scoring_url %}
-									<a
-										href="{{ card.my_scoring_url }}"
-										class="btn primary"
-									>
-										View my scoring
-									</a>
-								{% else %}
-									<p class="pill-note">
-										Scan the QR code at the gym desk to join this comp.
-									</p>
-									{% if c.slug %}
-										<a
-											href="/comp/{{ c.slug }}/join"
-											class="btn subtle"
-										>
-											Register (demo link)
-										</a>
-									{% endif %}
-								{% endif %}
+							{# ✅ No more "demo link". Use the same targets as the clickable pill. #}
+							{% if card.my_scoring_url %}
+								<a
+									href="{{ card.my_scoring_url }}"
+									class="btn primary"
+								>
+									Keep scoring
+								</a>
+
+							{% elif card.status == 'live' and card.pill_href %}
+								<a
+									href="{{ card.pill_href }}"
+									class="btn primary"
+								>
+									Register
+								</a>
+
+							{% elif card.status == 'live' %}
+								<p class="pill-note">
+									Scan the QR code at the gym desk to join this comp.
+								</p>
+
 							{% else %}
 								<p class="pill-note">
 									Registration will open when this competition goes live.
@@ -224,4 +244,3 @@
 	</main>
 </body>
 </html>
-
