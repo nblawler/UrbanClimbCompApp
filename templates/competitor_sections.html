@@ -100,6 +100,14 @@
 			outline: 2px solid var(--accent);
 			outline-offset: 2px;
 		}
+
+		.map-missing {
+			margin-top: 12px;
+			padding: 12px 14px;
+			border-radius: var(--radius-md);
+			background: rgba(255, 255, 255, 0.06);
+			border: 1px solid rgba(255, 255, 255, 0.12);
+		}
 	</style>
 </head>
 
@@ -194,7 +202,7 @@
 
 		<section class="card map-card">
 			<header class="section-header">
-				<h2 class="section-title">Gym Map</h2>
+				<h2 class="section-title">{{ gym_name }} Map</h2>
 			</header>
 
 			{% if sections %}
@@ -216,59 +224,68 @@
 				</div>
 			{% endif %}
 
-			<div class="map-wrapper">
-				<img
-					src="/static/Collingwood_Gym_Map.png"
-					alt="Collingwood Gym Map"
-					class="gym-map-image"
-				/>
+			{% if gym_map_path %}
+				<div class="map-wrapper">
+					<img
+						class="gym-map-image"
+						src="{{ gym_map_path }}"
+						alt="{{ gym_name }} Gym Map"
+					/>
 
-				{# Markers for each climb with coords #}
-				{% for c in map_climbs %}
-					{% if c.x_percent is not none and c.y_percent is not none %}
-						{% set bg = c.colour or '#ff4081' %}
-						{% if can_edit %}
-							{# Prefer slugged URL if comp_slug is available #}
-							{% if comp_slug is defined and comp_slug %}
-								<a
-									class="map-marker"
-									data-section-id="{{ c.section.id }}"
-									style="
-										left: {{ c.x_percent }}%;
-										top: {{ c.y_percent }}%;
-										background: {{ bg }};
-									"
-									href="/comp/{{ comp_slug }}/competitor/{{ competitor.id }}/section/{{ c.section.slug }}#climb-{{ c.climb_number }}"
-									title="Section {{ c.section.name }} · Climb #{{ c.climb_number }}"
-								></a>
+					{# Markers for each climb with coords #}
+					{% for c in map_climbs %}
+						{% if c.x_percent is not none and c.y_percent is not none %}
+							{% set bg = c.colour or '#ff4081' %}
+							{% if can_edit %}
+								{# Prefer slugged URL if comp_slug is available #}
+								{% if comp_slug is defined and comp_slug %}
+									<a
+										class="map-marker"
+										data-section-id="{{ c.section.id }}"
+										style="
+											left: {{ c.x_percent }}%;
+											top: {{ c.y_percent }}%;
+											background: {{ bg }};
+										"
+										href="/comp/{{ comp_slug }}/competitor/{{ competitor.id }}/section/{{ c.section.slug }}#climb-{{ c.climb_number }}"
+										title="Section {{ c.section.name }} · Climb #{{ c.climb_number }}"
+									></a>
+								{% else %}
+									<a
+										class="map-marker"
+										data-section-id="{{ c.section.id }}"
+										style="
+											left: {{ c.x_percent }}%;
+											top: {{ c.y_percent }}%;
+											background: {{ bg }};
+										"
+										href="/competitor/{{ competitor.id }}/section/{{ c.section.slug }}#climb-{{ c.climb_number }}"
+										title="Section {{ c.section.name }} · Climb #{{ c.climb_number }}"
+									></a>
+								{% endif %}
 							{% else %}
-								<a
-									class="map-marker"
+								<div
+									class="map-marker disabled"
 									data-section-id="{{ c.section.id }}"
 									style="
 										left: {{ c.x_percent }}%;
 										top: {{ c.y_percent }}%;
 										background: {{ bg }};
 									"
-									href="/competitor/{{ competitor.id }}/section/{{ c.section.slug }}#climb-{{ c.climb_number }}"
 									title="Section {{ c.section.name }} · Climb #{{ c.climb_number }}"
-								></a>
+								></div>
 							{% endif %}
-						{% else %}
-							<div
-								class="map-marker disabled"
-								data-section-id="{{ c.section.id }}"
-								style="
-									left: {{ c.x_percent }}%;
-									top: {{ c.y_percent }}%;
-									background: {{ bg }};
-								"
-								title="Section {{ c.section.name }} · Climb #{{ c.climb_number }}"
-							></div>
 						{% endif %}
-					{% endif %}
-				{% endfor %}
-			</div>
+					{% endfor %}
+				</div>
+			{% else %}
+				<div class="map-missing">
+					<strong>No map set for this gym yet.</strong>
+					<div style="margin-top:6px;">
+						Ask an admin to set <code>gym.map_image_path</code> (e.g. <code>/static/Collingwood_Gym_Map.png</code>).
+					</div>
+				</div>
+			{% endif %}
 		</section>
 	</main>
 
@@ -332,4 +349,3 @@
 	</script>
 </body>
 </html>
-

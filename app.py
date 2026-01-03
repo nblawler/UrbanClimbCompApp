@@ -312,6 +312,11 @@ class LoginCode(db.Model):
 
 # --- Competition helper ---
 
+def gym_map_for(gym_name: str) -> str:
+    name = (gym_name or "").lower()
+    if "adelaide" in name:
+        return "Adelaide_Gym_Map.png"
+    return "Collingwood_Gym_Map.png"
 
 def get_current_comp():
     """
@@ -505,33 +510,46 @@ def _normalise_category_key(category):
     return "inclusive"
 
 
-def build_leaderboard(category=None):
+def build_leaderboard(category=None, competition_id=None, slug=None):
     """
     Build leaderboard rows, optionally filtered by gender category.
 
-    - If there is an active competition, it is scoped to that competition.
-    - If there is NO active competition, returns an empty leaderboard with a
-      friendly label so the app still runs cleanly.
+    Scoping:
+    - If competition_id is provided -> use that competition
+    - Else if slug is provided -> look up that competition by slug
+    - Else -> fall back to get_current_comp()
+
+    Cache is per (competition_id, category) so comps don't contaminate each other.
     """
-    # --- cache lookup ---
-    key = _normalise_category_key(category)
+
+    # --- resolve competition scope ---
+    current_comp = None
+
+    if competition_id:
+        current_comp = Competition.query.get(competition_id)
+    elif slug:
+        current_comp = Competition.query.filter_by(slug=slug).first()
+    else:
+        current_comp = get_current_comp()
+
+    # If no competition found, return empty leaderboard gracefully
+    if not current_comp:
+        rows = []
+        category_label = "No active competition"
+        return rows, category_label
+
+    # --- cache lookup (scoped per competition + category) ---
+    cat_key = _normalise_category_key(category)
+    cache_key = (current_comp.id, cat_key)
+
     now = time.time()
-    cached = LEADERBOARD_CACHE.get(key)
+    cached = LEADERBOARD_CACHE.get(cache_key)
     if cached:
         rows, category_label, ts = cached
         if now - ts <= LEADERBOARD_CACHE_TTL:
             return rows, category_label
 
-    current_comp = get_current_comp()
-
-    # If no active competition, return empty leaderboard gracefully
-    if not current_comp:
-        rows = []
-        category_label = "No active competition"
-        LEADERBOARD_CACHE[key] = (rows, category_label, now)
-        return rows, category_label
-
-    # --- base query, scoped to current competition ---
+    # --- base query, scoped to THIS competition ---
     q = Competitor.query.filter(Competitor.competition_id == current_comp.id)
     category_label = "All"
 
@@ -547,29 +565,34 @@ def build_leaderboard(category=None):
             q = q.filter(Competitor.gender == "Inclusive")
             category_label = "Gender Inclusive"
 
-    comps = q.all()
-    if not comps:
+    competitors = q.all()
+    if not competitors:
         rows = []
-        LEADERBOARD_CACHE[key] = (rows, category_label, now)
+        LEADERBOARD_CACHE[cache_key] = (rows, category_label, now)
         return rows, category_label
 
-    comp_ids = [c.id for c in comps]
-    if comp_ids:
-        all_scores = Score.query.filter(Score.competitor_id.in_(comp_ids)).all()
-    else:
-        all_scores = []
+    competitor_ids = [c.id for c in competitors]
 
-    by_comp = {}
+    # Pull only scores for competitors in THIS comp
+    all_scores = (
+        Score.query
+        .filter(Score.competitor_id.in_(competitor_ids))
+        .all()
+        if competitor_ids else []
+    )
+
+    by_competitor = {}
     for s in all_scores:
-        by_comp.setdefault(s.competitor_id, []).append(s)
+        by_competitor.setdefault(s.competitor_id, []).append(s)
 
     rows = []
-    for c in comps:
-        scores = by_comp.get(c.id, [])
+    for c in competitors:
+        scores = by_competitor.get(c.id, [])
+
         tops = sum(1 for s in scores if s.topped)
         attempts_on_tops = sum(s.attempts for s in scores if s.topped)
 
-        # Ensure points_for is scoped to THIS active competition
+        # ✅ points_for scoped to THIS competition
         total_points = sum(
             points_for(s.climb_number, s.attempts, s.topped, current_comp.id)
             for s in scores
@@ -577,7 +600,10 @@ def build_leaderboard(category=None):
 
         last_update = None
         if scores:
-            last_update = max(s.updated_at for s in scores if s.updated_at is not None)
+            last_update = max(
+                (s.updated_at for s in scores if s.updated_at is not None),
+                default=None
+            )
 
         rows.append(
             {
@@ -592,9 +618,7 @@ def build_leaderboard(category=None):
         )
 
     # sort by total points desc, tops desc, attempts asc
-    rows.sort(
-        key=lambda r: (-r["total_points"], -r["tops"], r["attempts_on_tops"])
-    )
+    rows.sort(key=lambda r: (-r["total_points"], -r["tops"], r["attempts_on_tops"]))
 
     # assign positions with ties sharing the same place
     pos = 0
@@ -607,7 +631,7 @@ def build_leaderboard(category=None):
         row["position"] = pos
 
     # cache the result
-    LEADERBOARD_CACHE[key] = (rows, category_label, now)
+    LEADERBOARD_CACHE[cache_key] = (rows, category_label, now)
 
     return rows, category_label
 
@@ -1129,8 +1153,16 @@ def competitor_sections(competitor_id):
     if is_admin and comp_row and not admin_can_manage_competition(comp_row):
         abort(403)
 
-    # Resolve map image for this competition's gym
-    gym_map_url = get_gym_map_url_for_competition(comp_row)
+    # --- Gym map + gym name (DB-driven) ---
+    gym_name = None
+    gym_map_path = None
+
+    if comp_row and comp_row.gym:
+        gym_name = comp_row.gym.name
+        gym_map_path = comp_row.gym.map_image_path
+
+    # (Keep legacy var so nothing else breaks while you transition templates)
+    gym_map_url = get_gym_map_url_for_competition(comp_row) if comp_row else None
 
     # Scope sections to the competitor's competition (if we can)
     if comp_row:
@@ -1145,8 +1177,8 @@ def competitor_sections(competitor_id):
         sections = []
 
     total_points = competitor_total_points(
-    target_id,
-    comp_row.id if comp_row else None
+        target_id,
+        comp_row.id if comp_row else None
     )
 
     # Leaderboard position (build_leaderboard is already scoped to active comp)
@@ -1197,6 +1229,12 @@ def competitor_sections(competitor_id):
         map_climbs=map_climbs,
         comp=comp_row,       # may be None
         comp_slug=comp_slug, # may be None
+
+        # New (template expects these)
+        gym_name=gym_name,
+        gym_map_path=gym_map_path,
+
+        # Legacy (safe to keep during transition)
         gym_map_url=gym_map_url,
     )
 
@@ -1233,16 +1271,26 @@ def comp_competitor_sections(slug, competitor_id):
     if not comp.competition_id:
         abort(404)
 
-    # ✅ Resolve the competition from the competitor (NOT from "current active")
+    # Resolve the competition from the competitor (NOT from "current active")
     current_comp = Competition.query.get_or_404(comp.competition_id)
 
-    # ✅ Guard: slug must match the competitor’s competition
+    # Guard: slug must match the competitor’s competition
     if current_comp.slug != slug:
         abort(404)
 
     # If admin is viewing, enforce gym-level permissions
     if is_admin and not admin_can_manage_competition(current_comp):
         abort(403)
+
+    # --- Gym map + gym name (DB-driven) ---
+    gym_name = None
+    gym_map_path = None
+    if current_comp.gym:
+        gym_name = current_comp.gym.name
+        gym_map_path = current_comp.gym.map_image_path
+
+    # (Keep legacy var so nothing else breaks while you transition templates)
+    gym_map_url = get_gym_map_url_for_competition(current_comp)
 
     # Sections scoped to THIS competition
     sections = (
@@ -1279,7 +1327,7 @@ def comp_competitor_sections(slug, competitor_id):
             )
         )
 
-        # ✅ extra safety if you're using gym_id properly
+        # Extra safety if you're using gym_id properly
         if current_comp.gym_id:
             q = q.filter(SectionClimb.gym_id == current_comp.gym_id)
 
@@ -1289,9 +1337,6 @@ def comp_competitor_sections(slug, competitor_id):
         )
     else:
         map_climbs = []
-
-    # Map image must come from the competitor’s competition gym
-    gym_map_url = get_gym_map_url_for_competition(current_comp)
 
     return render_template(
         "competitor_sections.html",
@@ -1306,10 +1351,14 @@ def comp_competitor_sections(slug, competitor_id):
         map_climbs=map_climbs,
         comp=current_comp,
         comp_slug=slug,
+
+        # New (template expects these)
+        gym_name=gym_name,
+        gym_map_path=gym_map_path,
+
+        # Legacy (safe to keep during transition)
         gym_map_url=gym_map_url,
     )
-
-
 
 # --- Competitor stats page: My Stats + Overall Stats ---
 
