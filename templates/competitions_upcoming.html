@@ -13,7 +13,6 @@
 	<link rel="stylesheet" href="/static/app.css" />
 </head>
 <body>
-	{# Logged-in info #}
 	{% set viewer_id = viewer_id if viewer_id is defined else session.get('competitor_id') %}
 	{% set is_admin = session.get('admin_ok', False) %}
 
@@ -26,9 +25,28 @@
 
 			{% elif competitor %}
 				<a class="back {% if nav_active == 'my_comps' %}active{% endif %}" href="/my-comps">Home</a>
-				<a class="back {% if nav_active == 'sections' %}active{% endif %}" href="/competitor/{{ competitor.id }}/sections">My Scoring</a>
+
+				{# If competitor has a comp, prefer slugged scoring URL #}
+				{% if competitor.competition and competitor.competition.slug %}
+					<a class="back {% if nav_active == 'sections' %}active{% endif %}"
+					   href="/comp/{{ competitor.competition.slug }}/competitor/{{ competitor.id }}/sections">
+						My Scoring
+					</a>
+				{% else %}
+					<a class="back {% if nav_active == 'sections' %}active{% endif %}"
+					   href="/competitor/{{ competitor.id }}/sections">
+						My Scoring
+					</a>
+				{% endif %}
+
 				<a class="back {% if nav_active == 'leaderboard' %}active{% endif %}" href="/leaderboard?cid={{ competitor.id }}">Leaderboard</a>
-				<a class="back {% if nav_active == 'login' %}active{% endif %}" href="/login">Log in</a>
+
+				{# If we know their comp, keep login comp-scoped #}
+				{% if competitor.competition and competitor.competition.slug %}
+					<a class="back {% if nav_active == 'login' %}active{% endif %}" href="/login?slug={{ competitor.competition.slug }}">Log in</a>
+				{% else %}
+					<a class="back {% if nav_active == 'login' %}active{% endif %}" href="/login">Log in</a>
+				{% endif %}
 
 			{% else %}
 				<a class="back {% if nav_active == 'my_comps' %}active{% endif %}" href="/my-comps">Home</a>
@@ -123,7 +141,6 @@
 								</div>
 							</div>
 
-							{# Show a short sentence #}
 							<p class="pill-description">
 								{% if card.my_scoring_url %}
 									You're registered — tap to continue scoring.
@@ -146,7 +163,6 @@
 								{% endif %}
 							</details>
 
-							{# Action button or note #}
 							<div class="pill-actions">
 								{% if is_clickable %}
 									<span class="btn primary">

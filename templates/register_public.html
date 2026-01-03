@@ -7,9 +7,10 @@
 	<link rel="stylesheet" href="/static/app.css" />
 </head>
 <body>
+	{% set slug = (comp.slug if comp is defined and comp and comp.slug) %}
 	<nav class="container top-nav">
 		<div class="nav-links">
-			<a class="back" href="/">Home</a>
+			<a class="back" href="/my-comps">Home</a>
 			<a class="back" href="/leaderboard">Leaderboard</a>
 		</div>
 	</nav>
@@ -86,7 +87,13 @@
 
 				<p class="form-hint" style="margin-top:10px;">
 					Already registered? Use your email to
-					<a href="/login" class="back" style="text-decoration:underline;">log back into your scoring</a>.
+					<a
+						href="/login{% if slug %}?slug={{ slug }}{% endif %}"
+						class="back"
+						style="text-decoration:underline;"
+					>
+						log back into your scoring
+					</a>.
 				</p>
 			</form>
 		</section>

@@ -181,7 +181,7 @@ class Competitor(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(120), nullable=False)
     gender = db.Column(db.String(20), nullable=False, default="Inclusive")
-    email = db.Column(db.String(255), nullable=True, unique=True)
+    email = db.Column(db.String(255), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     # which competition this competitor belongs to
@@ -195,6 +195,9 @@ class Competitor(db.Model):
     competition = db.relationship(
         "Competition",
         back_populates="competitors",
+    )
+    __table_args__ = (
+    UniqueConstraint("competition_id", "email", name="uq_competition_email"),
     )
 
 
@@ -943,44 +946,86 @@ def resume_competitor():
 def login_request():
     """
     Step 1: user enters their email, we generate a 6-digit code and send it.
+
+    Supports comp-scoped login when a comp slug is available:
+      - /login?slug=uc-adelaide
+      - or session["active_comp_slug"] set earlier in the flow
     """
     error = None
     message = None
     email = ""
 
+    # Optional competition context
+    slug = (request.args.get("slug") or session.get("active_comp_slug") or "").strip()
+    current_comp = None
+    if slug:
+        current_comp = Competition.query.filter_by(slug=slug).first()
+        if not current_comp:
+            # Don't hard-fail; just ignore slug if it's invalid
+            current_comp = None
+
     if request.method == "POST":
         email = (request.form.get("email") or "").strip().lower()
+
+        # slug might also be posted from a hidden field (recommended)
+        posted_slug = (request.form.get("slug") or "").strip()
+        if posted_slug:
+            slug = posted_slug
+            current_comp = Competition.query.filter_by(slug=slug).first() or current_comp
+
         if not email:
             error = "Please enter your email."
         else:
-            comp = Competitor.query.filter_by(email=email).first()
+            comp = None
 
-            # 🔹 If no competitor, but this is an admin email, auto-create an admin competitor
-            if not comp and is_admin_email(email):
-                # attach admin to the current active competition, if any
-                current_comp = (
-                    Competition.query
-                    .filter_by(is_active=True)
-                    .order_by(Competition.start_at.asc())
-                    .first()
-                )
+            # 1) If we have a comp context, find the competitor *for that comp*
+            if current_comp:
+                comp = Competitor.query.filter(
+                    Competitor.email == email,
+                    Competitor.competition_id == current_comp.id,
+                ).first()
 
-                comp = Competitor(
-                    name="Admin",
-                    gender="Inclusive",
-                    email=email,
-                    competition_id=current_comp.id if current_comp else None,
-                )
-                db.session.add(comp)
-                db.session.commit()
-                print(
-                    f"[ADMIN BOOTSTRAP] Created admin competitor for {email} -> id={comp.id}",
-                    file=sys.stderr,
-                )
-
+            # 2) If not found (or no comp context), fall back to global lookup
             if not comp:
-                error = "We couldn't find that email. If you're new, please register first."
-            else:
+                matches = Competitor.query.filter_by(email=email).all()
+
+                # Admin bootstrap if no competitor exists yet
+                if not matches and is_admin_email(email):
+                    # Prefer comp context; otherwise attach to earliest active comp if any
+                    if not current_comp:
+                        current_comp = (
+                            Competition.query
+                            .filter_by(is_active=True)
+                            .order_by(Competition.start_at.asc())
+                            .first()
+                        )
+
+                    comp = Competitor(
+                        name="Admin",
+                        gender="Inclusive",
+                        email=email,
+                        competition_id=current_comp.id if current_comp else None,
+                    )
+                    db.session.add(comp)
+                    db.session.commit()
+                    print(
+                        f"[ADMIN BOOTSTRAP] Created admin competitor for {email} -> id={comp.id}",
+                        file=sys.stderr,
+                    )
+                else:
+                    if len(matches) == 0:
+                        error = "We couldn't find that email. If you're new, please register first."
+                    elif len(matches) == 1:
+                        comp = matches[0]
+                    else:
+                        # Ambiguous: same email registered in multiple competitions.
+                        # Force the user back into a comp-scoped login.
+                        error = (
+                            "That email is registered for multiple competitions. "
+                            "Please open the competition you want and use 'Log back into your scoring' from there."
+                        )
+
+            if not error and comp:
                 # Generate 6-digit code
                 code = f"{secrets.randbelow(1_000_000):06d}"
 
@@ -997,10 +1042,17 @@ def login_request():
 
                 send_login_code_via_email(email, code)
 
-                # Store email in session just for convenience between forms
+                # Store email + optional comp slug to keep context through verify step
                 session["login_email"] = email
+                if comp.competition_id:
+                    linked_comp = Competition.query.get(comp.competition_id)
+                    if linked_comp and linked_comp.slug:
+                        session["active_comp_slug"] = linked_comp.slug
 
-                # IMPORTANT: redirect to the verify route, so form posts to /login/verify
+                # IMPORTANT: redirect to the verify route
+                # Include slug if we have it, so verify can stay comp-aware too
+                if session.get("active_comp_slug"):
+                    return redirect(f"/login/verify?slug={session['active_comp_slug']}")
                 return redirect("/login/verify")
 
     return render_template(
@@ -1008,8 +1060,8 @@ def login_request():
         email=email,
         error=error,
         message=message,
+        slug=slug,  # you should add a hidden field in the template to preserve this
     )
-
 
 # --- Email login: verify code ---
 
@@ -1020,9 +1072,18 @@ def login_verify():
     - If their email is in ADMIN_EMAILS, they are a *super admin* (global).
     - If they are listed in GymAdmin rows, they are a *gym admin*.
     - Everyone else is a normal competitor.
+
+    Supports comp-scoped login when a comp slug is available:
+      - /login/verify?slug=uc-adelaide
+      - or hidden form field "slug"
+      - or session["active_comp_slug"]
     """
     error = None
     message = None
+
+    # Optional competition context
+    slug = (request.args.get("slug") or session.get("active_comp_slug") or "").strip()
+    current_comp = Competition.query.filter_by(slug=slug).first() if slug else None
 
     # Pre-fill email from session if available
     email = (session.get("login_email") or "").strip().lower()
@@ -1031,14 +1092,45 @@ def login_verify():
         email = (request.form.get("email") or "").strip().lower()
         code = (request.form.get("code") or "").strip()
 
+        posted_slug = (request.form.get("slug") or "").strip()
+        if posted_slug:
+            slug = posted_slug
+            current_comp = Competition.query.filter_by(slug=slug).first() if slug else current_comp
+
         if not email or not code:
             error = "Please enter both your email and the code."
         else:
-            comp = Competitor.query.filter_by(email=email).first()
+            # --- Competition-aware competitor lookup ---
+            comp = None
+
+            # If we have a valid comp context, look up competitor for THIS competition
+            if current_comp:
+                comp = Competitor.query.filter(
+                    Competitor.email == email,
+                    Competitor.competition_id == current_comp.id,
+                ).first()
+
+            # Fallback: global lookup (legacy behaviour)
             if not comp:
+                matches = Competitor.query.filter_by(email=email).all()
+                if len(matches) == 0:
+                    comp = None
+                elif len(matches) == 1:
+                    comp = matches[0]
+                else:
+                    # Ambiguous: multiple competitor rows for this email across competitions
+                    # Force them to log in from a specific comp page
+                    error = (
+                        "That email is registered for multiple competitions. "
+                        "Please open the competition you want and use 'Log back into your scoring' from there."
+                    )
+
+            if not error and not comp:
                 error = "We couldn't find that email. Please check or register first."
-            else:
+
+            if not error and comp:
                 now = datetime.utcnow()
+
                 # Get the most recent unused code for this competitor
                 login_code = (
                     LoginCode.query
@@ -1062,11 +1154,17 @@ def login_verify():
                     # Everyone gets competitor_id in session
                     session["competitor_id"] = comp.id
 
+                    # Remember comp context when available (helps keep nav + redirects consistent)
+                    if comp.competition_id:
+                        linked_comp = Competition.query.get(comp.competition_id)
+                        if linked_comp and linked_comp.slug:
+                            session["active_comp_slug"] = linked_comp.slug
+                            slug = linked_comp.slug
+                            current_comp = linked_comp
+
                     # ----- ADMIN FLAGS -----
-                    # Super admin = email in ADMIN_EMAILS
                     is_super = is_admin_email(email)
 
-                    # Gym admin = at least one GymAdmin row
                     gym_admin_rows = GymAdmin.query.filter_by(
                         competitor_id=comp.id
                     ).all()
@@ -1077,13 +1175,18 @@ def login_verify():
                         session["admin_is_super"] = bool(is_super)
                         session["admin_gym_ids"] = gym_ids
                     else:
-                        # Make sure we don't accidentally keep old flags
                         session.pop("admin_ok", None)
                         session.pop("admin_is_super", None)
                         session.pop("admin_gym_ids", None)
 
-                    # For both admins and normal users, go to Home
+                    # --- Redirect ---
+                    # If we have a comp slug and the competitor is tied to that comp, go straight to scoring
+                    if current_comp and comp.competition_id == current_comp.id:
+                        return redirect(f"/comp/{current_comp.slug}/competitor/{comp.id}/sections")
+
+                    # Otherwise, go Home
                     return redirect("/my-comps")
+
     else:
         # GET: if we already have an email (i.e. just sent a code), show a helpful message
         if email and not message:
@@ -1094,9 +1197,8 @@ def login_verify():
         email=email,
         error=error,
         message=message,
+        slug=slug,  # needed for hidden field in the template
     )
-
-
 
 @app.route("/competitor/<int:competitor_id>")
 def competitor_redirect(competitor_id):
@@ -2289,9 +2391,15 @@ def public_register_for_comp(slug):
     URL example:
       /comp/uc-collingwood-boulder-bash/join
 
-    After registration, redirect to Home (/my-comps).
+    After registration:
+      - If already registered: go straight to scoring for this comp
+      - If newly registered: go straight to scoring for this comp
     """
     comp = get_comp_or_404(slug)
+
+    # Keep comp context for the rest of the flow (login/verify/nav)
+    if comp and comp.slug:
+        session["active_comp_slug"] = comp.slug
 
     if request.method == "POST":
         name = request.form.get("name", "").strip()
@@ -2307,22 +2415,72 @@ def public_register_for_comp(slug):
         if gender not in ("Male", "Female", "Inclusive"):
             gender = "Inclusive"
 
-        # Check uniqueness of email (global for now; you *could* scope per comp later)
-        if not error and email:
-            existing = Competitor.query.filter_by(email=email).first()
-            if existing:
-                error = "That email is already registered. Use it to log back into your scoring."
-
         if error:
             return render_template(
                 "register_public.html",
+                comp=comp,
                 error=error,
                 name=name,
                 gender=gender,
                 email=email,
             )
 
-        # Create competitor tied to THIS competition
+        # --- Competition-aware email handling ---
+
+        # 1) Already registered for THIS competition?
+        existing_for_comp = Competitor.query.filter(
+            Competitor.competition_id == comp.id,
+            Competitor.email == email,
+        ).first()
+
+        if existing_for_comp:
+            # Remember competitor + comp context
+            session["competitor_id"] = existing_for_comp.id
+            session["active_comp_slug"] = comp.slug
+
+            # If they were previously an admin in this browser, don't carry that into normal competitor mode
+            session.pop("admin_ok", None)
+            session.pop("admin_is_super", None)
+            session.pop("admin_gym_ids", None)
+
+            return redirect(f"/comp/{comp.slug}/competitor/{existing_for_comp.id}/sections")
+
+        # 2) Existing competitor record elsewhere (global unique email is still in place)
+        existing_global = Competitor.query.filter_by(email=email).first()
+        if existing_global:
+            # If it's a "zombie" record with no competition, claim it for this comp (fixes your current bug)
+            if not existing_global.competition_id:
+                existing_global.name = name or existing_global.name
+                existing_global.gender = gender or existing_global.gender
+                existing_global.competition_id = comp.id
+                db.session.commit()
+                invalidate_leaderboard_cache()
+
+                session["competitor_id"] = existing_global.id
+                session["active_comp_slug"] = comp.slug
+
+                session.pop("admin_ok", None)
+                session.pop("admin_is_super", None)
+                session.pop("admin_gym_ids", None)
+
+                return redirect(f"/comp/{comp.slug}/competitor/{existing_global.id}/sections")
+
+            # Otherwise, they are registered for a DIFFERENT comp.
+            # Until we remove the global unique constraint, we cannot create a second competitor row for this email.
+            error = (
+                "That email is already registered for another competition. "
+                "Use 'Log back into your scoring' from the competition you joined."
+            )
+            return render_template(
+                "register_public.html",
+                comp=comp,
+                error=error,
+                name=name,
+                gender=gender,
+                email=email,
+            )
+
+        # 3) Brand new registration: create competitor tied to THIS competition
         new_competitor = Competitor(
             name=name,
             gender=gender,
@@ -2333,15 +2491,19 @@ def public_register_for_comp(slug):
         db.session.commit()
         invalidate_leaderboard_cache()
 
-        # Remember this competitor on this device
         session["competitor_id"] = new_competitor.id
+        session["active_comp_slug"] = comp.slug
 
-        # After signup, go to Home (Upcoming Comps)
-        return redirect("/my-comps")
+        session.pop("admin_ok", None)
+        session.pop("admin_is_super", None)
+        session.pop("admin_gym_ids", None)
+
+        return redirect(f"/comp/{comp.slug}/competitor/{new_competitor.id}/sections")
 
     # GET: show blank form
     return render_template(
         "register_public.html",
+        comp=comp,
         error=None,
         name="",
         gender="Inclusive",

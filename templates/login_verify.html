@@ -8,29 +8,23 @@
   </head>
   <body>
     {% set viewer_id = viewer_id if viewer_id is defined else session.get('competitor_id') %}
+    {% set slug = slug if slug is defined else (request.args.get('slug') if request is defined else '') %}
+
     <nav class="container top-nav">
       <div class="nav-links">
         <a
+          class="back {% if nav_active == 'home' %}active{% endif %}"
+          href="/my-comps"
+        >
+          Home
+        </a>
+
+        <a
           class="back {% if nav_active == 'login' %}active{% endif %}"
-          href="/login"
+          href="/login{% if slug %}?slug={{ slug }}{% endif %}"
         >
           Login
         </a>
-
-        {% if viewer_id %}
-          <a
-            class="back {% if nav_active == 'sections' %}active{% endif %}"
-            href="/competitor/{{ viewer_id }}/sections"
-          >
-            Enter Scores
-          </a>
-          <a
-            class="back {% if nav_active == 'stats' %}active{% endif %}"
-            href="/competitor/{{ viewer_id }}/stats"
-          >
-            Stats
-          </a>
-        {% endif %}
 
         <a
           class="back {% if nav_active == 'leaderboard' %}active{% endif %}"
@@ -38,6 +32,19 @@
         >
           Leaderboard
         </a>
+
+        {# Optional helper if already logged in #}
+        {% if viewer_id %}
+          {% if slug %}
+            <a class="back" href="/comp/{{ slug }}/competitor/{{ viewer_id }}/sections">
+              Continue scoring
+            </a>
+          {% else %}
+            <a class="back" href="/competitor/{{ viewer_id }}/sections">
+              Continue scoring
+            </a>
+          {% endif %}
+        {% endif %}
       </div>
     </nav>
 
@@ -48,6 +55,12 @@
           We’ve sent a 6-digit code to your email.
           Enter it below to continue scoring.
         </p>
+
+        {% if slug %}
+          <p style="margin-top: 10px; color: var(--muted); font-size: 0.95rem;">
+            You’re logging into: <strong>{{ slug }}</strong>
+          </p>
+        {% endif %}
       </header>
 
       {% if error %}
@@ -58,6 +71,9 @@
       {% endif %}
 
       <form method="post" class="form-card">
+        {# Preserve comp context through POST #}
+        <input type="hidden" name="slug" value="{{ slug or '' }}" />
+
         <label for="email">Email</label>
         <input
           type="email"
@@ -85,4 +101,3 @@
     </main>
   </body>
 </html>
-
