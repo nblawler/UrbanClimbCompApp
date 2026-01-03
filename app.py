@@ -1251,9 +1251,11 @@ def competitor_sections(competitor_id):
         if comp_row and comp_row.slug:
             comp_slug = comp_row.slug
 
-    # If admin is viewing, enforce gym-level permissions (prevents cross-gym snooping)
-    if is_admin and comp_row and not admin_can_manage_competition(comp_row):
-        abort(403)
+    # Only enforce gym-level permissions when an admin is viewing SOMEONE ELSE
+    if is_admin and comp_row and viewer_id and target_id != viewer_id:
+        if not admin_can_manage_competition(comp_row):
+            abort(403)
+
 
     # --- Gym map + gym name (DB-driven) ---
     gym_name = None
@@ -1380,9 +1382,10 @@ def comp_competitor_sections(slug, competitor_id):
     if current_comp.slug != slug:
         abort(404)
 
-    # If admin is viewing, enforce gym-level permissions
-    if is_admin and not admin_can_manage_competition(current_comp):
-        abort(403)
+    # Only enforce gym-level permissions when an admin is viewing SOMEONE ELSE
+    if is_admin and viewer_id and target_id != viewer_id:
+        if not admin_can_manage_competition(current_comp):
+            abort(403)
 
     # --- Gym map + gym name (DB-driven) ---
     gym_name = None
