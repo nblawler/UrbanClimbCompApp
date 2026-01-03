@@ -7,44 +7,53 @@
 		<link rel="stylesheet" href="/static/app.css" />
 	</head>
 	<body>
-		{# Unified nav: uses session competitor as "you", nav_active for highlight #}
 		{% set viewer_id = viewer_id if viewer_id is defined else session.get('competitor_id') %}
+		{% set is_admin = session.get('admin_ok', False) %}
+		{% set comp_slug = comp_slug if comp_slug is defined else session.get('active_comp_slug') %}
+
 		<nav class="container top-nav">
 			<div class="nav-links">
-				<a
-					class="back {% if nav_active == 'login' %}active{% endif %}"
-					href="/login"
-				>
-					Login
-				</a>
+				<a class="back {% if nav_active == 'my_comps' %}active{% endif %}" href="/my-comps">Home</a>
+
+				{% if is_admin %}
+					<a class="back {% if nav_active == 'admin' %}active{% endif %}" href="/admin/comps">Admin</a>
+				{% endif %}
+
+				{% if viewer_id or is_admin %}
+					<a class="back" href="/logout">Log out</a>
+				{% else %}
+					<a class="back {% if nav_active == 'login' %}active{% endif %}"
+					   href="/login{% if comp_slug %}?slug={{ comp_slug }}{% endif %}">
+						Log in
+					</a>
+				{% endif %}
 
 				{% if viewer_id %}
-					<a
-						class="back {% if nav_active == 'sections' %}active{% endif %}"
-						href="/competitor/{{ viewer_id }}/sections"
-					>
-						Enter Scores
-					</a>
+					{% if comp_slug %}
+						<a class="back {% if nav_active == 'sections' %}active{% endif %}"
+						   href="/comp/{{ comp_slug }}/competitor/{{ viewer_id }}/sections">
+							Enter Scores
+						</a>
+					{% else %}
+						<a class="back {% if nav_active == 'sections' %}active{% endif %}"
+						   href="/competitor/{{ viewer_id }}/sections">
+							Enter Scores
+						</a>
+					{% endif %}
 
-					<a
-						class="back {% if nav_active == 'my_stats' %}active{% endif %}"
-						href="/competitor/{{ viewer_id }}/stats/my"
-					>
+					<a class="back {% if nav_active == 'my_stats' %}active{% endif %}"
+					   href="/competitor/{{ viewer_id }}/stats/my">
 						My Stats
 					</a>
 
-					<a
-						class="back {% if nav_active == 'overall_stats' %}active{% endif %}"
-						href="/competitor/{{ viewer_id }}/stats/overall"
-					>
+					<a class="back {% if nav_active == 'overall_stats' %}active{% endif %}"
+					   href="/competitor/{{ viewer_id }}/stats/overall">
 						Overall Stats
 					</a>
 				{% endif %}
 
-				<a
-					class="back {% if nav_active == 'leaderboard' %}active{% endif %}"
-					href="/leaderboard{% if viewer_id %}?cid={{ viewer_id }}{% endif %}"
-				>
+				<a class="back {% if nav_active == 'leaderboard' %}active{% endif %}"
+				   href="/leaderboard{% if viewer_id %}?cid={{ viewer_id }}{% endif %}">
 					Leaderboard
 				</a>
 			</div>
@@ -52,7 +61,6 @@
 
 		<main class="container">
 
-			<!-- Unified header -->
 			<header class="comp-header">
 				<h1 class="comp-name">
 					<span class="comp-label">Name:</span>
@@ -79,13 +87,10 @@
 				</div>
 			</header>
 
-			{# ============ SECTIONS TOGGLE + BACK TO MAP BUTTON ROW ============ #}
 			{% if sections is defined and sections %}
 			<div class="section-filter-row section-filter-row--with-button">
 				<div class="section-filter-left">
-					<div class="section-filter-label">
-						Sections:
-					</div>
+					<div class="section-filter-label">Sections:</div>
 					<div class="section-filter-pills">
 						{% for sec in sections %}
 							<a
@@ -97,34 +102,32 @@
 						{% endfor %}
 					</div>
 				</div>
-		
-				<a class="back-to-map-btn back-to-map-btn-inline"
-				   href="/competitor/{{ competitor.id }}/sections">
-					Back to Gym Map
-				</a>
-			</div>
-		{% endif %}
-		
 
-			{# ===================== WALL MAP (COMPETITOR VIEW) ===================== #}
+				{% if comp_slug %}
+					<a class="back-to-map-btn back-to-map-btn-inline"
+					   href="/comp/{{ comp_slug }}/competitor/{{ competitor.id }}/sections">
+						Back to Gym Map
+					</a>
+				{% else %}
+					<a class="back-to-map-btn back-to-map-btn-inline"
+					   href="/competitor/{{ competitor.id }}/sections">
+						Back to Gym Map
+					</a>
+				{% endif %}
+			</div>
+			{% endif %}
+
 			{% if section_climbs is defined %}
 			<section class="card map-card">
 				<header class="section-header">
-					<h2 class="section-title">
-						{{ section.name }}
-					</h2>
+					<h2 class="section-title">{{ section.name }}</h2>
 				</header>
 
 				<div class="map-wrapper">
-					<img
-						class="gym-map"
-						src="{{ gym_map_url or '/static/maps/collingwood-map.png' }}"
-						alt="Gym map"
-			  		/>
+					<img class="gym-map" src="{{ gym_map_url or '/static/maps/collingwood-map.png' }}" alt="Gym map" />
 
 					{% for sc in section_climbs %}
 						{% if sc.x_percent is not none and sc.y_percent is not none %}
-							{# --- Work out background + text colour from sc.colour --- #}
 							{% set col_raw = sc.colour %}
 							{% if col_raw %}
 								{% set lc = col_raw|lower %}
@@ -136,11 +139,9 @@
 									{% set bg = col_raw %}
 								{% endif %}
 							{% else %}
-								{# fallback to accent green if no colour set #}
 								{% set bg = "#5df29c" %}
 							{% endif %}
 
-							{# black text on white holds, otherwise dark text is fine #}
 							{% if bg|lower in ["white", "#fff", "#ffffff"] %}
 								{% set text_color = "#000000" %}
 							{% else %}
@@ -150,12 +151,7 @@
 							<button
 								type="button"
 								class="map-dot map-dot-interactive"
-								style="
-									left: {{ sc.x_percent }}%;
-									top: {{ sc.y_percent }}%;
-									background: {{ bg }};
-									color: {{ text_color }};
-								"
+								style="left: {{ sc.x_percent }}%; top: {{ sc.y_percent }}%; background: {{ bg }}; color: {{ text_color }};"
 								data-climb="{{ sc.climb_number }}"
 								title="Climb {{ sc.climb_number }}{% if sc.colour %} · {{ sc.colour }}{% endif %}"
 							>
@@ -167,7 +163,6 @@
 			</section>
 			{% endif %}
 
-			{# ===================== CLIMB CARDS ===================== #}
 			<section class="card" style="margin-bottom:16px;">
 				<header class="section-header">
 					<h2 class="section-title">
@@ -181,7 +176,6 @@
 						{% set max_pts = max_points.get(n) if max_points is defined else None %}
 						{% set col_raw = colours.get(n) if colours is defined else None %}
 
-						{# --- Background colour for the COLOUR PILL (not the card) --- #}
 						{% if col_raw %}
 							{% set lc = col_raw|lower %}
 							{% if lc == "red" %}
@@ -195,14 +189,12 @@
 							{% set col_bg = "#e5e7eb" %}
 						{% endif %}
 
-						{# --- Text colour for pill: black on light, white on strong colours --- #}
 						{% if col_bg|lower in ["white", "#fff", "#ffffff", "#e5e7eb", "#facc15", "#fef9c3"] %}
 							{% set pill_text_color = "#05060a" %}
 						{% else %}
 							{% set pill_text_color = "#ffffff" %}
 						{% endif %}
 
-						{# --- Attempt cap from SectionClimb for this climb (fallback 5) --- #}
 						{% set cap = 5 %}
 						{% if section_climbs is defined %}
 							{% for sc in section_climbs %}
@@ -212,7 +204,6 @@
 							{% endfor %}
 						{% endif %}
 
-						{# Selected attempt for logic; visually neutral until clicked #}
 						{% if s %}
 							{% set sel_attempt = s.attempts %}
 						{% else %}
@@ -222,33 +213,21 @@
 							{% set sel_attempt = cap %}
 						{% endif %}
 
-						<div
-							class="climb-card climb-row"
-							id="climb-{{ n }}"
-							data-climb="{{ n }}"
-							data-climb-row="{{ n }}"
-							data-attempt-cap="{{ cap }}"
-						>
+						<div class="climb-card climb-row" id="climb-{{ n }}" data-climb="{{ n }}" data-climb-row="{{ n }}" data-attempt-cap="{{ cap }}">
 							<div class="climb-header">
 								<span class="climb-title">Climb #{{ n }}</span>
 
 								{% if col_raw %}
-									<span
-										class="climb-colour-pill"
-										style="background: {{ col_bg }}; color: {{ pill_text_color }};"
-									>
+									<span class="climb-colour-pill" style="background: {{ col_bg }}; color: {{ pill_text_color }};">
 										{{ col_raw }}
 									</span>
 								{% endif %}
 							</div>
 
 							{% if max_pts is not none %}
-								<p style="margin:4px 0 0;">
-									Max Points: {{ max_pts }}
-								</p>
+								<p style="margin:4px 0 0;">Max Points: {{ max_pts }}</p>
 							{% endif %}
 
-							{# Points scored line under Max points #}
 							<p style="margin:2px 0 8px; font-size:0.9rem;">
 								Points Scored:
 								<span class="points-scored-value">
@@ -262,43 +241,19 @@
 
 							<div class="climb-actions">
 								<div class="climb-actions-row">
-									<button
-										type="button"
-										class="flash-btn action-pill"
-										{% if not can_edit %}disabled{% endif %}
-									>
-										Flash
-									</button>
-
-									<button
-										type="button"
-										class="topped-toggle-btn action-pill"
-										{% if not can_edit %}disabled{% endif %}
-									>
-										Topped
-									</button>
+									<button type="button" class="flash-btn action-pill" {% if not can_edit %}disabled{% endif %}>Flash</button>
+									<button type="button" class="topped-toggle-btn action-pill" {% if not can_edit %}disabled{% endif %}>Topped</button>
 								</div>
 
 								<div class="climb-actions-row attempts-row">
 									<span class="attempts-label">Attempts</span>
-									<div
-										class="attempts-pill-row"
-										data-selected-attempt="{{ sel_attempt }}"
-									>
+									<div class="attempts-pill-row" data-selected-attempt="{{ sel_attempt }}">
 										{% for i in range(1, cap + 1) %}
-											<button
-												type="button"
-												class="attempt-pill"
-												data-attempt="{{ i }}"
-												{% if not can_edit %}disabled{% endif %}
-											>
-												{{ i }}
-											</button>
+											<button type="button" class="attempt-pill" data-attempt="{{ i }}" {% if not can_edit %}disabled{% endif %}>{{ i }}</button>
 										{% endfor %}
 									</div>
 								</div>
 
-								{# No manual Save button anymore – auto-save on Flash/Topped/Attempts #}
 								<div class="status" aria-live="polite"></div>
 							</div>
 						</div>
@@ -309,7 +264,6 @@
 		</main>
 
 		<script>
-			// Viewer id comes from the session; that's who we log as.
 			const viewerId = {{ viewer_id if viewer_id is not none else 'null' }};
 			const competitorIdForDisplay = {{ competitor.id }};
 			const canEdit = {{ 'true' if can_edit else 'false' }};
@@ -334,13 +288,10 @@
 				if (attemptsContainer) {
 					const raw = attemptsContainer.dataset.selectedAttempt || "1";
 					const parsed = parseInt(raw, 10);
-					if (!isNaN(parsed) && parsed >= 1) {
-						attempts = parsed;
-					}
+					if (!isNaN(parsed) && parsed >= 1) attempts = parsed;
 				}
 
 				const topped = !!(toppedToggle && toppedToggle.classList.contains("is-active"));
-
 				return { attempts, topped };
 			}
 
@@ -355,12 +306,8 @@
 
 				let { attempts, topped } = getCurrentState(card);
 
-				if (override && typeof override.attempts === "number") {
-					attempts = override.attempts;
-				}
-				if (override && typeof override.topped === "boolean") {
-					topped = override.topped;
-				}
+				if (override && typeof override.attempts === "number") attempts = override.attempts;
+				if (override && typeof override.topped === "boolean") topped = override.topped;
 
 				if (isNaN(attempts) || attempts < 1) attempts = 1;
 				if (attempts > 50) attempts = 50;
@@ -370,7 +317,6 @@
 						method: "POST",
 						headers: { "Content-Type": "application/json" },
 						body: JSON.stringify({
-							// IMPORTANT: always log as viewerId, not whoever is in the URL
 							competitor_id: viewerId,
 							climb_number: climb,
 							attempts,
@@ -387,7 +333,6 @@
 					const data = await res.json();
 					showStatus(status, "Saved");
 
-					// Update per-climb "Points scored" from API response
 					const pointsSpan = card.querySelector(".points-scored-value");
 					if (pointsSpan && data && typeof data.points === "number") {
 						pointsSpan.textContent = data.points;
@@ -409,10 +354,7 @@
 					if (!totalEl) return;
 
 					let totalPoints = 0;
-					rows.forEach((r) => {
-						totalPoints += r.points || 0;
-					});
-
+					rows.forEach((r) => { totalPoints += r.points || 0; });
 					totalEl.textContent = totalPoints;
 				} catch (e) {}
 			}
@@ -422,7 +364,6 @@
 				try {
 					const res = await fetch("/api/leaderboard");
 					const data = await res.json();
-
 					if (!data.rows) return;
 
 					const posValue = document.getElementById("position-value");
@@ -442,67 +383,44 @@
 					const flashBtn = card.querySelector(".flash-btn");
 					const toppedToggle = card.querySelector(".topped-toggle-btn");
 					const attemptsContainer = card.querySelector(".attempts-pill-row");
-					const attemptButtons = attemptsContainer
-						? Array.from(attemptsContainer.querySelectorAll(".attempt-pill"))
-						: [];
+					const attemptButtons = attemptsContainer ? Array.from(attemptsContainer.querySelectorAll(".attempt-pill")) : [];
 
-					// Flash button: set attempts = 1, topped = true, auto-save
 					if (flashBtn) {
 						flashBtn.addEventListener("click", async () => {
 							if (!attemptsContainer) return;
 
-							// Set attempts = 1 visually + in data
 							attemptsContainer.dataset.selectedAttempt = "1";
 							attemptButtons.forEach((btn) => {
-								btn.classList.toggle(
-									"is-active",
-									btn.dataset.attempt === "1"
-								);
+								btn.classList.toggle("is-active", btn.dataset.attempt === "1");
 							});
 
-							// Visual state: Flash on, Topped off (mutually exclusive)
 							flashBtn.classList.add("is-active");
-							if (toppedToggle) {
-								toppedToggle.classList.remove("is-active");
-							}
+							if (toppedToggle) toppedToggle.classList.remove("is-active");
 
 							await save(card, { attempts: 1, topped: true });
 						});
 					}
 
-					// Topped toggle – mutually exclusive with Flash, auto-save
 					if (toppedToggle) {
 						toppedToggle.addEventListener("click", async () => {
 							const nowActive = !toppedToggle.classList.contains("is-active");
 							toppedToggle.classList.toggle("is-active", nowActive);
-
-							// If Topped is active, clear Flash visual
-							if (flashBtn && nowActive) {
-								flashBtn.classList.remove("is-active");
-							}
-
-							// Auto-save with current attempts + topped state
+							if (flashBtn && nowActive) flashBtn.classList.remove("is-active");
 							await save(card);
 						});
 					}
 
-					// Attempt buttons: pick 1..cap, auto-save when changed
 					attemptButtons.forEach((btn) => {
 						btn.addEventListener("click", async () => {
 							const attempt = btn.dataset.attempt;
 							attemptsContainer.dataset.selectedAttempt = attempt;
-							attemptButtons.forEach((b) => {
-								b.classList.toggle("is-active", b === btn);
-							});
-
-							// Auto-save new attempts with current flashed/topped state
+							attemptButtons.forEach((b) => { b.classList.toggle("is-active", b === btn); });
 							await save(card);
 						});
 					});
 				});
 			}
 
-			// Map dots -> scroll to climb card
 			document.addEventListener("click", function (event) {
 				const dot = event.target.closest(".map-dot-interactive");
 				if (!dot) return;
@@ -513,12 +431,9 @@
 
 				row.scrollIntoView({ behavior: "smooth", block: "center" });
 				row.classList.add("climb-row-highlight");
-				setTimeout(() => {
-					row.classList.remove("climb-row-highlight");
-				}, 1500);
+				setTimeout(() => { row.classList.remove("climb-row-highlight"); }, 1500);
 			});
 
-			// Initial load
 			refreshTotalPoints();
 			refreshPosition();
 		</script>
