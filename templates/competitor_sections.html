@@ -6,160 +6,74 @@
 	<title>{{ competitor.name }} · Enter Scores</title>
 	<link rel="stylesheet" href="/static/app.css" />
 	<style>
-		.map-wrapper {
-			position: relative;
-			max-width: 100%;
-			border-radius: var(--radius-lg);
-			overflow: hidden;
-			box-shadow: var(--shadow-subtle);
-			margin-top: 16px;
-		}
+		.map-wrapper { position: relative; max-width: 100%; border-radius: var(--radius-lg); overflow: hidden; box-shadow: var(--shadow-subtle); margin-top: 16px; }
+		.gym-map-image { display: block; width: 100%; height: auto; }
+		.map-marker { position: absolute; width: 18px; height: 18px; border-radius: 999px; border: 2px solid #ffffff; transform: translate(-50%, -50%); box-shadow: var(--shadow-subtle); }
+		.map-marker.disabled { opacity: 0.4; cursor: default; }
 
-		.gym-map-image {
-			display: block;
-			width: 100%;
-			height: auto;
-		}
-
-		.map-marker {
-			position: absolute;
-			width: 18px;
-			height: 18px;
-			border-radius: 999px;
-			border: 2px solid #ffffff;
-			transform: translate(-50%, -50%);
-			box-shadow: var(--shadow-subtle);
-		}
-
-		.map-marker.disabled {
-			opacity: 0.4;
-			cursor: default;
-		}
-
-		/* === SECTION FILTER PILL STYLING (MATCH COMPETITOR.HTML TOGGLES) === */
-
-		.section-filter-row {
-			display: flex;
-			flex-direction: column;
-			gap: 6px;
-			margin: 8px 0 12px;
-		}
-
-		.section-filter-label {
-			font-size: 0.95rem;
-			color: var(--text);
-			margin-bottom: 6px;
-			margin-top: 8px;
-			letter-spacing: 0.3px;
-			font-weight: 600; /* bold label */
-		}
-
-		.section-filter-pills {
-			display: flex;
-			flex-wrap: wrap;
-			gap: 8px;
-		}
-
+		.section-filter-row { display: flex; flex-direction: column; gap: 6px; margin: 8px 0 12px; }
+		.section-filter-label { font-size: 0.95rem; color: var(--text); margin-bottom: 6px; margin-top: 8px; letter-spacing: 0.3px; font-weight: 600; }
+		.section-filter-pills { display: flex; flex-wrap: wrap; gap: 8px; }
 		.section-filter-pill {
-			display: inline-flex;
-			align-items: center;
-			justify-content: center;
-			padding: 6px 14px;
-			border-radius: var(--radius-pill);  /* pill shape */
-			border: 1px solid rgba(255, 255, 255, 0.9); /* clear, visible border */
-			background: transparent;            /* no colour by default */
-			color: var(--text);                 /* white text by default */
-			font-size: 0.85rem;
-			font-weight: 500;
-			cursor: pointer;
-			text-decoration: none;              /* works for <a> or <button> */
-			transition:
-				background var(--transition-fast),
-				color var(--transition-fast),
-				border-color var(--transition-fast),
-				transform var(--transition-fast),
-				box-shadow var(--transition-fast);
+			display: inline-flex; align-items: center; justify-content: center;
+			padding: 6px 14px; border-radius: var(--radius-pill);
+			border: 1px solid rgba(255, 255, 255, 0.9);
+			background: transparent; color: var(--text);
+			font-size: 0.85rem; font-weight: 500; cursor: pointer; text-decoration: none;
+			transition: background var(--transition-fast), color var(--transition-fast), border-color var(--transition-fast), transform var(--transition-fast), box-shadow var(--transition-fast);
 		}
+		.section-filter-pill:hover { background: rgba(18, 22, 30, 1); border-color: rgba(255, 255, 255, 1); transform: translateY(-1px); box-shadow: var(--shadow-subtle); }
+		.section-filter-pill.is-active { background: var(--accent); color: #05060a; border-color: var(--accent); box-shadow: 0 10px 24px rgba(93, 242, 156, 0.45); transform: translateY(-1px); }
+		.section-filter-pill:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
-		.section-filter-pill:hover {
-			background: rgba(18, 22, 30, 1);
-			border-color: rgba(255, 255, 255, 1);
-			transform: translateY(-1px);
-			box-shadow: var(--shadow-subtle);
-		}
-
-		.section-filter-pill.is-active {
-			background: var(--accent);     /* green when active */
-			color: #05060a;                /* black/dark text when active */
-			border-color: var(--accent);
-			box-shadow: 0 10px 24px rgba(93, 242, 156, 0.45);
-			transform: translateY(-1px);
-		}
-
-		.section-filter-pill:focus-visible {
-			outline: 2px solid var(--accent);
-			outline-offset: 2px;
-		}
-
-		.map-missing {
-			margin-top: 12px;
-			padding: 12px 14px;
-			border-radius: var(--radius-md);
-			background: rgba(255, 255, 255, 0.06);
-			border: 1px solid rgba(255, 255, 255, 0.12);
-		}
+		.map-missing { margin-top: 12px; padding: 12px 14px; border-radius: var(--radius-md); background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.12); }
 	</style>
 </head>
 
 <body>
-	{# Unified nav: uses session competitor as "you", nav_active for highlight #}
 	{% set viewer_id = viewer_id if viewer_id is defined else session.get('competitor_id') %}
 	<nav class="container top-nav">
 		<div class="nav-links">
-			<a
-				class="back {% if nav_active == 'login' %}active{% endif %}"
-				href="/login"
-			>
-				Login
+
+			<a class="back {% if nav_active == 'my_comps' %}active{% endif %}" href="/my-comps">
+				Home
 			</a>
 
 			{% if viewer_id %}
-				{# Enter Scores link: prefer slugged URL if comp_slug is available #}
+				<a class="back" href="/logout">Log out</a>
+			{% else %}
+				<a class="back {% if nav_active == 'login' %}active{% endif %}"
+				   href="/login{% if comp_slug is defined and comp_slug %}?slug={{ comp_slug }}{% endif %}">
+					Log in
+				</a>
+			{% endif %}
+
+			{% if viewer_id %}
 				{% if comp_slug is defined and comp_slug %}
-					<a
-						class="back {% if nav_active == 'sections' %}active{% endif %}"
-						href="/comp/{{ comp_slug }}/competitor/{{ viewer_id }}/sections"
-					>
+					<a class="back {% if nav_active == 'sections' %}active{% endif %}"
+					   href="/comp/{{ comp_slug }}/competitor/{{ viewer_id }}/sections">
 						Enter Scores
 					</a>
 				{% else %}
-					<a
-						class="back {% if nav_active == 'sections' %}active{% endif %}"
-						href="/competitor/{{ viewer_id }}/sections"
-					>
+					<a class="back {% if nav_active == 'sections' %}active{% endif %}"
+					   href="/competitor/{{ viewer_id }}/sections">
 						Enter Scores
 					</a>
 				{% endif %}
 
-				<a
-					class="back {% if nav_active == 'my_stats' %}active{% endif %}"
-					href="/competitor/{{ viewer_id }}/stats/my"
-				>
+				<a class="back {% if nav_active == 'my_stats' %}active{% endif %}"
+				   href="/competitor/{{ viewer_id }}/stats/my">
 					My Stats
 				</a>
 
-				<a
-					class="back {% if nav_active == 'overall_stats' %}active{% endif %}"
-					href="/competitor/{{ viewer_id }}/stats/overall"
-				>
+				<a class="back {% if nav_active == 'overall_stats' %}active{% endif %}"
+				   href="/competitor/{{ viewer_id }}/stats/overall">
 					Overall Stats
 				</a>
 			{% endif %}
 
-			<a
-				class="back {% if nav_active == 'leaderboard' %}active{% endif %}"
-				href="/leaderboard{% if viewer_id %}?cid={{ viewer_id }}{% endif %}"
-			>
+			<a class="back {% if nav_active == 'leaderboard' %}active{% endif %}"
+			   href="/leaderboard{% if viewer_id %}?cid={{ viewer_id }}{% endif %}">
 				Leaderboard
 			</a>
 		</div>
@@ -207,16 +121,10 @@
 
 			{% if sections %}
 				<div class="section-filter-row">
-					<div class="section-filter-label">
-						Filter sections:
-					</div>
+					<div class="section-filter-label">Filter sections:</div>
 					<div class="section-filter-pills">
 						{% for sec in sections %}
-							<button
-								type="button"
-								class="section-filter-pill"
-								data-section-id="{{ sec.id }}"
-							>
+							<button type="button" class="section-filter-pill" data-section-id="{{ sec.id }}">
 								{{ sec.name }}
 							</button>
 						{% endfor %}
@@ -226,54 +134,30 @@
 
 			{% if gym_map_path %}
 				<div class="map-wrapper">
-					<img
-						class="gym-map-image"
-						src="{{ gym_map_path }}"
-						alt="{{ gym_name }} Gym Map"
-					/>
+					<img class="gym-map-image" src="{{ gym_map_path }}" alt="{{ gym_name }} Gym Map" />
 
-					{# Markers for each climb with coords #}
 					{% for c in map_climbs %}
 						{% if c.x_percent is not none and c.y_percent is not none %}
 							{% set bg = c.colour or '#ff4081' %}
 							{% if can_edit %}
-								{# Prefer slugged URL if comp_slug is available #}
 								{% if comp_slug is defined and comp_slug %}
-									<a
-										class="map-marker"
-										data-section-id="{{ c.section.id }}"
-										style="
-											left: {{ c.x_percent }}%;
-											top: {{ c.y_percent }}%;
-											background: {{ bg }};
-										"
-										href="/comp/{{ comp_slug }}/competitor/{{ competitor.id }}/section/{{ c.section.slug }}#climb-{{ c.climb_number }}"
-										title="Section {{ c.section.name }} · Climb #{{ c.climb_number }}"
-									></a>
+									<a class="map-marker"
+									   data-section-id="{{ c.section.id }}"
+									   style="left: {{ c.x_percent }}%; top: {{ c.y_percent }}%; background: {{ bg }};"
+									   href="/comp/{{ comp_slug }}/competitor/{{ competitor.id }}/section/{{ c.section.slug }}#climb-{{ c.climb_number }}"
+									   title="Section {{ c.section.name }} · Climb #{{ c.climb_number }}"></a>
 								{% else %}
-									<a
-										class="map-marker"
-										data-section-id="{{ c.section.id }}"
-										style="
-											left: {{ c.x_percent }}%;
-											top: {{ c.y_percent }}%;
-											background: {{ bg }};
-										"
-										href="/competitor/{{ competitor.id }}/section/{{ c.section.slug }}#climb-{{ c.climb_number }}"
-										title="Section {{ c.section.name }} · Climb #{{ c.climb_number }}"
-									></a>
+									<a class="map-marker"
+									   data-section-id="{{ c.section.id }}"
+									   style="left: {{ c.x_percent }}%; top: {{ c.y_percent }}%; background: {{ bg }};"
+									   href="/competitor/{{ competitor.id }}/section/{{ c.section.slug }}#climb-{{ c.climb_number }}"
+									   title="Section {{ c.section.name }} · Climb #{{ c.climb_number }}"></a>
 								{% endif %}
 							{% else %}
-								<div
-									class="map-marker disabled"
-									data-section-id="{{ c.section.id }}"
-									style="
-										left: {{ c.x_percent }}%;
-										top: {{ c.y_percent }}%;
-										background: {{ bg }};
-									"
-									title="Section {{ c.section.name }} · Climb #{{ c.climb_number }}"
-								></div>
+								<div class="map-marker disabled"
+								     data-section-id="{{ c.section.id }}"
+								     style="left: {{ c.x_percent }}%; top: {{ c.y_percent }}%; background: {{ bg }};"
+								     title="Section {{ c.section.name }} · Climb #{{ c.climb_number }}"></div>
 							{% endif %}
 						{% endif %}
 					{% endfor %}
@@ -290,21 +174,12 @@
 	</main>
 
 	<script>
-		// Section filter logic for the gym map page.
-		// Pills:
-		//   - neutral by default
-		//   - go green with black text when active (.is-active)
-		//   - multi-select supported
-		// Markers:
-		//   - if no pills active -> show ALL markers
-		//   - otherwise show only markers whose section id is active
 		document.addEventListener("DOMContentLoaded", function () {
 			const pills   = Array.from(document.querySelectorAll(".section-filter-pill"));
 			const markers = Array.from(document.querySelectorAll(".map-marker"));
 
 			if (!pills.length || !markers.length) return;
 
-			// start with none active → show all markers
 			let activeIds = new Set();
 
 			function applyFilter() {
@@ -312,7 +187,6 @@
 					markers.forEach((m) => { m.style.display = ""; });
 					return;
 				}
-
 				markers.forEach((m) => {
 					const sid = m.dataset.sectionId;
 					m.style.display = (!sid || activeIds.has(sid)) ? "" : "none";
@@ -334,11 +208,8 @@
 						activeIds.add(sid);
 					}
 
-					// if everything turned off, treat as "show all"
 					const anyActive = pills.some((p) => p.classList.contains("is-active"));
-					if (!anyActive) {
-						activeIds.clear();
-					}
+					if (!anyActive) activeIds.clear();
 
 					applyFilter();
 				});

@@ -8,42 +8,47 @@
 </head>
 <body>
 	{% set viewer_id = viewer_id if viewer_id is defined else session.get('competitor_id') %}
+	{% set comp_slug = comp_slug if comp_slug is defined else session.get('active_comp_slug') %}
+
 	<nav class="container top-nav">
 		<div class="nav-links">
-			<a
-				class="back {% if nav_active == 'login' %}active{% endif %}"
-				href="/login"
-			>
-				Login
-			</a>
+			<a class="back {% if nav_active == 'my_comps' %}active{% endif %}" href="/my-comps">Home</a>
 
 			{% if viewer_id %}
-				<a
-					class="back {% if nav_active == 'sections' %}active{% endif %}"
-					href="/competitor/{{ viewer_id }}/sections"
-				>
-					Enter Scores
+				<a class="back" href="/logout">Log out</a>
+			{% else %}
+				<a class="back {% if nav_active == 'login' %}active{% endif %}"
+				   href="/login{% if comp_slug %}?slug={{ comp_slug }}{% endif %}">
+					Log in
 				</a>
+			{% endif %}
 
-				<a
-					class="back {% if nav_active == 'my_stats' %}active{% endif %}"
-					href="/competitor/{{ viewer_id }}/stats/my"
-				>
+			{% if viewer_id %}
+				{% if comp_slug %}
+					<a class="back {% if nav_active == 'sections' %}active{% endif %}"
+					   href="/comp/{{ comp_slug }}/competitor/{{ viewer_id }}/sections">
+						Enter Scores
+					</a>
+				{% else %}
+					<a class="back {% if nav_active == 'sections' %}active{% endif %}"
+					   href="/competitor/{{ viewer_id }}/sections">
+						Enter Scores
+					</a>
+				{% endif %}
+
+				<a class="back {% if nav_active == 'my_stats' %}active{% endif %}"
+				   href="/competitor/{{ viewer_id }}/stats/my">
 					My Stats
 				</a>
 
-				<a
-					class="back {% if nav_active == 'overall_stats' %}active{% endif %}"
-					href="/competitor/{{ viewer_id }}/stats/overall"
-				>
+				<a class="back {% if nav_active == 'overall_stats' %}active{% endif %}"
+				   href="/competitor/{{ viewer_id }}/stats/overall">
 					Overall Stats
 				</a>
 			{% endif %}
 
-			<a
-				class="back {% if nav_active == 'leaderboard' %}active{% endif %}"
-				href="/leaderboard{% if viewer_id %}?cid={{ viewer_id }}{% endif %}"
-			>
+			<a class="back {% if nav_active == 'leaderboard' %}active{% endif %}"
+			   href="/leaderboard{% if viewer_id %}?cid={{ viewer_id }}{% endif %}">
 				Leaderboard
 			</a>
 		</div>
@@ -53,48 +58,35 @@
 
 		<header class="header" style="margin-bottom: 12px; flex-direction:column; align-items:flex-start; gap:8px;">
 			<div>
-				<h1 style="margin:0; font-size:1.8rem;">
-					Leaderboard
-				</h1>
+				<h1 style="margin:0; font-size:1.8rem;">Leaderboard</h1>
 				<p style="margin:4px 0 0; color:var(--muted);">
-					Category:
-					<span id="category-label">{{ category }}</span>
+					Category: <span id="category-label">{{ category }}</span>
 				</p>
 			</div>
 
-			<!-- Category tabs (All + Male + Female + Inclusive) -->
 			<div class="section-tabs" style="margin-top:6px;">
-				<a
-					href="/leaderboard{% if viewer_id %}?cid={{ viewer_id }}{% endif %}"
-					class="section-tab{% if category == 'All' %} active{% endif %}"
-				>
+				<a href="/leaderboard{% if viewer_id %}?cid={{ viewer_id }}{% endif %}"
+				   class="section-tab{% if category == 'All' %} active{% endif %}">
 					<span class="section-tab-title">All</span>
 				</a>
 
-				<a
-					href="/leaderboard/male{% if viewer_id %}?cid={{ viewer_id }}{% endif %}"
-					class="section-tab{% if category == 'Male' %} active{% endif %}"
-				>
+				<a href="/leaderboard/male{% if viewer_id %}?cid={{ viewer_id }}{% endif %}"
+				   class="section-tab{% if category == 'Male' %} active{% endif %}">
 					<span class="section-tab-title">Male</span>
 				</a>
 
-				<a
-					href="/leaderboard/female{% if viewer_id %}?cid={{ viewer_id }}{% endif %}"
-					class="section-tab{% if category == 'Female' %} active{% endif %}"
-				>
+				<a href="/leaderboard/female{% if viewer_id %}?cid={{ viewer_id }}{% endif %}"
+				   class="section-tab{% if category == 'Female' %} active{% endif %}">
 					<span class="section-tab-title">Female</span>
 				</a>
 
-				<a
-					href="/leaderboard/inclusive{% if viewer_id %}?cid={{ viewer_id }}{% endif %}"
-					class="section-tab{% if category == 'Gender Inclusive' %} active{% endif %}"
-				>
+				<a href="/leaderboard/inclusive{% if viewer_id %}?cid={{ viewer_id }}{% endif %}"
+				   class="section-tab{% if category == 'Gender Inclusive' %} active{% endif %}">
 					<span class="section-tab-title">Inclusive</span>
 				</a>
 			</div>
 		</header>
 
-		<!-- Scrollable wrapper so the leaderboard never overflows the page -->
 		<div class="stats-table-wrapper" style="margin-top:4px;">
 			<table class="leaderboard">
 				<thead>
@@ -107,16 +99,13 @@
 					</tr>
 				</thead>
 				<tbody id="leaderboard-body">
-					{# Initial server-rendered rows so page works without JS #}
 					{% for row in leaderboard %}
 						<tr>
 							<td>{{ row.position }}</td>
 							<td>
 								{% if current_competitor_id and row.competitor_id == current_competitor_id %}
-									{# Your own row → plain text, not clickable #}
 									<span>{{ row.name }}</span>
 								{% else %}
-									{# Other competitors → Climber Stats #}
 									<a href="/competitor/{{ row.competitor_id }}/stats/climber">
 										{{ row.name }}
 									</a>
@@ -139,9 +128,7 @@
 
 		function getCategoryFromPath() {
 			const parts = window.location.pathname.split("/").filter(Boolean);
-			if (parts.length >= 2 && parts[0] === "leaderboard") {
-				return parts[1];
-			}
+			if (parts.length >= 2 && parts[0] === "leaderboard") return parts[1];
 			return null;
 		}
 
@@ -150,9 +137,7 @@
 
 			const categoryFromPath = getCategoryFromPath();
 			let url = "/api/leaderboard";
-			if (categoryFromPath) {
-				url += "?category=" + encodeURIComponent(categoryFromPath);
-			}
+			if (categoryFromPath) url += "?category=" + encodeURIComponent(categoryFromPath);
 
 			try {
 				const res = await fetch(url, { cache: "no-store" });
@@ -170,12 +155,9 @@
 					tr.appendChild(tdPos);
 
 					const tdName = document.createElement("td");
-
-					// If this row is the logged-in competitor, render plain text
 					if (viewerId !== null && r.competitor_id === viewerId) {
 						tdName.textContent = r.name;
 					} else {
-						// Other competitors → Climber Stats
 						const a = document.createElement("a");
 						a.href = `/competitor/${r.competitor_id}/stats/climber`;
 						a.textContent = r.name;
@@ -202,18 +184,12 @@
 				leaderboardBody.appendChild(frag);
 
 				const catLabel = document.getElementById("category-label");
-				if (catLabel && data.category) {
-					catLabel.textContent = data.category;
-				}
-			} catch (e) {
-				// display-only error; ignore
-			}
+				if (catLabel && data.category) catLabel.textContent = data.category;
+			} catch (e) {}
 		}
 
-		// Initial load + poll every 5 seconds
 		refreshLeaderboard();
 		setInterval(refreshLeaderboard, 5000);
 	</script>
 </body>
 </html>
-

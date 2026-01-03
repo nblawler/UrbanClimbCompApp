@@ -21,7 +21,12 @@
 			{% if is_admin %}
 				<a class="back {% if nav_active == 'my_comps' %}active{% endif %}" href="/my-comps">Home</a>
 				<a class="back {% if nav_active == 'admin' %}active{% endif %}" href="/admin/comps">Admin</a>
-				<a class="back {% if nav_active == 'login' %}active{% endif %}" href="/login">Log in</a>
+
+				{% if viewer_id %}
+					<a class="back" href="/logout">Log out</a>
+				{% else %}
+					<a class="back {% if nav_active == 'login' %}active{% endif %}" href="/login">Log in</a>
+				{% endif %}
 
 			{% elif competitor %}
 				<a class="back {% if nav_active == 'my_comps' %}active{% endif %}" href="/my-comps">Home</a>
@@ -41,17 +46,26 @@
 
 				<a class="back {% if nav_active == 'leaderboard' %}active{% endif %}" href="/leaderboard?cid={{ competitor.id }}">Leaderboard</a>
 
-				{# If we know their comp, keep login comp-scoped #}
-				{% if competitor.competition and competitor.competition.slug %}
-					<a class="back {% if nav_active == 'login' %}active{% endif %}" href="/login?slug={{ competitor.competition.slug }}">Log in</a>
+				{% if viewer_id %}
+					<a class="back" href="/logout">Log out</a>
 				{% else %}
-					<a class="back {% if nav_active == 'login' %}active{% endif %}" href="/login">Log in</a>
+					{# If we know their comp, keep login comp-scoped #}
+					{% if competitor.competition and competitor.competition.slug %}
+						<a class="back {% if nav_active == 'login' %}active{% endif %}" href="/login?slug={{ competitor.competition.slug }}">Log in</a>
+					{% else %}
+						<a class="back {% if nav_active == 'login' %}active{% endif %}" href="/login">Log in</a>
+					{% endif %}
 				{% endif %}
 
 			{% else %}
 				<a class="back {% if nav_active == 'my_comps' %}active{% endif %}" href="/my-comps">Home</a>
 				<a class="back {% if nav_active == 'leaderboard' %}active{% endif %}" href="/leaderboard">Leaderboard</a>
-				<a class="back {% if nav_active == 'login' %}active{% endif %}" href="/login">Log in</a>
+
+				{% if viewer_id %}
+					<a class="back" href="/logout">Log out</a>
+				{% else %}
+					<a class="back {% if nav_active == 'login' %}active{% endif %}" href="/login">Log in</a>
+				{% endif %}
 			{% endif %}
 		</div>
 	</nav>
@@ -184,7 +198,6 @@
 					{% else %}
 						</article>
 					{% endif %}
-
 				{% endfor %}
 			</section>
 		{% endif %}

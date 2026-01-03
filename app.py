@@ -2509,6 +2509,20 @@ def public_register_for_comp(slug):
         gender="Inclusive",
         email="",
     )
+    
+@app.route("/logout")
+def logout():
+    # Clear everything auth-related (competitor + admin + comp context)
+    session.pop("competitor_id", None)
+    session.pop("login_email", None)
+    session.pop("active_comp_slug", None)
+
+    session.pop("admin_ok", None)
+    session.pop("admin_is_super", None)
+    session.pop("admin_gym_ids", None)
+
+    # Send them to your public-ish home
+    return redirect("/my-comps")
 
 
 @app.route("/join", methods=["GET", "POST"])

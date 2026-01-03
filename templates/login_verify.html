@@ -12,37 +12,26 @@
 
     <nav class="container top-nav">
       <div class="nav-links">
-        <a
-          class="back {% if nav_active == 'home' %}active{% endif %}"
-          href="/my-comps"
-        >
-          Home
-        </a>
+        <a class="back {% if nav_active == 'home' %}active{% endif %}" href="/my-comps">Home</a>
 
-        <a
-          class="back {% if nav_active == 'login' %}active{% endif %}"
-          href="/login{% if slug %}?slug={{ slug }}{% endif %}"
-        >
-          Login
-        </a>
+        {% if viewer_id %}
+          <a class="back" href="/logout">Log out</a>
+        {% else %}
+          <a class="back {% if nav_active == 'login' %}active{% endif %}" href="/login{% if slug %}?slug={{ slug }}{% endif %}">
+            Log in
+          </a>
+        {% endif %}
 
-        <a
-          class="back {% if nav_active == 'leaderboard' %}active{% endif %}"
-          href="/leaderboard{% if viewer_id %}?cid={{ viewer_id }}{% endif %}"
-        >
+        <a class="back {% if nav_active == 'leaderboard' %}active{% endif %}"
+           href="/leaderboard{% if viewer_id %}?cid={{ viewer_id }}{% endif %}">
           Leaderboard
         </a>
 
-        {# Optional helper if already logged in #}
         {% if viewer_id %}
           {% if slug %}
-            <a class="back" href="/comp/{{ slug }}/competitor/{{ viewer_id }}/sections">
-              Continue scoring
-            </a>
+            <a class="back" href="/comp/{{ slug }}/competitor/{{ viewer_id }}/sections">Continue scoring</a>
           {% else %}
-            <a class="back" href="/competitor/{{ viewer_id }}/sections">
-              Continue scoring
-            </a>
+            <a class="back" href="/competitor/{{ viewer_id }}/sections">Continue scoring</a>
           {% endif %}
         {% endif %}
       </div>
@@ -71,32 +60,15 @@
       {% endif %}
 
       <form method="post" class="form-card">
-        {# Preserve comp context through POST #}
         <input type="hidden" name="slug" value="{{ slug or '' }}" />
 
         <label for="email">Email</label>
-        <input
-          type="email"
-          id="email"
-          name="email"
-          value="{{ email or '' }}"
-          required
-        />
+        <input type="email" id="email" name="email" value="{{ email or '' }}" required />
 
         <label for="code">6-digit code</label>
-        <input
-          type="text"
-          id="code"
-          name="code"
-          inputmode="numeric"
-          pattern="[0-9]{6}"
-          maxlength="6"
-          required
-        />
+        <input type="text" id="code" name="code" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" required />
 
-        <button class="btn primary" type="submit">
-          Log me in
-        </button>
+        <button class="btn primary" type="submit">Log me in</button>
       </form>
     </main>
   </body>
