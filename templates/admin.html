@@ -229,7 +229,7 @@
 					{% endif %}
 				</section>
 
-				{# ✅ Only show map editor if a competition is selected #}
+				{# Only show map editor if a competition is selected #}
 				{% if current_comp %}
 					<section class="card">
 						<h2>Wall map (place climbs on the map)</h2>
@@ -252,7 +252,7 @@
 					</section>
 				{% endif %}
 
-				{# ✅ Super-admin only: Reset All #}
+				{# Super-admin only: Reset All #}
 				{% if session.get("admin_is_super") %}
 					<section class="card">
 						<h2>Reset all competitors & scores</h2>
