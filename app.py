@@ -323,17 +323,20 @@ def gym_map_for(gym_name: str) -> str:
 
 def get_current_comp():
     """
-    Return the single active competition, or None if none is configured.
-
-    Used for "current event" flows like /join, /register, /admin, /leaderboard
-    that are not tied to a specific slug.
+    Return the single active competition, but NEVER return comps that have ended.
     """
+    now = datetime.utcnow()
+
     return (
         Competition.query
-        .filter_by(is_active=True)
-        .order_by(Competition.start_at.asc())
+        .filter(
+            Competition.is_active == True,
+            (Competition.end_at == None) | (Competition.end_at >= now),
+        )
+        .order_by(Competition.start_at.asc().nullsfirst())
         .first()
     )
+
 
 
 def get_comp_or_404(slug: str) -> Competition:
@@ -916,27 +919,28 @@ def my_competitions():
 def resume_competitor():
     """
     Resume scoring for the last competitor on this device.
-    Use this as the target for the 'Return to my scoring' QR.
+    Only resumes if their competition is still live/not-ended.
+    Otherwise, send them to /my-comps.
     """
     cid = session.get("competitor_id")
     if not cid:
-        # No remembered competitor on this device
         return redirect("/")
 
     comp = Competitor.query.get(cid)
     if not comp:
-        # Competitor was deleted; clear and go home
         session.pop("competitor_id", None)
         return redirect("/")
 
-    # If this competitor is tied to a competition, send them to the slugged URL
     if comp.competition_id:
         comp_row = Competition.query.get(comp.competition_id)
         if comp_row and comp_row.slug:
-            return redirect(f"/comp/{comp_row.slug}/competitor/{cid}/sections")
+            now = datetime.utcnow()
+            if comp_row.is_active and (comp_row.end_at is None or comp_row.end_at >= now):
+                return redirect(f"/comp/{comp_row.slug}/competitor/{cid}/sections")
 
-    # Fallback: old-style URL
-    return redirect(f"/competitor/{cid}/sections")
+    # If the comp is finished (or missing), don't send them back to old scoring
+    return redirect("/my-comps")
+
 
 
 # --- Email login: request code ---
@@ -1409,7 +1413,8 @@ def comp_competitor_sections(slug, competitor_id):
 
     # Leaderboard position (note: build_leaderboard() still uses get_current_comp()
     # If you want correct leaderboard per slug, we’ll update build_leaderboard next.)
-    rows, _ = build_leaderboard(None)
+    rows, _ = build_leaderboard(None, competition_id=current_comp.id)
+    
     position = None
     for r in rows:
         if r["competitor_id"] == target_id:
@@ -1490,7 +1495,7 @@ def comp_competitor_stats(slug, competitor_id, mode="my"):
     if comp.competition_id != current_comp.id:
         abort(404)
 
-    total_points = competitor_total_points(competitor_id)
+    total_points = competitor_total_points(competitor_id, current_comp.id)
 
     # Who is viewing?
     view_mode = request.args.get("view", "").lower()
@@ -1538,7 +1543,7 @@ def comp_competitor_stats(slug, competitor_id, mode="my"):
                 info["flashes"] += 1
 
     # Leaderboard position (still using shared helper for now)
-    rows, _ = build_leaderboard(None)
+    rows, _ = build_leaderboard(None, competition_id=current_comp.id)
     position = None
     for r in rows:
         if r["competitor_id"] == competitor_id:
@@ -1572,7 +1577,7 @@ def comp_competitor_stats(slug, competitor_id, mode="my"):
                 if score.topped:
                     sec_tops += 1
                 sec_points += points_for(
-                    score.climb_number, score.attempts, score.topped
+                    score.climb_number, score.attempts, score.topped, current_comp.id
                 )
 
                 if score.topped and score.attempts == 1:
@@ -1889,7 +1894,7 @@ def climb_stats(climb_number):
         competitor = Competitor.query.get(int(cid_raw))
         if competitor:
             # total points for this competitor
-            total_points = competitor_total_points(competitor.id)
+            total_points = competitor_total_points(competitor.id, current_comp.id if current_comp else None)
 
             # leaderboard position for this competitor
             rows, _ = build_leaderboard(None)
@@ -2002,7 +2007,7 @@ def climb_stats(climb_number):
                 "name": c.name if c else f"#{s.competitor_id}",
                 "attempts": s.attempts,
                 "topped": s.topped,
-                "points": points_for(s.climb_number, s.attempts, s.topped),
+                "points": points_for(s.climb_number, s.attempts, s.topped, current_comp.id if current_comp else None),
                 "updated_at": s.updated_at,
             }
         )
@@ -2106,7 +2111,7 @@ def comp_competitor_section_climbs(slug, competitor_id, section_slug):
     )
 
     # Leaderboard rows to figure out competitor position
-    rows, _ = build_leaderboard(None)
+    rows, _ = build_leaderboard(None, competition_id=current_comp.id)
     position = None
     for r in rows:
         if r["competitor_id"] == target_id:
@@ -2172,12 +2177,21 @@ def comp_competitor_section_climbs(slug, competitor_id, section_slug):
         if sc.base_points is not None
     }
 
-    scores = Score.query.filter_by(competitor_id=target_id).all()
+    scores = (
+    Score.query
+    .join(Competitor, Competitor.id == Score.competitor_id)
+    .filter(
+        Score.competitor_id == target_id,
+        Competitor.competition_id == current_comp.id,
+    )
+    .all()
+    )
+    
     existing = {s.climb_number: s for s in scores}
 
     # pre-compute per-climb points for this competitor
     per_climb_points = {
-        s.climb_number: points_for(s.climb_number, s.attempts, s.topped)
+        s.climb_number: points_for(s.climb_number, s.attempts, s.topped, current_comp.id)
         for s in scores
     }
 
@@ -2645,10 +2659,14 @@ def api_save_score():
     if not comp:
         return "Competitor not found", 404
 
-    # Ensure this climb exists in the DB config
-    current_comp = get_current_comp()
+    # Scope everything to the competitor's competition (source of truth)
+    if not comp.competition_id:
+        return "Competitor not registered for a competition", 400
+
+    current_comp = Competition.query.get(comp.competition_id)
     if not current_comp:
-        return "No active competition", 400
+        return "Competition not found", 404
+
 
     # Ensure this climb exists in THIS competition (so correct gym/map)
     sc = (
@@ -2689,7 +2707,7 @@ def api_save_score():
     db.session.commit()
     invalidate_leaderboard_cache()
 
-    points = points_for(climb_number, attempts, topped)
+    points = points_for(climb_number, attempts, topped, current_comp.id)
 
     return jsonify(
         {
