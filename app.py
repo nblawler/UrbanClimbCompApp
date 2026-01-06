@@ -2143,23 +2143,7 @@ def comp_competitor_section_climbs(slug, competitor_id, section_slug):
         for sc in section_climbs
     ])
 
-    # TEMP: if this comes back empty, show ALL climbs (with coords) for this comp
-    if not section_climbs:
-        print("No climbs matched this section – DEBUG: falling back to ALL climbs for this comp")
-        section_ids = [s.id for s in all_sections]
-        if section_ids:
-            section_climbs = (
-                SectionClimb.query
-                .filter(
-                    SectionClimb.section_id.in_(section_ids),
-                    SectionClimb.x_percent.isnot(None),
-                    SectionClimb.y_percent.isnot(None),
-                )
-                .order_by(SectionClimb.climb_number)
-                .all()
-            )
-        else:
-            section_climbs = []
+    # If no climbs exist for this section, show empty map
 
     # ------------- CLIMB NUMBERS / COLOURS / POINTS -------------------
     climbs = [sc.climb_number for sc in section_climbs]

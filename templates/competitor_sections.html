@@ -43,25 +43,16 @@
 				<a class="back {% if nav_active == 'admin' %}active{% endif %}" href="/admin/comps">Admin</a>
 			{% endif %}
 
-			{% if viewer_id or is_admin %}
-				<a class="back" href="/logout">Log out</a>
-			{% else %}
-				<a class="back {% if nav_active == 'login' %}active{% endif %}"
-				   href="/login{% if comp_slug is defined and comp_slug %}?slug={{ comp_slug }}{% endif %}">
-					Log in
-				</a>
-			{% endif %}
-
 			{% if viewer_id %}
 				{% if comp_slug is defined and comp_slug %}
 					<a class="back {% if nav_active == 'sections' %}active{% endif %}"
 					   href="/comp/{{ comp_slug }}/competitor/{{ viewer_id }}/sections">
-						Enter Scores
+						Climb Map
 					</a>
 				{% else %}
 					<a class="back {% if nav_active == 'sections' %}active{% endif %}"
 					   href="/competitor/{{ viewer_id }}/sections">
-						Enter Scores
+						Climb Map
 					</a>
 				{% endif %}
 
@@ -80,6 +71,16 @@
 			   href="/leaderboard{% if viewer_id %}?cid={{ viewer_id }}{% endif %}">
 				Leaderboard
 			</a>
+
+			{% if viewer_id or is_admin %}
+				<a class="back" href="/logout">Log out</a>
+			{% else %}
+				<a class="back {% if nav_active == 'login' %}active{% endif %}"
+				   href="/login{% if comp_slug is defined and comp_slug %}?slug={{ comp_slug }}{% endif %}">
+					Log in
+				</a>
+			{% endif %}
+
 		</div>
 	</nav>
 
