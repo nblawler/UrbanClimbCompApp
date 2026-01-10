@@ -1,4 +1,5 @@
-from flask import Flask, render_template, request, redirect, jsonify, session, abort
+from flask import Flask, render_template, request, redirect, jsonify, session, abort, flash
+from functools import wraps
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import UniqueConstraint
 from datetime import datetime, timedelta
@@ -502,7 +503,44 @@ def admin_can_manage_competition(comp):
         return False
     return admin_can_manage_gym(comp.gym)
 
+def comp_is_finished(comp) -> bool:
+    """True if comp has an end_at and it is in the past (UTC naive)."""
+    if not comp:
+        return True
+    if comp.end_at is None:
+        return False
+    return datetime.utcnow() >= comp.end_at
 
+def deny_if_comp_finished(comp, redirect_to=None, message=None):
+    """
+    Return a redirect response if finished, otherwise None.
+    """
+    if comp_is_finished(comp):
+        flash(message or "That competition has finished — scoring and stats are locked.", "warning")
+        return redirect(redirect_to or "/my-comps")
+    return None
+
+def finished_guard(get_comp_func, redirect_builder=None, message=None):
+    """
+    Decorator that blocks route access if the resolved comp is finished.
+    - get_comp_func(*args, **kwargs) -> Competition
+    - redirect_builder(comp, *args, **kwargs) -> url string (optional)
+    """
+    def decorator(view):
+        @wraps(view)
+        def wrapped(*args, **kwargs):
+            comp = get_comp_func(*args, **kwargs)
+            if not comp:
+                abort(404)
+
+            if comp_is_finished(comp):
+                to = redirect_builder(comp, *args, **kwargs) if redirect_builder else "/my-comps"
+                flash(message or "That competition has finished — scoring and stats are locked.", "warning")
+                return redirect(to)
+
+            return view(*args, **kwargs)
+        return wrapped
+    return decorator
 
 def _normalise_category_key(category):
     """Normalise the category argument into a cache key."""
@@ -598,7 +636,7 @@ def build_leaderboard(category=None, competition_id=None, slug=None):
         tops = sum(1 for s in scores if s.topped)
         attempts_on_tops = sum(s.attempts for s in scores if s.topped)
 
-        # ✅ points_for scoped to THIS competition
+        # points_for scoped to THIS competition
         total_points = sum(
             points_for(s.climb_number, s.attempts, s.topped, current_comp.id)
             for s in scores
@@ -811,7 +849,6 @@ def signup():
         name=name,
         email=email,
     )
-
 
 @app.route("/competitions")
 def competitions_index():
@@ -1474,6 +1511,11 @@ def comp_competitor_sections(slug, competitor_id):
 
 @app.route("/comp/<slug>/competitor/<int:competitor_id>/stats")
 @app.route("/comp/<slug>/competitor/<int:competitor_id>/stats/<string:mode>")
+@finished_guard(
+    get_comp_func=lambda slug, competitor_id, mode="my": get_comp_or_404(slug),
+    redirect_builder=lambda comp, slug, competitor_id, mode="my": f"/comp/{slug}/competitor/{competitor_id}/sections",
+    message="This competition has finished — stats are locked."
+)
 def comp_competitor_stats(slug, competitor_id, mode="my"):
     """
     Stats for a competitor, scoped to a specific competition slug.
@@ -1542,7 +1584,7 @@ def comp_competitor_stats(slug, competitor_id, mode="my"):
             if s.attempts == 1:
                 info["flashes"] += 1
 
-    # Leaderboard position (still using shared helper for now)
+    # Leaderboard position
     rows, _ = build_leaderboard(None, competition_id=current_comp.id)
     position = None
     for r in rows:
@@ -1609,7 +1651,6 @@ def comp_competitor_stats(slug, competitor_id, mode="my"):
                     g_status = "easy"
                 elif top_rate >= 0.4:
                     g_status = "medium"
-                    # Top band is "harder" below
                 else:
                     g_status = "hard"
 
@@ -1867,24 +1908,26 @@ def climb_stats(climb_number):
     """
     Stats for a single climb across all competitors.
 
-    - Optional competitor context via ?cid=123
-    - Optional mode via ?mode=personal|global
-
-      mode=personal -> emphasise this competitor's performance
-      mode=global   -> emphasise global difficulty (default)
+    Locked when there is no current (not-ended) competition.
     """
-
     current_comp = get_current_comp()
+
+    if not current_comp:
+        flash("There’s no active competition right now — climb stats are unavailable.", "warning")
+        return redirect("/my-comps")
+
+    # (extra safety; get_current_comp already prevents ended comps)
+    if comp_is_finished(current_comp):
+        flash("That competition has finished — climb stats are locked.", "warning")
+        return redirect("/my-comps")
 
     # --- Mode selection: personal vs global context ---
     mode = (request.args.get("mode", "global") or "global").strip().lower()
     if mode not in ("personal", "global"):
         mode = "global"
 
-    # Did we come here from the Climber Stats page?
     from_climber = (request.args.get("from_climber", "0") == "1")
 
-    # --- Optional competitor context via ?cid= ---
     cid_raw = request.args.get("cid", "").strip()
     competitor = None
     total_points = None
@@ -1893,27 +1936,20 @@ def climb_stats(climb_number):
     if cid_raw.isdigit():
         competitor = Competitor.query.get(int(cid_raw))
         if competitor:
-            # total points for this competitor
-            total_points = competitor_total_points(competitor.id, current_comp.id if current_comp else None)
+            total_points = competitor_total_points(competitor.id, current_comp.id)
 
-            # leaderboard position for this competitor
-            rows, _ = build_leaderboard(None)
+            rows, _ = build_leaderboard(None, competition_id=current_comp.id)
             for r in rows:
                 if r["competitor_id"] == competitor.id:
                     position = r["position"]
                     break
 
-    # All section mappings for this climb, scoped to current competition's sections
-    if current_comp:
-        comp_sections = (
-            Section.query
-            .filter(Section.competition_id == current_comp.id)
-            .all()
-        )
-        section_ids_for_comp = {s.id for s in comp_sections}
-    else:
-        comp_sections = []
-        section_ids_for_comp = set()
+    comp_sections = (
+        Section.query
+        .filter(Section.competition_id == current_comp.id)
+        .all()
+    )
+    section_ids_for_comp = {s.id for s in comp_sections}
 
     section_climbs = (
         SectionClimb.query
@@ -1925,7 +1961,6 @@ def climb_stats(climb_number):
     )
 
     if not section_climbs:
-        # If the climb isn't configured at all (for this comp), show not-configured message
         nav_active = "climber_stats" if from_climber else (
             "my_stats" if mode == "personal" else "overall_stats"
         )
@@ -1945,19 +1980,15 @@ def climb_stats(climb_number):
     sections = Section.query.filter(Section.id.in_(section_ids)).all()
     sections_by_id = {s.id: s for s in sections}
 
-    # All scores for this climb, but only for competitors in this competition
-    if current_comp:
-        scores = (
-            Score.query
-            .join(Competitor, Score.competitor_id == Competitor.id)
-            .filter(
-                Score.climb_number == climb_number,
-                Competitor.competition_id == current_comp.id,
-            )
-            .all()
+    scores = (
+        Score.query
+        .join(Competitor, Score.competitor_id == Competitor.id)
+        .filter(
+            Score.climb_number == climb_number,
+            Competitor.competition_id == current_comp.id,
         )
-    else:
-        scores = []
+        .all()
+    )
 
     total_attempts = sum(s.attempts for s in scores)
     tops = sum(1 for s in scores if s.topped)
@@ -1975,7 +2006,6 @@ def climb_stats(climb_number):
         if tops > 0 else 0.0
     )
 
-    # --- Global difficulty band for this climb (matches global heatmap) ---
     if num_competitors == 0:
         global_difficulty_key = "no-data"
         global_difficulty_label = "Not tried yet (no data)"
@@ -1990,7 +2020,6 @@ def climb_stats(climb_number):
             global_difficulty_key = "hard"
             global_difficulty_label = "Harder"
 
-    # Per-competitor breakdown
     comps = {}
     if competitor_ids:
         comps = {
@@ -2007,15 +2036,13 @@ def climb_stats(climb_number):
                 "name": c.name if c else f"#{s.competitor_id}",
                 "attempts": s.attempts,
                 "topped": s.topped,
-                "points": points_for(s.climb_number, s.attempts, s.topped, current_comp.id if current_comp else None),
+                "points": points_for(s.climb_number, s.attempts, s.topped, current_comp.id),
                 "updated_at": s.updated_at,
             }
         )
 
-    # Sort per-competitor list: topped first, then by attempts asc
     per_competitor.sort(key=lambda r: (not r["topped"], r["attempts"]))
 
-    # --- find this competitor's row (if any) so Jinja doesn't have to ---
     personal_row = None
     if competitor:
         for row in per_competitor:
@@ -2023,7 +2050,6 @@ def climb_stats(climb_number):
                 personal_row = row
                 break
 
-    # nav_active: respect Climber Stats when we came from there
     nav_active = "climber_stats" if from_climber else (
         "my_stats" if mode == "personal" else "overall_stats"
     )
@@ -2059,6 +2085,11 @@ def climb_stats(climb_number):
 
 
 @app.route("/comp/<slug>/competitor/<int:competitor_id>/section/<section_slug>")
+@finished_guard(
+    get_comp_func=lambda slug, competitor_id, section_slug: get_comp_or_404(slug),
+    redirect_builder=lambda comp, slug, competitor_id, section_slug: f"/comp/{slug}/competitor/{competitor_id}/sections",
+    message="This competition has finished — you can’t enter scores anymore."
+)
 def comp_competitor_section_climbs(slug, competitor_id, section_slug):
     """
     Per-section climbs page, scoped to a specific competition slug.
@@ -2093,7 +2124,6 @@ def comp_competitor_section_climbs(slug, competitor_id, section_slug):
     # If admin is viewing, enforce gym-level permissions
     if is_admin and not admin_can_manage_competition(current_comp):
         abort(403)
-
 
     # Section must also belong to this competition
     section = (
@@ -2143,9 +2173,6 @@ def comp_competitor_section_climbs(slug, competitor_id, section_slug):
         for sc in section_climbs
     ])
 
-    # If no climbs exist for this section, show empty map
-
-    # ------------- CLIMB NUMBERS / COLOURS / POINTS -------------------
     climbs = [sc.climb_number for sc in section_climbs]
 
     colours = {
@@ -2154,7 +2181,6 @@ def comp_competitor_section_climbs(slug, competitor_id, section_slug):
         if sc.colour
     }
 
-    # Max points per climb (base_points)
     max_points = {
         sc.climb_number: sc.base_points
         for sc in section_climbs
@@ -2162,18 +2188,17 @@ def comp_competitor_section_climbs(slug, competitor_id, section_slug):
     }
 
     scores = (
-    Score.query
-    .join(Competitor, Competitor.id == Score.competitor_id)
-    .filter(
-        Score.competitor_id == target_id,
-        Competitor.competition_id == current_comp.id,
-    )
-    .all()
+        Score.query
+        .join(Competitor, Competitor.id == Score.competitor_id)
+        .filter(
+            Score.competitor_id == target_id,
+            Competitor.competition_id == current_comp.id,
+        )
+        .all()
     )
     
     existing = {s.climb_number: s for s in scores}
 
-    # pre-compute per-climb points for this competitor
     per_climb_points = {
         s.climb_number: points_for(s.climb_number, s.attempts, s.topped, current_comp.id)
         for s in scores
@@ -2204,7 +2229,6 @@ def comp_competitor_section_climbs(slug, competitor_id, section_slug):
         sections=all_sections,           # all sections for the tabs
         gym_map_url=gym_map_url,
     )
-
 
 @app.route("/competitor/<int:competitor_id>/section/<section_slug>")
 def competitor_section_climbs(competitor_id, section_slug):
@@ -2607,7 +2631,6 @@ def public_register():
 
 # --- Score API ---
 
-
 @app.route("/api/score", methods=["POST"])
 def api_save_score():
     data = request.get_json(force=True, silent=True) or {}
@@ -2651,6 +2674,9 @@ def api_save_score():
     if not current_comp:
         return "Competition not found", 404
 
+    # ✅ NEW: block edits once the comp is finished
+    if comp_is_finished(current_comp):
+        return "Competition finished — scoring locked", 403
 
     # Ensure this climb exists in THIS competition (so correct gym/map)
     sc = (
@@ -2831,7 +2857,7 @@ def admin_page():
                 error = "Please enter the admin password first."
             else:
                 if action == "reset_all":
-                    # ✅ Super-admin only (server-side enforcement)
+                    # Super-admin only (server-side enforcement)
                     if not admin_is_super():
                         abort(403)
 
@@ -2997,8 +3023,6 @@ def admin_comp(slug):
         sections=sections,
     )
 
-
-
 @app.route("/admin/section/<int:section_id>/edit", methods=["GET", "POST"])
 def edit_section(section_id):
     # Require an unlocked admin session
@@ -3006,9 +3030,40 @@ def edit_section(section_id):
         return redirect("/admin")
 
     section = Section.query.get_or_404(section_id)
-    current_comp = get_current_comp()
-    if section.competition_id is not None and current_comp and section.competition_id != current_comp.id:
+
+    # Admin-selected comp context:
+    # - On GET: comp_id from querystring
+    # - On POST: comp_id from hidden form field
+    # - Fallback: session["admin_comp_id"]
+    comp_id = None
+
+    if request.method == "POST":
+        raw = (request.form.get("comp_id") or "").strip()
+        if raw.isdigit():
+            comp_id = int(raw)
+    else:
+        comp_id = request.args.get("comp_id", type=int)
+
+    if not comp_id:
+        comp_id = session.get("admin_comp_id")
+
+    if not comp_id:
+        return redirect("/admin/comps")
+
+    current_comp = Competition.query.get(comp_id)
+    if not current_comp:
+        return redirect("/admin/comps")
+
+    # Keep session in sync (so other admin routes stay consistent)
+    session["admin_comp_id"] = current_comp.id
+
+    # Ensure this section belongs to the comp we're editing
+    if section.competition_id != current_comp.id:
         abort(404)
+
+    # Gym-level permission check (super admin OR gym admin for this gym)
+    if not admin_can_manage_competition(current_comp):
+        abort(403)
 
     error = None
     message = None
@@ -3055,17 +3110,23 @@ def edit_section(section_id):
                 elif base_points < 0 or penalty_per_attempt < 0 or attempt_cap <= 0:
                     error = "Base points and penalty must be ≥ 0 and attempt cap must be > 0."
                 else:
-                    existing = SectionClimb.query.filter_by(
-                        section_id=section.id,
-                        climb_number=climb_number
-                    ).first()
+                    # Uniqueness check should include gym_id (your schema wants gym separation)
+                    existing = (
+                        SectionClimb.query
+                        .filter_by(
+                            section_id=section.id,
+                            climb_number=climb_number,
+                            gym_id=current_comp.gym_id,
+                        )
+                        .first()
+                    )
 
                     if existing:
                         error = f"Climb {climb_number} is already in this section."
                     else:
                         sc = SectionClimb(
                             section_id=section.id,
-                            gym_id=current_comp.gym_id,   # ✅ THIS IS THE KEY LINE
+                            gym_id=current_comp.gym_id,
                             climb_number=climb_number,
                             colour=colour or None,
                             base_points=base_points,
@@ -3083,9 +3144,14 @@ def edit_section(section_id):
             else:
                 climb_id = int(climb_id_raw)
                 sc = SectionClimb.query.get(climb_id)
+
                 if not sc or sc.section_id != section.id:
                     error = "Climb not found in this section."
                 else:
+                    # Optional extra safety: ensure you're not deleting across gyms
+                    if current_comp.gym_id and sc.gym_id and sc.gym_id != current_comp.gym_id:
+                        abort(403)
+
                     # Delete all scores for this climb (for all competitors)
                     Score.query.filter_by(climb_number=sc.climb_number).delete()
 
@@ -3093,7 +3159,10 @@ def edit_section(section_id):
                     db.session.delete(sc)
                     db.session.commit()
                     invalidate_leaderboard_cache()
-                    message = f"Climb {sc.climb_number} removed from {section.name}, and all associated scores were deleted."
+                    message = (
+                        f"Climb {sc.climb_number} removed from {section.name}, "
+                        "and all associated scores were deleted."
+                    )
 
         elif action == "delete_section":
             # Find all climb numbers in this section
@@ -3112,7 +3181,8 @@ def edit_section(section_id):
             db.session.commit()
             invalidate_leaderboard_cache()
 
-            return redirect("/admin")
+            # Keep comp context on redirect
+            return redirect(f"/admin/comp/{current_comp.slug}" if current_comp.slug else "/admin/comps")
 
     climbs = (
         SectionClimb.query
@@ -3127,6 +3197,8 @@ def edit_section(section_id):
         climbs=climbs,
         error=error,
         message=message,
+        current_comp=current_comp,
+        current_comp_id=current_comp.id,
     )
 
 @app.route("/admin/map")
@@ -3164,7 +3236,6 @@ def admin_map():
     if current_comp and current_comp.gym:
         gym_map_url = current_comp.gym.map_image_path
 
-
     sections = (
         Section.query
         .filter(Section.competition_id == current_comp.id)
@@ -3189,6 +3260,9 @@ def admin_map():
     gym_name = current_comp.gym.name if getattr(current_comp, "gym", None) else None
     comp_name = current_comp.name
 
+    # keep comp context in template (for hidden inputs + link building)
+    current_comp_id = current_comp.id
+
     return render_template(
         "admin_map.html",
         sections=sections,
@@ -3196,7 +3270,9 @@ def admin_map():
         gym_map_url=gym_map_url,
         gym_name=gym_name,
         comp_name=comp_name,
+        current_comp_id=current_comp_id,  
     )
+
 
 @app.route("/admin/comps", methods=["GET", "POST"])
 def admin_competitions():
@@ -3268,7 +3344,7 @@ def admin_competitions():
                 start_at = parse_dt(start_date, start_time)
                 end_at = parse_dt(end_date, end_time)
 
-                # ✅ NEW: gym selection must come from gym_id (dropdown)
+                # gym selection must come from gym_id (dropdown)
                 gym_id_raw = (request.form.get("gym_id") or "").strip()
                 gym = None
 
@@ -3292,7 +3368,7 @@ def admin_competitions():
                     comp = Competition(
                         name=name,
                         gym_name=gym.name if gym else None,  # legacy text field (optional)
-                        gym=gym,                              # ✅ formal relationship
+                        gym=gym,                              # formal relationship
                         slug=slug_val,
                         start_at=start_at,
                         end_at=end_at,
@@ -3399,49 +3475,60 @@ def admin_configure_competition(competition_id):
     # Send them to the existing admin hub where they can create sections, climbs, etc.
     return redirect("/admin")
 
-
-
 @app.route("/admin/map/add-climb", methods=["POST"])
 def admin_map_add_climb():
     """
     Handle form submission from the map when admin clicks and adds a climb.
+    Uses the admin-selected competition context (comp_id), NOT the public "current" comp.
     """
     if not session.get("admin_ok"):
         return redirect("/admin")
 
-    current_comp = get_current_comp()
-    if not current_comp:
-        # No active comp configured; safest is to just bounce them back
+    # 1) Get comp_id from POST (hidden field), fallback to session
+    comp_id_raw = (request.form.get("comp_id") or "").strip()
+    comp_id = int(comp_id_raw) if comp_id_raw.isdigit() else session.get("admin_comp_id")
+
+    if not comp_id:
         return redirect("/admin/comps")
 
-    # Only allow admins who can manage this competition's gym
+    current_comp = Competition.query.get(comp_id)
+    if not current_comp:
+        return redirect("/admin/comps")
+
+    # Keep session in sync (so /admin/map GET fallback works too)
+    session["admin_comp_id"] = current_comp.id
+
+    # Gym-level permission check (super admin OR gym admin for this gym)
     if not admin_can_manage_competition(current_comp):
         abort(403)
 
-    section_id_raw = request.form.get("section_id", "").strip()
+    section_id_raw = (request.form.get("section_id") or "").strip()
     new_section_name = (request.form.get("new_section_name") or "").strip()
-    climb_raw = request.form.get("climb_number", "").strip()
+    climb_raw = (request.form.get("climb_number") or "").strip()
     colour = (request.form.get("colour") or "").strip()
 
-    base_raw = request.form.get("base_points", "").strip()
-    penalty_raw = request.form.get("penalty_per_attempt", "").strip()
-    cap_raw = request.form.get("attempt_cap", "").strip()
+    base_raw = (request.form.get("base_points") or "").strip()
+    penalty_raw = (request.form.get("penalty_per_attempt") or "").strip()
+    cap_raw = (request.form.get("attempt_cap") or "").strip()
 
-    x_raw = request.form.get("x_percent", "").strip()
-    y_raw = request.form.get("y_percent", "").strip()
+    x_raw = (request.form.get("x_percent") or "").strip()
+    y_raw = (request.form.get("y_percent") or "").strip()
 
     error = None
 
-    # 1) Decide which section to use (existing or new)
+    # 2) Decide which section to use (existing or new)
     section = None
-    if section_id_raw and section_id_raw.isdigit():
+    if section_id_raw.isdigit():
         section = Section.query.get(int(section_id_raw))
-        if section and section.competition_id != current_comp.id:
+        # Must belong to this comp (and optionally same gym)
+        if not section or section.competition_id != current_comp.id:
             section = None
 
     if not section and new_section_name:
         slug = slugify(new_section_name)
-        existing = Section.query.filter_by(slug=slug).first()
+
+        # Make uniqueness scoped to this competition (prevents cross-comp collisions)
+        existing = Section.query.filter_by(competition_id=current_comp.id, slug=slug).first()
         if existing:
             slug = f"{slug}-{int(datetime.utcnow().timestamp())}"
 
@@ -3453,24 +3540,19 @@ def admin_map_add_climb():
             competition_id=current_comp.id,
             gym_id=current_comp.gym_id,
         )
-
         db.session.add(section)
         db.session.flush()  # get section.id without full commit
 
     if not section:
         error = "Please choose an existing section or enter a new section name."
 
-    # 2) Basic validation of numbers
+    # 3) Basic validation of numbers
     if not error:
         if not climb_raw.isdigit():
             error = "Please enter a valid climb number."
         elif base_raw == "" or penalty_raw == "" or cap_raw == "":
             error = "Please enter base points, penalty per attempt, and attempt cap."
-        elif not (
-            base_raw.lstrip("-").isdigit()
-            and penalty_raw.lstrip("-").isdigit()
-            and cap_raw.lstrip("-").isdigit()
-        ):
+        elif not (base_raw.isdigit() and penalty_raw.isdigit() and cap_raw.isdigit()):
             error = "Base points, penalty per attempt, and attempt cap must be whole numbers."
 
     if not error:
@@ -3484,7 +3566,7 @@ def admin_map_add_climb():
         elif base_points < 0 or penalty_per_attempt < 0 or attempt_cap <= 0:
             error = "Base points, penalty must be ≥ 0 and attempt cap > 0."
 
-    # 3) Coordinates
+    # 4) Coordinates
     if not error:
         try:
             x_percent = float(x_raw)
@@ -3493,20 +3575,22 @@ def admin_map_add_climb():
             error = "Internal error: invalid click coordinates. Please try again."
 
     if error:
-        return redirect("/admin/map")
+        return redirect(f"/admin/map?comp_id={current_comp.id}")
 
-    # 4) Check climb uniqueness within section (+ gym)
-    existing = (
-        SectionClimb.query
-        .filter_by(
-            section_id=section.id,
-            climb_number=climb_number,
-            gym_id=current_comp.gym_id,
+    # 5) Enforce uniqueness of climb_number within THIS competition (+ gym)
+    # This matches your rule: "Each climb number can only exist once across all sections."
+    conflict = (
+        db.session.query(SectionClimb)
+        .join(Section, SectionClimb.section_id == Section.id)
+        .filter(
+            Section.competition_id == current_comp.id,
+            SectionClimb.gym_id == current_comp.gym_id,
+            SectionClimb.climb_number == climb_number,
         )
         .first()
     )
-    if existing:
-        return redirect("/admin/map")
+    if conflict:
+        return redirect(f"/admin/map?comp_id={current_comp.id}")
 
     sc = SectionClimb(
         section_id=section.id,
@@ -3522,7 +3606,7 @@ def admin_map_add_climb():
     db.session.add(sc)
     db.session.commit()
 
-    return redirect("/admin/map")
+    return redirect(f"/admin/map?comp_id={current_comp.id}")
 
 
 # --- Startup ---

@@ -9,8 +9,12 @@
 	<body>
 		<nav class="container top-nav">
 			<div class="nav-links">
-				<a class="back" href="/login">Login</a>
 				<a class="back" href="/admin/comps">Admin Home</a>
+				{% if session.get('admin_ok') %}
+					<a class="back" href="/logout">Log out</a>
+				{% else %}
+					<a class="back {% if nav_active == 'admin' %}active{% endif %}" href="/admin">Admin login</a>
+				{% endif %}
 			</div>
 		</nav>
 
@@ -49,7 +53,7 @@
 				</section>
 			{% else %}
 
-				{# ✅ Manage Competition context banner #}
+				{# Manage Competition context banner #}
 				<section class="card">
 					<h2>Manage competition</h2>
 

@@ -25,12 +25,15 @@
 					</a>
 				{% endif %}
 
-				<a
-					class="back {% if nav_active == 'login' %}active{% endif %}"
-					href="/login"
-				>
-					Log in
-				</a>
+				{% if session.get('competitor_id') or session.get('admin_ok') %}
+					<a class="back" href="/logout">Log out</a>
+				{% else %}
+					<a class="back {% if nav_active == 'login' %}active{% endif %}"
+					   href="/login{% if comp_slug %}?slug={{ comp_slug }}{% endif %}">
+						Log in
+					</a>
+				{% endif %}
+
 			</div>
 		</nav>
 

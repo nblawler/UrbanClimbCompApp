@@ -32,6 +32,22 @@
       gap: 12px;
     }
 
+    .map-header-left {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      min-width: 0;
+    }
+
+    .map-subtitle {
+      font-size: 12px;
+      color: var(--text-muted, #9aa3b5);
+      margin: 0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
     .map-wrapper {
       position: relative;
       width: 100%;
@@ -125,6 +141,7 @@
       cursor: pointer;
       font-size: 14px;
       margin-top: 6px;
+      text-decoration: none;
     }
 
     .pill-button:disabled {
@@ -173,24 +190,46 @@
 <body>
   <nav class="container top-nav">
     <div class="nav-links">
-      <a class="back" href="/login">Login</a>
-      <a class="back" href="/admin/comps">Admin Home</a>
+      {# Preserve admin-selected comp context in "Admin Home" link #}
+      <a class="back" href="/admin/comps{% if session.get('admin_comp_id') %}?comp_id={{ session.get('admin_comp_id') }}{% endif %}">
+        Admin Home
+      </a>
+
+      {# Optional: quick jump back to this comp’s admin page if slug exists #}
+      {% if session.get('admin_comp_id') and comp_name %}
+        <a class="back" href="/admin/map?comp_id={{ session.get('admin_comp_id') }}">
+          Refresh map
+        </a>
+      {% endif %}
+
+      {% if session.get('competitor_id') or session.get('admin_ok') %}
+        <a class="back" href="/logout">Log out</a>
+      {% else %}
+        <a class="back" href="/admin">Admin login</a>
+      {% endif %}
     </div>
   </nav>
 
   <main class="admin-map-page">
     <section class="map-card">
       <div class="map-header">
-        {# Use a dynamic title if the route passes gym_name or comp_name; fallback gracefully #}
-        <h1 class="page-title">
-          {% if gym_name %}
-            {{ gym_name }} Wall Map
-          {% elif comp_name %}
-            {{ comp_name }} · Wall Map
-          {% else %}
-            Wall Map
+        <div class="map-header-left">
+          <h1 class="page-title">
+            {% if gym_name %}
+              {{ gym_name }} Wall Map
+            {% elif comp_name %}
+              {{ comp_name }} · Wall Map
+            {% else %}
+              Wall Map
+            {% endif %}
+          </h1>
+
+          {# Helpful context line if we know which comp we’re editing #}
+          {% if comp_name %}
+            <p class="map-subtitle">Editing competition: {{ comp_name }}</p>
           {% endif %}
-        </h1>
+        </div>
+
         <span class="page-tag">Admin · Click to place climbs</span>
       </div>
 
@@ -237,7 +276,10 @@
         Click on the map first to set the position, then fill the details and save.
       </p>
 
+      {# Preserve comp context on submit #}
       <form method="POST" action="/admin/map/add-climb">
+        <input type="hidden" name="comp_id" value="{{ session.get('admin_comp_id') }}">
+
         <div class="field">
           <label for="section_id">Existing section</label>
           <select name="section_id" id="section_id">
@@ -359,6 +401,9 @@
 
       // If there's no map wrapper (no gym_map_url), don't bind clicks
       if (!mapWrapper) return;
+
+      // Start disabled until we click
+      if (submitBtn) submitBtn.disabled = true;
 
       mapWrapper.addEventListener("click", function (e) {
         const rect = mapWrapper.getBoundingClientRect();

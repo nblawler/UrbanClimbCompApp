@@ -8,9 +8,18 @@
 	</head>
 	<body>
 		<nav class="container top-nav">
+			<a class="back" href="/admin/comps">Admin Home</a>
 			<div class="nav-links">
-				<a class="back" href="/login">Login</a>
-				<a class="back" href="/admin/comps">Admin Home</a>
+				{% if viewer_id or is_admin %}
+					<a class="back" href="/logout">Log out</a>
+				{% else %}
+					{# If comp_slug isn't passed, fall back to current_comp.slug #}
+					{% set _slug = comp_slug if comp_slug is defined and comp_slug else (current_comp.slug if current_comp is defined and current_comp and current_comp.slug else None) %}
+					<a class="back {% if nav_active == 'login' %}active{% endif %}"
+					   href="/login{% if _slug %}?slug={{ _slug }}{% endif %}">
+						Log in
+					</a>
+				{% endif %}
 			</div>
 		</nav>
 
@@ -33,9 +42,15 @@
 					{% if section.start_climb and section.end_climb %}
 						· climbs {{ section.start_climb }}–{{ section.end_climb }}
 					{% endif %}
+					{% if current_comp is defined and current_comp and current_comp.name %}
+						· comp: <strong>{{ current_comp.name }}</strong>
+					{% endif %}
 				</p>
 
 				<form method="post">
+					{# Critical: preserve admin-selected competition across POSTs #}
+					<input type="hidden" name="comp_id" value="{{ current_comp_id if current_comp_id is defined else '' }}">
+
 					<label for="name" style="margin-top:10px;">Section name</label>
 					<input
 						type="text"
@@ -201,6 +216,3 @@
 		</main>
 	</body>
 </html>
-
-
-
