@@ -7,177 +7,199 @@
     <link rel="stylesheet" href="/static/app.css" />
 
     <style>
-      :root{
-        --bg0:#0a1628;
-        --bg1:#1a2942;
-        --card:#0f1f35;
-        --card2:#102542;
-        --border:rgba(255,255,255,.10);
-        --text:rgba(255,255,255,.92);
-        --muted:rgba(255,255,255,.70);
-        --muted2:rgba(255,255,255,.55);
-        --brand:#5eead4;
-        --brand2:#22c55e;
-        --danger:#fb7185;
-        --warn:#fbbf24;
-        --shadow: 0 18px 50px rgba(0,0,0,.45);
-        --radius: 16px;
-      }
+      * { margin: 0; padding: 0; box-sizing: border-box; }
 
-      *{ margin:0; padding:0; box-sizing:border-box; }
-
-      body{
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-        background: linear-gradient(135deg, var(--bg0) 0%, var(--bg1) 100%);
-        color: var(--text);
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+        background: linear-gradient(135deg, #0a1628 0%, #1a2942 100%);
         min-height: 100vh;
-      }
-
-      .container{
-        max-width: 980px;
-        margin: 0 auto;
-        padding: 18px 16px;
+        display: flex;
+        flex-direction: column;
+        color: #fff;
       }
 
       /* Top nav */
-      .top-nav{
-        margin-top: 10px;
-        margin-bottom: 8px;
+      .nav {
+        padding: 1.25rem 2rem;
+        display: flex;
+        gap: 1.5rem;
+        align-items: center;
+        flex-wrap: wrap;
       }
-      .nav-links{
-        display:flex;
-        gap:10px;
-        flex-wrap:wrap;
-        align-items:center;
-        padding: 10px 12px;
-        border: 1px solid var(--border);
-        background: rgba(15,31,53,.60);
-        backdrop-filter: blur(8px);
-        border-radius: 999px;
-        box-shadow: 0 10px 30px rgba(0,0,0,.25);
-      }
-      .nav-links a{
-        text-decoration:none;
-        color: var(--muted);
-        padding: 8px 12px;
-        border-radius: 999px;
-        border: 1px solid transparent;
-        transition: transform .08s ease, background .15s ease, border-color .15s ease, color .15s ease;
+
+      .nav a {
+        color: rgba(255, 255, 255, 0.7);
+        text-decoration: none;
+        font-size: 0.95rem;
+        transition: color 0.2s;
         font-weight: 600;
-        font-size: .95rem;
-      }
-      .nav-links a:hover{
-        color: var(--text);
-        background: rgba(255,255,255,.06);
-        border-color: rgba(255,255,255,.10);
-        transform: translateY(-1px);
-      }
-      .nav-links a.active{
-        color: #081a18;
-        background: rgba(94,234,212,.95);
-        border-color: rgba(94,234,212,.95);
-        box-shadow: 0 10px 26px rgba(94,234,212,.18);
       }
 
-      /* Page header */
-      .comp-header{
-        margin: 18px 0 12px;
-        padding: 18px;
-        border-radius: var(--radius);
-        background: linear-gradient(180deg, rgba(16,37,66,.85) 0%, rgba(15,31,53,.75) 100%);
-        border: 1px solid var(--border);
-        box-shadow: var(--shadow);
-      }
-      .comp-header h1{
-        font-size: 1.6rem;
-        letter-spacing: .2px;
-        margin-bottom: 6px;
-      }
-      .comp-header p{
-        color: var(--muted);
-        line-height: 1.45;
+      .nav a.active {
+        color: #5df4a2;
+        font-weight: 700;
       }
 
-      /* Alerts */
-      .error, .message{
-        margin: 10px 0;
-        padding: 12px 14px;
-        border-radius: 12px;
-        border: 1px solid var(--border);
-        background: rgba(255,255,255,.05);
+      .nav a:hover { color: #fff; }
+
+      /* Main container */
+      .container {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 2rem;
+        max-width: 600px;
+        margin: 0 auto;
+        width: 100%;
       }
-      .error{
-        border-color: rgba(251,113,133,.35);
-        background: rgba(251,113,133,.10);
-        color: rgba(255,255,255,.95);
+
+      /* Hero / header */
+      .hero {
+        text-align: center;
+        margin: 2rem 0 2.5rem;
+        width: 100%;
       }
-      .message{
-        border-color: rgba(94,234,212,.30);
-        background: rgba(94,234,212,.10);
-        color: rgba(255,255,255,.92);
+
+      .hero h1 {
+        font-size: 2.75rem;
+        font-weight: 900;
+        margin-bottom: 0.85rem;
+        background: linear-gradient(135deg, #fff 0%, #5df4a2 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        letter-spacing: -0.02em;
+      }
+
+      .hero p {
+        font-size: 1.05rem;
+        color: rgba(255, 255, 255, 0.75);
+        line-height: 1.6;
+        margin: 0.35rem 0;
+      }
+
+      .hero .comp-info {
+        margin-top: 1rem;
+        padding: 0.75rem 1rem;
+        background: rgba(93, 244, 162, 0.1);
+        border: 1px solid rgba(93, 244, 162, 0.2);
+        border-radius: 0.75rem;
+        font-size: 0.95rem;
+        color: rgba(255, 255, 255, 0.9);
+      }
+
+      .hero .comp-info strong {
+        color: #5df4a2;
       }
 
       /* Form card */
-      .form-card{
-        margin-top: 12px;
-        padding: 18px;
-        border-radius: var(--radius);
-        border: 1px solid var(--border);
-        background: rgba(15,31,53,.70);
-        backdrop-filter: blur(8px);
-        box-shadow: var(--shadow);
+      .form-card {
+        width: 100%;
+        background: rgba(255, 255, 255, 0.05);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 1.5rem;
+        padding: 2rem;
+        margin-bottom: 1rem;
       }
-      label{
-        display:block;
-        margin: 12px 0 6px;
-        color: var(--muted);
+
+      /* Alerts */
+      .error, .message {
+        width: 100%;
+        margin: 0 0 1rem 0;
+        padding: 1rem 1.25rem;
+        border-radius: 1rem;
+        border: 1px solid;
+      }
+
+      .error {
+        border-color: rgba(251, 113, 133, 0.4);
+        background: rgba(251, 113, 133, 0.12);
+        color: rgba(255, 255, 255, 0.95);
+      }
+
+      .message {
+        border-color: rgba(93, 244, 162, 0.4);
+        background: rgba(93, 244, 162, 0.12);
+        color: rgba(255, 255, 255, 0.95);
+      }
+
+      .form-group {
+        margin-bottom: 1.25rem;
+      }
+
+      .form-group:last-of-type {
+        margin-bottom: 0;
+      }
+
+      label {
+        display: block;
+        margin: 0 0 0.5rem 0;
+        color: rgba(255, 255, 255, 0.85);
         font-weight: 700;
-        font-size: .95rem;
+        font-size: 0.95rem;
       }
-      input{
+
+      input {
         width: 100%;
-        padding: 12px 12px;
-        border-radius: 12px;
-        border: 1px solid rgba(255,255,255,.12);
-        background: rgba(8,18,32,.55);
-        color: var(--text);
+        padding: 0.875rem 1rem;
+        border-radius: 0.75rem;
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        background: rgba(0, 0, 0, 0.2);
+        color: #fff;
         outline: none;
-      }
-      input::placeholder{ color: rgba(255,255,255,.45); }
-      input:focus{
-        border-color: rgba(94,234,212,.55);
-        box-shadow: 0 0 0 4px rgba(94,234,212,.12);
+        font-size: 1rem;
+        transition: all 0.2s;
       }
 
-      .btn{
-        display:inline-flex;
-        align-items:center;
-        justify-content:center;
-        gap:10px;
-        margin-top: 14px;
-        padding: 12px 14px;
-        border-radius: 12px;
-        border: 1px solid transparent;
-        cursor:pointer;
-        font-weight: 800;
-        letter-spacing: .2px;
-        text-decoration:none;
+      input::placeholder {
+        color: rgba(255, 255, 255, 0.4);
       }
-      .btn.primary{
+
+      input:focus {
+        border-color: #5df4a2;
+        box-shadow: 0 0 0 3px rgba(93, 244, 162, 0.15);
+        background: rgba(0, 0, 0, 0.3);
+      }
+
+      /* Special styling for code input */
+      input#code {
+        font-size: 1.5rem;
+        letter-spacing: 0.5rem;
+        text-align: center;
+        font-weight: 700;
+      }
+
+      .btn {
+        display: block;
         width: 100%;
-        background: rgba(94,234,212,.95);
-        color: #081a18;
-        box-shadow: 0 16px 34px rgba(94,234,212,.18);
-      }
-      .btn.primary:hover{
-        filter: brightness(1.02);
-        transform: translateY(-1px);
+        padding: 1rem 1.25rem;
+        background: #5df4a2;
+        color: #0a1628;
+        text-decoration: none;
+        border-radius: 0.85rem;
+        font-weight: 900;
+        font-size: 1rem;
+        text-align: center;
+        transition: all 0.2s;
+        border: none;
+        cursor: pointer;
+        margin-top: 1.5rem;
       }
 
-      @media (max-width: 520px){
-        .comp-header h1{ font-size: 1.35rem; }
-        .nav-links{ border-radius: 16px; }
-        .nav-links a{ flex: 1 1 auto; text-align:center; }
+      .btn:hover {
+        background: #4de392;
+        transform: scale(1.02);
+      }
+
+      @media (max-width: 768px) {
+        .nav { padding: 1rem; }
+        .container { padding: 1.5rem 1rem; }
+        .hero h1 { font-size: 2.2rem; }
+        .hero p { font-size: 1rem; }
+        .form-card { padding: 1.5rem; }
+        input#code { font-size: 1.25rem; letter-spacing: 0.35rem; }
       }
     </style>
   </head>
@@ -187,65 +209,66 @@
     {% set is_admin = session.get('admin_ok', False) %}
     {% set slug = slug if slug is defined else (request.args.get('slug') if request is defined else '') %}
 
-    <nav class="container top-nav">
-      <div class="nav-links">
-        <a class="back {% if nav_active == 'home' %}active{% endif %}" href="/my-comps">Home</a>
+    <nav class="nav">
+      <a class="{% if nav_active == 'home' %}active{% endif %}" href="/my-comps">Home</a>
 
-        {% if viewer_id or is_admin %}
-          <a class="back" href="/logout">Log out</a>
-        {% else %}
-          <a class="back {% if nav_active == 'login' %}active{% endif %}" href="/login{% if slug %}?slug={{ slug }}{% endif %}">
-            Log in
-          </a>
-        {% endif %}
-
-        <a class="back {% if nav_active == 'leaderboard' %}active{% endif %}"
-           href="/leaderboard{% if viewer_id %}?cid={{ viewer_id }}{% endif %}">
-          Leaderboard
+      {% if viewer_id or is_admin %}
+        <a href="/logout">Log out</a>
+      {% else %}
+        <a class="{% if nav_active == 'login' %}active{% endif %}" href="/login{% if slug %}?slug={{ slug }}{% endif %}">
+          Log in
         </a>
+      {% endif %}
 
-        {% if viewer_id %}
-          {% if slug %}
-            <a class="back" href="/comp/{{ slug }}/competitor/{{ viewer_id }}/sections">Continue scoring</a>
-          {% else %}
-            <a class="back" href="/competitor/{{ viewer_id }}/sections">Continue scoring</a>
-          {% endif %}
+      <a class="{% if nav_active == 'leaderboard' %}active{% endif %}"
+         href="/leaderboard{% if viewer_id %}?cid={{ viewer_id }}{% endif %}">
+        Leaderboard
+      </a>
+
+      {% if viewer_id %}
+        {% if slug %}
+          <a href="/comp/{{ slug }}/competitor/{{ viewer_id }}/sections">Continue scoring</a>
+        {% else %}
+          <a href="/competitor/{{ viewer_id }}/sections">Continue scoring</a>
         {% endif %}
-      </div>
+      {% endif %}
     </nav>
 
     <main class="container">
-      <header class="comp-header">
-        <h1>Check your email</h1>
+      <header class="hero">
+        <h1>Check Your Email</h1>
         <p>
-          We’ve sent a 6-digit code to your email.
-          Enter it below to continue scoring.
+          We've sent a 6-digit code to your email. Enter it below to continue scoring.
         </p>
 
         {% if slug %}
-          <p style="margin-top: 10px; color: var(--muted); font-size: 0.95rem;">
-            You’re logging into: <strong>{{ slug }}</strong>
-          </p>
+          <div class="comp-info">
+            Logging into: <strong>{{ slug }}</strong>
+          </div>
         {% endif %}
       </header>
 
       {% if error %}
-        <p class="error">{{ error }}</p>
+        <div class="error">{{ error }}</div>
       {% endif %}
       {% if message %}
-        <p class="message">{{ message }}</p>
+        <div class="message">{{ message }}</div>
       {% endif %}
 
       <form method="post" class="form-card">
         <input type="hidden" name="slug" value="{{ slug or '' }}" />
 
-        <label for="email">Email</label>
-        <input type="email" id="email" name="email" value="{{ email or '' }}" required />
+        <div class="form-group">
+          <label for="email">Email</label>
+          <input type="email" id="email" name="email" value="{{ email or '' }}" placeholder="your@email.com" required />
+        </div>
 
-        <label for="code">6-digit code</label>
-        <input type="text" id="code" name="code" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" required />
+        <div class="form-group">
+          <label for="code">6-digit code</label>
+          <input type="text" id="code" name="code" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" placeholder="000000" required />
+        </div>
 
-        <button class="btn primary" type="submit">Log me in</button>
+        <button class="btn" type="submit">Log me in →</button>
       </form>
     </main>
   </body>
