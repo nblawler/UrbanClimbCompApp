@@ -38,7 +38,7 @@ db = SQLAlchemy(app)
 RESEND_API_KEY = os.getenv("RESEND_API_KEY")
 RESEND_FROM_EMAIL = os.getenv(
     "RESEND_FROM_EMAIL",
-    "Urban Climb Comp <onboarding@resend.dev>",  # fallback; override in Render
+    "Climbing Competition <onboarding@resend.dev>",  # fallback; override in Render
 )
 
 if RESEND_API_KEY:
@@ -57,13 +57,11 @@ ADMIN_EMAILS = {
     if e.strip()
 }
 
-
 def is_admin_email(email: str) -> bool:
     """Return True if this email is configured as an admin."""
     if not email:
         return False
     return email.strip().lower() in ADMIN_EMAILS
-
 
 # --- Leaderboard cache ---
 
@@ -917,7 +915,7 @@ def my_competitions():
             else:
                 my_scoring_url = f"/competitor/{competitor.id}/sections"
 
-        # ✅ clickable pill target
+        # clickable pill target
         pill_href = None
         pill_title = None
 
@@ -978,6 +976,29 @@ def resume_competitor():
     # If the comp is finished (or missing), don't send them back to old scoring
     return redirect("/my-comps")
 
+@app.route("/my-scoring")
+def my_scoring_redirect():
+    """
+    Single safe entry point for competitor scoring.
+    Never guesses a competition; always redirects based on the logged-in competitor's competition_id.
+    """
+    viewer_id = session.get("competitor_id")
+    if not viewer_id:
+        return redirect("/")
+
+    competitor = Competitor.query.get(viewer_id)
+    if not competitor or not competitor.competition_id:
+        # Not registered to a competition -> choose one
+        return redirect("/my-comps")
+
+    comp = Competition.query.get(competitor.competition_id)
+    if not comp or not comp.slug:
+        return redirect("/my-comps")
+
+    # Keep comp context consistent for login/nav flows
+    session["active_comp_slug"] = comp.slug
+
+    return redirect(f"/comp/{comp.slug}/competitor/{competitor.id}/sections")
 
 
 # --- Email login: request code ---
