@@ -1,71 +1,45 @@
-<!doctype html>
-<html lang="en">
-<head>
-	<meta charset="utf-8" />
-	<meta name="viewport" content="width=device-width, initial-scale=1" />
-	<title>Welcome · Urban Climb Comp</title>
-	<link rel="stylesheet" href="/static/app.css" />
-</head>
-<body>
-	{% set viewer_id = session.get('competitor_id') %}
-	{% set is_admin = session.get('admin_ok', False) %}
+{% extends "_base.html" %}
 
-	<nav class="container top-nav">
-		<div class="nav-links">
-			<a class="back active"
-			   href="{% if viewer_id or is_admin %}/my-comps{% else %}/{% endif %}">
-				Home
-			</a>
-			<a class="back" href="/leaderboard">Leaderboard</a>
+{% block title %}Welcome · Comp Circuit{% endblock %}
+
+{% block header %}
+<header class="page-header">
+	<h1 class="page-title">Comp Circuit</h1>
+	<p class="page-subtitle">Track your scores and compete with climbers.</p>
+	<p class="page-hint">Sign up once, then use your email to join and score future competitions.</p>
+</header>
+{% endblock %}
+
+{% block content %}
+<section class="pill-grid">
+	<article class="section-pill comp-pill">
+		<div class="pill-header">
+			<h2 class="pill-title">New here?</h2>
+			<p class="pill-subtitle">Create your account to join competitions</p>
 		</div>
-	</nav>
 
-	<main class="container">
-		<header class="page-header">
-			<h1 class="page-title">Urban Climb Comp</h1>
-			<p class="page-subtitle">
-				Track your scores and compete with climbers.
-			</p>
-			<p class="page-hint">
-				Sign up once, then use your email to join and score future competitions.
-			</p>
-		</header>
+		<p class="pill-description">
+			Sign up once with your name and email, then reuse it for every event.
+		</p>
 
-		<section class="pill-grid">
-			<article class="section-pill comp-pill">
-				<div class="pill-header">
-					<h2 class="pill-title">New here?</h2>
-					<p class="pill-subtitle">Create your account to join competitions</p>
-				</div>
+		<div class="pill-actions">
+			<a href="/signup" class="btn primary">Sign up →</a>
+		</div>
+	</article>
 
-				<p class="pill-description">
-					Sign up once with your name and email, then reuse it for every event.
-				</p>
+	<article class="section-pill comp-pill">
+		<div class="pill-header">
+			<h2 class="pill-title">Welcome back</h2>
+			<p class="pill-subtitle">Continue where you left off</p>
+		</div>
 
-				<div class="pill-actions">
-					<a href="/signup" class="btn primary">
-						Sign up →
-					</a>
-				</div>
-			</article>
+		<p class="pill-description">
+			Already registered? We’ll email you a one-time 6-digit code.
+		</p>
 
-			<article class="section-pill comp-pill">
-				<div class="pill-header">
-					<h2 class="pill-title">Welcome back</h2>
-					<p class="pill-subtitle">Continue where you left off</p>
-				</div>
-
-				<p class="pill-description">
-					Already registered? We’ll email you a one-time 6-digit code.
-				</p>
-
-				<div class="pill-actions">
-					<a href="/login" class="btn secondary">
-						Log in →
-					</a>
-				</div>
-			</article>
-		</section>
-	</main>
-</body>
-</html>
+		<div class="pill-actions">
+			<a href="/login" class="btn secondary">Log in →</a>
+		</div>
+	</article>
+</section>
+{% endblock %}

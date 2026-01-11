@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<title>{% block title %}Comp Circuit{% endblock %}</title>
+	<link rel="stylesheet" href="/static/app.css" />
+</head>
+
+<body>
+	{% set viewer_id = viewer_id if viewer_id is defined else session.get('competitor_id') %}
+	{% set is_admin = session.get('admin_ok', False) %}
+
+	<nav class="container top-nav">
+		<div class="brand">
+			<div class="brand-mark">⛰️</div>
+			<div class="brand-name">Comp Circuit</div>
+		</div>
+
+		<div class="nav-links">
+			<a class="back {% if nav_active == 'my_comps' %}active{% endif %}" href="/my-comps">Home</a>
+
+			{% if is_admin %}
+				<a class="back {% if nav_active == 'admin' %}active{% endif %}" href="/admin/comps">Admin</a>
+			{% endif %}
+
+			{% if competitor %}
+				{% if competitor.competition and competitor.competition.slug %}
+					<a class="back {% if nav_active == 'sections' %}active{% endif %}"
+					   href="/comp/{{ competitor.competition.slug }}/competitor/{{ competitor.id }}/sections">
+						My Scoring
+					</a>
+				{% else %}
+					<a class="back {% if nav_active == 'sections' %}active{% endif %}"
+					   href="/competitor/{{ competitor.id }}/sections">
+						My Scoring
+					</a>
+				{% endif %}
+
+				<a class="back {% if nav_active == 'leaderboard' %}active{% endif %}"
+				   href="/leaderboard?cid={{ competitor.id }}">
+					Leaderboard
+				</a>
+			{% else %}
+				<a class="back {% if nav_active == 'leaderboard' %}active{% endif %}" href="/leaderboard">Leaderboard</a>
+			{% endif %}
+
+			{% if viewer_id or is_admin %}
+				<a class="back" href="/logout">Log out</a>
+			{% else %}
+				<a class="back {% if nav_active == 'login' %}active{% endif %}" href="/login">Log in</a>
+			{% endif %}
+		</div>
+	</nav>
+
+	<main class="container">
+		{% block header %}{% endblock %}
+		{% block content %}{% endblock %}
+	</main>
+</body>
+</html>
