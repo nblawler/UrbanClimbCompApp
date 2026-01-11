@@ -3,196 +3,190 @@
 <head>
 	<meta charset="utf-8" />
 	<meta name="viewport" content="width=device-width, initial-scale=1" />
-	<title>
-		{% if competitor %}
-			Home · Upcoming Competitions · {{ competitor.name }}
-		{% else %}
-			Home · Upcoming Competitions · Urban Climb Comp
-		{% endif %}
-	</title>
-	<link rel="stylesheet" href="/static/app.css" />
+	<title>Welcome · Comp Circuit</title>
+	<style>
+		* {
+			margin: 0;
+			padding: 0;
+			box-sizing: border-box;
+		}
+
+		body {
+			font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+			background: linear-gradient(135deg, #0a1628 0%, #1a2942 100%);
+			min-height: 100vh;
+			display: flex;
+			flex-direction: column;
+			color: #fff;
+		}
+
+		.nav {
+			padding: 1.5rem 2rem;
+			display: flex;
+			gap: 2rem;
+			align-items: center;
+		}
+
+		.nav a {
+			color: rgba(255, 255, 255, 0.7);
+			text-decoration: none;
+			font-size: 0.95rem;
+			transition: color 0.2s;
+		}
+
+		.nav a.active {
+			color: #5df4a2;
+			font-weight: 600;
+		}
+
+		.nav a:hover {
+			color: #fff;
+		}
+
+		.container {
+			flex: 1;
+			display: flex;
+			flex-direction: column;
+			align-items: center;
+			justify-content: center;
+			padding: 2rem;
+			max-width: 1200px;
+			margin: 0 auto;
+			width: 100%;
+		}
+
+		.hero {
+			text-align: center;
+			margin-bottom: 4rem;
+		}
+
+		.hero h1 {
+			font-size: 3.5rem;
+			font-weight: 800;
+			margin-bottom: 1rem;
+			background: linear-gradient(135deg, #fff 0%, #5df4a2 100%);
+			-webkit-background-clip: text;
+			-webkit-text-fill-color: transparent;
+			background-clip: text;
+		}
+
+		.hero p {
+			font-size: 1.25rem;
+			color: rgba(255, 255, 255, 0.7);
+			max-width: 600px;
+			margin: 0 auto;
+		}
+
+		.auth-cards {
+			display: grid;
+			grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+			gap: 2rem;
+			width: 100%;
+			max-width: 700px;
+		}
+
+		.card {
+			background: rgba(255, 255, 255, 0.05);
+			backdrop-filter: blur(10px);
+			border: 1px solid rgba(255, 255, 255, 0.1);
+			border-radius: 1.5rem;
+			padding: 2.5rem;
+			transition: all 0.3s ease;
+		}
+
+		.card:hover {
+			transform: translateY(-4px);
+			border-color: rgba(93, 244, 162, 0.3);
+			box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+		}
+
+		.card h2 {
+			font-size: 1.75rem;
+			margin-bottom: 0.75rem;
+			color: #fff;
+		}
+
+		.card p {
+			color: rgba(255, 255, 255, 0.7);
+			margin-bottom: 2rem;
+			line-height: 1.6;
+		}
+
+		.btn {
+			display: inline-block;
+			width: 100%;
+			padding: 1rem 2rem;
+			background: #5df4a2;
+			color: #0a1628;
+			text-decoration: none;
+			border-radius: 0.75rem;
+			font-weight: 700;
+			font-size: 1rem;
+			text-align: center;
+			transition: all 0.2s;
+			border: none;
+			cursor: pointer;
+		}
+
+		.btn:hover {
+			background: #4de392;
+			transform: scale(1.02);
+		}
+
+		.btn.secondary {
+			background: transparent;
+			color: #5df4a2;
+			border: 2px solid #5df4a2;
+		}
+
+		.btn.secondary:hover {
+			background: rgba(93, 244, 162, 0.1);
+		}
+
+		@media (max-width: 768px) {
+			.hero h1 {
+				font-size: 2.5rem;
+			}
+
+			.hero p {
+				font-size: 1.1rem;
+			}
+
+			.auth-cards {
+				grid-template-columns: 1fr;
+			}
+
+			.nav {
+				padding: 1rem;
+			}
+		}
+	</style>
 </head>
 <body>
-	{% set viewer_id = viewer_id if viewer_id is defined else session.get('competitor_id') %}
-	{% set is_admin = session.get('admin_ok', False) %}
-
-	<nav class="container top-nav">
-		<div class="nav-links">
-			<a class="back {% if nav_active == 'my_comps' %}active{% endif %}" href="/my-comps">Home</a>
-
-			{% if is_admin %}
-				<a class="back {% if nav_active == 'admin' %}active{% endif %}" href="/admin/comps">Admin</a>
-			{% endif %}
-
-			{% if competitor %}
-				{# If competitor has a comp, prefer slugged scoring URL #}
-				{% if competitor.competition and competitor.competition.slug %}
-					<a class="back {% if nav_active == 'sections' %}active{% endif %}"
-					   href="/comp/{{ competitor.competition.slug }}/competitor/{{ competitor.id }}/sections">
-						My Scoring
-					</a>
-				{% else %}
-					<a class="back {% if nav_active == 'sections' %}active{% endif %}"
-					   href="/competitor/{{ competitor.id }}/sections">
-						My Scoring
-					</a>
-				{% endif %}
-
-				<a class="back {% if nav_active == 'leaderboard' %}active{% endif %}"
-				   href="/leaderboard?cid={{ competitor.id }}">
-					Leaderboard
-				</a>
-			{% else %}
-				<a class="back {% if nav_active == 'leaderboard' %}active{% endif %}" href="/leaderboard">Leaderboard</a>
-			{% endif %}
-
-			{# Auth button #}
-			{% if viewer_id or is_admin %}
-				<a class="back" href="/logout">Log out</a>
-			{% else %}
-				{% if competitor and competitor.competition and competitor.competition.slug %}
-					<a class="back {% if nav_active == 'login' %}active{% endif %}"
-					   href="/login?slug={{ competitor.competition.slug }}">
-						Log in
-					</a>
-				{% else %}
-					<a class="back {% if nav_active == 'login' %}active{% endif %}" href="/login">Log in</a>
-				{% endif %}
-			{% endif %}
-		</div>
+	<nav class="nav">
+		<a href="/my-comps" class="active">Home</a>
+		<a href="/leaderboard">Leaderboard</a>
 	</nav>
 
-	<main class="container">
-		<header class="page-header">
-			<h1 class="page-title">Upcoming Competitions</h1>
+	<div class="container">
+		<div class="hero">
+			<h1>Comp Circuit</h1>
+			<p>Track your scores and compete with climbers</p>
+		</div>
 
-			<p class="page-subtitle">
-				{% if competitor %}
-					Welcome back, {{ competitor.name }}. This is your home base for upcoming climbing comps.
-				{% else %}
-					Welcome to Urban Climb Comp. Sign up or log in to see upcoming competitions and track your scoring.
-				{% endif %}
-			</p>
+		<div class="auth-cards">
+			<div class="card">
+				<h2>New here?</h2>
+				<p>Create your account to join competitions</p>
+				<a href="/signup" class="btn">Sign up</a>
+			</div>
 
-			<p class="page-hint">
-				When a comp is live, head to the gym and scan the QR code to register.
-				If you're already registered, you'll see a link to your scoring.
-			</p>
-		</header>
-
-		{% if not cards or cards|length == 0 %}
-			<section class="empty-state">
-				<div class="card">
-					<h2>No competitions yet</h2>
-					<p>
-						There are currently no upcoming competitions in the system.
-						Check back here when your gym announces their next event.
-					</p>
-				</div>
-			</section>
-		{% else %}
-			<section class="pill-grid">
-				{% for card in cards %}
-					{% set c = card.comp %}
-					{% set gym_label = (c.gym.name if c.gym else c.gym_name) %}
-					{% set badge_class = "status-badge--live" if card.status == "live" else "status-badge--scheduled" %}
-					{% set target_href = card.pill_href if (card.pill_href is defined and card.pill_href) else card.my_scoring_url %}
-					{% set is_clickable = target_href is not none and target_href != "" %}
-
-					{% if is_clickable %}
-						<a
-							href="{{ target_href }}"
-							class="section-pill comp-pill comp-pill-link"
-							aria-label="{{ c.name }}"
-						>
-					{% else %}
-						<article class="section-pill comp-pill">
-					{% endif %}
-
-							<div class="pill-header">
-								<h2 class="pill-title">{{ c.name }}</h2>
-								{% if gym_label %}
-									<p class="pill-subtitle">{{ gym_label }}</p>
-								{% endif %}
-							</div>
-
-							<div class="pill-meta">
-								{% if c.start_at or c.end_at %}
-									<div class="pill-dates">
-										{% if c.start_at %}
-											<span class="pill-date-label">Starts:</span>
-											<span class="pill-date-value">{{ c.start_at.strftime('%d %b %Y, %I:%M %p') }}</span>
-										{% endif %}
-
-										{% if c.end_at %}
-											<span class="pill-date-separator">·</span>
-											<span class="pill-date-label">Ends:</span>
-											<span class="pill-date-value">{{ c.end_at.strftime('%d %b %Y, %I:%M %p') }}</span>
-										{% endif %}
-									</div>
-								{% else %}
-									<p class="pill-dates pill-dates--tbc">Dates TBC</p>
-								{% endif %}
-
-								<div class="pill-status">
-									<span class="status-badge {{ badge_class }}">
-										{% if card.my_scoring_url %}
-											Keep scoring
-										{% elif card.status == 'live' %}
-											Live Now
-										{% else %}
-											Upcoming
-										{% endif %}
-									</span>
-								</div>
-							</div>
-
-							<p class="pill-description">
-								{% if card.my_scoring_url %}
-									You're registered — tap to continue scoring.
-								{% elif card.status == 'live' %}
-									This comp is live — tap to register.
-								{% else %}
-									Opens {{ c.start_at.strftime('%d %b %Y, %I:%M %p') if c.start_at else "TBC" }}.
-								{% endif %}
-							</p>
-
-							<details class="pill-details">
-								<summary class="pill-details-summary">Details</summary>
-								<div class="pill-details-body">
-									{{ card.status_label }}
-								</div>
-								{% if card.status != 'live' %}
-									<p class="pill-details-body">
-										Registration will open when this competition goes live.
-									</p>
-								{% endif %}
-							</details>
-
-							<div class="pill-actions">
-								{% if is_clickable %}
-									<span class="btn primary">
-										{% if card.my_scoring_url %}
-											Keep scoring →
-										{% elif card.status == 'live' %}
-											Register Now →
-										{% else %}
-											View Details
-										{% endif %}
-									</span>
-								{% else %}
-									<p class="pill-note">Registration will open when this competition goes live.</p>
-								{% endif %}
-							</div>
-
-					{% if is_clickable %}
-						</a>
-					{% else %}
-						</article>
-					{% endif %}
-				{% endfor %}
-			</section>
-		{% endif %}
-	</main>
+			<div class="card">
+				<h2>Welcome back</h2>
+				<p>Continue where you left off</p>
+				<a href="/login" class="btn secondary">Log in</a>
+			</div>
+		</div>
+	</div>
 </body>
 </html>
