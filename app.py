@@ -536,6 +536,24 @@ def comp_is_finished(comp) -> bool:
         return False
     return datetime.utcnow() >= comp.end_at
 
+def comp_is_live(comp) -> bool:
+    """
+    True if comp is active AND we are currently within its time window.
+    Uses UTC naive datetimes (matches how you store/compare elsewhere).
+    """
+    if not comp or not comp.is_active:
+        return False
+
+    now = datetime.utcnow()
+
+    if comp.start_at and comp.start_at > now:
+        return False
+
+    if comp.end_at and comp.end_at < now:
+        return False
+
+    return True
+
 def deny_if_comp_finished(comp, redirect_to=None, message=None):
     """
     Return a redirect response if finished, otherwise None.
@@ -919,10 +937,16 @@ def my_competitions():
     cards = []
     for c in competitions:
         # status + label
-        if c.is_active:
+        if comp_is_live(c):
             status = "live"
-            status_label = "Comp currently live – scan the on-site QR code to register."
+            status_label = "This comp is live — tap to register."
             opens_at = None
+
+        elif comp_is_finished(c):
+            status = "finished"
+            status_label = "This comp has finished — registration is closed."
+            opens_at = None
+
         else:
             status = "scheduled"
             opens_at = c.start_at
@@ -2508,6 +2532,12 @@ def public_register_for_comp(slug):
       - If newly registered: go straight to scoring for this comp
     """
     comp = get_comp_or_404(slug)
+    
+    # Block registration if comp is finished or not currently live
+    if not comp_is_live(comp):
+        flash("That competition isn’t live — registration is closed.", "warning")
+        return redirect("/my-comps")
+
 
     # Keep comp context for the rest of the flow (login/verify/nav)
     if comp and comp.slug:
