@@ -407,6 +407,33 @@ def points_for(climb_number, attempts, topped, competition_id=None):
 
 # --- Helpers ---
 
+def get_viewer_comp():
+    """
+    Resolve a competition context for the current logged-in viewer.
+
+    Priority:
+    1) session["active_comp_slug"] if it exists and is valid
+    2) viewer's competitor.competition_id
+    """
+    slug = (session.get("active_comp_slug") or "").strip()
+    if slug:
+        comp = Competition.query.filter_by(slug=slug).first()
+        if comp:
+            return comp
+
+    viewer_id = session.get("competitor_id")
+    if viewer_id:
+        competitor = Competitor.query.get(viewer_id)
+        if competitor and competitor.competition_id:
+            comp = Competition.query.get(competitor.competition_id)
+            if comp:
+                # keep session in sync for nav consistency
+                if comp.slug:
+                    session["active_comp_slug"] = comp.slug
+                return comp
+
+    return None
+
 
 def slugify(name: str) -> str:
     """Create URL friendly string ("The Slab" -> "the-slab")"""
@@ -979,26 +1006,37 @@ def resume_competitor():
 @app.route("/my-scoring")
 def my_scoring_redirect():
     """
-    Single safe entry point for competitor scoring.
-    Never guesses a competition; always redirects based on the logged-in competitor's competition_id.
+    Safe entry point for competitor scoring.
+
+    Priority:
+    1) If the logged-in competitor is attached to a competition -> go there.
+    2) Else, if the session has an active_comp_slug -> send them to that comp's join page.
+    3) Else -> back to /my-comps to pick a competition.
     """
     viewer_id = session.get("competitor_id")
     if not viewer_id:
         return redirect("/")
 
     competitor = Competitor.query.get(viewer_id)
-    if not competitor or not competitor.competition_id:
-        # Not registered to a competition -> choose one
-        return redirect("/my-comps")
+    if not competitor:
+        session.pop("competitor_id", None)
+        return redirect("/")
 
-    comp = Competition.query.get(competitor.competition_id)
-    if not comp or not comp.slug:
-        return redirect("/my-comps")
+    # 1) If competitor already belongs to a comp, go straight to scoring
+    if competitor.competition_id:
+        comp = Competition.query.get(competitor.competition_id)
+        if comp and comp.slug:
+            session["active_comp_slug"] = comp.slug
+            return redirect(f"/comp/{comp.slug}/competitor/{competitor.id}/sections")
 
-    # Keep comp context consistent for login/nav flows
-    session["active_comp_slug"] = comp.slug
+    # 2) No competition attached yet -> use selected comp from session if present
+    slug = (session.get("active_comp_slug") or "").strip()
+    if slug:
+        # If they have no comp, they must register for this comp first
+        return redirect(f"/comp/{slug}/join")
 
-    return redirect(f"/comp/{comp.slug}/competitor/{competitor.id}/sections")
+    # 3) No context at all -> choose a comp
+    return redirect("/my-comps")
 
 
 # --- Email login: request code ---
@@ -2778,16 +2816,19 @@ def api_get_scores(competitor_id):
 
 # --- Leaderboard pages ---
 
-
 @app.route("/leaderboard")
 def leaderboard_all():
-    # Optional competitor context via ?cid=123 (used mainly for back-links)
     cid_raw = request.args.get("cid", "").strip()
     competitor = None
     if cid_raw.isdigit():
         competitor = Competitor.query.get(int(cid_raw))
 
-    rows, category_label = build_leaderboard(None)
+    comp = get_viewer_comp()
+    if not comp:
+        flash("Pick a competition first to view the leaderboard.", "warning")
+        return redirect("/my-comps")
+
+    rows, category_label = build_leaderboard(None, competition_id=comp.id)
     current_competitor_id = session.get("competitor_id")
 
     return render_template(
@@ -2797,18 +2838,24 @@ def leaderboard_all():
         competitor=competitor,
         current_competitor_id=current_competitor_id,
         nav_active="leaderboard",
+        comp=comp,
+        comp_slug=comp.slug,
     )
 
 
 @app.route("/leaderboard/<category>")
 def leaderboard_by_category(category):
-    # Optional competitor context via ?cid=123 (used mainly for back-links)
     cid_raw = request.args.get("cid", "").strip()
     competitor = None
     if cid_raw.isdigit():
         competitor = Competitor.query.get(int(cid_raw))
 
-    rows, category_label = build_leaderboard(category)
+    comp = get_viewer_comp()
+    if not comp:
+        flash("Pick a competition first to view the leaderboard.", "warning")
+        return redirect("/my-comps")
+
+    rows, category_label = build_leaderboard(category, competition_id=comp.id)
     current_competitor_id = session.get("competitor_id")
 
     return render_template(
@@ -2818,19 +2865,26 @@ def leaderboard_by_category(category):
         competitor=competitor,
         current_competitor_id=current_competitor_id,
         nav_active="leaderboard",
+        comp=comp,
+        comp_slug=comp.slug,
     )
 
 
 @app.route("/api/leaderboard")
 def api_leaderboard():
     category = request.args.get("category")
-    rows, category_label = build_leaderboard(category)
-    # convert datetime to isoformat for JSON
+
+    comp = get_viewer_comp()
+    if not comp:
+        return jsonify({"category": "No competition selected", "rows": []})
+
+    rows, category_label = build_leaderboard(category, competition_id=comp.id)
+
     for r in rows:
         if r["last_update"] is not None:
             r["last_update"] = r["last_update"].isoformat()
-    return jsonify({"category": category_label, "rows": rows})
 
+    return jsonify({"category": category_label, "rows": rows})
 
 # --- Admin (simple password-protected utility) ---
 
