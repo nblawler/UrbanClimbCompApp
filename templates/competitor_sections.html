@@ -7,277 +7,351 @@
 	<link rel="stylesheet" href="/static/app.css" />
 	<style>
 		* { margin: 0; padding: 0; box-sizing: border-box; }
-	  
+
 		body {
-		  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-		  background: linear-gradient(135deg, #0a1628 0%, #1a2942 100%);
-		  min-height: 100vh;
-		  color: rgba(255,255,255,0.92);
+			font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+			background: linear-gradient(135deg, #0a1628 0%, #1a2942 100%);
+			min-height: 100vh;
+			display: flex;
+			flex-direction: column;
+			color: #fff;
 		}
-	  
-		/* keep using container, but don't let app.css wreck it */
+
+		/* Top nav */
+		.nav {
+			padding: 1.25rem 2rem;
+			display: flex;
+			gap: 1.5rem;
+			align-items: center;
+			flex-wrap: wrap;
+		}
+
+		.nav a {
+			color: rgba(255, 255, 255, 0.7);
+			text-decoration: none;
+			font-size: 0.95rem;
+			transition: color 0.2s;
+			font-weight: 600;
+		}
+
+		.nav a.active {
+			color: #5df4a2;
+			font-weight: 700;
+		}
+
+		.nav a:hover { color: #fff; }
+
+		/* Main container */
 		.container {
-		  max-width: 980px;
-		  margin: 0 auto;
-		  padding: 18px 16px;
+			flex: 1;
+			max-width: 1200px;
+			margin: 0 auto;
+			padding: 2rem;
+			width: 100%;
 		}
-	  
-		/* ===== NAV (matches your working pages) ===== */
-		.top-nav {
-		  margin-top: 10px;
-		  margin-bottom: 8px;
-		}
-	  
-		.nav-links {
-		  display: flex;
-		  gap: 10px;
-		  flex-wrap: wrap;
-		  align-items: center;
-		  padding: 10px 12px;
-		  border: 1px solid rgba(255,255,255,0.10);
-		  background: rgba(15,31,53,0.60);
-		  backdrop-filter: blur(8px);
-		  border-radius: 999px;
-		  box-shadow: 0 10px 30px rgba(0,0,0,0.25);
-		}
-	  
-		.nav-links a.back {
-		  text-decoration: none;
-		  color: rgba(255,255,255,0.70);
-		  padding: 8px 12px;
-		  border-radius: 999px;
-		  border: 1px solid transparent;
-		  transition: transform .08s ease, background .15s ease, border-color .15s ease, color .15s ease;
-		  font-weight: 600;
-		  font-size: 0.95rem;
-		  display: inline-flex;
-		  align-items: center;
-		  gap: 8px;
-		}
-	  
-		.nav-links a.back:hover {
-		  color: rgba(255,255,255,0.92);
-		  background: rgba(255,255,255,0.06);
-		  border-color: rgba(255,255,255,0.10);
-		  transform: translateY(-1px);
-		}
-	  
-		.nav-links a.back.active {
-		  color: #081a18;
-		  background: rgba(93,244,162,0.95);
-		  border-color: rgba(93,244,162,0.95);
-		  box-shadow: 0 10px 26px rgba(93,244,162,0.18);
-		}
-	  
-		/* ===== Page header/cards (matches style) ===== */
+
+		/* Competitor header card */
 		.comp-header {
-		  margin: 18px 0 12px;
-		  padding: 18px;
-		  border-radius: 16px;
-		  background: linear-gradient(180deg, rgba(16,37,66,0.85) 0%, rgba(15,31,53,0.75) 100%);
-		  border: 1px solid rgba(255,255,255,0.10);
-		  box-shadow: 0 18px 50px rgba(0,0,0,0.45);
+			background: rgba(255, 255, 255, 0.05);
+			backdrop-filter: blur(10px);
+			border: 1px solid rgba(255, 255, 255, 0.1);
+			border-radius: 1.5rem;
+			padding: 2rem;
+			margin-bottom: 2rem;
 		}
-	  
+
 		.comp-name {
-		  font-size: 1.4rem;
-		  font-weight: 900;
-		  margin-bottom: 10px;
-		  letter-spacing: -0.01em;
+			font-size: 2rem;
+			font-weight: 900;
+			margin-bottom: 1.25rem;
+			background: linear-gradient(135deg, #fff 0%, #5df4a2 100%);
+			-webkit-background-clip: text;
+			-webkit-text-fill-color: transparent;
+			background-clip: text;
+			letter-spacing: -0.02em;
 		}
-	  
-		.comp-label { color: rgba(255,255,255,0.65); font-weight: 700; margin-right: 8px; }
-		.comp-value { color: rgba(255,255,255,0.95); }
-	  
+
 		.comp-meta-row {
-		  display: flex;
-		  gap: 10px;
-		  flex-wrap: wrap;
-		  margin-top: 10px;
+			display: flex;
+			gap: 1rem;
+			flex-wrap: wrap;
 		}
-	  
+
 		.comp-pill {
-		  border: 1px solid rgba(255,255,255,0.10);
-		  background: rgba(255,255,255,0.05);
-		  border-radius: 999px;
-		  padding: 8px 12px;
-		  display: inline-flex;
-		  gap: 8px;
-		  align-items: center;
+			background: rgba(0, 0, 0, 0.2);
+			border: 1px solid rgba(255, 255, 255, 0.15);
+			border-radius: 0.85rem;
+			padding: 0.75rem 1.25rem;
+			display: flex;
+			flex-direction: column;
+			gap: 0.25rem;
+			min-width: 110px;
 		}
-	  
-		.comp-pill-label { color: rgba(255,255,255,0.65); font-weight: 700; font-size: 0.85rem; }
-		.comp-pill-value { color: rgba(255,255,255,0.92); font-weight: 900; }
-	  
+
+		.comp-pill-label {
+			font-size: 0.75rem;
+			color: rgba(255, 255, 255, 0.6);
+			text-transform: uppercase;
+			letter-spacing: 0.05em;
+			font-weight: 700;
+		}
+
+		.comp-pill-value {
+			font-size: 1.5rem;
+			font-weight: 900;
+			color: #fff;
+		}
+
+		/* View-only note */
 		.view-only-note {
-		  margin: 10px 0 14px;
-		  padding: 12px 14px;
-		  border-radius: 12px;
-		  border: 1px solid rgba(255,255,255,0.10);
-		  background: rgba(255,255,255,0.05);
-		  color: rgba(255,255,255,0.85);
+			background: rgba(251, 113, 133, 0.12);
+			border: 1px solid rgba(251, 113, 133, 0.3);
+			border-radius: 1rem;
+			padding: 1rem 1.25rem;
+			margin-bottom: 1.5rem;
+			color: rgba(255, 255, 255, 0.9);
 		}
-	  
-		.card {
-		  margin-top: 12px;
-		  padding: 18px;
-		  border-radius: 16px;
-		  border: 1px solid rgba(255,255,255,0.10);
-		  background: rgba(15,31,53,0.70);
-		  backdrop-filter: blur(8px);
-		  box-shadow: 0 18px 50px rgba(0,0,0,0.45);
+
+		.view-only-note strong {
+			color: #fff;
 		}
-	  
-		.section-header { margin-bottom: 10px; }
-		.section-title { font-size: 1.25rem; font-weight: 900; }
-	  
-		/* ===== Your map CSS (kept, but using fixed values so it's not dependent on app.css vars) ===== */
-		.map-wrapper {
-		  position: relative;
-		  max-width: 100%;
-		  border-radius: 16px;
-		  overflow: hidden;
-		  box-shadow: 0 10px 30px rgba(0,0,0,0.25);
-		  margin-top: 16px;
-		  border: 1px solid rgba(255,255,255,0.10);
+
+		/* Map card */
+		.map-card {
+			background: rgba(255, 255, 255, 0.05);
+			backdrop-filter: blur(10px);
+			border: 1px solid rgba(255, 255, 255, 0.1);
+			border-radius: 1.5rem;
+			padding: 2rem;
+			margin-bottom: 2rem;
 		}
-	  
-		.gym-map-image { display: block; width: 100%; height: auto; }
-	  
-		.map-marker {
-		  position: absolute;
-		  width: 18px;
-		  height: 18px;
-		  border-radius: 999px;
-		  border: 2px solid #ffffff;
-		  transform: translate(-50%, -50%);
-		  box-shadow: 0 10px 30px rgba(0,0,0,0.25);
+
+		.section-header {
+			margin-bottom: 1.5rem;
 		}
-	  
-		.map-marker.disabled { opacity: 0.4; cursor: default; }
-	  
-		.section-filter-row { display: flex; flex-direction: column; gap: 6px; margin: 8px 0 12px; }
-		.section-filter-label { font-size: 0.95rem; color: rgba(255,255,255,0.90); margin-bottom: 6px; margin-top: 8px; letter-spacing: 0.3px; font-weight: 700; }
-		.section-filter-pills { display: flex; flex-wrap: wrap; gap: 8px; }
-	  
+
+		.section-title {
+			font-size: 1.75rem;
+			font-weight: 900;
+			color: #fff;
+		}
+
+		/* Section filter */
+		.section-filter-row {
+			margin-bottom: 1.5rem;
+		}
+
+		.section-filter-label {
+			font-size: 0.95rem;
+			color: rgba(255, 255, 255, 0.85);
+			margin-bottom: 0.75rem;
+			font-weight: 700;
+		}
+
+		.section-filter-pills {
+			display: flex;
+			flex-wrap: wrap;
+			gap: 0.75rem;
+		}
+
 		.section-filter-pill {
-		  display: inline-flex;
-		  align-items: center;
-		  justify-content: center;
-		  padding: 6px 14px;
-		  border-radius: 999px;
-		  border: 1px solid rgba(255,255,255,0.35);
-		  background: rgba(255,255,255,0.03);
-		  color: rgba(255,255,255,0.88);
-		  font-size: 0.85rem;
-		  font-weight: 700;
-		  cursor: pointer;
-		  text-decoration: none;
-		  transition: background .15s ease, color .15s ease, border-color .15s ease, transform .08s ease, box-shadow .15s ease;
+			padding: 0.65rem 1.25rem;
+			border-radius: 999px;
+			border: 2px solid rgba(255, 255, 255, 0.2);
+			background: rgba(255, 255, 255, 0.05);
+			color: rgba(255, 255, 255, 0.85);
+			font-size: 0.9rem;
+			font-weight: 700;
+			cursor: pointer;
+			text-decoration: none;
+			transition: all 0.2s;
 		}
-	  
+
 		.section-filter-pill:hover {
-		  background: rgba(255,255,255,0.08);
-		  border-color: rgba(255,255,255,0.55);
-		  transform: translateY(-1px);
-		  box-shadow: 0 10px 30px rgba(0,0,0,0.25);
+			background: rgba(255, 255, 255, 0.1);
+			border-color: rgba(255, 255, 255, 0.4);
+			transform: translateY(-1px);
 		}
-	  
+
 		.section-filter-pill.is-active {
-		  background: rgba(93,244,162,0.95);
-		  color: #081a18;
-		  border-color: rgba(93,244,162,0.95);
-		  box-shadow: 0 10px 24px rgba(93, 242, 156, 0.35);
-		  transform: translateY(-1px);
+			background: #5df4a2;
+			color: #0a1628;
+			border-color: #5df4a2;
+			transform: translateY(-1px);
+			box-shadow: 0 10px 20px rgba(93, 244, 162, 0.3);
 		}
-	  
-		.section-filter-pill:focus-visible { outline: 2px solid rgba(93,244,162,0.95); outline-offset: 2px; }
-	  
+
+		/* Map wrapper */
+		.map-wrapper {
+			position: relative;
+			width: 100%;
+			border-radius: 1rem;
+			overflow: hidden;
+			border: 1px solid rgba(255, 255, 255, 0.1);
+			background: #000;
+		}
+
+		.gym-map-image {
+			display: block;
+			width: 100%;
+			height: auto;
+		}
+
+		.map-marker {
+			position: absolute;
+			width: 20px;
+			height: 20px;
+			border-radius: 999px;
+			border: 2px solid #fff;
+			transform: translate(-50%, -50%);
+			box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+			transition: all 0.2s;
+			cursor: pointer;
+			text-decoration: none;
+		}
+
+		.map-marker:hover {
+			transform: translate(-50%, -50%) scale(1.3);
+			box-shadow: 0 8px 20px rgba(0, 0, 0, 0.7);
+			z-index: 10;
+		}
+
+		.map-marker.disabled {
+			opacity: 0.4;
+			cursor: default;
+		}
+
+		.map-marker.disabled:hover {
+			transform: translate(-50%, -50%);
+		}
+
+		/* Map missing state */
 		.map-missing {
-		  margin-top: 12px;
-		  padding: 12px 14px;
-		  border-radius: 12px;
-		  background: rgba(255, 255, 255, 0.06);
-		  border: 1px solid rgba(255, 255, 255, 0.12);
-		  color: rgba(255,255,255,0.88);
+			padding: 2rem;
+			text-align: center;
+			background: rgba(255, 255, 255, 0.03);
+			border: 1px dashed rgba(255, 255, 255, 0.15);
+			border-radius: 1rem;
+			color: rgba(255, 255, 255, 0.7);
 		}
-	  
+
+		.map-missing strong {
+			display: block;
+			margin-bottom: 0.75rem;
+			color: #fff;
+			font-size: 1.1rem;
+		}
+
 		code {
-		  background: rgba(0,0,0,0.25);
-		  padding: 2px 6px;
-		  border-radius: 8px;
-		  border: 1px solid rgba(255,255,255,0.12);
+			background: rgba(0, 0, 0, 0.3);
+			padding: 0.25rem 0.5rem;
+			border-radius: 0.35rem;
+			border: 1px solid rgba(255, 255, 255, 0.15);
+			font-family: 'Courier New', monospace;
+			color: #5df4a2;
 		}
-	  
-		@media (max-width: 520px){
-		  .nav-links { border-radius: 16px; }
-		  .nav-links a.back { flex: 1 1 auto; justify-content: center; }
-		  .comp-name { font-size: 1.2rem; }
+
+		/* Responsive */
+		@media (max-width: 768px) {
+			.nav {
+				padding: 1rem;
+			}
+
+			.container {
+				padding: 1.5rem 1rem;
+			}
+
+			.comp-header {
+				padding: 1.5rem;
+			}
+
+			.comp-name {
+				font-size: 1.6rem;
+			}
+
+			.comp-pill {
+				min-width: 90px;
+			}
+
+			.comp-pill-value {
+				font-size: 1.25rem;
+			}
+
+			.map-card {
+				padding: 1.5rem;
+			}
+
+			.section-title {
+				font-size: 1.4rem;
+			}
 		}
-	  </style>
+
+		@media (max-width: 520px) {
+			.comp-meta-row {
+				gap: 0.75rem;
+			}
+
+			.comp-pill {
+				flex: 1 1 calc(50% - 0.375rem);
+				min-width: 0;
+			}
+		}
+	</style>
 </head>
 
 <body>
 	{% set viewer_id = viewer_id if viewer_id is defined else session.get('competitor_id') %}
 	{% set is_admin = session.get('admin_ok', False) %}
 
-	<nav class="container top-nav">
-		<div class="nav-links">
+	<nav class="nav">
+		<a class="{% if nav_active == 'my_comps' %}active{% endif %}" href="/my-comps">Home</a>
 
-			<a class="back {% if nav_active == 'my_comps' %}active{% endif %}" href="/my-comps">Home</a>
+		{% if is_admin %}
+			<a class="{% if nav_active == 'admin' %}active{% endif %}" href="/admin/comps">Admin</a>
+		{% endif %}
 
-			{% if is_admin %}
-				<a class="back {% if nav_active == 'admin' %}active{% endif %}" href="/admin/comps">Admin</a>
-			{% endif %}
-
-			{% if viewer_id %}
-				{% if comp_slug is defined and comp_slug %}
-					<a class="back {% if nav_active == 'sections' %}active{% endif %}"
-					   href="/comp/{{ comp_slug }}/competitor/{{ viewer_id }}/sections">
-						Climb Map
-					</a>
-				{% else %}
-					<a class="back {% if nav_active == 'sections' %}active{% endif %}"
-					   href="/competitor/{{ viewer_id }}/sections">
-						Climb Map
-					</a>
-				{% endif %}
-
-				<a class="back {% if nav_active == 'my_stats' %}active{% endif %}"
-				   href="/competitor/{{ viewer_id }}/stats/my">
-					My Stats
+		{% if viewer_id %}
+			{% if comp_slug is defined and comp_slug %}
+				<a class="{% if nav_active == 'sections' %}active{% endif %}"
+				   href="/comp/{{ comp_slug }}/competitor/{{ viewer_id }}/sections">
+					Climb Map
 				</a>
-
-				<a class="back {% if nav_active == 'overall_stats' %}active{% endif %}"
-				   href="/competitor/{{ viewer_id }}/stats/overall">
-					Overall Stats
+			{% else %}
+				<a class="{% if nav_active == 'sections' %}active{% endif %}"
+				   href="/competitor/{{ viewer_id }}/sections">
+					Climb Map
 				</a>
 			{% endif %}
 
-			<a class="back {% if nav_active == 'leaderboard' %}active{% endif %}"
-			   href="/leaderboard{% if viewer_id %}?cid={{ viewer_id }}{% endif %}">
-				Leaderboard
+			<a class="{% if nav_active == 'my_stats' %}active{% endif %}"
+			   href="/competitor/{{ viewer_id }}/stats/my">
+				My Stats
 			</a>
 
-			{% if viewer_id or is_admin %}
-				<a class="back" href="/logout">Log out</a>
-			{% else %}
-				<a class="back {% if nav_active == 'login' %}active{% endif %}"
-				   href="/login{% if comp_slug is defined and comp_slug %}?slug={{ comp_slug }}{% endif %}">
-					Log in
-				</a>
-			{% endif %}
+			<a class="{% if nav_active == 'overall_stats' %}active{% endif %}"
+			   href="/competitor/{{ viewer_id }}/stats/overall">
+				Overall Stats
+			</a>
+		{% endif %}
 
-		</div>
+		<a class="{% if nav_active == 'leaderboard' %}active{% endif %}"
+		   href="/leaderboard{% if viewer_id %}?cid={{ viewer_id }}{% endif %}">
+			Leaderboard
+		</a>
+
+		{% if viewer_id or is_admin %}
+			<a href="/logout">Log out</a>
+		{% else %}
+			<a class="{% if nav_active == 'login' %}active{% endif %}"
+			   href="/login{% if comp_slug is defined and comp_slug %}?slug={{ comp_slug }}{% endif %}">
+				Log in
+			</a>
+		{% endif %}
 	</nav>
 
 	<main class="container">
-
 		<header class="comp-header">
-			<h1 class="comp-name">
-				<span class="comp-label">Name:</span>
-				<span class="comp-value">{{ competitor.name }}</span>
-			</h1>
+			<h1 class="comp-name">{{ competitor.name }}</h1>
 
 			<div class="comp-meta-row">
 				<div class="comp-pill">
@@ -300,20 +374,20 @@
 		</header>
 
 		{% if not can_edit %}
-			<p class="view-only-note">
-				You’re viewing climbs for <strong>{{ competitor.name }}</strong> in read-only mode.
+			<div class="view-only-note">
+				You're viewing climbs for <strong>{{ competitor.name }}</strong> in read-only mode.
 				Log attempts on your own competitor page.
-			</p>
+			</div>
 		{% endif %}
 
-		<section class="card map-card">
+		<section class="map-card">
 			<header class="section-header">
 				<h2 class="section-title">{{ gym_name }} Map</h2>
 			</header>
 
 			{% if sections %}
 				<div class="section-filter-row">
-					<div class="section-filter-label">Filter sections:</div>
+					<div class="section-filter-label">Filter by section:</div>
 					<div class="section-filter-pills">
 						{% for sec in sections %}
 							<button type="button" class="section-filter-pill" data-section-id="{{ sec.id }}">
@@ -356,8 +430,8 @@
 				</div>
 			{% else %}
 				<div class="map-missing">
-					<strong>No map set for this gym yet.</strong>
-					<div style="margin-top:6px;">
+					<strong>No map set for this gym yet</strong>
+					<div>
 						Ask an admin to set <code>gym.map_image_path</code> (e.g. <code>/static/Collingwood_Gym_Map.png</code>).
 					</div>
 				</div>
