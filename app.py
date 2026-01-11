@@ -1177,11 +1177,15 @@ def login_verify():
       - /login/verify?slug=uc-adelaide
       - or hidden form field "slug"
       - or session["active_comp_slug"]
+
+    NEW redirect rule:
+    - Only auto-jump to scoring if the user came in with an explicit slug
+      (querystring or hidden form field). Otherwise, land on /my-comps.
     """
     error = None
     message = None
 
-    # Optional competition context
+    # Optional competition context (for lookup convenience)
     slug = (request.args.get("slug") or session.get("active_comp_slug") or "").strip()
     current_comp = Competition.query.filter_by(slug=slug).first() if slug else None
 
@@ -1265,9 +1269,7 @@ def login_verify():
                     # ----- ADMIN FLAGS -----
                     is_super = is_admin_email(email)
 
-                    gym_admin_rows = GymAdmin.query.filter_by(
-                        competitor_id=comp.id
-                    ).all()
+                    gym_admin_rows = GymAdmin.query.filter_by(competitor_id=comp.id).all()
                     gym_ids = [ga.gym_id for ga in gym_admin_rows]
 
                     if is_super or gym_ids:
@@ -1279,12 +1281,19 @@ def login_verify():
                         session.pop("admin_is_super", None)
                         session.pop("admin_gym_ids", None)
 
-                    # --- Redirect ---
-                    # If we have a comp slug and the competitor is tied to that comp, go straight to scoring
-                    if current_comp and comp.competition_id == current_comp.id:
-                        return redirect(f"/comp/{current_comp.slug}/competitor/{comp.id}/sections")
+                    # --- Redirect (UPDATED) ---
+                    # Only auto-jump to scoring if the user explicitly came in with a slug
+                    # (querystring or hidden field). If they just used the nav /login,
+                    # they land on /my-comps.
+                    requested_slug = (request.args.get("slug") or posted_slug or "").strip()
 
-                    # Otherwise, go Home
+                    if requested_slug:
+                        requested_comp = Competition.query.filter_by(slug=requested_slug).first()
+                        if requested_comp and comp.competition_id == requested_comp.id:
+                            return redirect(
+                                f"/comp/{requested_comp.slug}/competitor/{comp.id}/sections"
+                            )
+
                     return redirect("/my-comps")
 
     else:
@@ -1299,6 +1308,7 @@ def login_verify():
         message=message,
         slug=slug,  # needed for hidden field in the template
     )
+
 
 @app.route("/competitor/<int:competitor_id>")
 def competitor_redirect(competitor_id):
