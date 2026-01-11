@@ -1056,8 +1056,11 @@ def login_request():
     email = ""
 
     # Optional competition context
-    slug = (request.args.get("slug") or session.get("active_comp_slug") or "").strip()
-    current_comp = None
+    slug = (request.args.get("slug") or "").strip()
+    # If they came to /login directly (nav), nuke old comp context
+    if not slug:
+        session.pop("active_comp_slug", None)
+        current_comp = None
     if slug:
         current_comp = Competition.query.filter_by(slug=slug).first()
         if not current_comp:
@@ -1186,7 +1189,12 @@ def login_verify():
     message = None
 
     # Optional competition context (for lookup convenience)
-    slug = (request.args.get("slug") or session.get("active_comp_slug") or "").strip()
+    slug = (request.args.get("slug") or "").strip()
+
+    # If they hit verify without slug, don't let session force it
+    if not slug:
+        session.pop("active_comp_slug", None)
+
     current_comp = Competition.query.filter_by(slug=slug).first() if slug else None
 
     # Pre-fill email from session if available
