@@ -15,94 +15,342 @@
 		{% endif %}
 	</title>
 	<link rel="stylesheet" href="/static/app.css" />
+	<style>
+		* { margin: 0; padding: 0; box-sizing: border-box; }
+
+		body {
+			font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+			background: linear-gradient(135deg, #0a1628 0%, #1a2942 100%);
+			min-height: 100vh;
+			display: flex;
+			flex-direction: column;
+			color: #fff;
+		}
+
+		/* Top nav */
+		.nav {
+			padding: 1.25rem 2rem;
+			display: flex;
+			gap: 1.5rem;
+			align-items: center;
+			flex-wrap: wrap;
+		}
+
+		.nav a {
+			color: rgba(255, 255, 255, 0.7);
+			text-decoration: none;
+			font-size: 0.95rem;
+			transition: color 0.2s;
+			font-weight: 600;
+		}
+
+		.nav a.active {
+			color: #5df4a2;
+			font-weight: 700;
+		}
+
+		.nav a:hover { color: #fff; }
+
+		.nav a.disabled {
+			pointer-events: none;
+			cursor: default;
+			opacity: 0.6;
+		}
+
+		/* Container */
+		.container {
+			flex: 1;
+			max-width: 1000px;
+			margin: 0 auto;
+			padding: 2rem;
+			width: 100%;
+		}
+
+		/* Back button */
+		.back-btn {
+			display: inline-block;
+			padding: 0.65rem 1.25rem;
+			background: rgba(255, 255, 255, 0.08);
+			border: 1px solid rgba(255, 255, 255, 0.15);
+			border-radius: 999px;
+			color: #fff;
+			text-decoration: none;
+			font-size: 0.9rem;
+			font-weight: 600;
+			margin-bottom: 1.5rem;
+			transition: all 0.2s;
+		}
+
+		.back-btn:hover {
+			background: rgba(255, 255, 255, 0.12);
+			transform: translateY(-1px);
+		}
+
+		/* Competitor header */
+		.comp-header {
+			background: rgba(255, 255, 255, 0.05);
+			backdrop-filter: blur(10px);
+			border: 1px solid rgba(255, 255, 255, 0.1);
+			border-radius: 1.5rem;
+			padding: 2rem;
+			margin-bottom: 2rem;
+		}
+
+		.comp-name {
+			font-size: 2rem;
+			font-weight: 900;
+			margin-bottom: 1.25rem;
+			background: linear-gradient(135deg, #fff 0%, #5df4a2 100%);
+			-webkit-background-clip: text;
+			-webkit-text-fill-color: transparent;
+			background-clip: text;
+			letter-spacing: -0.02em;
+		}
+
+		.comp-meta-row {
+			display: flex;
+			gap: 1rem;
+			flex-wrap: wrap;
+		}
+
+		.comp-pill {
+			background: rgba(0, 0, 0, 0.2);
+			border: 1px solid rgba(255, 255, 255, 0.15);
+			border-radius: 0.85rem;
+			padding: 0.75rem 1.25rem;
+			display: flex;
+			flex-direction: column;
+			gap: 0.25rem;
+			min-width: 110px;
+		}
+
+		.comp-pill-label {
+			font-size: 0.75rem;
+			color: rgba(255, 255, 255, 0.6);
+			text-transform: uppercase;
+			letter-spacing: 0.05em;
+			font-weight: 700;
+		}
+
+		.comp-pill-value {
+			font-size: 1.5rem;
+			font-weight: 900;
+			color: #fff;
+		}
+
+		/* Page title */
+		.stats-title {
+			font-size: 1.75rem;
+			font-weight: 900;
+			color: #fff;
+			margin-bottom: 1.5rem;
+		}
+
+		/* Stats card */
+		.stats-card {
+			background: rgba(255, 255, 255, 0.05);
+			backdrop-filter: blur(10px);
+			border: 1px solid rgba(255, 255, 255, 0.1);
+			border-radius: 1.5rem;
+			padding: 2rem;
+			margin-bottom: 1.5rem;
+		}
+
+		.stats-card h2 {
+			font-size: 1.5rem;
+			font-weight: 900;
+			color: #fff;
+			margin-bottom: 1rem;
+		}
+
+		/* Difficulty pill */
+		.difficulty-badge {
+			display: inline-flex;
+			align-items: center;
+			gap: 0.75rem;
+			padding: 0.75rem 1.25rem;
+			background: rgba(0, 0, 0, 0.2);
+			border: 1px solid rgba(255, 255, 255, 0.15);
+			border-radius: 1rem;
+			margin-bottom: 1.5rem;
+		}
+
+		.difficulty-badge span:first-child {
+			font-weight: 700;
+			color: #fff;
+		}
+
+		.difficulty-label {
+			padding: 0.4rem 1rem;
+			border-radius: 999px;
+			font-size: 0.85rem;
+			font-weight: 700;
+		}
+
+		/* Status badges in text */
+		.status-inline {
+			display: inline-block;
+			margin-left: 0.5rem;
+			padding: 0.25rem 0.75rem;
+			border-radius: 999px;
+			font-size: 0.8rem;
+			font-weight: 700;
+		}
+
+		/* Table */
+		.stats-table {
+			width: 100%;
+			border-collapse: collapse;
+			font-size: 0.95rem;
+		}
+
+		.stats-table th,
+		.stats-table td {
+			padding: 0.75rem 1rem;
+			text-align: left;
+			border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+		}
+
+		.stats-table th {
+			font-weight: 700;
+			color: rgba(255, 255, 255, 0.7);
+			text-transform: uppercase;
+			font-size: 0.85rem;
+			letter-spacing: 0.05em;
+		}
+
+		.stats-table td {
+			color: #fff;
+		}
+
+		.stats-table tbody tr:hover {
+			background: rgba(255, 255, 255, 0.03);
+		}
+
+		.overview-table td {
+			text-align: right;
+		}
+
+		/* Filter buttons */
+		.filter-controls {
+			display: flex;
+			align-items: center;
+			gap: 0.75rem;
+			margin-bottom: 1rem;
+			flex-wrap: wrap;
+		}
+
+		.filter-btn {
+			padding: 0.65rem 1.25rem;
+			border-radius: 999px;
+			border: 2px solid rgba(255, 255, 255, 0.2);
+			background: rgba(255, 255, 255, 0.05);
+			color: rgba(255, 255, 255, 0.85);
+			font-size: 0.9rem;
+			font-weight: 700;
+			cursor: pointer;
+			transition: all 0.2s;
+		}
+
+		.filter-btn:hover {
+			background: rgba(255, 255, 255, 0.1);
+			border-color: rgba(255, 255, 255, 0.4);
+		}
+
+		.filter-btn.active {
+			background: #5df4a2;
+			color: #0a1628;
+			border-color: #5df4a2;
+			box-shadow: 0 8px 16px rgba(93, 244, 162, 0.3);
+		}
+
+		.primary {
+			padding: 0.65rem 1.25rem;
+			background: #5df4a2;
+			color: #0a1628;
+			border: none;
+			border-radius: 999px;
+			font-weight: 900;
+			font-size: 0.9rem;
+			cursor: pointer;
+			transition: all 0.2s;
+		}
+
+		.primary:hover {
+			background: #4de392;
+			transform: translateY(-1px);
+		}
+
+		/* Table wrapper with scroll */
+		.table-scroll {
+			max-height: 70vh;
+			overflow-y: auto;
+			border-radius: 1rem;
+			border: 1px solid rgba(255, 255, 255, 0.08);
+		}
+
+		/* Responsive */
+		@media (max-width: 768px) {
+			.nav { padding: 1rem; }
+			.container { padding: 1.5rem 1rem; }
+			.comp-header { padding: 1.5rem; }
+			.comp-name { font-size: 1.6rem; }
+			.stats-card { padding: 1.5rem; }
+			.stats-card h2 { font-size: 1.3rem; }
+		}
+	</style>
 </head>
 <body>
 	{% set viewer_id = viewer_id if viewer_id is defined else session.get('competitor_id') %}
 	{% set view_from = request.args.get('view_from', '') %}
 	{% set is_climb_context = view_from in ('climber', 'overall') %}
 
-	<nav class="container top-nav">
-		<div class="nav-links">
-			<a
-				class="back {% if nav_active == 'login' %}active{% endif %}"
-				href="/login"
-			>
-				Login
+	<nav class="nav">
+		<a href="/login" class="{% if nav_active == 'login' %}active{% endif %}">Login</a>
+
+		{% if viewer_id %}
+			<a href="/competitor/{{ viewer_id }}/sections"
+			   class="{% if nav_active == 'sections' %}active{% endif %}">
+				Climb Map
 			</a>
 
-			{% if viewer_id %}
-				<a
-					class="back {% if nav_active == 'sections' %}active{% endif %}"
-					href="/competitor/{{ viewer_id }}/sections"
-				>
-					Climb Map
-				</a>
+			<a href="/competitor/{{ viewer_id }}/stats/my"
+			   class="{% if nav_active == 'my_stats' and not is_climb_context %}active{% endif %}">
+				My Stats
+			</a>
 
-				<a
-					class="back {% if nav_active == 'my_stats' and not is_climb_context %}active{% endif %}"
-					href="/competitor/{{ viewer_id }}/stats/my"
-				>
-					My Stats
-				</a>
-
-				{# Show a dedicated Climb Stats tab only while viewing a climb reached from stats #}
-				{% if is_climb_context %}
-					<a
-						class="back active"
-						href="#"
-						style="pointer-events:none; cursor:default;"
-					>
-						Climb Stats
-					</a>
-				{% endif %}
-
-				<a
-					class="back {% if nav_active == 'overall_stats' and not is_climb_context %}active{% endif %}"
-					href="/competitor/{{ viewer_id }}/stats/overall"
-				>
-					Overall Stats
-				</a>
+			{% if is_climb_context %}
+				<a href="#" class="active disabled">Climb Stats</a>
 			{% endif %}
 
-			<a
-				class="back {% if nav_active == 'leaderboard' %}active{% endif %}"
-				href="/leaderboard{% if viewer_id %}?cid={{ viewer_id }}{% endif %}"
-			>
-				Leaderboard
+			<a href="/competitor/{{ viewer_id }}/stats/overall"
+			   class="{% if nav_active == 'overall_stats' and not is_climb_context %}active{% endif %}">
+				Overall Stats
 			</a>
-		</div>
+		{% endif %}
+
+		<a href="/leaderboard{% if viewer_id %}?cid={{ viewer_id }}{% endif %}"
+		   class="{% if nav_active == 'leaderboard' %}active{% endif %}">
+			Leaderboard
+		</a>
 	</nav>
 
 	<main class="container">
-		{# Back button + "Climb Stats" heading when coming from climber/overall stats #}
 		{% if view_from in ('climber', 'overall') and competitor %}
-			<div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:14px;">
-				{% if view_from == 'climber' %}
-					<a
-						href="/competitor/{{ competitor.id }}/stats/climber"
-						class="primary"
-						style="text-decoration:none; padding:6px 12px; border-radius:999px; font-size:0.9rem;"
-					>
-						← Back to Climber Stats
-					</a>
-				{% elif view_from == 'overall' %}
-					<a
-						href="/competitor/{{ competitor.id }}/stats/overall"
-						class="primary"
-						style="text-decoration:none; padding:6px 12px; border-radius:999px; font-size:0.9rem;"
-					>
-						← Back to Overall Stats
-					</a>
-				{% endif %}
-			</div>
+			{% if view_from == 'climber' %}
+				<a href="/competitor/{{ competitor.id }}/stats/climber" class="back-btn">
+					← Back to Climber Stats
+				</a>
+			{% elif view_from == 'overall' %}
+				<a href="/competitor/{{ competitor.id }}/stats/overall" class="back-btn">
+					← Back to Overall Stats
+				</a>
+			{% endif %}
 		{% endif %}
 
 		{% if competitor %}
 			<header class="comp-header">
-				<h1 class="comp-name">
-					<span class="comp-label">Name:</span>
-					<span class="comp-value">{{ competitor.name }}</span>
-				</h1>
+				<h1 class="comp-name">{{ competitor.name }}</h1>
 
 				<div class="comp-meta-row">
 					<div class="comp-pill">
@@ -126,7 +374,7 @@
 				</div>
 			</header>
 
-			<h2 class="stats-title" style="margin-top: 0;">
+			<h2 class="stats-title">
 				{% if mode == "personal" %}
 					Climb #{{ climb_number }}
 				{% else %}
@@ -134,57 +382,31 @@
 				{% endif %}
 			</h2>
 		{% else %}
-			<header class="header" style="margin-bottom: 16px;">
-				<h1 style="margin:0 0 4px 0; font-size:1.9rem;">
-					Climb #{{ climb_number }} Stats
-				</h1>
-				<p class="comp-subtitle">
-					{% if mode == "personal" %}
-						Personal and global stats for this climb.
-					{% else %}
-						Global performance and difficulty for this climb.
-					{% endif %}
-				</p>
-			</header>
+			<h1 class="stats-title">Climb #{{ climb_number }} Stats</h1>
 		{% endif %}
 
-		{# === Difficulty pill (Easy / Medium / Hard / Not tried yet) === #}
 		{% if has_config and global_difficulty_key is defined and global_difficulty_label is defined %}
-			<section class="stats-card" style="margin-bottom: 16px; padding: 10px 16px;">
-				<p style="margin: 0; font-size: 0.95rem; color: var(--text); display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
-					<span style="font-weight:600;">Difficulty:</span>
-					<span
-						class="heat-cell global-{{ global_difficulty_key }}"
-						style="
-							height: auto;
-							padding: 4px 12px;
-							min-height: 0;
-							border-radius: 999px;
-							font-size: 0.85rem;
-						"
-					>
-						{{ global_difficulty_label }}
+			<div class="difficulty-badge">
+				<span>Difficulty:</span>
+				<span class="difficulty-label global-{{ global_difficulty_key }}">
+					{{ global_difficulty_label }}
+				</span>
+				{% if num_competitors == 0 %}
+					<span style="font-size: 0.85rem; color: rgba(255,255,255,0.6);">
+						No attempts logged yet
 					</span>
-					{% if num_competitors == 0 %}
-						<span style="font-size: 0.85rem; color: var(--muted);">
-							No competitors have logged this climb yet.
-						</span>
-					{% endif %}
-				</p>
-			</section>
+				{% endif %}
+			</div>
 		{% endif %}
 
 		{% if not has_config %}
 			<section class="stats-card">
-				<p style="margin:0;">
-					This climb is not configured in any section.
-				</p>
+				<p>This climb is not configured in any section.</p>
 			</section>
 		{% else %}
 
-			{# =============== OVERVIEW (PERSONAL + GLOBAL) =============== #}
 			<section class="stats-card">
-				<h2 class="stats-title">
+				<h2>
 					{% if mode == "personal" and competitor and viewer_id and viewer_id == competitor.id %}
 						Your Result & Overview
 					{% elif view_from == "overall" %}
@@ -194,71 +416,37 @@
 					{% endif %}
 				</h2>
 
-				{# --- PERSONAL SUMMARY ONLY IN PERSONAL MODE --- #}
 				{% if competitor and mode == "personal" %}
 					{% if personal_row %}
-						<p style="margin: 0 0 8px 0; font-size:0.95rem; color:var(--text);">
+						<p style="margin-bottom: 1rem; font-size: 1rem;">
 							<strong>{{ competitor.name }}:</strong>
 
 							{% if personal_row.topped %}
 								{% if personal_row.attempts == 1 %}
-									<span
-										class="status-flashed"
-										style="
-											display:inline-block;
-											margin-left:8px;
-											padding:2px 10px;
-											border-radius:999px;
-											font-size:0.8rem;
-										"
-									>
-										Flashed
-									</span>
+									<span class="status-inline status-flashed">Flashed</span>
 								{% else %}
-									<span
-										class="status-topped-late"
-										style="
-											display:inline-block;
-											margin-left:8px;
-											padding:2px 10px;
-											border-radius:999px;
-											font-size:0.8rem;
-										"
-									>
-										Topped
-									</span>
+									<span class="status-inline status-topped-late">Topped</span>
 								{% endif %}
 							{% else %}
-								<span
-									class="status-not-topped"
-									style="
-										display:inline-block;
-										margin-left:8px;
-										padding:2px 10px;
-										border-radius:999px;
-										font-size:0.8rem;
-									"
-								>
-									Not topped
-								</span>
+								<span class="status-inline status-not-topped">Not topped</span>
 							{% endif %}
 
-							<span style="margin-left:8px;">
+							<span style="margin-left: 0.5rem; color: rgba(255,255,255,0.8);">
 								{{ personal_row.attempts }} attempt{% if personal_row.attempts != 1 %}s{% endif %}
 							</span>
 						</p>
 					{% else %}
-						<p style="margin: 0 0 8px 0; font-size:0.95rem; color:var(--muted);">
+						<p style="margin-bottom: 1rem; color: rgba(255,255,255,0.7);">
 							<strong>{{ competitor.name }} has not logged this climb yet.</strong>
 						</p>
 					{% endif %}
 				{% endif %}
 
-				<p style="margin: 8px 0 6px 0; font-size:0.95rem; color:var(--muted);">
-					Section:
+				<p style="margin-bottom: 1rem; color: rgba(255,255,255,0.7);">
+					<strong>Section:</strong>
 					{% if sections %}
 						{% for s in sections %}
-							<span>{{ s.name }}</span>{% if not loop.last %}, {% endif %}
+							{{ s.name }}{% if not loop.last %}, {% endif %}
 						{% endfor %}
 					{% else %}
 						Unknown
@@ -267,10 +455,10 @@
 
 				<table class="stats-table overview-table">
 					<tbody>
-						<tr><th>Total competitors who logged this climb</th><td>{{ num_competitors }}</td></tr>
+						<tr><th>Competitors who logged this climb</th><td>{{ num_competitors }}</td></tr>
 						<tr><th>Total attempts</th><td>{{ total_attempts }}</td></tr>
 						<tr><th>Tops</th><td>{{ tops }}</td></tr>
-						<tr><th>Flashes (topped on first attempt)</th><td>{{ flashes }}</td></tr>
+						<tr><th>Flashes</th><td>{{ flashes }}</td></tr>
 						<tr>
 							<th>Top rate</th>
 							<td>
@@ -302,7 +490,7 @@
 							</td>
 						</tr>
 						<tr>
-							<th>Avg attempts per competitor who topped</th>
+							<th>Avg attempts (who topped)</th>
 							<td>
 								{% if tops %}
 									{{ avg_attempts_on_tops | round(2) }}
@@ -315,96 +503,66 @@
 				</table>
 			</section>
 
-			{# =============== PER-COMPETITOR TABLE (TOP 5) =============== #}
 			<section class="stats-card">
-				<h2 class="stats-title">Top 5 Competitors</h2>
+				<h2>Top 5 Competitors</h2>
 
 				{% if per_competitor %}
 					{% set total_rows = per_competitor|length %}
 					{% set default_limit = 5 %}
 
-					<div
-						id="per-comp-controls"
-						style="
-							display:flex;
-							flex-direction:column;
-							align-items:flex-start;
-							gap:8px;
-							margin:8px 0 10px;
-						"
-					>
-						<p style="margin:0; font-size:0.85rem; color:var(--muted);">
-							Competitors logged: {{ total_rows }}
-							{% if total_rows > default_limit %}
-								· Showing top {{ default_limit }} by default
-							{% endif %}
-						</p>
+					<p style="margin-bottom: 0.75rem; font-size: 0.9rem; color: rgba(255,255,255,0.7);">
+						{{ total_rows }} competitor{% if total_rows != 1 %}s{% endif %} logged
+						{% if total_rows > default_limit %} · Showing top {{ default_limit }}{% endif %}
+					</p>
 
-						<div style="display:flex; flex-wrap:wrap; gap:8px;">
-							<button id="btn-topped" class="filter-btn" type="button">
-								Only Topped
-							</button>
-							<button id="btn-flashed" class="filter-btn" type="button">
-								Only Flashes
-							</button>
+					<div class="filter-controls">
+						<button id="btn-topped" class="filter-btn" type="button">Only Topped</button>
+						<button id="btn-flashed" class="filter-btn" type="button">Only Flashes</button>
 
-							{% if total_rows > default_limit %}
-								<button
-									id="toggle-rows-btn"
-									type="button"
-									class="primary"
-									style="padding:6px 10px; font-size:0.85rem;"
-								>
-									Show all ({{ total_rows }})
-								</button>
-							{% endif %}
-						</div>
+						{% if total_rows > default_limit %}
+							<button id="toggle-rows-btn" type="button" class="primary">
+								Show all ({{ total_rows }})
+							</button>
+						{% endif %}
 					</div>
 
-					<div style="max-height:70vh; overflow-y:auto; border-radius:10px;">
-						<div class="stats-table-wrapper per-competitor-wrapper" style="overflow-x:auto;">
-							<table
-								class="stats-table per-competitor-table"
-								style="width:auto; min-width:0; font-size:0.9rem;"
-							>
-								<thead>
-									<tr>
-										<th style="white-space:nowrap;">Competitor</th>
-										<th style="white-space:nowrap;">Attempts</th>
-										<th style="white-space:nowrap;">Status</th>
-									</tr>
-								</thead>
-								<tbody id="per-comp-body">
-									{% for row in per_competitor %}
-										<tr
-											class="comp-row"
-											data-topped="{{ 1 if row.topped else 0 }}"
-											data-flash="{{ 1 if row.topped and row.attempts == 1 else 0 }}"
-										>
-											<td style="white-space:nowrap;">
-												{{ row.name }} (#{{ row.competitor_id }})
-											</td>
-											<td>{{ row.attempts }}</td>
-											<td>
-												{% if row.topped %}
-													{% if row.attempts == 1 %}
-														Flashed
-													{% else %}
-														Topped
-													{% endif %}
+					<div class="table-scroll">
+						<table class="stats-table">
+							<thead>
+								<tr>
+									<th>Competitor</th>
+									<th>Attempts</th>
+									<th>Status</th>
+								</tr>
+							</thead>
+							<tbody id="per-comp-body">
+								{% for row in per_competitor %}
+									<tr
+										class="comp-row"
+										data-topped="{{ 1 if row.topped else 0 }}"
+										data-flash="{{ 1 if row.topped and row.attempts == 1 else 0 }}"
+									>
+										<td>{{ row.name }} (#{{ row.competitor_id }})</td>
+										<td>{{ row.attempts }}</td>
+										<td>
+											{% if row.topped %}
+												{% if row.attempts == 1 %}
+													Flashed
 												{% else %}
-													Not topped
+													Topped
 												{% endif %}
-											</td>
-										</tr>
-									{% endfor %}
-								</tbody>
-							</table>
-						</div>
+											{% else %}
+												Not topped
+											{% endif %}
+										</td>
+									</tr>
+								{% endfor %}
+							</tbody>
+						</table>
 					</div>
 
 				{% else %}
-					<p style="margin:0; color:var(--muted);">
+					<p style="color: rgba(255,255,255,0.7);">
 						No competitors have logged attempts on this climb yet.
 					</p>
 				{% endif %}
@@ -425,7 +583,7 @@
 			const btnFlashed = document.getElementById("btn-flashed");
 
 			let showingAll = false;
-			let filterMode = "none"; // "topped", "flashed", "none"
+			let filterMode = "none";
 
 			function rowMatchesFilter(row) {
 				const isTopped = row.dataset.topped === "1";
@@ -461,7 +619,6 @@
 				}
 			}
 
-			// Filter buttons
 			if (btnTopped) {
 				btnTopped.addEventListener("click", () => {
 					if (filterMode === "topped") {
@@ -473,7 +630,6 @@
 					btnTopped.classList.toggle("active", filterMode === "topped");
 					if (btnFlashed) btnFlashed.classList.remove("active");
 
-					// When filtering, show all by default
 					showingAll = true;
 					applyState();
 				});
@@ -495,7 +651,6 @@
 				});
 			}
 
-			// Show all / show top toggle
 			if (btnShowAll) {
 				btnShowAll.addEventListener("click", () => {
 					showingAll = !showingAll;
@@ -509,5 +664,3 @@
 	{% endif %}
 </body>
 </html>
-
-

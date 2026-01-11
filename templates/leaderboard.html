@@ -5,95 +5,324 @@
 	<meta name="viewport" content="width=device-width, initial-scale=1" />
 	<title>Leaderboard · Urban Climb Comp</title>
 	<link rel="stylesheet" href="/static/app.css" />
+	<style>
+		* { margin: 0; padding: 0; box-sizing: border-box; }
+
+		body {
+			font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+			background: linear-gradient(135deg, #0a1628 0%, #1a2942 100%);
+			min-height: 100vh;
+			display: flex;
+			flex-direction: column;
+			color: #fff;
+		}
+
+		/* Top nav */
+		.nav {
+			padding: 1.25rem 2rem;
+			display: flex;
+			gap: 1.5rem;
+			align-items: center;
+			flex-wrap: wrap;
+		}
+
+		.nav a {
+			color: rgba(255, 255, 255, 0.7);
+			text-decoration: none;
+			font-size: 0.95rem;
+			transition: color 0.2s;
+			font-weight: 600;
+		}
+
+		.nav a.active {
+			color: #5df4a2;
+			font-weight: 700;
+		}
+
+		.nav a:hover { color: #fff; }
+
+		/* Container */
+		.container {
+			flex: 1;
+			max-width: 1200px;
+			margin: 0 auto;
+			padding: 2rem;
+			width: 100%;
+		}
+
+		/* Header */
+		.page-header {
+			margin-bottom: 2rem;
+		}
+
+		.page-title {
+			font-size: 2.5rem;
+			font-weight: 900;
+			margin-bottom: 0.75rem;
+			background: linear-gradient(135deg, #fff 0%, #5df4a2 100%);
+			-webkit-background-clip: text;
+			-webkit-text-fill-color: transparent;
+			background-clip: text;
+			letter-spacing: -0.02em;
+		}
+
+		.page-subtitle {
+			font-size: 1.1rem;
+			color: rgba(255, 255, 255, 0.75);
+			margin-bottom: 1.5rem;
+		}
+
+		.page-subtitle span {
+			color: #5df4a2;
+			font-weight: 700;
+		}
+
+		/* Category tabs */
+		.category-tabs {
+			display: flex;
+			gap: 0.75rem;
+			flex-wrap: wrap;
+		}
+
+		.category-tab {
+			padding: 0.75rem 1.5rem;
+			border-radius: 999px;
+			border: 2px solid rgba(255, 255, 255, 0.2);
+			background: rgba(255, 255, 255, 0.05);
+			color: rgba(255, 255, 255, 0.85);
+			text-decoration: none;
+			font-size: 0.95rem;
+			font-weight: 700;
+			transition: all 0.2s;
+			display: inline-block;
+		}
+
+		.category-tab:hover {
+			background: rgba(255, 255, 255, 0.1);
+			border-color: rgba(255, 255, 255, 0.4);
+			transform: translateY(-1px);
+		}
+
+		.category-tab.active {
+			background: #5df4a2;
+			color: #0a1628;
+			border-color: #5df4a2;
+			transform: translateY(-1px);
+			box-shadow: 0 10px 20px rgba(93, 244, 162, 0.3);
+		}
+
+		/* Leaderboard table */
+		.leaderboard-wrapper {
+			background: rgba(255, 255, 255, 0.05);
+			backdrop-filter: blur(10px);
+			border: 1px solid rgba(255, 255, 255, 0.1);
+			border-radius: 1.5rem;
+			overflow: hidden;
+		}
+
+		.leaderboard {
+			width: 100%;
+			border-collapse: collapse;
+		}
+
+		.leaderboard thead th {
+			text-align: left;
+			font-weight: 700;
+			padding: 1.25rem 1.5rem;
+			border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+			color: rgba(255, 255, 255, 0.7);
+			font-size: 0.9rem;
+			letter-spacing: 0.05em;
+			text-transform: uppercase;
+			background: rgba(255, 255, 255, 0.02);
+		}
+
+		.leaderboard tbody td {
+			padding: 1.25rem 1.5rem;
+			border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+			color: #fff;
+			font-size: 1rem;
+		}
+
+		.leaderboard tbody tr {
+			transition: background 0.15s;
+		}
+
+		.leaderboard tbody tr:hover {
+			background: rgba(255, 255, 255, 0.05);
+		}
+
+		/* Top 3 highlighting */
+		.leaderboard tbody tr:nth-child(1) {
+			background: rgba(255, 215, 0, 0.08);
+			border-left: 4px solid #FFD700;
+		}
+
+		.leaderboard tbody tr:nth-child(1):hover {
+			background: rgba(255, 215, 0, 0.12);
+		}
+
+		.leaderboard tbody tr:nth-child(2) {
+			background: rgba(192, 192, 192, 0.08);
+			border-left: 4px solid #C0C0C0;
+		}
+
+		.leaderboard tbody tr:nth-child(2):hover {
+			background: rgba(192, 192, 192, 0.12);
+		}
+
+		.leaderboard tbody tr:nth-child(3) {
+			background: rgba(205, 127, 50, 0.08);
+			border-left: 4px solid #CD7F32;
+		}
+
+		.leaderboard tbody tr:nth-child(3):hover {
+			background: rgba(205, 127, 50, 0.12);
+		}
+
+		/* Position column */
+		.leaderboard tbody td:first-child {
+			font-weight: 900;
+			font-size: 1.1rem;
+		}
+
+		/* Center numeric columns */
+		.leaderboard th:nth-child(3),
+		.leaderboard td:nth-child(3),
+		.leaderboard th:nth-child(4),
+		.leaderboard td:nth-child(4),
+		.leaderboard th:nth-child(5),
+		.leaderboard td:nth-child(5) {
+			text-align: center;
+		}
+
+		/* Links */
+		.leaderboard a {
+			color: #5df4a2;
+			text-decoration: none;
+			font-weight: 600;
+			transition: color 0.2s;
+		}
+
+		.leaderboard a:hover {
+			color: #7fffa4;
+			text-decoration: underline;
+		}
+
+		/* Responsive */
+		@media (max-width: 768px) {
+			.nav {
+				padding: 1rem;
+			}
+
+			.container {
+				padding: 1.5rem 1rem;
+			}
+
+			.page-title {
+				font-size: 2rem;
+			}
+
+			.page-subtitle {
+				font-size: 1rem;
+			}
+
+			.leaderboard thead th,
+			.leaderboard tbody td {
+				padding: 1rem 0.75rem;
+				font-size: 0.9rem;
+			}
+
+			/* Hide attempts column on mobile */
+			.leaderboard thead th:nth-child(4),
+			.leaderboard tbody td:nth-child(4) {
+				display: none;
+			}
+		}
+	</style>
 </head>
 <body>
 	{% set viewer_id = viewer_id if viewer_id is defined else session.get('competitor_id') %}
 	{% set is_admin = session.get('admin_ok', False) %}
 	{% set comp_slug = comp_slug if comp_slug is defined else session.get('active_comp_slug') %}
 
-	<nav class="container top-nav">
-		<div class="nav-links">
-			<a class="back {% if nav_active == 'my_comps' %}active{% endif %}" href="/my-comps">Home</a>
+	<nav class="nav">
+		<a href="/my-comps" class="{% if nav_active == 'my_comps' %}active{% endif %}">Home</a>
 
-			{% if is_admin %}
-				<a class="back {% if nav_active == 'admin' %}active{% endif %}" href="/admin/comps">Admin</a>
-			{% endif %}
+		{% if is_admin %}
+			<a href="/admin/comps" class="{% if nav_active == 'admin' %}active{% endif %}">Admin</a>
+		{% endif %}
 
-			{% if viewer_id %}
-				{% if comp_slug %}
-					<a class="back {% if nav_active == 'sections' %}active{% endif %}"
-					   href="/comp/{{ comp_slug }}/competitor/{{ viewer_id }}/sections">
-						Climb Map
-					</a>
-				{% else %}
-					<a class="back {% if nav_active == 'sections' %}active{% endif %}"
-					   href="/competitor/{{ viewer_id }}/sections">
-						Climb Map
-					</a>
-				{% endif %}
-
-				<a class="back {% if nav_active == 'my_stats' %}active{% endif %}"
-				   href="/competitor/{{ viewer_id }}/stats/my">
-					My Stats
+		{% if viewer_id %}
+			{% if comp_slug %}
+				<a href="/comp/{{ comp_slug }}/competitor/{{ viewer_id }}/sections"
+				   class="{% if nav_active == 'sections' %}active{% endif %}">
+					Climb Map
 				</a>
-
-				<a class="back {% if nav_active == 'overall_stats' %}active{% endif %}"
-				   href="/competitor/{{ viewer_id }}/stats/overall">
-					Overall Stats
-				</a>
-			{% endif %}
-
-			<a class="back {% if nav_active == 'leaderboard' %}active{% endif %}"
-			   href="/leaderboard{% if viewer_id %}?cid={{ viewer_id }}{% endif %}">
-				Leaderboard
-			</a>
-			
-			{% if viewer_id or is_admin %}
-				<a class="back" href="/logout">Log out</a>
 			{% else %}
-				<a class="back {% if nav_active == 'login' %}active{% endif %}"
-				   href="/login{% if comp_slug %}?slug={{ comp_slug }}{% endif %}">
-					Log in
+				<a href="/competitor/{{ viewer_id }}/sections"
+				   class="{% if nav_active == 'sections' %}active{% endif %}">
+					Climb Map
 				</a>
 			{% endif %}
 
-		</div>
+			<a href="/competitor/{{ viewer_id }}/stats/my"
+			   class="{% if nav_active == 'my_stats' %}active{% endif %}">
+				My Stats
+			</a>
+
+			<a href="/competitor/{{ viewer_id }}/stats/overall"
+			   class="{% if nav_active == 'overall_stats' %}active{% endif %}">
+				Overall Stats
+			</a>
+		{% endif %}
+
+		<a href="/leaderboard{% if viewer_id %}?cid={{ viewer_id }}{% endif %}"
+		   class="{% if nav_active == 'leaderboard' %}active{% endif %}">
+			Leaderboard
+		</a>
+		
+		{% if viewer_id or is_admin %}
+			<a href="/logout">Log out</a>
+		{% else %}
+			<a href="/login{% if comp_slug %}?slug={{ comp_slug }}{% endif %}"
+			   class="{% if nav_active == 'login' %}active{% endif %}">
+				Log in
+			</a>
+		{% endif %}
 	</nav>
 
 	<main class="container">
+		<header class="page-header">
+			<h1 class="page-title">Leaderboard</h1>
+			<p class="page-subtitle">
+				Category: <span id="category-label">{{ category }}</span>
+			</p>
 
-		<header class="header" style="margin-bottom: 12px; flex-direction:column; align-items:flex-start; gap:8px;">
-			<div>
-				<h1 style="margin:0; font-size:1.8rem;">Leaderboard</h1>
-				<p style="margin:4px 0 0; color:var(--muted);">
-					Category: <span id="category-label">{{ category }}</span>
-				</p>
-			</div>
-
-			<div class="section-tabs" style="margin-top:6px;">
+			<div class="category-tabs">
 				<a href="/leaderboard{% if viewer_id %}?cid={{ viewer_id }}{% endif %}"
-				   class="section-tab{% if category == 'All' %} active{% endif %}">
-					<span class="section-tab-title">All</span>
+				   class="category-tab{% if category == 'All' %} active{% endif %}">
+					All
 				</a>
 
 				<a href="/leaderboard/male{% if viewer_id %}?cid={{ viewer_id }}{% endif %}"
-				   class="section-tab{% if category == 'Male' %} active{% endif %}">
-					<span class="section-tab-title">Male</span>
+				   class="category-tab{% if category == 'Male' %} active{% endif %}">
+					Male
 				</a>
 
 				<a href="/leaderboard/female{% if viewer_id %}?cid={{ viewer_id }}{% endif %}"
-				   class="section-tab{% if category == 'Female' %} active{% endif %}">
-					<span class="section-tab-title">Female</span>
+				   class="category-tab{% if category == 'Female' %} active{% endif %}">
+					Female
 				</a>
 
 				<a href="/leaderboard/inclusive{% if viewer_id %}?cid={{ viewer_id }}{% endif %}"
-				   class="section-tab{% if category == 'Gender Inclusive' %} active{% endif %}">
-					<span class="section-tab-title">Inclusive</span>
+				   class="category-tab{% if category == 'Gender Inclusive' %} active{% endif %}">
+					Inclusive
 				</a>
 			</div>
 		</header>
 
-		<div class="stats-table-wrapper" style="margin-top:4px;">
+		<div class="leaderboard-wrapper">
 			<table class="leaderboard">
 				<thead>
 					<tr>
@@ -125,7 +354,6 @@
 				</tbody>
 			</table>
 		</div>
-
 	</main>
 
 	<script>
