@@ -1047,34 +1047,42 @@ def login_request():
     """
     Step 1: user enters their email, we generate a 6-digit code and send it.
 
-    Supports comp-scoped login when a comp slug is available:
+    Comp-scoped login ONLY when a slug is explicitly provided:
       - /login?slug=uc-adelaide
-      - or session["active_comp_slug"] set earlier in the flow
+      - or hidden form field "slug"
+
+    If user visits /login with no slug (nav), we clear any old comp context
+    so they get a neutral login and land on /my-comps after verifying.
     """
     error = None
     message = None
     email = ""
 
-    # Optional competition context
+    # ---- comp context: ONLY from explicit request args / form ----
     slug = (request.args.get("slug") or "").strip()
+    current_comp = None
+
     # If they came to /login directly (nav), nuke old comp context
     if not slug:
         session.pop("active_comp_slug", None)
-        current_comp = None
-    if slug:
+    else:
         current_comp = Competition.query.filter_by(slug=slug).first()
         if not current_comp:
-            # Don't hard-fail; just ignore slug if it's invalid
+            # invalid slug -> treat as neutral
+            slug = ""
             current_comp = None
 
     if request.method == "POST":
         email = (request.form.get("email") or "").strip().lower()
 
-        # slug might also be posted from a hidden field (recommended)
+        # slug might also be posted from a hidden field
         posted_slug = (request.form.get("slug") or "").strip()
         if posted_slug:
             slug = posted_slug
-            current_comp = Competition.query.filter_by(slug=slug).first() or current_comp
+            current_comp = Competition.query.filter_by(slug=slug).first()
+            if not current_comp:
+                slug = ""
+                current_comp = None
 
         if not email:
             error = "Please enter your email."
@@ -1083,10 +1091,14 @@ def login_request():
 
             # 1) If we have a comp context, find the competitor *for that comp*
             if current_comp:
-                comp = Competitor.query.filter(
-                    Competitor.email == email,
-                    Competitor.competition_id == current_comp.id,
-                ).first()
+                comp = (
+                    Competitor.query
+                    .filter(
+                        Competitor.email == email,
+                        Competitor.competition_id == current_comp.id,
+                    )
+                    .first()
+                )
 
             # 2) If not found (or no comp context), fall back to global lookup
             if not comp:
@@ -1121,8 +1133,6 @@ def login_request():
                     elif len(matches) == 1:
                         comp = matches[0]
                     else:
-                        # Ambiguous: same email registered in multiple competitions.
-                        # Force the user back into a comp-scoped login.
                         error = (
                             "That email is registered for multiple competitions. "
                             "Please open the competition you want and use 'Log back into your scoring' from there."
@@ -1131,8 +1141,8 @@ def login_request():
             if not error and comp:
                 # Generate 6-digit code
                 code = f"{secrets.randbelow(1_000_000):06d}"
-
                 now = datetime.utcnow()
+
                 login_code = LoginCode(
                     competitor_id=comp.id,
                     code=code,
@@ -1145,17 +1155,17 @@ def login_request():
 
                 send_login_code_via_email(email, code)
 
-                # Store email + optional comp slug to keep context through verify step
+                # Store email for verify step
                 session["login_email"] = email
-                if comp.competition_id:
-                    linked_comp = Competition.query.get(comp.competition_id)
-                    if linked_comp and linked_comp.slug:
-                        session["active_comp_slug"] = linked_comp.slug
 
-                # IMPORTANT: redirect to the verify route
-                # Include slug if we have it, so verify can stay comp-aware too
-                if session.get("active_comp_slug"):
-                    return redirect(f"/login/verify?slug={session['active_comp_slug']}")
+                # IMPORTANT:
+                # Only carry active_comp_slug through verify if this login was explicitly comp-scoped.
+                if current_comp and current_comp.slug:
+                    session["active_comp_slug"] = current_comp.slug
+                    return redirect(f"/login/verify?slug={current_comp.slug}")
+
+                # Neutral login flow
+                session.pop("active_comp_slug", None)
                 return redirect("/login/verify")
 
     return render_template(
@@ -1163,7 +1173,7 @@ def login_request():
         email=email,
         error=error,
         message=message,
-        slug=slug,  # you should add a hidden field in the template to preserve this
+        slug=slug,  # template can include hidden <input name="slug" ...> when present
     )
 
 # --- Email login: verify code ---
