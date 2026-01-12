@@ -2630,158 +2630,127 @@ def register_competitor():
 @app.route("/comp/<slug>/join", methods=["GET", "POST"])
 def public_register_for_comp(slug):
     """
-    Self-service registration for a specific competition, chosen by slug.
+    Registration for a specific competition.
 
     NEW behaviour:
-    - If a user is already logged in (has session["competitor_id"]) and has an email on file,
-      we DO NOT ask for email again.
-    - We use their email-on-file, ask only for name + gender.
-    - After registering, we email them a direct scoring link and show a message:
-      "Sent to xxx@xx.com".
+    - If user is logged in (session["competitor_id"]), we do NOT ask for email.
+      We use their account email, send a 6-digit code, then send them to /login/verify
+      (comp-scoped) to confirm.
+
+    - If user is NOT logged in, you can either:
+        A) keep requiring email (old behaviour), OR
+        B) force them to log in first (simpler).
+      This version chooses B (simpler + matches your stated goal).
     """
     comp = get_comp_or_404(slug)
 
-    # Block registration if comp is finished or not currently live
+    # Block registration if comp is finished or not live
     if not comp_is_live(comp):
         flash("That competition isn’t live — registration is closed.", "warning")
         return redirect("/my-comps")
 
-    # Keep comp context for the rest of the flow (login/verify/nav)
-    if comp and comp.slug:
-        session["active_comp_slug"] = comp.slug
+    # Always keep comp context
+    session["active_comp_slug"] = comp.slug
 
-    # Logged-in "account" (may be a comp-specific competitor row OR a zombie account)
     viewer_id = session.get("competitor_id")
     viewer = Competitor.query.get(viewer_id) if viewer_id else None
 
-    # If they are logged in and have an email, we lock email to that value
-    locked_email = (viewer.email or "").strip().lower() if (viewer and viewer.email) else ""
+    # If they’re not logged in, force login first (so we always have "email on file")
+    if not viewer:
+        flash("Please log in first to join this competition.", "warning")
+        return redirect(f"/login?slug={comp.slug}")
+
+    # Must have an email on file to proceed
+    email_on_file = (viewer.email or "").strip().lower()
+    if not email_on_file:
+        flash("Your account doesn’t have an email on file. Please log in again.", "warning")
+        return redirect(f"/login?slug={comp.slug}")
 
     if request.method == "POST":
         name = (request.form.get("name") or "").strip()
         gender = (request.form.get("gender") or "Inclusive").strip()
 
-        # ✅ email selection logic:
-        # - if logged in with email -> use it
-        # - else -> take from form
-        if locked_email:
-            email = locked_email
-        else:
-            email = (request.form.get("email") or "").strip().lower()
-
-        error = None
-        if not name:
-            error = "Please enter your name."
-        elif not email:
-            error = "Please enter your email."
-
         if gender not in ("Male", "Female", "Inclusive"):
             gender = "Inclusive"
 
-        if error:
+        if not name:
             return render_template(
                 "register_public.html",
                 comp=comp,
-                error=error,
+                error="Please enter your name.",
                 name=name,
                 gender=gender,
-                email=email,
-                locked_email=locked_email,
-                email_on_file=locked_email,
             )
 
-        # 1) Already registered for THIS competition?
+        # 1) Already registered for THIS comp?
         existing_for_comp = (
             Competitor.query
             .filter(
                 Competitor.competition_id == comp.id,
-                Competitor.email == email,
+                Competitor.email == email_on_file,
             )
             .first()
         )
 
         if existing_for_comp:
-            # Switch session to the correct competitor row for this comp
+            # Send them straight to scoring — no need to register again
             session["competitor_id"] = existing_for_comp.id
             session["active_comp_slug"] = comp.slug
+            return redirect(f"/comp/{comp.slug}/competitor/{existing_for_comp.id}/sections")
 
-            # Drop any admin carry-over
-            session.pop("admin_ok", None)
-            session.pop("admin_is_super", None)
-            session.pop("admin_gym_ids", None)
-
-            scoring_url = f"/comp/{comp.slug}/competitor/{existing_for_comp.id}/sections"
-            send_scoring_link_via_email(email, comp.name, scoring_url)
-            flash(f"Scoring link sent to {email}.", "success")
-
-            return redirect(scoring_url)
-
-        # 2) Claim "zombie" account (email exists but competition_id is NULL)
-        existing_zombie = (
-            Competitor.query
-            .filter(
-                Competitor.email == email,
-                Competitor.competition_id.is_(None),
-            )
-            .first()
-        )
-
-        if existing_zombie:
-            existing_zombie.name = name or existing_zombie.name
-            existing_zombie.gender = gender or existing_zombie.gender
-            existing_zombie.competition_id = comp.id
+        # 2) If their current viewer row is a "zombie account" (competition_id is NULL)
+        #    claim it for this comp (keeps same competitor id)
+        if viewer.competition_id is None:
+            viewer.name = name or viewer.name
+            viewer.gender = gender or viewer.gender
+            viewer.competition_id = comp.id
             db.session.commit()
             invalidate_leaderboard_cache()
 
-            session["competitor_id"] = existing_zombie.id
-            session["active_comp_slug"] = comp.slug
+            target_competitor = viewer
+        else:
+            # 3) Otherwise, create a NEW competitor row for THIS comp (same email allowed across comps)
+            target_competitor = Competitor(
+                name=name,
+                gender=gender,
+                email=email_on_file,
+                competition_id=comp.id,
+            )
+            db.session.add(target_competitor)
+            db.session.commit()
+            invalidate_leaderboard_cache()
 
-            session.pop("admin_ok", None)
-            session.pop("admin_is_super", None)
-            session.pop("admin_gym_ids", None)
+        # --- Send login code and force verify step (same as login flow) ---
+        code = f"{secrets.randbelow(1_000_000):06d}"
+        now = datetime.utcnow()
 
-            scoring_url = f"/comp/{comp.slug}/competitor/{existing_zombie.id}/sections"
-            send_scoring_link_via_email(email, comp.name, scoring_url)
-            flash(f"Scoring link sent to {email}.", "success")
-
-            return redirect(scoring_url)
-
-        # 3) Otherwise: create a new competitor row for THIS competition
-        new_competitor = Competitor(
-            name=name,
-            gender=gender,
-            email=email,
-            competition_id=comp.id,
+        login_code = LoginCode(
+            competitor_id=target_competitor.id,
+            code=code,
+            created_at=now,
+            expires_at=now + timedelta(minutes=10),
+            used=False,
         )
-        db.session.add(new_competitor)
+        db.session.add(login_code)
         db.session.commit()
-        invalidate_leaderboard_cache()
 
-        session["competitor_id"] = new_competitor.id
+        send_login_code_via_email(email_on_file, code)
+
+        # Tell verify page which email to use + keep comp scope
+        session["login_email"] = email_on_file
         session["active_comp_slug"] = comp.slug
 
-        session.pop("admin_ok", None)
-        session.pop("admin_is_super", None)
-        session.pop("admin_gym_ids", None)
+        flash(f"We sent a 6-digit code to {email_on_file}.", "success")
+        return redirect(f"/login/verify?slug={comp.slug}")
 
-        scoring_url = f"/comp/{comp.slug}/competitor/{new_competitor.id}/sections"
-        send_scoring_link_via_email(email, comp.name, scoring_url)
-        flash(f"Scoring link sent to {email}.", "success")
-
-        return redirect(scoring_url)
-
-    # GET: prefill / lock email if available
+    # GET: show name + gender only
     return render_template(
         "register_public.html",
         comp=comp,
         error=None,
-        name=(viewer.name if viewer and viewer.name else ""),
-        gender=(viewer.gender if viewer and viewer.gender else "Inclusive"),
-        email=locked_email,                 # prefill if unlocked flow
-        locked_email=locked_email,          # template uses this to hide the email field
-        email_on_file=locked_email,         # for “sent to xxx@xx.com” style copy
+        name=(viewer.name or ""),
+        gender=(viewer.gender or "Inclusive"),
     )
-
 
     
 @app.route("/logout")
