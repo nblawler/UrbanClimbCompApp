@@ -180,6 +180,11 @@
       background: rgba(139, 30, 30, 0.25);
     }
 
+    .alert-success {
+      border-color: rgba(93, 242, 156, 0.25);
+      background: rgba(93, 242, 156, 0.08);
+    }
+
     @media (max-width: 800px) {
       .admin-map-page {
         grid-template-columns: minmax(0, 1fr);
@@ -196,7 +201,7 @@
       </a>
 
       {# Optional: quick jump back to this comp’s admin page if slug exists #}
-      {% if session.get('admin_comp_id') and comp_name %}
+      {% if session.get('admin_comp_id') %}
         <a class="back" href="/admin/map?comp_id={{ session.get('admin_comp_id') }}">
           Refresh map
         </a>
@@ -236,7 +241,7 @@
       {% if not gym_map_url %}
         <div class="alert alert-error">
           No map is configured for this competition’s gym yet.<br>
-          Set the gym’s <code>map_image_path</code> (e.g. <code>/static/maps/adelaide-map.png</code>)
+          Set the gym’s <code>map_image_path</code> (e.g. <code>/static/maps/collingwood-map.png</code>)
           and reload this page.
         </div>
       {% else %}
@@ -275,6 +280,20 @@
       <p class="tiny-muted">
         Click on the map first to set the position, then fill the details and save.
       </p>
+
+      {# ✅ Flash messages (so failures aren't silent) #}
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+          {% for category, msg in messages %}
+            <div class="alert
+              {% if category in ['error','warning','danger'] %}alert-error{% endif %}
+              {% if category in ['success'] %}alert-success{% endif %}
+            ">
+              {{ msg }}
+            </div>
+          {% endfor %}
+        {% endif %}
+      {% endwith %}
 
       {# Preserve comp context on submit #}
       <form method="POST" action="/admin/map/add-climb">
@@ -374,7 +393,7 @@
           Save climb at clicked position
         </button>
 
-        <div class="tiny-muted">
+        <div class="tiny-muted" id="clickHint">
           Button unlocks once you’ve clicked on the map.
         </div>
       </form>
@@ -398,6 +417,7 @@
       const yInput = document.getElementById("y_percent");
       const coordsDisplay = document.getElementById("coordsDisplay");
       const submitBtn = document.getElementById("submitBtn");
+      const clickHint = document.getElementById("clickHint");
 
       // If there's no map wrapper (no gym_map_url), don't bind clicks
       if (!mapWrapper) return;
@@ -420,6 +440,7 @@
         ghostDot.style.display = "flex";
 
         submitBtn.disabled = false;
+        if (clickHint) clickHint.textContent = "Nice. Now fill the form and hit save.";
 
         coordsDisplay.textContent =
           "Clicked at: " +

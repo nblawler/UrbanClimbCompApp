@@ -3365,30 +3365,27 @@ def admin_map():
     if not session.get("admin_ok"):
         return redirect("/admin")
 
-    # 1) Prefer explicit comp_id in querystring (coming from Manage page link)
+    # 1) Prefer explicit comp_id in querystring
     comp_id = request.args.get("comp_id", type=int)
 
-    # 2) Fallback to "admin currently editing" comp stored in session
+    # 2) Fallback to session "admin currently editing" comp
     if not comp_id:
         comp_id = session.get("admin_comp_id")
 
-    # 3) Final fallback (not ideal, but avoids hard crash)
-    if comp_id:
-        current_comp = Competition.query.get(comp_id)
-    else:
-        current_comp = get_current_comp()
+    # 3) Final fallback (avoid crash)
+    current_comp = Competition.query.get(comp_id) if comp_id else get_current_comp()
 
     if not current_comp:
-        # No competition found — bounce back to admin comps list
         return redirect("/admin/comps")
+
+    # ✅ Keep session in sync so POST can always fall back safely
+    session["admin_comp_id"] = current_comp.id
 
     # Only allow admins who can manage this competition's gym
     if not admin_can_manage_competition(current_comp):
         abort(403)
 
-    gym_map_url = None
-    if current_comp and current_comp.gym:
-        gym_map_url = current_comp.gym.map_image_path
+    gym_map_url = current_comp.gym.map_image_path if current_comp.gym else None
 
     sections = (
         Section.query
@@ -3398,24 +3395,18 @@ def admin_map():
     )
 
     section_ids = [s.id for s in sections]
+    climbs = []
     if section_ids:
-        climbs = (
-            SectionClimb.query
-            .filter(
-                SectionClimb.section_id.in_(section_ids),
-                # keep this only if gym_id is truly correct/needed in your schema
-                SectionClimb.gym_id == current_comp.gym_id,
-            )
-            .all()
-        )
-    else:
-        climbs = []
+        q = SectionClimb.query.filter(SectionClimb.section_id.in_(section_ids))
+
+        # If you're truly using gym_id, keep it; otherwise remove this filter.
+        if current_comp.gym_id is not None:
+            q = q.filter(SectionClimb.gym_id == current_comp.gym_id)
+
+        climbs = q.all()
 
     gym_name = current_comp.gym.name if getattr(current_comp, "gym", None) else None
     comp_name = current_comp.name
-
-    # keep comp context in template (for hidden inputs + link building)
-    current_comp_id = current_comp.id
 
     return render_template(
         "admin_map.html",
@@ -3424,7 +3415,7 @@ def admin_map():
         gym_map_url=gym_map_url,
         gym_name=gym_name,
         comp_name=comp_name,
-        current_comp_id=current_comp_id,  
+        current_comp_id=current_comp.id,  # template uses this for hidden input + links
     )
 
 
@@ -3635,24 +3626,32 @@ def admin_map_add_climb():
     Handle form submission from the map when admin clicks and adds a climb.
     Uses the admin-selected competition context (comp_id), NOT the public "current" comp.
     """
+    # Debug: if this fires, the session cookie isn't present or SECRET_KEY mismatch
     if not session.get("admin_ok"):
+        print("[ADMIN MAP ADD] admin_ok missing in session. session keys:", list(session.keys()), file=sys.stderr)
+        flash("Admin session missing — please log in again.", "warning")
         return redirect("/admin")
+
+    def back(comp_id=None):
+        return redirect(f"/admin/map?comp_id={comp_id}") if comp_id else redirect("/admin/map")
 
     # 1) Get comp_id from POST (hidden field), fallback to session
     comp_id_raw = (request.form.get("comp_id") or "").strip()
     comp_id = int(comp_id_raw) if comp_id_raw.isdigit() else session.get("admin_comp_id")
 
     if not comp_id:
+        flash("No competition context (comp_id missing). Open the map from Admin → Comps.", "warning")
         return redirect("/admin/comps")
 
     current_comp = Competition.query.get(comp_id)
     if not current_comp:
+        flash("Competition not found.", "warning")
         return redirect("/admin/comps")
 
-    # Keep session in sync (so /admin/map GET fallback works too)
+    # Keep session in sync
     session["admin_comp_id"] = current_comp.id
 
-    # Gym-level permission check (super admin OR gym admin for this gym)
+    # Permission check
     if not admin_can_manage_competition(current_comp):
         abort(403)
 
@@ -3668,20 +3667,16 @@ def admin_map_add_climb():
     x_raw = (request.form.get("x_percent") or "").strip()
     y_raw = (request.form.get("y_percent") or "").strip()
 
-    error = None
-
-    # 2) Decide which section to use (existing or new)
+    # ---- Choose section ----
     section = None
+
     if section_id_raw.isdigit():
         section = Section.query.get(int(section_id_raw))
-        # Must belong to this comp (and optionally same gym)
         if not section or section.competition_id != current_comp.id:
             section = None
 
     if not section and new_section_name:
         slug = slugify(new_section_name)
-
-        # Make uniqueness scoped to this competition (prevents cross-comp collisions)
         existing = Section.query.filter_by(competition_id=current_comp.id, slug=slug).first()
         if existing:
             slug = f"{slug}-{int(datetime.utcnow().timestamp())}"
@@ -3695,56 +3690,67 @@ def admin_map_add_climb():
             gym_id=current_comp.gym_id,
         )
         db.session.add(section)
-        db.session.flush()  # get section.id without full commit
+        db.session.flush()  # get section.id
 
     if not section:
-        error = "Please choose an existing section or enter a new section name."
+        flash("Please select an existing section or type a new section name.", "warning")
+        db.session.rollback()
+        return back(current_comp.id)
 
-    # 3) Basic validation of numbers
-    if not error:
-        if not climb_raw.isdigit():
-            error = "Please enter a valid climb number."
-        elif base_raw == "" or penalty_raw == "" or cap_raw == "":
-            error = "Please enter base points, penalty per attempt, and attempt cap."
-        elif not (base_raw.isdigit() and penalty_raw.isdigit() and cap_raw.isdigit()):
-            error = "Base points, penalty per attempt, and attempt cap must be whole numbers."
+    # ---- Validate numbers ----
+    if not climb_raw.isdigit():
+        flash("Climb number must be a whole number.", "warning")
+        db.session.rollback()
+        return back(current_comp.id)
 
-    if not error:
-        climb_number = int(climb_raw)
-        base_points = int(base_raw)
-        penalty_per_attempt = int(penalty_raw)
-        attempt_cap = int(cap_raw)
+    if base_raw == "" or penalty_raw == "" or cap_raw == "":
+        flash("Base points, penalty, and attempt cap are required.", "warning")
+        db.session.rollback()
+        return back(current_comp.id)
 
-        if climb_number <= 0:
-            error = "Climb number must be positive."
-        elif base_points < 0 or penalty_per_attempt < 0 or attempt_cap <= 0:
-            error = "Base points, penalty must be ≥ 0 and attempt cap > 0."
+    if not (base_raw.lstrip("-").isdigit() and penalty_raw.lstrip("-").isdigit() and cap_raw.lstrip("-").isdigit()):
+        flash("Base points, penalty, and attempt cap must be whole numbers.", "warning")
+        db.session.rollback()
+        return back(current_comp.id)
 
-    # 4) Coordinates
-    if not error:
-        try:
-            x_percent = float(x_raw)
-            y_percent = float(y_raw)
-        except ValueError:
-            error = "Internal error: invalid click coordinates. Please try again."
+    climb_number = int(climb_raw)
+    base_points = int(base_raw)
+    penalty_per_attempt = int(penalty_raw)
+    attempt_cap = int(cap_raw)
 
-    if error:
-        return redirect(f"/admin/map?comp_id={current_comp.id}")
+    if climb_number <= 0:
+        flash("Climb number must be positive.", "warning")
+        db.session.rollback()
+        return back(current_comp.id)
 
-    # 5) Enforce uniqueness of climb_number within THIS competition (+ gym)
-    # This matches your rule: "Each climb number can only exist once across all sections."
+    if base_points < 0 or penalty_per_attempt < 0 or attempt_cap <= 0:
+        flash("Base points/penalty must be ≥ 0 and attempt cap must be > 0.", "warning")
+        db.session.rollback()
+        return back(current_comp.id)
+
+    # ---- Coordinates ----
+    try:
+        x_percent = float(x_raw)
+        y_percent = float(y_raw)
+    except ValueError:
+        flash("You need to click the map first (missing coordinates).", "warning")
+        db.session.rollback()
+        return back(current_comp.id)
+
+    # ---- Conflict check (unique climb number within this competition) ----
     conflict = (
         db.session.query(SectionClimb)
         .join(Section, SectionClimb.section_id == Section.id)
         .filter(
             Section.competition_id == current_comp.id,
-            SectionClimb.gym_id == current_comp.gym_id,
             SectionClimb.climb_number == climb_number,
         )
         .first()
     )
     if conflict:
-        return redirect(f"/admin/map?comp_id={current_comp.id}")
+        flash(f"Climb #{climb_number} already exists in this competition.", "warning")
+        db.session.rollback()
+        return back(current_comp.id)
 
     sc = SectionClimb(
         section_id=section.id,
@@ -3758,9 +3764,17 @@ def admin_map_add_climb():
         y_percent=y_percent,
     )
     db.session.add(sc)
-    db.session.commit()
 
-    return redirect(f"/admin/map?comp_id={current_comp.id}")
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        flash(f"DB error saving climb: {e}", "warning")
+        return back(current_comp.id)
+
+    flash(f"Saved climb #{climb_number}.", "success")
+    return back(current_comp.id)
+
 
 
 # --- Startup ---
