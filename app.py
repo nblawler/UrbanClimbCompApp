@@ -242,15 +242,16 @@ class Score(db.Model):
 class Section(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(120), nullable=False)
-    slug = db.Column(db.String(120), nullable=False, unique=True)
-    # start_climb / end_climb are now effectively metadata; sections are defined by SectionClimb rows
+
+    # remove global unique
+    slug = db.Column(db.String(120), nullable=False)
+
     start_climb = db.Column(db.Integer, nullable=False, default=0)
     end_climb = db.Column(db.Integer, nullable=False, default=0)
+
     gym_id = db.Column(db.Integer, db.ForeignKey("gym.id"), nullable=True, index=True)
     gym = db.relationship("Gym")
 
-
-    # which competition this section belongs to
     competition_id = db.Column(
         db.Integer,
         db.ForeignKey("competition.id"),
@@ -258,10 +259,15 @@ class Section(db.Model):
         index=True,
     )
 
-    competition = db.relationship(
-        "Competition",
-        back_populates="sections",
+    competition = db.relationship("Competition", back_populates="sections")
+
+    __table_args__ = (
+        # allow same section name in different comps
+        db.UniqueConstraint("competition_id", "name", name="uq_section_comp_name"),
+        # allow same slug in different comps (but unique within a comp)
+        db.UniqueConstraint("competition_id", "slug", name="uq_section_comp_slug"),
     )
+
 
 
 class SectionClimb(db.Model):
@@ -3072,7 +3078,7 @@ def admin_page():
                         error = "Please provide a section name."
                     else:
                         slug = slugify(name)
-                        existing = Section.query.filter_by(slug=slug).first()
+                        existing = Section.query.filter_by(competition_id=current_comp.id, slug=slug).first()
                         if existing:
                             slug = f"{slug}-{int(datetime.utcnow().timestamp())}"
 
