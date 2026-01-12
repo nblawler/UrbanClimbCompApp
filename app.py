@@ -176,11 +176,18 @@ class Competition(db.Model):
 
 
 class Competitor(db.Model):
+    __tablename__ = "competitor"
+
     # competitor number (auto-incremented)
     id = db.Column(db.Integer, primary_key=True)
+
     name = db.Column(db.String(120), nullable=False)
     gender = db.Column(db.String(20), nullable=False, default="Inclusive")
+
+    # IMPORTANT: allow same email to register for multiple comps
+    # by enforcing uniqueness on (competition_id, email) instead of email alone
     email = db.Column(db.String(255), nullable=True)
+
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     # which competition this competitor belongs to
@@ -195,9 +202,11 @@ class Competitor(db.Model):
         "Competition",
         back_populates="competitors",
     )
+
     __table_args__ = (
-    UniqueConstraint("competition_id", "email", name="uq_competition_email"),
+        UniqueConstraint("competition_id", "email", name="uq_competition_email"),
     )
+
 
 
 class Score(db.Model):
@@ -2528,16 +2537,16 @@ def public_register_for_comp(slug):
       /comp/uc-collingwood-boulder-bash/join
 
     After registration:
-      - If already registered: go straight to scoring for this comp
-      - If newly registered: go straight to scoring for this comp
+      - If already registered for THIS comp: go straight to scoring for this comp
+      - If registered in a DIFFERENT comp: allow (create a new competitor row for this comp)
+      - If "zombie" account exists (email exists but competition_id is NULL): claim it for this comp
     """
     comp = get_comp_or_404(slug)
-    
+
     # Block registration if comp is finished or not currently live
     if not comp_is_live(comp):
         flash("That competition isn’t live — registration is closed.", "warning")
         return redirect("/my-comps")
-
 
     # Keep comp context for the rest of the flow (login/verify/nav)
     if comp and comp.slug:
@@ -2570,10 +2579,14 @@ def public_register_for_comp(slug):
         # --- Competition-aware email handling ---
 
         # 1) Already registered for THIS competition?
-        existing_for_comp = Competitor.query.filter(
-            Competitor.competition_id == comp.id,
-            Competitor.email == email,
-        ).first()
+        existing_for_comp = (
+            Competitor.query
+            .filter(
+                Competitor.competition_id == comp.id,
+                Competitor.email == email,
+            )
+            .first()
+        )
 
         if existing_for_comp:
             # Remember competitor + comp context
@@ -2587,42 +2600,35 @@ def public_register_for_comp(slug):
 
             return redirect(f"/comp/{comp.slug}/competitor/{existing_for_comp.id}/sections")
 
-        # 2) Existing competitor record elsewhere (global unique email is still in place)
-        existing_global = Competitor.query.filter_by(email=email).first()
-        if existing_global:
-            # If it's a "zombie" record with no competition, claim it for this comp (fixes your current bug)
-            if not existing_global.competition_id:
-                existing_global.name = name or existing_global.name
-                existing_global.gender = gender or existing_global.gender
-                existing_global.competition_id = comp.id
-                db.session.commit()
-                invalidate_leaderboard_cache()
-
-                session["competitor_id"] = existing_global.id
-                session["active_comp_slug"] = comp.slug
-
-                session.pop("admin_ok", None)
-                session.pop("admin_is_super", None)
-                session.pop("admin_gym_ids", None)
-
-                return redirect(f"/comp/{comp.slug}/competitor/{existing_global.id}/sections")
-
-            # Otherwise, they are registered for a DIFFERENT comp.
-            # Until we remove the global unique constraint, we cannot create a second competitor row for this email.
-            error = (
-                "That email is already registered for another competition. "
-                "Use 'Log back into your scoring' from the competition you joined."
+        # 2) If there is an existing "zombie" account (same email, competition_id is NULL),
+        #    claim it for this competition (keeps the same competitor id).
+        existing_zombie = (
+            Competitor.query
+            .filter(
+                Competitor.email == email,
+                Competitor.competition_id.is_(None),
             )
-            return render_template(
-                "register_public.html",
-                comp=comp,
-                error=error,
-                name=name,
-                gender=gender,
-                email=email,
-            )
+            .first()
+        )
 
-        # 3) Brand new registration: create competitor tied to THIS competition
+        if existing_zombie:
+            existing_zombie.name = name or existing_zombie.name
+            existing_zombie.gender = gender or existing_zombie.gender
+            existing_zombie.competition_id = comp.id
+            db.session.commit()
+            invalidate_leaderboard_cache()
+
+            session["competitor_id"] = existing_zombie.id
+            session["active_comp_slug"] = comp.slug
+
+            session.pop("admin_ok", None)
+            session.pop("admin_is_super", None)
+            session.pop("admin_gym_ids", None)
+
+            return redirect(f"/comp/{comp.slug}/competitor/{existing_zombie.id}/sections")
+
+        # 3) Otherwise: allow same email to register for multiple competitions.
+        #    Create a new competitor row for THIS competition.
         new_competitor = Competitor(
             name=name,
             gender=gender,
@@ -2651,6 +2657,8 @@ def public_register_for_comp(slug):
         gender="Inclusive",
         email="",
     )
+
+
     
 @app.route("/logout")
 def logout():
@@ -2675,13 +2683,15 @@ def public_register():
 
     - This is what the QR code at the desk should point to.
     - No admin password, just name + category + email.
-    - After registration, redirect to Home (/my-comps).
+    - After registration, redirect to scoring (or home if you prefer).
+
+    IMPORTANT:
+    - Uniqueness is per competition: (competition_id, email)
+    - Same email can register for multiple competitions.
     """
     current_comp = get_current_comp()
 
-    # If there is no active competition, show a friendly message instead of crashing.
     if not current_comp:
-        # You can swap this to a dedicated 'no active comp' template later if you like
         return render_template(
             "register_public.html",
             error="There is no active competition right now. Please check back when your gym starts a comp.",
@@ -2704,41 +2714,52 @@ def public_register():
         if gender not in ("Male", "Female", "Inclusive"):
             gender = "Inclusive"
 
-        # Check uniqueness of email
-        if not error and email:
-            existing = Competitor.query.filter_by(email=email).first()
-            if existing:
-                error = "That email is already registered. Use it to log back into your scoring."
-
         if error:
             return render_template(
                 "register_public.html",
+                comp=current_comp,
                 error=error,
                 name=name,
                 gender=gender,
                 email=email,
             )
 
+        # Already registered for THIS current active competition?
+        existing_for_comp = Competitor.query.filter(
+            Competitor.competition_id == current_comp.id,
+            Competitor.email == email,
+        ).first()
+
+        if existing_for_comp:
+            session["competitor_id"] = existing_for_comp.id
+            session["active_comp_slug"] = current_comp.slug if current_comp.slug else None
+            return redirect(
+                f"/comp/{current_comp.slug}/competitor/{existing_for_comp.id}/sections"
+                if current_comp.slug else f"/competitor/{existing_for_comp.id}/sections"
+            )
+
         # Create competitor in the current active competition
-        comp = Competitor(
+        new_competitor = Competitor(
             name=name,
             gender=gender,
             email=email,
             competition_id=current_comp.id,
         )
-        db.session.add(comp)
+        db.session.add(new_competitor)
         db.session.commit()
         invalidate_leaderboard_cache()
 
-        # Remember this competitor on this device
-        session["competitor_id"] = comp.id
+        session["competitor_id"] = new_competitor.id
+        session["active_comp_slug"] = current_comp.slug if current_comp.slug else None
 
-        # After signup, go to Home (Upcoming Comps)
-        return redirect("/my-comps")
+        return redirect(
+            f"/comp/{current_comp.slug}/competitor/{new_competitor.id}/sections"
+            if current_comp.slug else f"/competitor/{new_competitor.id}/sections"
+        )
 
-    # GET: show blank form
     return render_template(
         "register_public.html",
+        comp=current_comp,
         error=None,
         name="",
         gender="Inclusive",
