@@ -928,23 +928,29 @@ def my_competitions():
     """
     Competitor-facing hub showing all upcoming competitions.
 
-    - Shows comps with end_at in the future (or no end_at)
-    - If comp is live (is_active=True):
-        - If competitor is already registered -> "Keep scoring" (go to sections)
-        - Else -> "Register" (go to /comp/<slug>/join)
-    - If comp is not live -> Upcoming (no register link yet)
+    NEW behaviour:
+    - If logged in via "account" (competition_id=None), we still show:
+        - "Keep scoring" for comps they are registered in (by email lookup)
+        - "Register" for comps they are not registered in
     """
     viewer_id = session.get("competitor_id")
     competitor = Competitor.query.get(viewer_id) if viewer_id else None
 
+    # NEW: store email in session when login is ambiguous
+    session_email = (session.get("competitor_email") or "").strip().lower()
+
+    # Resolve best email to use for "am I registered for this comp?"
+    lookup_email = None
+    if competitor and competitor.email:
+        lookup_email = competitor.email.strip().lower()
+    elif session_email:
+        lookup_email = session_email
+
     now = datetime.utcnow()
 
-    upcoming_q = Competition.query.filter(
-        (Competition.end_at == None) | (Competition.end_at >= now)
-    )
-
     competitions = (
-        upcoming_q
+        Competition.query
+        .filter((Competition.end_at == None) | (Competition.end_at >= now))
         .order_by(Competition.start_at.asc().nullsfirst(), Competition.name.asc())
         .all()
     )
@@ -956,12 +962,10 @@ def my_competitions():
             status = "live"
             status_label = "This comp is live — tap to register."
             opens_at = None
-
         elif comp_is_finished(c):
             status = "finished"
             status_label = "This comp has finished — registration is closed."
             opens_at = None
-
         else:
             status = "scheduled"
             opens_at = c.start_at
@@ -973,13 +977,23 @@ def my_competitions():
             else:
                 status_label = "Comp currently not live – opening time TBC."
 
-        # scoring URL if you're already in that competition
+        # --- NEW: find competitor row for THIS competition by email ---
+        registered_competitor = None
+        if lookup_email:
+            registered_competitor = (
+                Competitor.query
+                .filter(
+                    Competitor.email == lookup_email,
+                    Competitor.competition_id == c.id,
+                )
+                .first()
+            )
+
         my_scoring_url = None
-        if competitor and competitor.competition_id == c.id:
-            if c.slug:
-                my_scoring_url = f"/comp/{c.slug}/competitor/{competitor.id}/sections"
-            else:
-                my_scoring_url = f"/competitor/{competitor.id}/sections"
+        if registered_competitor and c.slug:
+            my_scoring_url = f"/comp/{c.slug}/competitor/{registered_competitor.id}/sections"
+        elif registered_competitor:
+            my_scoring_url = f"/competitor/{registered_competitor.id}/sections"
 
         # clickable pill target
         pill_href = None
@@ -1014,6 +1028,7 @@ def my_competitions():
         competitor=competitor,
         nav_active="my_comps",
     )
+
 
 
 @app.route("/resume")
@@ -1086,35 +1101,28 @@ def login_request():
     """
     Step 1: user enters their email, we generate a 6-digit code and send it.
 
-    Comp-scoped login ONLY when a slug is explicitly provided:
-      - /login?slug=uc-adelaide
-      - or hidden form field "slug"
-
-    If user visits /login with no slug (nav), we clear any old comp context
-    so they get a neutral login and land on /my-comps after verifying.
+    NEW behaviour:
+    - If email exists in multiple competitions, DO NOT block.
+      We send the code tied to a neutral "account competitor" (competition_id=None).
+    - If a slug is provided, we still prefer the competitor row for that competition.
     """
     error = None
     message = None
     email = ""
 
-    # ---- comp context: ONLY from explicit request args / form ----
     slug = (request.args.get("slug") or "").strip()
-    current_comp = None
+    current_comp = Competition.query.filter_by(slug=slug).first() if slug else None
+    if slug and not current_comp:
+        slug = ""
+        current_comp = None
 
-    # If they came to /login directly (nav), nuke old comp context
+    # If they came to /login with NO slug (nav), nuke old comp context
     if not slug:
         session.pop("active_comp_slug", None)
-    else:
-        current_comp = Competition.query.filter_by(slug=slug).first()
-        if not current_comp:
-            # invalid slug -> treat as neutral
-            slug = ""
-            current_comp = None
 
     if request.method == "POST":
         email = (request.form.get("email") or "").strip().lower()
 
-        # slug might also be posted from a hidden field
         posted_slug = (request.form.get("slug") or "").strip()
         if posted_slug:
             slug = posted_slug
@@ -1128,7 +1136,7 @@ def login_request():
         else:
             comp = None
 
-            # 1) If we have a comp context, find the competitor *for that comp*
+            # 1) If comp-scoped login, use competitor for THAT comp
             if current_comp:
                 comp = (
                     Competitor.query
@@ -1139,46 +1147,52 @@ def login_request():
                     .first()
                 )
 
-            # 2) If not found (or no comp context), fall back to global lookup
+            # 2) Otherwise: find all matches by email
             if not comp:
                 matches = Competitor.query.filter_by(email=email).all()
 
-                # Admin bootstrap if no competitor exists yet
-                if not matches and is_admin_email(email):
-                    # Prefer comp context; otherwise attach to earliest active comp if any
-                    if not current_comp:
-                        current_comp = (
-                            Competition.query
-                            .filter_by(is_active=True)
-                            .order_by(Competition.start_at.asc())
-                            .first()
+                # If no competitor exists yet:
+                # - if admin email -> create neutral admin competitor
+                # - else -> error (they must register)
+                if not matches:
+                    if is_admin_email(email):
+                        comp = Competitor(
+                            name="Admin",
+                            gender="Inclusive",
+                            email=email,
+                            competition_id=None,  # neutral admin "account"
                         )
-
-                    comp = Competitor(
-                        name="Admin",
-                        gender="Inclusive",
-                        email=email,
-                        competition_id=current_comp.id if current_comp else None,
-                    )
-                    db.session.add(comp)
-                    db.session.commit()
-                    print(
-                        f"[ADMIN BOOTSTRAP] Created admin competitor for {email} -> id={comp.id}",
-                        file=sys.stderr,
-                    )
-                else:
-                    if len(matches) == 0:
-                        error = "We couldn't find that email. If you're new, please register first."
-                    elif len(matches) == 1:
-                        comp = matches[0]
+                        db.session.add(comp)
+                        db.session.commit()
                     else:
-                        error = (
-                            "That email is registered for multiple competitions. "
-                            "Please open the competition you want and use 'Log back into your scoring' from there."
+                        error = "We couldn't find that email. If you're new, please register first."
+
+                # Exactly one match -> use it
+                elif len(matches) == 1:
+                    comp = matches[0]
+
+                # Multiple matches -> use / create a neutral "account" competitor (competition_id=None)
+                else:
+                    account = (
+                        Competitor.query
+                        .filter(
+                            Competitor.email == email,
+                            Competitor.competition_id.is_(None),
                         )
+                        .first()
+                    )
+                    if not account:
+                        account = Competitor(
+                            name="Account",
+                            gender="Inclusive",
+                            email=email,
+                            competition_id=None,
+                        )
+                        db.session.add(account)
+                        db.session.commit()
+                    comp = account
 
             if not error and comp:
-                # Generate 6-digit code
                 code = f"{secrets.randbelow(1_000_000):06d}"
                 now = datetime.utcnow()
 
@@ -1197,13 +1211,11 @@ def login_request():
                 # Store email for verify step
                 session["login_email"] = email
 
-                # IMPORTANT:
-                # Only carry active_comp_slug through verify if this login was explicitly comp-scoped.
+                # Carry comp context ONLY if explicitly provided
                 if current_comp and current_comp.slug:
                     session["active_comp_slug"] = current_comp.slug
                     return redirect(f"/login/verify?slug={current_comp.slug}")
 
-                # Neutral login flow
                 session.pop("active_comp_slug", None)
                 return redirect("/login/verify")
 
@@ -1212,7 +1224,7 @@ def login_request():
         email=email,
         error=error,
         message=message,
-        slug=slug,  # template can include hidden <input name="slug" ...> when present
+        slug=slug,
     )
 
 # --- Email login: verify code ---
@@ -1221,30 +1233,24 @@ def login_request():
 def login_verify():
     """
     Step 2: user enters the 6-digit code they received.
-    - If their email is in ADMIN_EMAILS, they are a *super admin* (global).
-    - If they are listed in GymAdmin rows, they are a *gym admin*.
-    - Everyone else is a normal competitor.
 
-    Supports comp-scoped login when a comp slug is available:
-      - /login/verify?slug=uc-adelaide
-      - or hidden form field "slug"
-      - or session["active_comp_slug"]
-
-    NEW redirect rule:
-    - Only auto-jump to scoring if the user came in with an explicit slug
-      (querystring or hidden form field). Otherwise, land on /my-comps.
+    NEW behaviour:
+    - If multiple competitor rows exist for this email and no slug is provided,
+      verification still succeeds by using a neutral "account competitor".
+    - After successful verify:
+        - Always set session["competitor_email"] = email
+        - Set session["competitor_id"] to the resolved competitor (comp-specific or account)
+        - If login was comp-scoped, redirect to scoring for that comp
+        - Otherwise, land on /my-comps
     """
     error = None
     message = None
 
-    # Optional competition context (for lookup convenience)
     slug = (request.args.get("slug") or "").strip()
-
-    # If they hit verify without slug, don't let session force it
-    if not slug:
-        session.pop("active_comp_slug", None)
-
     current_comp = Competition.query.filter_by(slug=slug).first() if slug else None
+    if slug and not current_comp:
+        slug = ""
+        current_comp = None
 
     # Pre-fill email from session if available
     email = (session.get("login_email") or "").strip().lower()
@@ -1256,43 +1262,63 @@ def login_verify():
         posted_slug = (request.form.get("slug") or "").strip()
         if posted_slug:
             slug = posted_slug
-            current_comp = Competition.query.filter_by(slug=slug).first() if slug else current_comp
+            current_comp = Competition.query.filter_by(slug=slug).first()
+            if not current_comp:
+                slug = ""
+                current_comp = None
 
         if not email or not code:
             error = "Please enter both your email and the code."
         else:
-            # --- Competition-aware competitor lookup ---
+            # Resolve which competitor row this verify should apply to
             comp = None
 
-            # If we have a valid comp context, look up competitor for THIS competition
+            # 1) If comp-scoped, must use competitor for THAT comp
             if current_comp:
-                comp = Competitor.query.filter(
-                    Competitor.email == email,
-                    Competitor.competition_id == current_comp.id,
-                ).first()
+                comp = (
+                    Competitor.query
+                    .filter(
+                        Competitor.email == email,
+                        Competitor.competition_id == current_comp.id,
+                    )
+                    .first()
+                )
 
-            # Fallback: global lookup (legacy behaviour)
+            # 2) Otherwise: prefer neutral account competitor if exists,
+            #    else use the single match, else create neutral account
             if not comp:
                 matches = Competitor.query.filter_by(email=email).all()
+
                 if len(matches) == 0:
                     comp = None
                 elif len(matches) == 1:
                     comp = matches[0]
                 else:
-                    # Ambiguous: multiple competitor rows for this email across competitions
-                    # Force them to log in from a specific comp page
-                    error = (
-                        "That email is registered for multiple competitions. "
-                        "Please open the competition you want and use 'Log back into your scoring' from there."
+                    account = (
+                        Competitor.query
+                        .filter(
+                            Competitor.email == email,
+                            Competitor.competition_id.is_(None),
+                        )
+                        .first()
                     )
+                    if not account:
+                        account = Competitor(
+                            name="Account",
+                            gender="Inclusive",
+                            email=email,
+                            competition_id=None,
+                        )
+                        db.session.add(account)
+                        db.session.commit()
+                    comp = account
 
-            if not error and not comp:
+            if not comp:
                 error = "We couldn't find that email. Please check or register first."
 
             if not error and comp:
                 now = datetime.utcnow()
 
-                # Get the most recent unused code for this competitor
                 login_code = (
                     LoginCode.query
                     .filter_by(competitor_id=comp.id, code=code, used=False)
@@ -1305,27 +1331,28 @@ def login_verify():
                 elif login_code.expires_at < now:
                     error = "That code has expired. Please request a new one."
                 else:
-                    # Mark code as used
                     login_code.used = True
                     db.session.commit()
 
-                    # Clear transient login email
                     session.pop("login_email", None)
 
-                    # Everyone gets competitor_id in session
+                    # ALWAYS store email so /my-comps can resolve registrations
+                    session["competitor_email"] = email
+
+                    # Session competitor_id is the row we verified against (comp-specific or account)
                     session["competitor_id"] = comp.id
 
-                    # Remember comp context when available (helps keep nav + redirects consistent)
+                    # If this verified competitor is tied to a comp, keep active_comp_slug in sync
                     if comp.competition_id:
                         linked_comp = Competition.query.get(comp.competition_id)
                         if linked_comp and linked_comp.slug:
                             session["active_comp_slug"] = linked_comp.slug
-                            slug = linked_comp.slug
-                            current_comp = linked_comp
+                    else:
+                        # account competitor: don't force an old comp context
+                        session.pop("active_comp_slug", None)
 
                     # ----- ADMIN FLAGS -----
                     is_super = is_admin_email(email)
-
                     gym_admin_rows = GymAdmin.query.filter_by(competitor_id=comp.id).all()
                     gym_ids = [ga.gym_id for ga in gym_admin_rows]
 
@@ -1338,33 +1365,38 @@ def login_verify():
                         session.pop("admin_is_super", None)
                         session.pop("admin_gym_ids", None)
 
-                    # --- Redirect (UPDATED) ---
-                    # Only auto-jump to scoring if the user explicitly came in with a slug
-                    # (querystring or hidden field). If they just used the nav /login,
-                    # they land on /my-comps.
-                    requested_slug = (request.args.get("slug") or posted_slug or "").strip()
-
-                    if requested_slug:
-                        requested_comp = Competition.query.filter_by(slug=requested_slug).first()
-                        if requested_comp and comp.competition_id == requested_comp.id:
-                            return redirect(
-                                f"/comp/{requested_comp.slug}/competitor/{comp.id}/sections"
+                    # --- Redirect ---
+                    # If they explicitly requested a slug AND they are registered for that comp, go to scoring.
+                    # Otherwise, go to /my-comps and let them pick.
+                    if current_comp and current_comp.slug:
+                        registered = (
+                            Competitor.query
+                            .filter(
+                                Competitor.email == email,
+                                Competitor.competition_id == current_comp.id,
                             )
+                            .first()
+                        )
+                        if registered:
+                            # switch session competitor_id to the comp-specific competitor
+                            session["competitor_id"] = registered.id
+                            session["active_comp_slug"] = current_comp.slug
+                            return redirect(f"/comp/{current_comp.slug}/competitor/{registered.id}/sections")
 
                     return redirect("/my-comps")
 
     else:
-        # GET: if we already have an email (i.e. just sent a code), show a helpful message
         if email and not message:
-            message = "We've emailed you a 6-digit code. Enter it below to log back into your scoring."
+            message = "We've emailed you a 6-digit code. Enter it below to continue."
 
     return render_template(
         "login_verify.html",
         email=email,
         error=error,
         message=message,
-        slug=slug,  # needed for hidden field in the template
+        slug=slug,
     )
+
 
 
 @app.route("/competitor/<int:competitor_id>")
@@ -3060,6 +3092,7 @@ def admin_page():
                     else:
                         if gender not in ("Male", "Female", "Inclusive"):
                             gender = "Inclusive"
+
                         current_comp = get_current_comp()
                         comp = Competitor(
                             name=name,
@@ -3077,25 +3110,34 @@ def admin_page():
                     if not name:
                         error = "Please provide a section name."
                     else:
-                        slug = slugify(name)
-                        existing = Section.query.filter_by(competition_id=current_comp.id, slug=slug).first()
-                        if existing:
-                            slug = f"{slug}-{int(datetime.utcnow().timestamp())}"
-
                         current_comp = get_current_comp()
+                        if not current_comp:
+                            error = "No active competition selected. Go to Admin → Comps and set an active comp first."
+                        else:
+                            slug = slugify(name)
 
-                        s = Section(
-                            name=name,
-                            slug=slug,
-                            start_climb=0,
-                            end_climb=0,
-                            competition_id=current_comp.id if current_comp else None,
-                            gym_id=current_comp.gym_id if current_comp else None,
-                        )
+                            # ✅ scoped duplicate check (competition_id + slug)
+                            existing = (
+                                Section.query
+                                .filter_by(competition_id=current_comp.id, slug=slug)
+                                .first()
+                            )
+                            if existing:
+                                # keep it unique within the competition
+                                slug = f"{slug}-{int(datetime.utcnow().timestamp())}"
 
-                        db.session.add(s)
-                        db.session.commit()
-                        message = f"Section created: {name}. You can now add climbs via Edit."
+                            s = Section(
+                                name=name,
+                                slug=slug,
+                                start_climb=0,
+                                end_climb=0,
+                                competition_id=current_comp.id,
+                                gym_id=current_comp.gym_id,
+                            )
+
+                            db.session.add(s)
+                            db.session.commit()
+                            message = f"Section created: {name}. You can now add climbs via Edit."
 
                 elif action == "search_competitor":
                     search_query = request.form.get("search_name", "").strip()
@@ -3120,6 +3162,7 @@ def admin_page():
                         if not search_results:
                             message = f"No competitors found matching '{search_query}'."
 
+    # ✅ Always resolve current_comp AFTER any POST actions too
     current_comp = get_current_comp()
 
     if current_comp:
@@ -3130,7 +3173,8 @@ def admin_page():
             .all()
         )
     else:
-        sections = Section.query.order_by(Section.name).all()
+        # No active comp: show empty list (safer than showing global sections)
+        sections = []
 
     return render_template(
         "admin.html",
@@ -3140,7 +3184,7 @@ def admin_page():
         search_results=search_results,
         search_query=search_query,
         is_admin=is_admin,
-        current_comp=current_comp,  
+        current_comp=current_comp,
     )
 
 
