@@ -928,29 +928,28 @@ def my_competitions():
     """
     Competitor-facing hub showing all upcoming competitions.
 
-    NEW behaviour:
-    - If logged in via "account" (competition_id=None), we still show:
-        - "Keep scoring" for comps they are registered in (by email lookup)
-        - "Register" for comps they are not registered in
+    - Shows comps with end_at in the future (or no end_at)
+    - If comp is live (is_active=True):
+        - If competitor is already registered -> "Keep scoring" (go to sections)
+        - Else -> "Register" (go to /comp/<slug>/join)
+    - If comp is not live -> Upcoming (no register link yet)
+
+    IMPORTANT:
+    - A single email can be registered in multiple comps (multiple Competitor rows).
+    - So "Keep scoring" must link to the Competitor row for THAT competition,
+      not just the current session competitor_id.
     """
     viewer_id = session.get("competitor_id")
     competitor = Competitor.query.get(viewer_id) if viewer_id else None
 
-    # NEW: store email in session when login is ambiguous
-    session_email = (session.get("competitor_email") or "").strip().lower()
-
-    # Resolve best email to use for "am I registered for this comp?"
-    lookup_email = None
-    if competitor and competitor.email:
-        lookup_email = competitor.email.strip().lower()
-    elif session_email:
-        lookup_email = session_email
-
     now = datetime.utcnow()
 
+    upcoming_q = Competition.query.filter(
+        (Competition.end_at == None) | (Competition.end_at >= now)
+    )
+
     competitions = (
-        Competition.query
-        .filter((Competition.end_at == None) | (Competition.end_at >= now))
+        upcoming_q
         .order_by(Competition.start_at.asc().nullsfirst(), Competition.name.asc())
         .all()
     )
@@ -962,10 +961,12 @@ def my_competitions():
             status = "live"
             status_label = "This comp is live — tap to register."
             opens_at = None
+
         elif comp_is_finished(c):
             status = "finished"
             status_label = "This comp has finished — registration is closed."
             opens_at = None
+
         else:
             status = "scheduled"
             opens_at = c.start_at
@@ -977,23 +978,23 @@ def my_competitions():
             else:
                 status_label = "Comp currently not live – opening time TBC."
 
-        # --- NEW: find competitor row for THIS competition by email ---
-        registered_competitor = None
-        if lookup_email:
-            registered_competitor = (
+        # --- IMPORTANT: resolve the correct competitor row for THIS comp ---
+        my_scoring_url = None
+        if competitor and competitor.email:
+            competitor_for_comp = (
                 Competitor.query
                 .filter(
-                    Competitor.email == lookup_email,
+                    Competitor.email == competitor.email,
                     Competitor.competition_id == c.id,
                 )
                 .first()
             )
 
-        my_scoring_url = None
-        if registered_competitor and c.slug:
-            my_scoring_url = f"/comp/{c.slug}/competitor/{registered_competitor.id}/sections"
-        elif registered_competitor:
-            my_scoring_url = f"/competitor/{registered_competitor.id}/sections"
+            if competitor_for_comp:
+                if c.slug:
+                    my_scoring_url = f"/comp/{c.slug}/competitor/{competitor_for_comp.id}/sections"
+                else:
+                    my_scoring_url = f"/competitor/{competitor_for_comp.id}/sections"
 
         # clickable pill target
         pill_href = None
@@ -1028,7 +1029,6 @@ def my_competitions():
         competitor=competitor,
         nav_active="my_comps",
     )
-
 
 
 @app.route("/resume")
@@ -1547,8 +1547,15 @@ def comp_competitor_sections(slug, competitor_id):
     """
     Sections index page, scoped to a specific competition slug.
 
-    Non-admins are *forced* to their own competitor id from the session.
-    Changing the id in the URL does not let you see or edit someone else's sections.
+    Non-admins are normally forced to their own competitor id from the session.
+
+    HOWEVER:
+    - One email can have multiple Competitor rows (one per competition).
+    - So if a user clicks a "Keep scoring" link for the same email but a different
+      competitor row, we should allow switching the session competitor_id to that row,
+      as long as:
+        * emails match
+        * requested competitor belongs to the requested slug competition
     """
 
     viewer_id = session.get("competitor_id")
@@ -1558,14 +1565,41 @@ def comp_competitor_sections(slug, competitor_id):
     if not viewer_id and not is_admin:
         return redirect("/")
 
-    # Determine which competitor to show
+    # --- Determine which competitor to show ---
     if is_admin:
         target_id = competitor_id
     else:
         target_id = viewer_id
+
+        # If URL competitor differs, try safe auto-switch (same email + same comp slug)
         if competitor_id != viewer_id:
-            # If they mess with the URL, push them back to their own competitor in this comp
-            return redirect(f"/comp/{slug}/competitor/{viewer_id}/sections")
+            viewer = Competitor.query.get(viewer_id) if viewer_id else None
+            requested = Competitor.query.get(competitor_id)
+
+            if (
+                viewer
+                and requested
+                and viewer.email
+                and requested.email
+                and viewer.email.strip().lower() == requested.email.strip().lower()
+            ):
+                # Check requested competitor belongs to this slug
+                requested_comp = (
+                    Competition.query.get(requested.competition_id)
+                    if requested.competition_id else None
+                )
+
+                if requested_comp and requested_comp.slug == slug:
+                    # ✅ Switch session to this competitor row
+                    session["competitor_id"] = requested.id
+                    session["active_comp_slug"] = slug
+                    target_id = requested.id
+                else:
+                    # same email but not this comp -> go pick a comp again
+                    return redirect("/my-comps")
+            else:
+                # Not the same person -> bounce to the logged-in competitor
+                return redirect(f"/comp/{slug}/competitor/{viewer_id}/sections")
 
     # Load competitor
     comp = Competitor.query.get_or_404(target_id)
@@ -1593,7 +1627,6 @@ def comp_competitor_sections(slug, competitor_id):
         gym_name = current_comp.gym.name
         gym_map_path = current_comp.gym.map_image_path
 
-    # (Keep legacy var so nothing else breaks while you transition templates)
     gym_map_url = get_gym_map_url_for_competition(current_comp)
 
     # Sections scoped to THIS competition
@@ -1606,18 +1639,15 @@ def comp_competitor_sections(slug, competitor_id):
 
     total_points = competitor_total_points(target_id, current_comp.id)
 
-    # Leaderboard position (note: build_leaderboard() still uses get_current_comp()
-    # If you want correct leaderboard per slug, we’ll update build_leaderboard next.)
     rows, _ = build_leaderboard(None, competition_id=current_comp.id)
-    
+
     position = None
     for r in rows:
         if r["competitor_id"] == target_id:
             position = r["position"]
             break
 
-    # Whether this viewer can edit attempts
-    can_edit = (viewer_id == target_id or is_admin)
+    can_edit = (session.get("competitor_id") == target_id or is_admin)
 
     # Map dots: climbs with coords for THIS competition’s sections (+ gym guard)
     if sections:
@@ -1632,7 +1662,6 @@ def comp_competitor_sections(slug, competitor_id):
             )
         )
 
-        # Extra safety if you're using gym_id properly
         if current_comp.gym_id:
             q = q.filter(SectionClimb.gym_id == current_comp.gym_id)
 
@@ -1650,20 +1679,17 @@ def comp_competitor_sections(slug, competitor_id):
         total_points=total_points,
         position=position,
         nav_active="sections",
-        viewer_id=viewer_id,
+        viewer_id=session.get("competitor_id"),
         is_admin=is_admin,
         can_edit=can_edit,
         map_climbs=map_climbs,
         comp=current_comp,
         comp_slug=slug,
-
-        # New (template expects these)
         gym_name=gym_name,
         gym_map_path=gym_map_path,
-
-        # Legacy (safe to keep during transition)
         gym_map_url=gym_map_url,
     )
+
 
 # --- Competitor stats page: My Stats + Overall Stats ---
 
