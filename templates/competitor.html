@@ -5,6 +5,44 @@
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
 		<title>Competitor {{ competitor.id }} · Urban Climb Comp</title>
 		<link rel="stylesheet" href="/static/app.css" />
+
+		<style>
+			/* ------------------------------------------------------------
+			   FIX: Make scoring page map sizing match sections page map sizing
+			   ------------------------------------------------------------ */
+
+			/* Ensure the map container is the positioning reference */
+			.map-wrapper {
+				position: relative;
+				width: 100%;
+				border-radius: 1rem;
+				overflow: hidden;
+				border: 1px solid rgba(255, 255, 255, 0.1);
+				background: #000;
+			}
+
+			/* Force the map image to scale only by width (no stretching/cropping) */
+			.map-wrapper img.gym-map {
+				display: block;
+				width: 100%;
+				height: auto;
+				max-width: 100%;
+				/* override any global img rules */
+				object-fit: initial !important;
+			}
+
+			/* Make sure dots position relative to the wrapper */
+			.map-dot {
+				position: absolute;
+				transform: translate(-50%, -50%);
+			}
+
+			/* (Optional) if app.css gives buttons weird line-height/padding */
+			.map-dot.map-dot-interactive {
+				padding: 0;
+				line-height: 1;
+			}
+		</style>
 	</head>
 	<body>
 		{% set viewer_id = viewer_id if viewer_id is defined else session.get('competitor_id') %}
