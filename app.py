@@ -808,6 +808,41 @@ def send_login_code_via_email(email: str, code: str):
         # Don't crash the app if email fails; just log it.
         print(f"[LOGIN CODE] Failed to send via Resend: {e}", file=sys.stderr)
 
+def send_scoring_link_via_email(email: str, comp_name: str, scoring_url: str):
+    """
+    Email the user a direct link to their scoring page for a comp.
+    """
+    # Dev / fallback path
+    if not RESEND_API_KEY:
+        print(f"[SCORING LINK - DEV ONLY] {email} -> {scoring_url}", file=sys.stderr)
+        return
+
+    html = f"""
+      <div style="font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; padding: 16px;">
+        <p>Hey climber 👋</p>
+        <p>Your scoring link for <strong>{comp_name}</strong> is ready:</p>
+        <p style="margin: 12px 0;">
+          <a href="{scoring_url}" style="display: inline-block; padding: 10px 14px; border-radius: 10px; background: #1a2942; color: #fff; text-decoration: none;">
+            Open scoring
+          </a>
+        </p>
+        <p style="color:#667; font-size: 13px;">If the button doesn’t work, copy/paste this link:</p>
+        <p style="font-size: 12px; word-break: break-all;">{scoring_url}</p>
+      </div>
+    """
+
+    try:
+        params = {
+            "from": RESEND_FROM_EMAIL,
+            "to": [email],
+            "subject": f"Your scoring link — {comp_name}",
+            "html": html,
+        }
+        resend.Emails.send(params)
+        print(f"[SCORING LINK] Sent scoring link to {email}", file=sys.stderr)
+    except Exception as e:
+        print(f"[SCORING LINK] Failed to send via Resend: {e}", file=sys.stderr)
+
 
 # --- Routes ---
 
@@ -2597,13 +2632,12 @@ def public_register_for_comp(slug):
     """
     Self-service registration for a specific competition, chosen by slug.
 
-    URL example:
-      /comp/uc-collingwood-boulder-bash/join
-
-    After registration:
-      - If already registered for THIS comp: go straight to scoring for this comp
-      - If registered in a DIFFERENT comp: allow (create a new competitor row for this comp)
-      - If "zombie" account exists (email exists but competition_id is NULL): claim it for this comp
+    NEW behaviour:
+    - If a user is already logged in (has session["competitor_id"]) and has an email on file,
+      we DO NOT ask for email again.
+    - We use their email-on-file, ask only for name + gender.
+    - After registering, we email them a direct scoring link and show a message:
+      "Sent to xxx@xx.com".
     """
     comp = get_comp_or_404(slug)
 
@@ -2616,10 +2650,24 @@ def public_register_for_comp(slug):
     if comp and comp.slug:
         session["active_comp_slug"] = comp.slug
 
+    # Logged-in "account" (may be a comp-specific competitor row OR a zombie account)
+    viewer_id = session.get("competitor_id")
+    viewer = Competitor.query.get(viewer_id) if viewer_id else None
+
+    # If they are logged in and have an email, we lock email to that value
+    locked_email = (viewer.email or "").strip().lower() if (viewer and viewer.email) else ""
+
     if request.method == "POST":
-        name = request.form.get("name", "").strip()
-        gender = request.form.get("gender", "Inclusive").strip()
-        email = (request.form.get("email") or "").strip().lower()
+        name = (request.form.get("name") or "").strip()
+        gender = (request.form.get("gender") or "Inclusive").strip()
+
+        # ✅ email selection logic:
+        # - if logged in with email -> use it
+        # - else -> take from form
+        if locked_email:
+            email = locked_email
+        else:
+            email = (request.form.get("email") or "").strip().lower()
 
         error = None
         if not name:
@@ -2638,9 +2686,9 @@ def public_register_for_comp(slug):
                 name=name,
                 gender=gender,
                 email=email,
+                locked_email=locked_email,
+                email_on_file=locked_email,
             )
-
-        # --- Competition-aware email handling ---
 
         # 1) Already registered for THIS competition?
         existing_for_comp = (
@@ -2653,19 +2701,22 @@ def public_register_for_comp(slug):
         )
 
         if existing_for_comp:
-            # Remember competitor + comp context
+            # Switch session to the correct competitor row for this comp
             session["competitor_id"] = existing_for_comp.id
             session["active_comp_slug"] = comp.slug
 
-            # If they were previously an admin in this browser, don't carry that into normal competitor mode
+            # Drop any admin carry-over
             session.pop("admin_ok", None)
             session.pop("admin_is_super", None)
             session.pop("admin_gym_ids", None)
 
-            return redirect(f"/comp/{comp.slug}/competitor/{existing_for_comp.id}/sections")
+            scoring_url = f"/comp/{comp.slug}/competitor/{existing_for_comp.id}/sections"
+            send_scoring_link_via_email(email, comp.name, scoring_url)
+            flash(f"Scoring link sent to {email}.", "success")
 
-        # 2) If there is an existing "zombie" account (same email, competition_id is NULL),
-        #    claim it for this competition (keeps the same competitor id).
+            return redirect(scoring_url)
+
+        # 2) Claim "zombie" account (email exists but competition_id is NULL)
         existing_zombie = (
             Competitor.query
             .filter(
@@ -2689,10 +2740,13 @@ def public_register_for_comp(slug):
             session.pop("admin_is_super", None)
             session.pop("admin_gym_ids", None)
 
-            return redirect(f"/comp/{comp.slug}/competitor/{existing_zombie.id}/sections")
+            scoring_url = f"/comp/{comp.slug}/competitor/{existing_zombie.id}/sections"
+            send_scoring_link_via_email(email, comp.name, scoring_url)
+            flash(f"Scoring link sent to {email}.", "success")
 
-        # 3) Otherwise: allow same email to register for multiple competitions.
-        #    Create a new competitor row for THIS competition.
+            return redirect(scoring_url)
+
+        # 3) Otherwise: create a new competitor row for THIS competition
         new_competitor = Competitor(
             name=name,
             gender=gender,
@@ -2710,16 +2764,22 @@ def public_register_for_comp(slug):
         session.pop("admin_is_super", None)
         session.pop("admin_gym_ids", None)
 
-        return redirect(f"/comp/{comp.slug}/competitor/{new_competitor.id}/sections")
+        scoring_url = f"/comp/{comp.slug}/competitor/{new_competitor.id}/sections"
+        send_scoring_link_via_email(email, comp.name, scoring_url)
+        flash(f"Scoring link sent to {email}.", "success")
 
-    # GET: show blank form
+        return redirect(scoring_url)
+
+    # GET: prefill / lock email if available
     return render_template(
         "register_public.html",
         comp=comp,
         error=None,
-        name="",
-        gender="Inclusive",
-        email="",
+        name=(viewer.name if viewer and viewer.name else ""),
+        gender=(viewer.gender if viewer and viewer.gender else "Inclusive"),
+        email=locked_email,                 # prefill if unlocked flow
+        locked_email=locked_email,          # template uses this to hide the email field
+        email_on_file=locked_email,         # for “sent to xxx@xx.com” style copy
     )
 
 

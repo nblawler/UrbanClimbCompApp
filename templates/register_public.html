@@ -20,7 +20,7 @@
 			<header class="hero" style="margin-bottom: 12px;">
 				<h1 style="margin:0 0 6px 0;">Join the comp</h1>
 				<p class="muted" style="margin:0;">
-					Scan, sign up, send. Once you join, you’ll go straight to your scoring page.
+					Once you join, we’ll take you straight to your scoring page and email you a link.
 				</p>
 			</header>
 
@@ -30,6 +30,8 @@
 
 			<form method="post" class="enter-form" autocomplete="off">
 				<div class="input-row" style="flex-direction:column; align-items:stretch; gap:10px;">
+
+					<!-- Name -->
 					<div style="width:100%;">
 						<label for="name">Your name</label>
 						<input
@@ -38,22 +40,47 @@
 							type="text"
 							required
 							placeholder="e.g. Pickle"
-							value="{{ name }}"
+							value="{{ name or '' }}"
 						/>
 					</div>
 
-					<div style="width:100%;">
-						<label for="email">Email address</label>
-						<input
-							id="email"
-							name="email"
-							type="email"
-							required
-							placeholder="you@example.com"
-							value="{{ email or '' }}"
-						/>
-					</div>
+					<!-- Email (locked or editable) -->
+					{% if locked_email %}
+						<div style="width:100%;">
+							<label>Email address</label>
+							<div
+								style="
+									width:100%;
+									padding:12px 14px;
+									border-radius:10px;
+									border:1px solid #2a2f36;
+									background:#111316;
+									color:var(--text);
+								"
+							>
+								<div class="muted">
+									We’ll use the email on file:
+									<strong style="color:var(--text);">
+										{{ email_on_file }}
+									</strong>
+								</div>
+							</div>
+						</div>
+					{% else %}
+						<div style="width:100%;">
+							<label for="email">Email address</label>
+							<input
+								id="email"
+								name="email"
+								type="email"
+								required
+								placeholder="you@example.com"
+								value="{{ email or '' }}"
+							/>
+						</div>
+					{% endif %}
 
+					<!-- Category -->
 					<div style="width:100%;">
 						<label for="gender">Category</label>
 						<select
@@ -79,22 +106,32 @@
 							</option>
 						</select>
 					</div>
+
 				</div>
 
 				<button type="submit" class="primary" style="margin-top:16px;">
 					Start sending →
 				</button>
 
-				<p class="form-hint" style="margin-top:10px;">
-					Already registered? Use your email to
-					<a
-						href="/login{% if slug %}?slug={{ slug }}{% endif %}"
-						class="back"
-						style="text-decoration:underline;"
-					>
-						log back into your scoring
-					</a>.
-				</p>
+				{% if locked_email %}
+					<p class="form-hint" style="margin-top:10px;">
+						We’ll email your scoring link to
+						<strong>{{ email_on_file }}</strong>.
+					</p>
+				{% endif %}
+
+				{% if not locked_email %}
+					<p class="form-hint" style="margin-top:10px;">
+						Already registered?
+						<a
+							href="/login{% if slug %}?slug={{ slug }}{% endif %}"
+							class="back"
+							style="text-decoration:underline;"
+						>
+							Log in to resume scoring
+						</a>.
+					</p>
+				{% endif %}
 			</form>
 		</section>
 	</main>
