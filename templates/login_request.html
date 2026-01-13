@@ -202,14 +202,6 @@
          href="/leaderboard{% if viewer_id %}?cid={{ viewer_id }}{% endif %}">
         Leaderboard
       </a>
-
-      {% if viewer_id %}
-        {% if slug %}
-          <a href="/comp/{{ slug }}/competitor/{{ viewer_id }}/sections">Continue scoring</a>
-        {% else %}
-          <a href="/competitor/{{ viewer_id }}/sections">Continue scoring</a>
-        {% endif %}
-      {% endif %}
     </nav>
 
     <main class="container">
