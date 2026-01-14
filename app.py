@@ -527,31 +527,27 @@ def admin_is_super():
 
 
 def admin_can_manage_gym(gym):
+    """
+    Check whether the logged-in admin can manage a given gym.
+    - Super admins: always True
+    - Gym admins: allowed if there exists a GymAdmin row for THIS email + gym
+    """
     if not session.get("admin_ok"):
         return False
 
-    # Super admins can manage everything
     if admin_is_super():
         return True
 
-    if not gym:
+    if gym is None:
         return False
 
-    # CRITICAL: use stable admin identity, NOT session["competitor_id"]
-    admin_competitor_id = session.get("admin_competitor_id")
-    if not admin_competitor_id:
+    # Use stable identity: email (not competitor_id)
+    email = (session.get("competitor_email") or "").strip().lower()
+    if not email:
         return False
 
-    return (
-        db.session.query(GymAdmin)
-        .filter(
-            GymAdmin.gym_id == gym.id,
-            GymAdmin.competitor_id == admin_competitor_id,
-        )
-        .first()
-        is not None
-    )
-
+    allowed_ids = set(get_admin_gym_ids_for_email(email))
+    return gym.id in allowed_ids
 
 
 def admin_can_manage_competition(comp):
