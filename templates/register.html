@@ -2,54 +2,250 @@
 <html lang="en">
 <head>
 	<meta charset="utf-8" />
-	<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+	<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
 	<title>Register Competitor · Urban Climb Comp</title>
 	<link rel="stylesheet" href="/static/app.css" />
+
+	<style>
+		* { margin: 0; padding: 0; box-sizing: border-box; }
+
+		body {
+			font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+			background: linear-gradient(135deg, #0a1628 0%, #1a2942 100%);
+			min-height: 100vh;
+			display: flex;
+			flex-direction: column;
+			color: #fff;
+		}
+
+		/* Top nav */
+		.nav {
+			padding: 1.25rem 2rem;
+			display: flex;
+			gap: 1.5rem;
+			align-items: center;
+			flex-wrap: wrap;
+		}
+
+		.nav a {
+			color: rgba(255, 255, 255, 0.7);
+			text-decoration: none;
+			font-size: 0.95rem;
+			transition: color 0.2s;
+			font-weight: 600;
+		}
+
+		.nav a.active {
+			color: #5df4a2;
+			font-weight: 700;
+		}
+
+		.nav a:hover { color: #fff; }
+
+		/* Main container */
+		.container {
+			flex: 1;
+			max-width: 900px;
+			margin: 0 auto;
+			padding: 2rem;
+			width: 100%;
+		}
+
+		/* Page header */
+		.page-header { margin-bottom: 1.75rem; }
+
+		.page-title {
+			font-size: 2.5rem;
+			font-weight: 900;
+			margin-bottom: 0.75rem;
+			background: linear-gradient(135deg, #fff 0%, #5df4a2 100%);
+			-webkit-background-clip: text;
+			-webkit-text-fill-color: transparent;
+			background-clip: text;
+			letter-spacing: -0.02em;
+		}
+
+		.page-subtitle {
+			font-size: 1.05rem;
+			color: rgba(255, 255, 255, 0.75);
+			line-height: 1.6;
+		}
+
+		/* Card */
+		.card {
+			background: rgba(255, 255, 255, 0.05);
+			backdrop-filter: blur(10px);
+			border: 1px solid rgba(255, 255, 255, 0.1);
+			border-radius: 1.5rem;
+			padding: 2rem;
+		}
+
+		.card + .card { margin-top: 1.25rem; }
+
+		/* Alerts */
+		.note {
+			margin-top: 0.75rem;
+			color: rgba(255, 255, 255, 0.65);
+			line-height: 1.5;
+		}
+
+		/* Form */
+		label {
+			display: block;
+			margin: 1rem 0 0.5rem;
+			color: rgba(255, 255, 255, 0.85);
+			font-weight: 800;
+			font-size: 0.95rem;
+		}
+		label:first-child { margin-top: 0; }
+
+		input, select {
+			width: 100%;
+			padding: 0.875rem 1rem;
+			border-radius: 0.75rem;
+			border: 1px solid rgba(255, 255, 255, 0.15);
+			background: rgba(0, 0, 0, 0.2);
+			color: #fff;
+			outline: none;
+			font-size: 1rem;
+			transition: all 0.2s;
+		}
+
+		input::placeholder { color: rgba(255, 255, 255, 0.4); }
+
+		input:focus, select:focus {
+			border-color: #5df4a2;
+			box-shadow: 0 0 0 3px rgba(93, 244, 162, 0.15);
+			background: rgba(0, 0, 0, 0.3);
+		}
+
+		.btn {
+			display: inline-flex;
+			align-items: center;
+			justify-content: center;
+			gap: 0.5rem;
+			margin-top: 1.25rem;
+			padding: 1rem 1.25rem;
+			border-radius: 0.85rem;
+			font-weight: 900;
+			font-size: 1rem;
+			border: none;
+			cursor: pointer;
+			transition: all 0.2s;
+			width: 100%;
+		}
+
+		.btn-primary {
+			background: #5df4a2;
+			color: #0a1628;
+			box-shadow: 0 10px 20px rgba(93, 244, 162, 0.25);
+		}
+
+		.btn-primary:hover {
+			background: #4de392;
+			transform: translateY(-1px);
+		}
+
+		/* Confirmation block */
+		.confirm-title {
+			font-size: 1.5rem;
+			font-weight: 900;
+			margin-bottom: 0.75rem;
+			color: #fff;
+		}
+
+		.confirm-line {
+			margin: 0.35rem 0;
+			color: rgba(255, 255, 255, 0.9);
+		}
+
+		.badge-id {
+			display: inline-block;
+			margin-left: 0.35rem;
+			padding: 0.35rem 0.75rem;
+			border-radius: 999px;
+			background: rgba(93, 244, 162, 0.12);
+			border: 1px solid rgba(93, 244, 162, 0.35);
+			color: #5df4a2;
+			font-weight: 900;
+			letter-spacing: 0.02em;
+		}
+
+		@media (max-width: 768px) {
+			.nav { padding: 1rem; }
+			.container { padding: 1.5rem 1rem; }
+			.page-title { font-size: 2rem; }
+			.card { padding: 1.5rem; }
+		}
+	</style>
 </head>
 
 <body>
-	<nav class="container" style="display:flex; gap:12px; align-items:center; margin-top:16px;">
-		<a class="back" href="/">Home</a>
-		<a class="back" href="/leaderboard">Leaderboard</a>
+	{% set viewer_id = session.get('competitor_id') %}
+	{% set is_admin = session.get('admin_ok', False) %}
+	{% set comp_slug = session.get('active_comp_slug') %}
+
+	<nav class="nav">
+		<a href="/my-comps" class="active">Home</a>
+
+		{% if is_admin %}
+			<a href="/admin/comps">Admin</a>
+		{% endif %}
+
+		<a href="/leaderboard{% if viewer_id %}?cid={{ viewer_id }}{% endif %}">Leaderboard</a>
+
+		{% if viewer_id or is_admin %}
+			<a href="/logout">Log out</a>
+		{% else %}
+			<a href="/login{% if comp_slug %}?slug={{ comp_slug }}{% endif %}">Log in</a>
+		{% endif %}
 	</nav>
 
 	<main class="container">
-		<h1>Register Competitor</h1>
+		<header class="page-header">
+			<h1 class="page-title">Register Competitor</h1>
+			<p class="page-subtitle">
+				Manual competitor creation (useful for testing, or if someone can’t receive email codes).
+			</p>
+		</header>
 
-		<!-- Registration form -->
-		<section class="card" style="margin-top:20px;">
-			<form method="post" action="/register">
-				<label>Name</label>
-				<input type="text" name="name" placeholder="Competitor name" required />
+		<section class="card">
+			<form method="post" action="/register" autocomplete="off">
+				<label for="name">Name</label>
+				<input id="name" type="text" name="name" placeholder="Competitor name" required />
 
-				<label style="margin-top:16px;">Category</label>
-				<select name="gender" required style="margin-top:6px;">
-					<option value="Male">Male</option>
-					<option value="Female">Female</option>
+				<label for="gender">Category</label>
+				<select id="gender" name="gender" required>
 					<option value="Inclusive">Gender Inclusive</option>
+					<option value="Female">Female</option>
+					<option value="Male">Male</option>
 				</select>
 
-				<button class="primary" type="submit" style="margin-top:16px;">
+				<button class="btn btn-primary" type="submit">
 					Create competitor
 				</button>
 			</form>
+
+			<p class="note">
+				This creates a competitor record immediately. If you want the email-code flow, use “Join the comp”.
+			</p>
 		</section>
 
-		<!-- Confirmation -->
 		{% if competitor %}
-		<section class="card" style="margin-top:24px;">
-			<h2>Competitor created</h2>
-			<p><strong>Name:</strong> {{ competitor.name }}</p>
-			<p><strong>Category:</strong> {{ competitor.gender }}</p>
-			<p><strong>Competitor number:</strong> 
-				<span style="font-size: 1.4em; color: var(--accent); font-weight:700;">
-					#{{ competitor.id }}
-				</span>
-			</p>
-			<p style="margin-top:10px; color:var(--muted);">
-				Give this number to the competitor so they can log their climbs.
-			</p>
-		</section>
+			<section class="card">
+				<h2 class="confirm-title">Competitor created</h2>
+
+				<p class="confirm-line"><strong>Name:</strong> {{ competitor.name }}</p>
+				<p class="confirm-line"><strong>Category:</strong> {{ competitor.gender }}</p>
+				<p class="confirm-line">
+					<strong>Competitor number:</strong>
+					<span class="badge-id">#{{ competitor.id }}</span>
+				</p>
+
+				<p class="note">
+					Give this number to the competitor so they can log their climbs.
+				</p>
+			</section>
 		{% endif %}
 	</main>
 </body>

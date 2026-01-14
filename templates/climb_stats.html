@@ -46,7 +46,7 @@
 
 		.nav a.active {
 			color: #5df4a2;
-			font-weight: 700;
+			font-weight: 800;
 		}
 
 		.nav a:hover { color: #fff; }
@@ -76,7 +76,7 @@
 			color: #fff;
 			text-decoration: none;
 			font-size: 0.9rem;
-			font-weight: 600;
+			font-weight: 700;
 			margin-bottom: 1.5rem;
 			transition: all 0.2s;
 		}
@@ -129,7 +129,7 @@
 			color: rgba(255, 255, 255, 0.6);
 			text-transform: uppercase;
 			letter-spacing: 0.05em;
-			font-weight: 700;
+			font-weight: 800;
 		}
 
 		.comp-pill-value {
@@ -173,10 +173,11 @@
 			border: 1px solid rgba(255, 255, 255, 0.15);
 			border-radius: 1rem;
 			margin-bottom: 1.5rem;
+			flex-wrap: wrap;
 		}
 
 		.difficulty-badge span:first-child {
-			font-weight: 700;
+			font-weight: 800;
 			color: #fff;
 		}
 
@@ -184,7 +185,7 @@
 			padding: 0.4rem 1rem;
 			border-radius: 999px;
 			font-size: 0.85rem;
-			font-weight: 700;
+			font-weight: 900;
 		}
 
 		/* Status badges in text */
@@ -194,7 +195,7 @@
 			padding: 0.25rem 0.75rem;
 			border-radius: 999px;
 			font-size: 0.8rem;
-			font-weight: 700;
+			font-weight: 900;
 		}
 
 		/* Table */
@@ -212,24 +213,20 @@
 		}
 
 		.stats-table th {
-			font-weight: 700;
+			font-weight: 800;
 			color: rgba(255, 255, 255, 0.7);
 			text-transform: uppercase;
 			font-size: 0.85rem;
 			letter-spacing: 0.05em;
 		}
 
-		.stats-table td {
-			color: #fff;
-		}
+		.stats-table td { color: #fff; }
 
 		.stats-table tbody tr:hover {
 			background: rgba(255, 255, 255, 0.03);
 		}
 
-		.overview-table td {
-			text-align: right;
-		}
+		.overview-table td { text-align: right; }
 
 		/* Filter buttons */
 		.filter-controls {
@@ -247,7 +244,7 @@
 			background: rgba(255, 255, 255, 0.05);
 			color: rgba(255, 255, 255, 0.85);
 			font-size: 0.9rem;
-			font-weight: 700;
+			font-weight: 800;
 			cursor: pointer;
 			transition: all 0.2s;
 		}
@@ -300,16 +297,25 @@
 		}
 	</style>
 </head>
+
 <body>
 	{% set viewer_id = viewer_id if viewer_id is defined else session.get('competitor_id') %}
+	{% set is_admin = session.get('admin_ok', False) %}
+	{% set comp_slug = comp_slug if comp_slug is defined else session.get('active_comp_slug') %}
+	{% set show_comp_nav = (viewer_id and comp_slug) %}
+
 	{% set view_from = request.args.get('view_from', '') %}
 	{% set is_climb_context = view_from in ('climber', 'overall') %}
 
 	<nav class="nav">
-		<a href="/login" class="{% if nav_active == 'login' %}active{% endif %}">Login</a>
+		<a href="/my-comps" class="{% if nav_active == 'my_comps' %}active{% endif %}">Home</a>
 
-		{% if viewer_id %}
-			<a href="/competitor/{{ viewer_id }}/sections"
+		{% if is_admin %}
+			<a href="/admin/comps" class="{% if nav_active == 'admin' %}active{% endif %}">Admin</a>
+		{% endif %}
+
+		{% if show_comp_nav %}
+			<a href="/comp/{{ comp_slug }}/competitor/{{ viewer_id }}/sections"
 			   class="{% if nav_active == 'sections' %}active{% endif %}">
 				Climb Map
 			</a>
@@ -333,18 +339,23 @@
 		   class="{% if nav_active == 'leaderboard' %}active{% endif %}">
 			Leaderboard
 		</a>
+
+		{% if viewer_id or is_admin %}
+			<a href="/logout">Log out</a>
+		{% else %}
+			<a href="/login{% if comp_slug %}?slug={{ comp_slug }}{% endif %}"
+			   class="{% if nav_active == 'login' %}active{% endif %}">
+				Log in
+			</a>
+		{% endif %}
 	</nav>
 
 	<main class="container">
 		{% if view_from in ('climber', 'overall') and competitor %}
 			{% if view_from == 'climber' %}
-				<a href="/competitor/{{ competitor.id }}/stats/climber" class="back-btn">
-					← Back to Climber Stats
-				</a>
+				<a href="/competitor/{{ competitor.id }}/stats/climber" class="back-btn">← Back to Climber Stats</a>
 			{% elif view_from == 'overall' %}
-				<a href="/competitor/{{ competitor.id }}/stats/overall" class="back-btn">
-					← Back to Overall Stats
-				</a>
+				<a href="/competitor/{{ competitor.id }}/stats/overall" class="back-btn">← Back to Overall Stats</a>
 			{% endif %}
 		{% endif %}
 
@@ -588,7 +599,6 @@
 			function rowMatchesFilter(row) {
 				const isTopped = row.dataset.topped === "1";
 				const isFlash = row.dataset.flash === "1";
-
 				if (filterMode === "flashed") return isFlash;
 				if (filterMode === "topped") return isTopped;
 				return true;
@@ -621,15 +631,9 @@
 
 			if (btnTopped) {
 				btnTopped.addEventListener("click", () => {
-					if (filterMode === "topped") {
-						filterMode = "none";
-					} else {
-						filterMode = "topped";
-					}
-
+					filterMode = (filterMode === "topped") ? "none" : "topped";
 					btnTopped.classList.toggle("active", filterMode === "topped");
 					if (btnFlashed) btnFlashed.classList.remove("active");
-
 					showingAll = true;
 					applyState();
 				});
@@ -637,15 +641,9 @@
 
 			if (btnFlashed) {
 				btnFlashed.addEventListener("click", () => {
-					if (filterMode === "flashed") {
-						filterMode = "none";
-					} else {
-						filterMode = "flashed";
-					}
-
+					filterMode = (filterMode === "flashed") ? "none" : "flashed";
 					btnFlashed.classList.toggle("active", filterMode === "flashed");
 					if (btnTopped) btnTopped.classList.remove("active");
-
 					showingAll = true;
 					applyState();
 				});

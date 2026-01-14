@@ -280,26 +280,22 @@
 	{% set viewer_id = viewer_id if viewer_id is defined else session.get('competitor_id') %}
 	{% set is_admin = session.get('admin_ok', False) %}
 	{% set comp_slug = comp_slug if comp_slug is defined else session.get('active_comp_slug') %}
+	{% set show_comp_nav = (viewer_id and comp_slug) %}
 
 	<nav class="nav">
-		<a href="/my-comps" class="{% if nav_active == 'my_comps' %}active{% endif %}">Home</a>
+		<a href="{% if viewer_id or is_admin %}/my-comps{% else %}/{% endif %}"
+		   class="{% if nav_active == 'my_comps' %}active{% endif %}">Home</a>
 
 		{% if is_admin %}
 			<a href="/admin/comps" class="{% if nav_active == 'admin' %}active{% endif %}">Admin</a>
 		{% endif %}
 
-		{% if viewer_id %}
-			{% if comp_slug %}
-				<a href="/comp/{{ comp_slug }}/competitor/{{ viewer_id }}/sections"
-				   class="{% if nav_active == 'sections' %}active{% endif %}">
-					Climb Map
-				</a>
-			{% else %}
-				<a href="/competitor/{{ viewer_id }}/sections"
-				   class="{% if nav_active == 'sections' %}active{% endif %}">
-					Climb Map
-				</a>
-			{% endif %}
+		{# Only show comp-specific links if we have an active comp context #}
+		{% if show_comp_nav %}
+			<a href="/comp/{{ comp_slug }}/competitor/{{ viewer_id }}/sections"
+			   class="{% if nav_active == 'sections' %}active{% endif %}">
+				Climb Map
+			</a>
 
 			<a href="/competitor/{{ viewer_id }}/stats/my"
 			   class="{% if nav_active == 'my_stats' %}active{% endif %}">
@@ -319,7 +315,7 @@
 			</a>
 		{% endif %}
 
-		<a href="/leaderboard{% if viewer_id %}?cid={{ viewer_id }}{% endif %}"
+		<a href="/leaderboard{% if show_comp_nav %}?cid={{ viewer_id }}{% endif %}"
 		   class="{% if nav_active == 'leaderboard' %}active{% endif %}">
 			Leaderboard
 		</a>

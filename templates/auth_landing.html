@@ -174,8 +174,8 @@
 	{% set is_admin = session.get('admin_ok', False) %}
 
 	<nav class="nav">
+		{# HOME LOGIC: logged-in users/admins go /my-comps; public users go / #}
 		<a class="active" href="{% if viewer_id or is_admin %}/my-comps{% else %}/{% endif %}">Home</a>
-		<a href="/leaderboard">Leaderboard</a>
 
 		{% if is_admin %}
 			<a href="/admin/comps">Admin</a>

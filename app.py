@@ -422,6 +422,20 @@ def points_for(climb_number, attempts, topped, competition_id=None):
 
 # --- Helpers ---
 
+def get_admin_gym_ids_for_email(email: str) -> list[int]:
+    email = (email or "").strip().lower()
+    if not email:
+        return []
+    return [
+        ga.gym_id
+        for ga in (
+            db.session.query(GymAdmin)
+            .join(Competitor, Competitor.id == GymAdmin.competitor_id)
+            .filter(db.func.lower(Competitor.email) == email)
+            .all()
+        )
+    ]
+
 def get_viewer_comp():
     """
     Resolve a competition context for the current logged-in viewer.
@@ -1380,8 +1394,7 @@ def login_verify():
 
                     # ----- ADMIN FLAGS -----
                     is_super = is_admin_email(email)
-                    gym_admin_rows = GymAdmin.query.filter_by(competitor_id=comp_row.id).all()
-                    gym_ids = [ga.gym_id for ga in gym_admin_rows]
+                    gym_ids = get_admin_gym_ids_for_email(email)
 
                     if is_super or gym_ids:
                         session["admin_ok"] = True
@@ -1472,6 +1485,14 @@ def competitor_redirect(competitor_id):
     # Fallback: older non-slug URL
     return redirect(f"/competitor/{competitor_id}/sections")
 
+@app.context_processor
+def inject_nav_context():
+    comp = get_viewer_comp()
+    show_comp_nav = bool(comp and comp_is_live(comp) and session.get("competitor_id"))
+    return dict(
+        nav_comp=comp,
+        show_comp_nav=show_comp_nav,
+    )
 
 @app.route("/competitor/<int:competitor_id>/sections")
 def competitor_sections(competitor_id):

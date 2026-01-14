@@ -210,7 +210,21 @@
     {% set slug = slug if slug is defined else (request.args.get('slug') if request is defined else '') %}
 
     <nav class="nav">
-      <a class="{% if nav_active == 'home' %}active{% endif %}" href="/my-comps">Home</a>
+      {# HOME LOGIC: logged-in users go /my-comps; public users go / #}
+      <a class="{% if nav_active == 'home' %}active{% endif %}"
+         href="{% if viewer_id or is_admin %}/my-comps{% else %}/{% endif %}">Home</a>
+
+      {% if is_admin %}
+        <a class="{% if nav_active == 'admin' %}active{% endif %}" href="/admin/comps">Admin</a>
+      {% endif %}
+
+      {# IMPORTANT: Don't show comp nav while verifying login code #}
+      {% if show_comp_nav %}
+        <a class="{% if nav_active == 'leaderboard' %}active{% endif %}"
+           href="/leaderboard{% if viewer_id %}?cid={{ viewer_id }}{% endif %}">
+          Leaderboard
+        </a>
+      {% endif %}
 
       {% if viewer_id or is_admin %}
         <a href="/logout">Log out</a>
@@ -219,18 +233,13 @@
           Log in
         </a>
       {% endif %}
-
-      <a class="{% if nav_active == 'leaderboard' %}active{% endif %}"
-         href="/leaderboard{% if viewer_id %}?cid={{ viewer_id }}{% endif %}">
-        Leaderboard
-      </a>
     </nav>
 
     <main class="container">
       <header class="hero">
         <h1>Check Your Email</h1>
         <p>
-          We've sent a 6-digit code to your email. Enter it below to continue scoring.
+          We've sent a 6-digit code to your email. Enter it below to continue.
         </p>
 
         {% if slug %}

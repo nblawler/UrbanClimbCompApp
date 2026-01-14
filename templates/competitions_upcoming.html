@@ -234,19 +234,22 @@
 			<a class="{% if nav_active == 'admin' %}active{% endif %}" href="/admin/comps">Admin</a>
 		{% endif %}
 
-		{% if competitor %}
-			{% if competitor.competition and competitor.competition.slug %}
-				<a class="{% if nav_active == 'sections' %}active{% endif %}"
-				   href="/comp/{{ competitor.competition.slug }}/competitor/{{ competitor.id }}/sections">My Scoring</a>
-			{% else %}
-				<a class="{% if nav_active == 'sections' %}active{% endif %}"
-				   href="/competitor/{{ competitor.id }}/sections">My Scoring</a>
-			{% endif %}
+		{# Only show comp-specific nav when we're actually in a live comp context #}
+		{% if show_comp_nav %}
+			{% if competitor %}
+				{% if competitor.competition and competitor.competition.slug %}
+					<a class="{% if nav_active == 'sections' %}active{% endif %}"
+					   href="/comp/{{ competitor.competition.slug }}/competitor/{{ competitor.id }}/sections">My Scoring</a>
+				{% else %}
+					<a class="{% if nav_active == 'sections' %}active{% endif %}"
+					   href="/competitor/{{ competitor.id }}/sections">My Scoring</a>
+				{% endif %}
 
-			<a class="{% if nav_active == 'leaderboard' %}active{% endif %}"
-			   href="/leaderboard?cid={{ competitor.id }}">Leaderboard</a>
-		{% else %}
-			<a class="{% if nav_active == 'leaderboard' %}active{% endif %}" href="/leaderboard">Leaderboard</a>
+				<a class="{% if nav_active == 'leaderboard' %}active{% endif %}"
+				   href="/leaderboard?cid={{ competitor.id }}">Leaderboard</a>
+			{% else %}
+				<a class="{% if nav_active == 'leaderboard' %}active{% endif %}" href="/leaderboard">Leaderboard</a>
+			{% endif %}
 		{% endif %}
 
 		{% if viewer_id or is_admin %}

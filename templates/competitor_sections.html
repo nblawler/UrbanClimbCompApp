@@ -253,43 +253,25 @@
 
 		/* Responsive */
 		@media (max-width: 768px) {
-			.nav {
-				padding: 1rem;
-			}
+			.nav { padding: 1rem; }
 
-			.container {
-				padding: 1.5rem 1rem;
-			}
+			.container { padding: 1.5rem 1rem; }
 
-			.comp-header {
-				padding: 1.5rem;
-			}
+			.comp-header { padding: 1.5rem; }
 
-			.comp-name {
-				font-size: 1.6rem;
-			}
+			.comp-name { font-size: 1.6rem; }
 
-			.comp-pill {
-				min-width: 90px;
-			}
+			.comp-pill { min-width: 90px; }
 
-			.comp-pill-value {
-				font-size: 1.25rem;
-			}
+			.comp-pill-value { font-size: 1.25rem; }
 
-			.map-card {
-				padding: 1.5rem;
-			}
+			.map-card { padding: 1.5rem; }
 
-			.section-title {
-				font-size: 1.4rem;
-			}
+			.section-title { font-size: 1.4rem; }
 		}
 
 		@media (max-width: 520px) {
-			.comp-meta-row {
-				gap: 0.75rem;
-			}
+			.comp-meta-row { gap: 0.75rem; }
 
 			.comp-pill {
 				flex: 1 1 calc(50% - 0.375rem);
@@ -302,6 +284,8 @@
 <body>
 	{% set viewer_id = viewer_id if viewer_id is defined else session.get('competitor_id') %}
 	{% set is_admin = session.get('admin_ok', False) %}
+	{% set comp_slug = comp_slug if comp_slug is defined else session.get('active_comp_slug') %}
+	{% set show_comp_nav = (viewer_id and comp_slug) %}
 
 	<nav class="nav">
 		<a class="{% if nav_active == 'my_comps' %}active{% endif %}" href="/my-comps">Home</a>
@@ -310,18 +294,12 @@
 			<a class="{% if nav_active == 'admin' %}active{% endif %}" href="/admin/comps">Admin</a>
 		{% endif %}
 
-		{% if viewer_id %}
-			{% if comp_slug is defined and comp_slug %}
-				<a class="{% if nav_active == 'sections' %}active{% endif %}"
-				   href="/comp/{{ comp_slug }}/competitor/{{ viewer_id }}/sections">
-					Climb Map
-				</a>
-			{% else %}
-				<a class="{% if nav_active == 'sections' %}active{% endif %}"
-				   href="/competitor/{{ viewer_id }}/sections">
-					Climb Map
-				</a>
-			{% endif %}
+		{# Only show comp-specific links if we have an active comp context #}
+		{% if show_comp_nav %}
+			<a class="{% if nav_active == 'sections' %}active{% endif %}"
+			   href="/comp/{{ comp_slug }}/competitor/{{ viewer_id }}/sections">
+				Climb Map
+			</a>
 
 			<a class="{% if nav_active == 'my_stats' %}active{% endif %}"
 			   href="/competitor/{{ viewer_id }}/stats/my">
@@ -335,7 +313,7 @@
 		{% endif %}
 
 		<a class="{% if nav_active == 'leaderboard' %}active{% endif %}"
-		   href="/leaderboard{% if viewer_id %}?cid={{ viewer_id }}{% endif %}">
+			href="/leaderboard{% if show_comp_nav %}?cid={{ viewer_id }}{% endif %}">
 			Leaderboard
 		</a>
 
@@ -343,7 +321,7 @@
 			<a href="/logout">Log out</a>
 		{% else %}
 			<a class="{% if nav_active == 'login' %}active{% endif %}"
-			   href="/login{% if comp_slug is defined and comp_slug %}?slug={{ comp_slug }}{% endif %}">
+			   href="/login{% if comp_slug %}?slug={{ comp_slug }}{% endif %}">
 				Log in
 			</a>
 		{% endif %}
@@ -406,7 +384,7 @@
 						{% if c.x_percent is not none and c.y_percent is not none %}
 							{% set bg = c.colour or '#ff4081' %}
 							{% if can_edit %}
-								{% if comp_slug is defined and comp_slug %}
+								{% if comp_slug %}
 									<a class="map-marker"
 									   data-section-id="{{ c.section.id }}"
 									   style="left: {{ c.x_percent }}%; top: {{ c.y_percent }}%; background: {{ bg }};"

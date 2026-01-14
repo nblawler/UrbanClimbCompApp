@@ -79,6 +79,20 @@
         margin: 0.35rem 0;
       }
 
+      .hero .comp-info {
+        margin-top: 1rem;
+        padding: 0.75rem 1rem;
+        background: rgba(93, 244, 162, 0.1);
+        border: 1px solid rgba(93, 244, 162, 0.2);
+        border-radius: 0.75rem;
+        font-size: 0.95rem;
+        color: rgba(255, 255, 255, 0.9);
+      }
+
+      .hero .comp-info strong {
+        color: #5df4a2;
+      }
+
       /* Form card */
       .form-card {
         width: 100%;
@@ -188,7 +202,13 @@
     {% set slug = slug if slug is defined else (request.args.get('slug') if request is defined else '') %}
 
     <nav class="nav">
-      <a class="{% if nav_active == 'home' %}active{% endif %}" href="/my-comps">Home</a>
+      {# HOME LOGIC: logged-in users/admins go /my-comps; public users go / #}
+      <a class="{% if nav_active == 'my_comps' %}active{% endif %}"
+         href="{% if viewer_id or is_admin %}/my-comps{% else %}/{% endif %}">Home</a>
+
+      {% if is_admin %}
+        <a class="{% if nav_active == 'admin' %}active{% endif %}" href="/admin/comps">Admin</a>
+      {% endif %}
 
       {% if viewer_id or is_admin %}
         <a href="/logout">Log out</a>
@@ -197,19 +217,20 @@
           Log in
         </a>
       {% endif %}
-
-      <a class="{% if nav_active == 'leaderboard' %}active{% endif %}"
-         href="/leaderboard{% if viewer_id %}?cid={{ viewer_id }}{% endif %}">
-        Leaderboard
-      </a>
     </nav>
 
     <main class="container">
       <header class="hero">
         <h1>Welcome Back</h1>
         <p>
-          Enter your email and we'll send you a one-time code to continue logging scores.
+          Enter your email and we'll send you a one-time code to continue.
         </p>
+
+        {% if slug %}
+          <div class="comp-info">
+            Logging into: <strong>{{ slug }}</strong>
+          </div>
+        {% endif %}
       </header>
 
       {% if error %}
