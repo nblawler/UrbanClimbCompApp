@@ -329,6 +329,18 @@ class LoginCode(db.Model):
 
 # --- Competition helper ---
 
+def admin_can_manage_gym_id(gym_id: int) -> bool:
+    if session.get("admin_is_super"):
+        return True
+
+    allowed_ids = session.get("admin_gym_ids") or []
+    try:
+        allowed_ids = [int(x) for x in allowed_ids]
+    except Exception:
+        allowed_ids = []
+
+    return int(gym_id) in allowed_ids
+
 def gym_map_for(gym_name: str) -> str:
     name = (gym_name or "").lower()
     if "adelaide" in name:
@@ -435,6 +447,31 @@ def get_admin_gym_ids_for_email(email: str) -> list[int]:
             .all()
         )
     ]
+    
+def establish_gym_admin_session_for_email(email: str):
+    """
+    Sets/clears admin session flags based on whether this email is:
+    - a super admin (ADMIN_EMAILS)
+    - a gym admin (GymAdmin rows joined via Competitor.email)
+    """
+    email = (email or "").strip().lower()
+
+    # Wipe admin context first to avoid stale permissions
+    session.pop("admin_ok", None)
+    session.pop("admin_is_super", None)
+    session.pop("admin_gym_ids", None)
+    session.pop("admin_comp_id", None)  # IMPORTANT: prevent stale comp editing context
+
+    if not email:
+        return
+
+    is_super = is_admin_email(email)
+    gym_ids = get_admin_gym_ids_for_email(email)
+
+    if is_super or gym_ids:
+        session["admin_ok"] = True
+        session["admin_is_super"] = bool(is_super)
+        session["admin_gym_ids"] = gym_ids
 
 def get_viewer_comp():
     """
@@ -550,13 +587,29 @@ def admin_can_manage_gym(gym):
     return gym.id in allowed_ids
 
 
-def admin_can_manage_competition(comp):
+def admin_can_manage_competition(comp) -> bool:
     """
     Check whether the logged-in admin can manage a given competition.
+    Robust to missing relationship loading.
     """
     if comp is None:
         return False
-    return admin_can_manage_gym(comp.gym)
+
+    # Super-admin can manage anything
+    if session.get("admin_is_super"):
+        return True
+
+    # If we have gym_id, prefer it (relationship can be None)
+    gym_id = getattr(comp, "gym_id", None)
+    if gym_id is None:
+        # fallback to relationship only if present
+        gym = getattr(comp, "gym", None)
+        gym_id = getattr(gym, "id", None)
+
+    if gym_id is None:
+        return False
+
+    return admin_can_manage_gym_id(gym_id)
 
 def comp_is_finished(comp) -> bool:
     """True if comp has an end_at and it is in the past (UTC naive)."""
@@ -1390,24 +1443,15 @@ def login_verify():
 
                     session.pop("login_email", None)
 
+                    # Base session identity
                     session["competitor_email"] = email
                     session["competitor_id"] = comp_row.id
                     session["admin_competitor_id"] = comp_row.id
 
-                    # ----- ADMIN FLAGS -----
-                    is_super = is_admin_email(email)
-                    gym_ids = get_admin_gym_ids_for_email(email)
+                    # Single source of truth: establish admin flags (and clears stale admin_comp_id)
+                    establish_gym_admin_session_for_email(email)
 
-                    if is_super or gym_ids:
-                        session["admin_ok"] = True
-                        session["admin_is_super"] = bool(is_super)
-                        session["admin_gym_ids"] = gym_ids
-                    else:
-                        session.pop("admin_ok", None)
-                        session.pop("admin_is_super", None)
-                        session.pop("admin_gym_ids", None)
-
-                    # ✅ FIX: if verify is part of a JOIN flow, go to scoring (not back to join)
+                    # If verify is part of a JOIN flow, go to scoring (not back to join)
                     if current_comp and current_comp.slug:
                         session["active_comp_slug"] = current_comp.slug
 
@@ -1443,7 +1487,6 @@ def login_verify():
                         )
                         if registered:
                             session["competitor_id"] = registered.id
-                            # Clear pending just in case
                             session.pop("pending_join_competitor_id", None)
                             session.pop("pending_join_slug", None)
                             return redirect(f"/comp/{current_comp.slug}/competitor/{registered.id}/sections")
@@ -1468,6 +1511,7 @@ def login_verify():
         message=message,
         slug=slug,
     )
+
 
 
 @app.route("/competitor/<int:competitor_id>")
@@ -2806,13 +2850,20 @@ def logout():
     session.pop("competitor_id", None)
     session.pop("login_email", None)
     session.pop("active_comp_slug", None)
+    session.pop("competitor_email", None)
+    session.pop("admin_competitor_id", None)
 
     session.pop("admin_ok", None)
     session.pop("admin_is_super", None)
     session.pop("admin_gym_ids", None)
+    session.pop("admin_comp_id", None)  
 
-    # Send them to your public-ish home
+    # Clear any join loop state too
+    session.pop("pending_join_competitor_id", None)
+    session.pop("pending_join_slug", None)
+
     return redirect("/my-comps")
+
 
 
 @app.route("/join", methods=["GET", "POST"])
@@ -3129,6 +3180,29 @@ def admin_page():
     search_query = ""
     is_admin = session.get("admin_ok", False)
 
+    def resolve_admin_current_comp():
+        """
+        Admin pages should prefer the admin-selected competition context (session['admin_comp_id']).
+        Only fall back to get_current_comp() if no admin context exists.
+        """
+        admin_comp_id = session.get("admin_comp_id")
+        if admin_comp_id:
+            comp = Competition.query.get(admin_comp_id)
+            if comp:
+                return comp
+            # stale session value
+            session.pop("admin_comp_id", None)
+        return get_current_comp()
+
+    # If an admin_comp_id is set, ensure this admin can manage it.
+    # If not, clear it to prevent confusing 403 loops.
+    current_comp = resolve_admin_current_comp()
+    if current_comp and session.get("admin_comp_id"):
+        if not admin_can_manage_competition(current_comp):
+            session.pop("admin_comp_id", None)
+            current_comp = None
+            error = "You don’t have access to manage that competition. Please choose a different competition."
+
     if request.method == "POST":
         action = request.form.get("action")
 
@@ -3142,6 +3216,10 @@ def admin_page():
                 session["admin_ok"] = True
                 session["admin_is_super"] = True
                 session["admin_gym_ids"] = None
+
+                # IMPORTANT: don't keep stale editing context from past sessions
+                session.pop("admin_comp_id", None)
+
                 is_admin = True
                 message = "Admin access granted."
 
@@ -3150,6 +3228,9 @@ def admin_page():
             if not is_admin:
                 error = "Please enter the admin password first."
             else:
+                # Always resolve comp AFTER login and before handling actions
+                current_comp = resolve_admin_current_comp()
+
                 if action == "reset_all":
                     # Super-admin only (server-side enforcement)
                     if not admin_is_super():
@@ -3170,62 +3251,67 @@ def admin_page():
                         message = "All competitors, scores, sections, and section climbs have been deleted."
 
                 elif action == "delete_competitor":
-                    raw_id = request.form.get("competitor_id", "").strip()
-                    if not raw_id.isdigit():
-                        error = "Please provide a valid competitor number."
+                    # Require a selected admin comp to avoid deleting cross-comp records
+                    if not current_comp:
+                        error = "No competition selected. Go to Admin → Comps and click Manage first."
                     else:
-                        cid = int(raw_id)
-                        comp = Competitor.query.get(cid)
-                        if not comp:
-                            error = f"Competitor {cid} not found."
+                        raw_id = request.form.get("competitor_id", "").strip()
+                        if not raw_id.isdigit():
+                            error = "Please provide a valid competitor number."
                         else:
-                            Score.query.filter_by(competitor_id=cid).delete()
-                            db.session.delete(comp)
-                            db.session.commit()
-                            invalidate_leaderboard_cache()
-                            message = f"Competitor {cid} and their scores have been deleted."
+                            cid = int(raw_id)
+                            comp = Competitor.query.get(cid)
+                            if not comp:
+                                error = f"Competitor {cid} not found."
+                            elif comp.competition_id != current_comp.id:
+                                error = f"Competitor {cid} is not in the currently selected competition."
+                            else:
+                                Score.query.filter_by(competitor_id=cid).delete()
+                                db.session.delete(comp)
+                                db.session.commit()
+                                invalidate_leaderboard_cache()
+                                message = f"Competitor {cid} and their scores have been deleted."
 
                 elif action == "create_competitor":
-                    name = request.form.get("new_name", "").strip()
-                    gender = request.form.get("new_gender", "Inclusive").strip()
-
-                    if not name:
-                        error = "Competitor name is required."
+                    if not current_comp:
+                        error = "No competition selected. Go to Admin → Comps and click Manage first."
                     else:
-                        if gender not in ("Male", "Female", "Inclusive"):
-                            gender = "Inclusive"
+                        name = request.form.get("new_name", "").strip()
+                        gender = request.form.get("new_gender", "Inclusive").strip()
 
-                        current_comp = get_current_comp()
-                        comp = Competitor(
-                            name=name,
-                            gender=gender,
-                            competition_id=current_comp.id if current_comp else None,
-                        )
-                        db.session.add(comp)
-                        db.session.commit()
-                        invalidate_leaderboard_cache()
-                        message = f"Competitor created: {comp.name} (#{comp.id}, {comp.gender})"
+                        if not name:
+                            error = "Competitor name is required."
+                        else:
+                            if gender not in ("Male", "Female", "Inclusive"):
+                                gender = "Inclusive"
+
+                            comp = Competitor(
+                                name=name,
+                                gender=gender,
+                                competition_id=current_comp.id,
+                            )
+                            db.session.add(comp)
+                            db.session.commit()
+                            invalidate_leaderboard_cache()
+                            message = f"Competitor created: {comp.name} (#{comp.id}, {comp.gender})"
 
                 elif action == "create_section":
-                    name = request.form.get("section_name", "").strip()
-
-                    if not name:
-                        error = "Please provide a section name."
+                    if not current_comp:
+                        error = "No competition selected. Go to Admin → Comps and click Manage first."
                     else:
-                        current_comp = get_current_comp()
-                        if not current_comp:
-                            error = "No active competition selected. Go to Admin → Comps and set an active comp first."
+                        name = request.form.get("section_name", "").strip()
+                        if not name:
+                            error = "Please provide a section name."
                         else:
                             slug = slugify(name)
 
-                            # ✅ scoped duplicate check (competition_id + slug)
+                            # scoped duplicate check (competition_id + slug)
                             existing = (
                                 Section.query
                                 .filter_by(competition_id=current_comp.id, slug=slug)
                                 .first()
                             )
                             if existing:
-                                # keep it unique within the competition
                                 slug = f"{slug}-{int(datetime.utcnow().timestamp())}"
 
                             s = Section(
@@ -3242,14 +3328,14 @@ def admin_page():
                             message = f"Section created: {name}. You can now add climbs via Edit."
 
                 elif action == "search_competitor":
-                    search_query = request.form.get("search_name", "").strip()
-
-                    if not search_query:
-                        error = "Please enter a name to search."
+                    if not current_comp:
+                        error = "No competition selected. Go to Admin → Comps and click Manage first."
                     else:
-                        pattern = f"%{search_query}%"
-                        current_comp = get_current_comp()
-                        if current_comp:
+                        search_query = request.form.get("search_name", "").strip()
+                        if not search_query:
+                            error = "Please enter a name to search."
+                        else:
+                            pattern = f"%{search_query}%"
                             search_results = (
                                 Competitor.query
                                 .filter(
@@ -3259,13 +3345,11 @@ def admin_page():
                                 .order_by(Competitor.name, Competitor.id)
                                 .all()
                             )
-                        else:
-                            search_results = []
-                        if not search_results:
-                            message = f"No competitors found matching '{search_query}'."
+                            if not search_results:
+                                message = f"No competitors found matching '{search_query}'."
 
-    # ✅ Always resolve current_comp AFTER any POST actions too
-    current_comp = get_current_comp()
+    # Always resolve current_comp AFTER any POST actions too
+    current_comp = resolve_admin_current_comp()
 
     if current_comp:
         sections = (
@@ -3275,7 +3359,6 @@ def admin_page():
             .all()
         )
     else:
-        # No active comp: show empty list (safer than showing global sections)
         sections = []
 
     return render_template(
@@ -3524,18 +3607,36 @@ def admin_map():
     if not comp_id:
         comp_id = session.get("admin_comp_id")
 
-    # 3) Final fallback (avoid crash)
-    current_comp = Competition.query.get(comp_id) if comp_id else get_current_comp()
-
-    if not current_comp:
+    # If still no comp context, bounce to comps list (never use public current comp)
+    if not comp_id:
+        flash(
+            "Pick a competition first (Admin → Comps → Manage) before opening the map editor.",
+            "warning",
+        )
         return redirect("/admin/comps")
 
-    # ✅ Keep session in sync so POST can always fall back safely
-    session["admin_comp_id"] = current_comp.id
+    current_comp = Competition.query.get(comp_id)
+
+    # Stale/invalid comp_id in session or URL
+    if not current_comp:
+        session.pop("admin_comp_id", None)
+        flash(
+            "That competition no longer exists (or your session is stale). Please choose a competition to manage.",
+            "warning",
+        )
+        return redirect("/admin/comps")
+
+    # Canonicalize URL so refresh/back/share works reliably
+    # (If they arrived via /admin/map without comp_id, redirect to include it.)
+    if request.args.get("comp_id", type=int) != current_comp.id:
+        return redirect(f"/admin/map?comp_id={current_comp.id}")
 
     # Only allow admins who can manage this competition's gym
     if not admin_can_manage_competition(current_comp):
         abort(403)
+
+    # Keep session in sync so POST can always fall back safely
+    session["admin_comp_id"] = current_comp.id
 
     gym_map_url = current_comp.gym.map_image_path if current_comp.gym else None
 
@@ -3551,7 +3652,7 @@ def admin_map():
     if section_ids:
         q = SectionClimb.query.filter(SectionClimb.section_id.in_(section_ids))
 
-        # If you're truly using gym_id, keep it; otherwise remove this filter.
+        # Keep gym_id filter only if SectionClimb actually stores gym_id correctly.
         if current_comp.gym_id is not None:
             q = q.filter(SectionClimb.gym_id == current_comp.gym_id)
 
@@ -3569,6 +3670,7 @@ def admin_map():
         comp_name=comp_name,
         current_comp_id=current_comp.id,  # template uses this for hidden input + links
     )
+
 
 
 @app.route("/admin/comps", methods=["GET", "POST"])
@@ -3758,8 +3860,12 @@ def admin_configure_competition(competition_id):
     if not admin_can_manage_competition(comp):
         abort(403)
 
+    # Persist admin editing context so /admin, /admin/map, etc. know which comp you're editing
+    session["admin_comp_id"] = comp.id
+
     # Make this the active competition (editing context)
     all_comps = Competition.query.all()
+
     for c in all_comps:
         c.is_active = (c.id == comp.id)
     db.session.commit()

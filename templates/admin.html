@@ -75,7 +75,7 @@
 						</div>
 					{% else %}
 						<p class="muted" style="margin-top:6px;">
-							No active competition selected. Choose one to manage.
+							No competition selected. Choose one to manage.
 						</p>
 						<div style="margin-top:12px;">
 							<a href="/admin/comps" class="primary" style="display:inline-block; padding:8px 12px; font-size:13px;">
@@ -85,175 +85,179 @@
 					{% endif %}
 				</section>
 
-				<section class="card">
-					<h2>Create competitor</h2>
-
-					<form method="post">
-						<label>Name</label>
-						<input type="text" name="new_name" required />
-
-						<label>Gender</label>
-						<select name="new_gender">
-							<option>Inclusive</option>
-							<option>Male</option>
-							<option>Female</option>
-						</select>
-
-						<button
-							type="submit"
-							name="action"
-							value="create_competitor"
-							class="primary"
-						>
-							Create competitor
-						</button>
-					</form>
-				</section>
-
-				<section class="card">
-					<h2>Delete competitor</h2>
-
-					<form method="post">
-						<label>Competitor number</label>
-						<input type="number" name="competitor_id" min="1" required />
-
-						<button
-							type="submit"
-							name="action"
-							value="delete_competitor"
-							class="primary"
-							style="background:#8b1e1e;"
-						>
-							Delete competitor
-						</button>
-					</form>
-				</section>
-
-				<section class="card" id="search-card">
-					<h2>Find competitor by name</h2>
-
-					<form method="post" action="/admin#search-card">
-						<label style="margin-top:10px;">Name (partial OK)</label>
-						<input
-							type="text"
-							name="search_name"
-							placeholder="e.g. John, Smith"
-							value="{{ search_query or '' }}"
-							required
-						/>
-
-						<button
-							type="submit"
-							name="action"
-							value="search_competitor"
-							class="primary"
-							style="margin-top:12px;"
-						>
-							Search
-						</button>
-					</form>
-
-					{% if search_results is defined and search_results %}
-						<hr style="margin:16px 0; border-color:#262a30;" />
-						<table class="leaderboard">
-							<thead>
-								<tr>
-									<th>#</th>
-									<th>Name</th>
-									<th>Category</th>
-									<th>Registered</th>
-								</tr>
-							</thead>
-							<tbody>
-								{% for c in search_results %}
-									<tr>
-										<td>{{ c.id }}</td>
-										<td>{{ c.name }}</td>
-										<td>{{ c.gender }}</td>
-										<td>
-											{% if c.created_at %}
-												{{ c.created_at.strftime("%Y-%m-%d %H:%M") }}
-											{% else %}
-												–
-											{% endif %}
-										</td>
-									</tr>
-								{% endfor %}
-							</tbody>
-						</table>
-					{% elif search_results is defined and not search_results and search_query %}
-						<p class="muted" style="margin-top:12px;">
-							No competitors found matching "{{ search_query }}".
-						</p>
-					{% endif %}
-				</section>
-
-				<section class="card">
-					<h2>Create section</h2>
-
-					<form method="post">
-						<label>Section name</label>
-						<input type="text" name="section_name" required />
-
-						<button
-							type="submit"
-							name="action"
-							value="create_section"
-							class="primary"
-						>
-							Create section
-						</button>
-					</form>
-				</section>
-
-				<section class="card">
-					<h2>Existing sections</h2>
-
-					{% if sections %}
-						<ul class="section-list">
-							{% for section in sections %}
-								<li style="margin-bottom:8px;">
-									<strong>{{ section.name }}</strong>
-									·
-									{{ section.climbs|length }}
-									climb{% if section.climbs|length != 1 %}s{% endif %}
-
-									<a
-										href="/admin/section/{{ section.id }}/edit"
-										class="primary"
-										style="padding:4px 8px; font-size:12px; margin-left:12px;"
-									>
-										Edit climbs + scoring
-									</a>
-								</li>
-							{% endfor %}
-						</ul>
-					{% else %}
-						<p class="muted">No sections created yet.</p>
-					{% endif %}
-				</section>
-
-				{# Only show map editor if a competition is selected #}
 				{% if current_comp %}
+
+					<section class="card">
+						<h2>Create competitor</h2>
+
+						<form method="post">
+							<label>Name</label>
+							<input type="text" name="new_name" required />
+
+							<label>Gender</label>
+							<select name="new_gender">
+								<option>Inclusive</option>
+								<option>Male</option>
+								<option>Female</option>
+							</select>
+
+							<button
+								type="submit"
+								name="action"
+								value="create_competitor"
+								class="primary"
+							>
+								Create competitor
+							</button>
+						</form>
+					</section>
+
+					<section class="card">
+						<h2>Delete competitor</h2>
+
+						<form method="post">
+							<label>Competitor number</label>
+							<input type="number" name="competitor_id" min="1" required />
+
+							<button
+								type="submit"
+								name="action"
+								value="delete_competitor"
+								class="primary"
+								style="background:#8b1e1e;"
+							>
+								Delete competitor
+							</button>
+						</form>
+					</section>
+
+					<section class="card" id="search-card">
+						<h2>Find competitor by name</h2>
+
+						<form method="post" action="/admin#search-card">
+							<label style="margin-top:10px;">Name (partial OK)</label>
+							<input
+								type="text"
+								name="search_name"
+								placeholder="e.g. John, Smith"
+								value="{{ search_query or '' }}"
+								required
+							/>
+
+							<button
+								type="submit"
+								name="action"
+								value="search_competitor"
+								class="primary"
+								style="margin-top:12px;"
+							>
+								Search
+							</button>
+						</form>
+
+						{% if search_results is defined and search_results %}
+							<hr style="margin:16px 0; border-color:#262a30;" />
+							<table class="leaderboard">
+								<thead>
+									<tr>
+										<th>#</th>
+										<th>Name</th>
+										<th>Category</th>
+										<th>Registered</th>
+									</tr>
+								</thead>
+								<tbody>
+									{% for c in search_results %}
+										<tr>
+											<td>{{ c.id }}</td>
+											<td>{{ c.name }}</td>
+											<td>{{ c.gender }}</td>
+											<td>
+												{% if c.created_at %}
+													{{ c.created_at.strftime("%Y-%m-%d %H:%M") }}
+												{% else %}
+													–
+												{% endif %}
+											</td>
+										</tr>
+									{% endfor %}
+								</tbody>
+							</table>
+						{% elif search_results is defined and not search_results and search_query %}
+							<p class="muted" style="margin-top:12px;">
+								No competitors found matching "{{ search_query }}".
+							</p>
+						{% endif %}
+					</section>
+
+					<section class="card">
+						<h2>Create section</h2>
+
+						<form method="post">
+							<label>Section name</label>
+							<input type="text" name="section_name" required />
+
+							<button
+								type="submit"
+								name="action"
+								value="create_section"
+								class="primary"
+							>
+								Create section
+							</button>
+						</form>
+					</section>
+
+					<section class="card">
+						<h2>Existing sections</h2>
+
+						{% if sections %}
+							<ul class="section-list">
+								{% for section in sections %}
+									<li style="margin-bottom:8px;">
+										<strong>{{ section.name }}</strong>
+										·
+										{{ section.climbs|length }}
+										climb{% if section.climbs|length != 1 %}s{% endif %}
+
+										<a
+											href="/admin/section/{{ section.id }}/edit"
+											class="primary"
+											style="padding:4px 8px; font-size:12px; margin-left:12px;"
+										>
+											Edit climbs + scoring
+										</a>
+									</li>
+								{% endfor %}
+							</ul>
+						{% else %}
+							<p class="muted">No sections created yet.</p>
+						{% endif %}
+					</section>
+
 					<section class="card">
 						<h2>Wall map (place climbs on the map)</h2>
 						<p class="muted">
 							Open the map editor for this competition’s gym and click to place climbs.
 						</p>
-						<a href="/admin/map" class="primary">
+						<a href="/admin/map?comp_id={{ current_comp.id }}" class="primary">
 							Open map editor
 						</a>
 					</section>
+
 				{% else %}
+
 					<section class="card">
-						<h2>Wall map</h2>
+						<h2>Competition-scoped tools</h2>
 						<p class="muted">
-							Choose a competition first to edit its gym map + climbs.
+							To create competitors, sections, or edit the wall map, first choose a competition:
+							Admin Home → Comps → Manage.
 						</p>
 						<a href="/admin/comps" class="primary">
 							Choose a competition
 						</a>
 					</section>
+
 				{% endif %}
 
 				{# Super-admin only: Reset All #}
