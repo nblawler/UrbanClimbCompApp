@@ -482,19 +482,6 @@
 			<a href="/admin/comps" class="{% if nav_active == 'admin' %}active{% endif %}">Admin</a>
 		{% endif %}
 
-		<a href="/leaderboard{% if viewer_id %}?cid={{ viewer_id }}{% endif %}"
-		   class="{% if nav_active == 'leaderboard' %}active{% endif %}">
-			Leaderboard
-		</a>
-
-		{% if viewer_id or is_admin %}
-			<a href="/logout">Log out</a>
-		{% else %}
-			<a href="/login{% if comp_slug %}?slug={{ comp_slug }}{% endif %}"
-			   class="{% if nav_active == 'login' %}active{% endif %}">
-				Log in
-			</a>
-		{% endif %}
 
 		{% if show_comp_nav %}
 			<a href="/comp/{{ comp_slug }}/competitor/{{ viewer_id }}/sections"
@@ -510,6 +497,20 @@
 			<a href="/competitor/{{ viewer_id }}/stats/overall"
 			   class="{% if nav_active == 'overall_stats' %}active{% endif %}">
 				Overall Stats
+			</a>
+		{% endif %}
+
+		<a href="/leaderboard{% if viewer_id %}?cid={{ viewer_id }}{% endif %}"
+		   class="{% if nav_active == 'leaderboard' %}active{% endif %}">
+			Leaderboard
+		</a>
+
+		{% if viewer_id or is_admin %}
+			<a href="/logout">Log out</a>
+		{% else %}
+			<a href="/login{% if comp_slug %}?slug={{ comp_slug }}{% endif %}"
+			   class="{% if nav_active == 'login' %}active{% endif %}">
+				Log in
 			</a>
 		{% endif %}
 	</nav>
