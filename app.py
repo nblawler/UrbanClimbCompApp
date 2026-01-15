@@ -619,23 +619,31 @@ def comp_is_finished(comp) -> bool:
         return False
     return datetime.utcnow() >= comp.end_at
 
+
 def comp_is_live(comp) -> bool:
     """
-    True if comp is active AND we are currently within its time window.
-    Uses UTC naive datetimes (matches how you store/compare elsewhere).
+    True only when the comp is active AND has started AND has not ended.
+    If start_at is missing, we treat it as NOT live (prevents 'always live' comps).
+    If end_at is missing, we treat it as live from start_at onward (optional).
     """
     if not comp or not comp.is_active:
         return False
 
     now = datetime.utcnow()
 
-    if comp.start_at and comp.start_at > now:
+    # IMPORTANT: start time must exist, otherwise the comp is not considered live.
+    if comp.start_at is None:
         return False
 
-    if comp.end_at and comp.end_at < now:
+    if comp.start_at > now:
+        return False
+
+    # If end_at missing, allow "open ended" comps once started
+    if comp.end_at is not None and comp.end_at < now:
         return False
 
     return True
+
 
 def deny_if_comp_finished(comp, redirect_to=None, message=None):
     """
@@ -910,6 +918,31 @@ def send_scoring_link_via_email(email: str, comp_name: str, scoring_url: str):
         print(f"[SCORING LINK] Sent scoring link to {email}", file=sys.stderr)
     except Exception as e:
         print(f"[SCORING LINK] Failed to send via Resend: {e}", file=sys.stderr)
+
+@app.context_processor
+def inject_nav_context():
+    """
+    Control whether competition-only nav appears.
+
+    Only show comp nav if:
+    - viewer is logged in as a competitor
+    - we can resolve a comp context
+    - the comp is LIVE
+    - the viewer's current competitor row belongs to that comp
+      (prevents account rows / stale session slug from enabling comp nav)
+    """
+    comp = get_viewer_comp()
+    viewer_id = session.get("competitor_id")
+    viewer = Competitor.query.get(viewer_id) if viewer_id else None
+
+    show_comp_nav = False
+    if comp and viewer and viewer.competition_id == comp.id and comp_is_live(comp):
+        show_comp_nav = True
+
+    return dict(
+        nav_comp=comp,
+        show_comp_nav=show_comp_nav,
+    )
 
 
 # --- Routes ---
@@ -1513,23 +1546,34 @@ def login_verify():
     )
 
 
-
 @app.route("/competitor/<int:competitor_id>")
 def competitor_redirect(competitor_id):
     """
-    Backwards compatibility: if we know the competitor's competition,
-    redirect to the slugged sections URL. Otherwise, fall back to
-    the old /competitor/<id>/sections route.
+    Canonical redirect for a competitor "profile" URL.
+
+    Goal:
+    - If this competitor belongs to a competition with a slug, redirect to the
+      competition-scoped sections URL:
+        /comp/<slug>/competitor/<id>/sections
+
+    - Otherwise, fall back to the legacy sections URL:
+        /competitor/<id>/sections
+
+    Notes:
+    - This route should never render a template.
+    - It’s safe for shared links / old emails / old QR codes.
     """
     comp = Competitor.query.get_or_404(competitor_id)
 
+    # If competitor is attached to a competition, prefer slugged canonical route
     if comp.competition_id:
         comp_row = Competition.query.get(comp.competition_id)
         if comp_row and comp_row.slug:
             return redirect(f"/comp/{comp_row.slug}/competitor/{competitor_id}/sections")
 
-    # Fallback: older non-slug URL
+    # Fallback: legacy route
     return redirect(f"/competitor/{competitor_id}/sections")
+
 
 @app.context_processor
 def inject_nav_context():
@@ -1545,8 +1589,12 @@ def competitor_sections(competitor_id):
     """
     Sections index page (legacy URL).
 
-    Non-admins are *forced* to their own competitor id from the session.
-    Changing the id in the URL does not let you see or edit someone else's sections.
+    Rules:
+    - Non-admins are forced to their own competitor id from the session.
+    - If the competitor row is not registered for a competition -> kick to /my-comps.
+    - If competition exists and has a slug -> redirect to slugged route.
+    - Only allow access when that competition is LIVE.
+    - Leaderboard + sections + map dots are scoped to THIS competition (not "active comp").
     """
     viewer_id = session.get("competitor_id")
     is_admin = session.get("admin_ok", False)
@@ -1563,65 +1611,72 @@ def competitor_sections(competitor_id):
         if competitor_id != viewer_id:
             return redirect(f"/competitor/{viewer_id}/sections")
 
-    comp = Competitor.query.get_or_404(target_id)
+    competitor = Competitor.query.get_or_404(target_id)
 
-    # Infer this competitor's competition + slug (if any)
-    comp_row = None
-    comp_slug = None
-    if comp.competition_id:
-        comp_row = Competition.query.get(comp.competition_id)
-        if comp_row and comp_row.slug:
-            comp_slug = comp_row.slug
+    # Must belong to a competition. If not, this is an "Account" row or stale session.
+    if not competitor.competition_id:
+        session.pop("active_comp_slug", None)
+        flash("You’re not registered in a competition yet. Pick a comp to join.", "warning")
+        return redirect("/my-comps")
+
+    comp_row = Competition.query.get(competitor.competition_id)
+    if not comp_row:
+        session.pop("active_comp_slug", None)
+        flash("That competition no longer exists. Please join again.", "warning")
+        return redirect("/my-comps")
+
+    # If the comp has a slug, push everyone to the canonical slugged route.
+    # (This prevents legacy routes from becoming the main flow.)
+    if comp_row.slug:
+        return redirect(f"/comp/{comp_row.slug}/competitor/{target_id}/sections")
+
+    # LIVE gate (scheduled or finished comps should not allow scoring/nav pages)
+    if not comp_is_live(comp_row):
+        session.pop("active_comp_slug", None)
+        if comp_is_finished(comp_row):
+            flash("That competition has finished — scoring is locked.", "warning")
+        else:
+            flash("That competition isn’t live yet — scoring will open when it starts.", "warning")
+        return redirect("/my-comps")
 
     # Only enforce gym-level permissions when an admin is viewing SOMEONE ELSE
-    if is_admin and comp_row and viewer_id and target_id != viewer_id:
+    if is_admin and viewer_id and target_id != viewer_id:
         if not admin_can_manage_competition(comp_row):
             abort(403)
-
 
     # --- Gym map + gym name (DB-driven) ---
     gym_name = None
     gym_map_path = None
-
-    if comp_row and comp_row.gym:
+    if comp_row.gym:
         gym_name = comp_row.gym.name
         gym_map_path = comp_row.gym.map_image_path
 
-    # (Keep legacy var so nothing else breaks while you transition templates)
-    gym_map_url = get_gym_map_url_for_competition(comp_row) if comp_row else None
+    # Legacy var (keep during transition)
+    gym_map_url = get_gym_map_url_for_competition(comp_row)
 
-    # Scope sections to the competitor's competition (if we can)
-    if comp_row:
-        sections = (
-            Section.query
-            .filter(Section.competition_id == comp_row.id)
-            .order_by(Section.name)
-            .all()
-        )
-    else:
-        # No competition context -> safest is empty
-        sections = []
-
-    total_points = competitor_total_points(
-        target_id,
-        comp_row.id if comp_row else None
+    # Scope sections to THIS competition
+    sections = (
+        Section.query
+        .filter(Section.competition_id == comp_row.id)
+        .order_by(Section.name)
+        .all()
     )
 
-    # Leaderboard position (build_leaderboard is already scoped to active comp)
-    rows, _ = build_leaderboard(None)
+    total_points = competitor_total_points(target_id, comp_row.id)
+
+    # ✅ IMPORTANT: Leaderboard must be scoped to THIS competition
+    rows, _ = build_leaderboard(None, competition_id=comp_row.id)
     position = None
     for r in rows:
         if r["competitor_id"] == target_id:
             position = r["position"]
             break
 
-    # Whether this viewer can edit attempts
     can_edit = (viewer_id == target_id or is_admin)
 
-    # Map dots: only climbs with coords for THIS competition's sections
-    if sections:
-        section_ids = [s.id for s in sections]
-
+    # Map dots: only climbs with coords for THIS competition’s sections
+    section_ids = [s.id for s in sections]
+    if section_ids:
         q = (
             SectionClimb.query
             .filter(
@@ -1629,22 +1684,20 @@ def competitor_sections(competitor_id):
                 SectionClimb.x_percent.isnot(None),
                 SectionClimb.y_percent.isnot(None),
             )
+            .order_by(SectionClimb.climb_number)
         )
 
-        # Optional extra safety: also scope by gym_id if the competition has one
-        if comp_row and comp_row.gym_id:
+        # Optional safety: if SectionClimb has gym_id populated, keep it consistent
+        if comp_row.gym_id:
             q = q.filter(SectionClimb.gym_id == comp_row.gym_id)
 
-        map_climbs = (
-            q.order_by(SectionClimb.climb_number)
-             .all()
-        )
+        map_climbs = q.all()
     else:
         map_climbs = []
 
     return render_template(
         "competitor_sections.html",
-        competitor=comp,
+        competitor=competitor,
         sections=sections,
         total_points=total_points,
         position=position,
@@ -1653,16 +1706,17 @@ def competitor_sections(competitor_id):
         is_admin=is_admin,
         can_edit=can_edit,
         map_climbs=map_climbs,
-        comp=comp_row,       # may be None
-        comp_slug=comp_slug, # may be None
+        comp=comp_row,
+        comp_slug=None,  # legacy route has no slug canonical
 
-        # New (template expects these)
+        # New template vars
         gym_name=gym_name,
         gym_map_path=gym_map_path,
 
-        # Legacy (safe to keep during transition)
+        # Legacy
         gym_map_url=gym_map_url,
     )
+
 
 
 @app.route("/comp/<slug>/competitor/<int:competitor_id>/sections")
@@ -1818,20 +1872,32 @@ def comp_competitor_sections(slug, competitor_id):
 
 @app.route("/comp/<slug>/competitor/<int:competitor_id>/stats")
 @app.route("/comp/<slug>/competitor/<int:competitor_id>/stats/<string:mode>")
-@finished_guard(
-    get_comp_func=lambda slug, competitor_id, mode="my": get_comp_or_404(slug),
-    redirect_builder=lambda comp, slug, competitor_id, mode="my": f"/comp/{slug}/competitor/{competitor_id}/sections",
-    message="This competition has finished — stats are locked."
-)
 def comp_competitor_stats(slug, competitor_id, mode="my"):
     """
     Stats for a competitor, scoped to a specific competition slug.
 
-    - mode="my"       -> My Stats page (personal heatmap only)
-    - mode="overall"  -> Overall Stats page (section performance + global heatmap)
-    - mode="climber"  -> Climber Stats page (spectator view, same data as "my")
+    HARD RULE:
+    - If comp is NOT LIVE, stats are unavailable.
+    - If comp is FINISHED, stats are locked. (handled explicitly too)
+
+    mode:
+    - "my"       personal stats
+    - "overall"  overall stats
+    - "climber"  spectator-ish view of a competitor (still blocked if not live)
     """
     current_comp = get_comp_or_404(slug)
+
+    # Block anything not live (scheduled or finished)
+    if not comp_is_live(current_comp):
+        # If it’s finished, be explicit
+        if comp_is_finished(current_comp):
+            flash("That competition has finished — stats are locked.", "warning")
+        else:
+            flash("That competition isn’t live yet — stats aren’t available.", "warning")
+
+        # prevent stale nav context hanging around
+        session.pop("active_comp_slug", None)
+        return redirect("/my-comps")
 
     # Normalise mode
     mode = (mode or "my").lower()
@@ -1840,19 +1906,24 @@ def comp_competitor_stats(slug, competitor_id, mode="my"):
 
     comp = Competitor.query.get_or_404(competitor_id)
 
-    # Make sure competitor belongs to this competition
+    # Competitor must belong to this competition
     if comp.competition_id != current_comp.id:
         abort(404)
 
     total_points = competitor_total_points(competitor_id, current_comp.id)
 
     # Who is viewing?
-    view_mode = request.args.get("view", "").lower()
     viewer_id = session.get("competitor_id")
     viewer_is_self = (viewer_id == competitor_id)
+    is_admin = session.get("admin_ok", False)
 
-    # Spectator mode from old ?view=public flag (still supported)
+    # Optional public view flag (still requires comp live)
+    view_mode = request.args.get("view", "").lower()
     is_public_view = (view_mode == "public" and not viewer_is_self)
+
+    # If not self and not admin, allow only public view
+    if not viewer_is_self and not is_admin and not is_public_view:
+        return redirect(f"/comp/{slug}/competitor/{viewer_id}/stats/{mode}") if viewer_id else redirect("/")
 
     # Sections only for this competition
     sections = (
@@ -1862,7 +1933,7 @@ def comp_competitor_stats(slug, competitor_id, mode="my"):
         .all()
     )
 
-    # Personal scores for this competitor
+    # Personal scores
     personal_scores = Score.query.filter_by(competitor_id=competitor_id).all()
     personal_by_climb = {s.climb_number: s for s in personal_scores}
 
@@ -1873,16 +1944,12 @@ def comp_competitor_stats(slug, competitor_id, mode="my"):
         .filter(Competitor.competition_id == current_comp.id)
         .all()
     )
+
     global_by_climb = {}
     for s in all_scores:
         info = global_by_climb.setdefault(
             s.climb_number,
-            {
-                "attempts_total": 0,
-                "tops": 0,
-                "flashes": 0,
-                "competitors": set(),
-            },
+            {"attempts_total": 0, "tops": 0, "flashes": 0, "competitors": set()},
         )
         info["attempts_total"] += s.attempts
         info["competitors"].add(s.competitor_id)
@@ -1925,9 +1992,7 @@ def comp_competitor_stats(slug, competitor_id, mode="my"):
                 sec_attempts += score.attempts
                 if score.topped:
                     sec_tops += 1
-                sec_points += points_for(
-                    score.climb_number, score.attempts, score.topped, current_comp.id
-                )
+                sec_points += points_for(score.climb_number, score.attempts, score.topped, current_comp.id)
 
                 if score.topped and score.attempts == 1:
                     status = "flashed"
@@ -1938,12 +2003,7 @@ def comp_competitor_stats(slug, competitor_id, mode="my"):
             else:
                 status = "skipped"
 
-            personal_cells.append(
-                {
-                    "climb_number": sc.climb_number,
-                    "status": status,
-                }
-            )
+            personal_cells.append({"climb_number": sc.climb_number, "status": status})
 
             # Global
             g = global_by_climb.get(sc.climb_number)
@@ -1961,40 +2021,17 @@ def comp_competitor_stats(slug, competitor_id, mode="my"):
                 else:
                     g_status = "hard"
 
-            global_cells.append(
-                {
-                    "climb_number": sc.climb_number,
-                    "status": g_status,
-                }
-            )
+            global_cells.append({"climb_number": sc.climb_number, "status": g_status})
 
         efficiency = (sec_tops / sec_attempts) if sec_attempts > 0 else 0.0
 
         section_stats.append(
-            {
-                "section": sec,
-                "tops": sec_tops,
-                "attempts": sec_attempts,
-                "efficiency": efficiency,
-                "points": sec_points,
-            }
+            {"section": sec, "tops": sec_tops, "attempts": sec_attempts, "efficiency": efficiency, "points": sec_points}
         )
 
-        personal_heatmap_sections.append(
-            {
-                "section": sec,
-                "climbs": personal_cells,
-            }
-        )
+        personal_heatmap_sections.append({"section": sec, "climbs": personal_cells})
+        global_heatmap_sections.append({"section": sec, "climbs": global_cells})
 
-        global_heatmap_sections.append(
-            {
-                "section": sec,
-                "climbs": global_cells,
-            }
-        )
-
-    # nav_active changes depending on which page we’re on
     if mode == "my":
         nav_active = "my_stats"
     elif mode == "overall":
@@ -2215,20 +2252,17 @@ def climb_stats(climb_number):
     """
     Stats for a single climb across all competitors.
 
-    Locked when there is no current (not-ended) competition.
+    HARD RULE:
+    - Only available when there is a LIVE competition in context.
     """
-    current_comp = get_current_comp()
+    comp = get_viewer_comp() or get_current_comp()
 
-    if not current_comp:
-        flash("There’s no active competition right now — climb stats are unavailable.", "warning")
+    if not comp or not comp_is_live(comp):
+        session.pop("active_comp_slug", None)
+        flash("There’s no live competition right now — climb stats are unavailable.", "warning")
         return redirect("/my-comps")
 
-    # (extra safety; get_current_comp already prevents ended comps)
-    if comp_is_finished(current_comp):
-        flash("That competition has finished — climb stats are locked.", "warning")
-        return redirect("/my-comps")
-
-    # --- Mode selection: personal vs global context ---
+    # Mode selection
     mode = (request.args.get("mode", "global") or "global").strip().lower()
     if mode not in ("personal", "global"):
         mode = "global"
@@ -2243,19 +2277,14 @@ def climb_stats(climb_number):
     if cid_raw.isdigit():
         competitor = Competitor.query.get(int(cid_raw))
         if competitor:
-            total_points = competitor_total_points(competitor.id, current_comp.id)
-
-            rows, _ = build_leaderboard(None, competition_id=current_comp.id)
+            total_points = competitor_total_points(competitor.id, comp.id)
+            rows, _ = build_leaderboard(None, competition_id=comp.id)
             for r in rows:
                 if r["competitor_id"] == competitor.id:
                     position = r["position"]
                     break
 
-    comp_sections = (
-        Section.query
-        .filter(Section.competition_id == current_comp.id)
-        .all()
-    )
+    comp_sections = Section.query.filter(Section.competition_id == comp.id).all()
     section_ids_for_comp = {s.id for s in comp_sections}
 
     section_climbs = (
@@ -2268,9 +2297,7 @@ def climb_stats(climb_number):
     )
 
     if not section_climbs:
-        nav_active = "climber_stats" if from_climber else (
-            "my_stats" if mode == "personal" else "overall_stats"
-        )
+        nav_active = "climber_stats" if from_climber else ("my_stats" if mode == "personal" else "overall_stats")
         return render_template(
             "climb_stats.html",
             climb_number=climb_number,
@@ -2292,7 +2319,7 @@ def climb_stats(climb_number):
         .join(Competitor, Score.competitor_id == Competitor.id)
         .filter(
             Score.climb_number == climb_number,
-            Competitor.competition_id == current_comp.id,
+            Competitor.competition_id == comp.id,
         )
         .all()
     )
@@ -2305,13 +2332,8 @@ def climb_stats(climb_number):
 
     top_rate = (tops / num_competitors) if num_competitors > 0 else 0.0
     flash_rate = (flashes / num_competitors) if num_competitors > 0 else 0.0
-    avg_attempts_per_comp = (
-        (total_attempts / num_competitors) if num_competitors > 0 else 0.0
-    )
-    avg_attempts_on_tops = (
-        sum(s.attempts for s in scores if s.topped) / tops
-        if tops > 0 else 0.0
-    )
+    avg_attempts_per_comp = (total_attempts / num_competitors) if num_competitors > 0 else 0.0
+    avg_attempts_on_tops = (sum(s.attempts for s in scores if s.topped) / tops) if tops > 0 else 0.0
 
     if num_competitors == 0:
         global_difficulty_key = "no-data"
@@ -2329,10 +2351,7 @@ def climb_stats(climb_number):
 
     comps = {}
     if competitor_ids:
-        comps = {
-            c.id: c
-            for c in Competitor.query.filter(Competitor.id.in_(competitor_ids)).all()
-        }
+        comps = {c.id: c for c in Competitor.query.filter(Competitor.id.in_(competitor_ids)).all()}
 
     per_competitor = []
     for s in scores:
@@ -2343,7 +2362,7 @@ def climb_stats(climb_number):
                 "name": c.name if c else f"#{s.competitor_id}",
                 "attempts": s.attempts,
                 "topped": s.topped,
-                "points": points_for(s.climb_number, s.attempts, s.topped, current_comp.id),
+                "points": points_for(s.climb_number, s.attempts, s.topped, comp.id),
                 "updated_at": s.updated_at,
             }
         )
@@ -2357,19 +2376,13 @@ def climb_stats(climb_number):
                 personal_row = row
                 break
 
-    nav_active = "climber_stats" if from_climber else (
-        "my_stats" if mode == "personal" else "overall_stats"
-    )
+    nav_active = "climber_stats" if from_climber else ("my_stats" if mode == "personal" else "overall_stats")
 
     return render_template(
         "climb_stats.html",
         climb_number=climb_number,
         has_config=True,
-        sections=[
-            sections_by_id[sc.section_id]
-            for sc in section_climbs
-            if sc.section_id in sections_by_id
-        ],
+        sections=[sections_by_id[sc.section_id] for sc in section_climbs if sc.section_id in sections_by_id],
         total_attempts=total_attempts,
         tops=tops,
         flashes=flashes,
@@ -2392,24 +2405,26 @@ def climb_stats(climb_number):
 
 
 @app.route("/comp/<slug>/competitor/<int:competitor_id>/section/<section_slug>")
-@finished_guard(
-    get_comp_func=lambda slug, competitor_id, section_slug: get_comp_or_404(slug),
-    redirect_builder=lambda comp, slug, competitor_id, section_slug: f"/comp/{slug}/competitor/{competitor_id}/sections",
-    message="This competition has finished — you can’t enter scores anymore."
-)
 def comp_competitor_section_climbs(slug, competitor_id, section_slug):
     """
     Per-section climbs page, scoped to a specific competition slug.
 
-    Non-admins are *forced* to use their own competitor id from the session.
-    This prevents URL tampering from giving edit access to other competitors.
+    HARD RULE:
+    - Only accessible while comp is LIVE.
     """
     current_comp = get_comp_or_404(slug)
+
+    if not comp_is_live(current_comp):
+        session.pop("active_comp_slug", None)
+        if comp_is_finished(current_comp):
+            flash("That competition has finished — scoring is locked.", "warning")
+        else:
+            flash("That competition isn’t live yet — scoring isn’t available.", "warning")
+        return redirect("/my-comps")
 
     viewer_id = session.get("competitor_id")
     is_admin = session.get("admin_ok", False)
 
-    # Not logged in as competitor and not admin -> no access to climbs page
     if not viewer_id and not is_admin:
         return redirect("/")
 
@@ -2418,28 +2433,25 @@ def comp_competitor_section_climbs(slug, competitor_id, section_slug):
         target_id = competitor_id
     else:
         target_id = viewer_id
-        # If they mess with the URL, push them back to their own competitor in this comp
         if competitor_id != viewer_id:
             return redirect(f"/comp/{slug}/competitor/{viewer_id}/section/{section_slug}")
 
     comp = Competitor.query.get_or_404(target_id)
 
-    # Make sure this competitor actually belongs to this competition
+    # Must belong to this competition
     if comp.competition_id != current_comp.id:
         abort(404)
-        
-    # If admin is viewing, enforce gym-level permissions
+
+    # If admin is viewing, enforce permissions
     if is_admin and not admin_can_manage_competition(current_comp):
         abort(403)
 
-    # Section must also belong to this competition
     section = (
         Section.query
         .filter_by(slug=section_slug, competition_id=current_comp.id)
         .first_or_404()
     )
 
-    # All sections for the tabs (only this comp)
     all_sections = (
         Section.query
         .filter_by(competition_id=current_comp.id)
@@ -2447,7 +2459,6 @@ def comp_competitor_section_climbs(slug, competitor_id, section_slug):
         .all()
     )
 
-    # Leaderboard rows to figure out competitor position
     rows, _ = build_leaderboard(None, competition_id=current_comp.id)
     position = None
     for r in rows:
@@ -2455,8 +2466,6 @@ def comp_competitor_section_climbs(slug, competitor_id, section_slug):
             position = r["position"]
             break
 
-    # ------------- SECTION CLIMBS (what feeds the map) ----------------
-    # Climbs for THIS section with coordinates
     section_climbs = (
         SectionClimb.query
         .filter(
@@ -2468,31 +2477,10 @@ def comp_competitor_section_climbs(slug, competitor_id, section_slug):
         .all()
     )
 
-    print("=== SECTION CLIMBS FOR", section.id, section.name, "===")
-    print([
-        {
-            "id": sc.id,
-            "climb_number": sc.climb_number,
-            "section_id": sc.section_id,
-            "x": sc.x_percent,
-            "y": sc.y_percent,
-        }
-        for sc in section_climbs
-    ])
-
     climbs = [sc.climb_number for sc in section_climbs]
 
-    colours = {
-        sc.climb_number: sc.colour
-        for sc in section_climbs
-        if sc.colour
-    }
-
-    max_points = {
-        sc.climb_number: sc.base_points
-        for sc in section_climbs
-        if sc.base_points is not None
-    }
+    colours = {sc.climb_number: sc.colour for sc in section_climbs if sc.colour}
+    max_points = {sc.climb_number: sc.base_points for sc in section_climbs if sc.base_points is not None}
 
     scores = (
         Score.query
@@ -2503,7 +2491,6 @@ def comp_competitor_section_climbs(slug, competitor_id, section_slug):
         )
         .all()
     )
-    
     existing = {s.climb_number: s for s in scores}
 
     per_climb_points = {
@@ -2512,8 +2499,6 @@ def comp_competitor_section_climbs(slug, competitor_id, section_slug):
     }
 
     total_points = competitor_total_points(target_id, current_comp.id)
-
-    can_edit = True  # if you got here, you're either that competitor or admin
 
     gym_map_url = get_gym_map_url_for_competition(current_comp)
 
@@ -2529,13 +2514,14 @@ def comp_competitor_section_climbs(slug, competitor_id, section_slug):
         max_points=max_points,
         per_climb_points=per_climb_points,
         nav_active="sections",
-        can_edit=can_edit,
+        can_edit=True,
         viewer_id=viewer_id,
         is_admin=is_admin,
-        section_climbs=section_climbs,   # map dots for THIS section
-        sections=all_sections,           # all sections for the tabs
+        section_climbs=section_climbs,
+        sections=all_sections,
         gym_map_url=gym_map_url,
     )
+
 
 @app.route("/competitor/<int:competitor_id>/section/<section_slug>")
 def competitor_section_climbs(competitor_id, section_slug):
@@ -2720,21 +2706,26 @@ def public_register_for_comp(slug):
     """
     Registration for a specific competition.
 
-    Flow:
-    - User must be logged in first (so we have an email on file).
-    - On POST, we create/claim the competitor row for THIS competition.
-    - Then we send a 6-digit code and redirect to /login/verify?slug=<slug>.
-    - IMPORTANT: we store pending_join_competitor_id in session so verify knows
-      to send them to scoring (not back to join).
+    Guarantees:
+    - If comp isn't live -> bounce to /my-comps
+    - Requires a logged-in viewer with an email on file
+    - If already registered -> go straight to slug-scoped sections
+    - If joining -> creates/claims competitor row for this comp and then
+      forces email-code verify, and verify will land on slug-scoped sections
+    - Never lands on legacy /competitor/<id>/sections for this flow
     """
+
     comp = get_comp_or_404(slug)
 
-    # Block registration if comp is finished or not live
+    # Block registration if comp is not currently live
     if not comp_is_live(comp):
         flash("That competition isn’t live — registration is closed.", "warning")
+        # Important: also clear any stale join flow state for this slug
+        session.pop("pending_join_competitor_id", None)
+        session.pop("pending_join_slug", None)
         return redirect("/my-comps")
 
-    # Always keep comp context
+    # Always keep comp context for nav + downstream redirects
     session["active_comp_slug"] = comp.slug
 
     viewer_id = session.get("competitor_id")
@@ -2749,7 +2740,32 @@ def public_register_for_comp(slug):
     email_on_file = (viewer.email or "").strip().lower()
     if not email_on_file:
         flash("Your account doesn’t have an email on file. Please log in again.", "warning")
+        # scrub auth-ish session bits that cause loops
+        session.pop("competitor_id", None)
+        session.pop("competitor_email", None)
+        session.pop("login_email", None)
+        session.pop("pending_join_competitor_id", None)
+        session.pop("pending_join_slug", None)
         return redirect(f"/login?slug={comp.slug}")
+
+    # If already registered for THIS comp, go straight to scoring (no verify loop)
+    existing_for_comp = (
+        Competitor.query
+        .filter(
+            Competitor.competition_id == comp.id,
+            Competitor.email == email_on_file,
+        )
+        .first()
+    )
+
+    if existing_for_comp and request.method == "GET":
+        session["competitor_id"] = existing_for_comp.id
+        session["competitor_email"] = email_on_file
+        session["active_comp_slug"] = comp.slug
+        # clear any stale pending join state
+        session.pop("pending_join_competitor_id", None)
+        session.pop("pending_join_slug", None)
+        return redirect(f"/comp/{comp.slug}/competitor/{existing_for_comp.id}/sections")
 
     if request.method == "POST":
         name = (request.form.get("name") or "").strip()
@@ -2767,37 +2783,35 @@ def public_register_for_comp(slug):
                 gender=gender,
             )
 
-        # 1) Already registered for THIS comp?
-        existing_for_comp = (
-            Competitor.query
-            .filter(
-                Competitor.competition_id == comp.id,
-                Competitor.email == email_on_file,
-            )
-            .first()
-        )
-
+        # Re-check: already registered (POST) -> straight to scoring
         if existing_for_comp:
-            # Already registered: go straight to scoring (no verify loop)
             session["competitor_id"] = existing_for_comp.id
+            session["competitor_email"] = email_on_file
             session["active_comp_slug"] = comp.slug
-
-            # clear any stale pending join state
             session.pop("pending_join_competitor_id", None)
             session.pop("pending_join_slug", None)
-
             return redirect(f"/comp/{comp.slug}/competitor/{existing_for_comp.id}/sections")
 
-        # 2) If their current viewer row is a neutral "account" row, claim it for this comp
-        if viewer.competition_id is None:
-            viewer.name = name or viewer.name
-            viewer.gender = gender or viewer.gender
+        # Decide whether to "claim" the current viewer row, or create a new row
+        #
+        # We ONLY "claim" the viewer row if it's a neutral account row:
+        #   competition_id is None AND email matches AND (optionally) name is placeholder-ish.
+        # Otherwise create a new competitor for this comp.
+        target_competitor = None
+
+        can_claim_viewer = (
+            viewer.competition_id is None
+            and (viewer.email or "").strip().lower() == email_on_file
+        )
+
+        if can_claim_viewer:
+            viewer.name = name or (viewer.name or "Competitor")
+            viewer.gender = gender or (viewer.gender or "Inclusive")
             viewer.competition_id = comp.id
             db.session.commit()
             invalidate_leaderboard_cache()
             target_competitor = viewer
         else:
-            # 3) Otherwise, create a NEW competitor row for THIS comp
             target_competitor = Competitor(
                 name=name,
                 gender=gender,
@@ -2808,7 +2822,7 @@ def public_register_for_comp(slug):
             db.session.commit()
             invalidate_leaderboard_cache()
 
-        # --- Send login code and force verify step ---
+        # Send login code and force verify step
         code = f"{secrets.randbelow(1_000_000):06d}"
         now = datetime.utcnow()
 
@@ -2826,16 +2840,17 @@ def public_register_for_comp(slug):
 
         # Tell verify page which email to use + keep comp scope
         session["login_email"] = email_on_file
+        session["competitor_email"] = email_on_file
         session["active_comp_slug"] = comp.slug
 
-        # ✅ CRITICAL: mark that we just joined this comp and which competitor to resume as
+        # Mark that we just joined this comp and which competitor to resume as
         session["pending_join_competitor_id"] = target_competitor.id
         session["pending_join_slug"] = comp.slug
 
         flash(f"We sent a 6-digit code to {email_on_file}.", "success")
         return redirect(f"/login/verify?slug={comp.slug}")
 
-    # GET: show name + gender only
+    # GET: show join form
     return render_template(
         "register_public.html",
         comp=comp,
@@ -2843,6 +2858,7 @@ def public_register_for_comp(slug):
         name=(viewer.name or ""),
         gender=(viewer.gender or "Inclusive"),
     )
+
     
 @app.route("/logout")
 def logout():
@@ -3003,7 +3019,7 @@ def api_save_score():
     if not current_comp:
         return "Competition not found", 404
 
-    # ✅ NEW: block edits once the comp is finished
+    # NEW: block edits once the comp is finished
     if comp_is_finished(current_comp):
         return "Competition finished — scoring locked", 403
 
@@ -3088,14 +3104,30 @@ def api_get_scores(competitor_id):
 
 @app.route("/leaderboard")
 def leaderboard_all():
-    cid_raw = request.args.get("cid", "").strip()
-    competitor = None
-    if cid_raw.isdigit():
-        competitor = Competitor.query.get(int(cid_raw))
+    """
+    Leaderboard page for the currently selected competition context.
+
+    Rules:
+    - Must have a selected competition context (get_viewer_comp()).
+    - That competition must be LIVE to view leaderboard.
+      (If you later want finished comps viewable read-only, we can relax this.)
+    """
+    # Optional highlighting of a competitor row
+    cid_raw = (request.args.get("cid") or "").strip()
+    competitor = Competitor.query.get(int(cid_raw)) if cid_raw.isdigit() else None
 
     comp = get_viewer_comp()
+
+    # No comp context at all
     if not comp:
         flash("Pick a competition first to view the leaderboard.", "warning")
+        return redirect("/my-comps")
+
+    # Comp exists but isn't live -> clear stale comp context and bounce
+    if not comp_is_live(comp):
+        # Prevent stale slug from keeping comp-nav alive
+        session.pop("active_comp_slug", None)
+        flash("That competition isn’t live right now — leaderboard is unavailable.", "warning")
         return redirect("/my-comps")
 
     rows, category_label = build_leaderboard(None, competition_id=comp.id)
@@ -3115,14 +3147,25 @@ def leaderboard_all():
 
 @app.route("/leaderboard/<category>")
 def leaderboard_by_category(category):
-    cid_raw = request.args.get("cid", "").strip()
-    competitor = None
-    if cid_raw.isdigit():
-        competitor = Competitor.query.get(int(cid_raw))
+    """
+    Category leaderboard for the currently selected competition context.
+
+    Same rules as /leaderboard:
+    - Must have a selected comp context
+    - Must be LIVE
+    """
+    cid_raw = (request.args.get("cid") or "").strip()
+    competitor = Competitor.query.get(int(cid_raw)) if cid_raw.isdigit() else None
 
     comp = get_viewer_comp()
+
     if not comp:
         flash("Pick a competition first to view the leaderboard.", "warning")
+        return redirect("/my-comps")
+
+    if not comp_is_live(comp):
+        session.pop("active_comp_slug", None)
+        flash("That competition isn’t live right now — leaderboard is unavailable.", "warning")
         return redirect("/my-comps")
 
     rows, category_label = build_leaderboard(category, competition_id=comp.id)
@@ -3142,19 +3185,32 @@ def leaderboard_by_category(category):
 
 @app.route("/api/leaderboard")
 def api_leaderboard():
+    """
+    JSON leaderboard for the currently selected comp context.
+
+    Rules:
+    - If no comp selected or comp not live -> return empty rows with message.
+    """
     category = request.args.get("category")
 
     comp = get_viewer_comp()
     if not comp:
         return jsonify({"category": "No competition selected", "rows": []})
 
+    if not comp_is_live(comp):
+        # Clear stale session context so UI stops thinking a comp is active
+        session.pop("active_comp_slug", None)
+        return jsonify({"category": "Competition not live", "rows": []})
+
     rows, category_label = build_leaderboard(category, competition_id=comp.id)
 
+    # JSON-safe datetime conversion
     for r in rows:
-        if r["last_update"] is not None:
+        if r.get("last_update") is not None:
             r["last_update"] = r["last_update"].isoformat()
 
     return jsonify({"category": category_label, "rows": rows})
+
 
 # --- Admin (simple password-protected utility) ---
 
