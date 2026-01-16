@@ -1846,31 +1846,22 @@ def competitor_sections(competitor_id):
     )
 
 
-
-from urllib.parse import quote
-
 @app.route("/comp/<slug>/competitor/<int:competitor_id>/sections")
 def comp_competitor_sections(slug, competitor_id):
-    """
-    Sections index page, scoped to a specific competition slug.
+    viewer_id   = session.get("competitor_id")
+    is_admin    = session.get("admin_ok", False)
+    account_id  = session.get("account_id")
 
-    Supports:
-    - Admin viewing any competitor (gym-permission enforced when relevant)
-    - Normal user viewing their own competitor row for THIS comp, including deep links
-      from "Keep scoring" even if session['competitor_id'] is not yet set.
+    # Establish comp context from URL
+    session["active_comp_slug"] = slug
 
-    Backwards compatible with legacy sessions (email-based switching).
-    """
-
-    viewer_id = session.get("competitor_id")          # competitor context (may be None now)
-    is_admin  = session.get("admin_ok", False)
-    account_id = session.get("account_id")            # true login state
-    session["active_comp_slug"] = slug                # always establish comp context from URL
-
-    # If not logged in as account and not admin -> force login (better than silent / redirect)
+    # Must be logged in as account OR be admin
     if not account_id and not is_admin:
         next_path = request.path
         return redirect(f"/login?slug={slug}&next={quote(next_path)}")
+
+    acct = Account.query.get(account_id) if account_id else None
+    acct_email = (acct.email or "").strip().lower() if acct else ""
 
     # --- Determine which competitor to show ---
     if is_admin:
@@ -1878,94 +1869,77 @@ def comp_competitor_sections(slug, competitor_id):
     else:
         target_id = viewer_id
 
-        # If the URL competitor differs (or we have no viewer_id),
-        # try safe auto-switch using ACCOUNT ownership first (new correct behaviour).
+        # If URL competitor differs (or viewer_id missing), attempt safe switch
         if competitor_id != viewer_id:
             requested = Competitor.query.get(competitor_id)
-
-            if requested:
-                # Must belong to the logged-in account (when account exists)
-                if account_id and requested.account_id == account_id:
-                    # Must belong to THIS slug’s competition
-                    requested_comp = (
-                        Competition.query.get(requested.competition_id)
-                        if requested.competition_id else None
-                    )
-
-                    if requested_comp and requested_comp.slug == slug:
-                        # ✅ Switch session to this competitor row
-                        session["competitor_id"] = requested.id
-                        session["competitor_email"] = requested.email
-                        session["active_comp_slug"] = slug
-                        target_id = requested.id
-                    else:
-                        # account matches but not this comp -> go pick a comp again
-                        return redirect("/my-comps")
-
-                else:
-                    # Backwards-compatible fallback: legacy email-based auto-switch
-                    # (only if we have a viewer_id competitor session)
-                    viewer = Competitor.query.get(viewer_id) if viewer_id else None
-
-                    if (
-                        viewer
-                        and requested
-                        and viewer.email
-                        and requested.email
-                        and viewer.email.strip().lower() == requested.email.strip().lower()
-                    ):
-                        requested_comp = (
-                            Competition.query.get(requested.competition_id)
-                            if requested.competition_id else None
-                        )
-
-                        if requested_comp and requested_comp.slug == slug:
-                            session["competitor_id"] = requested.id
-                            session["competitor_email"] = requested.email
-                            session["active_comp_slug"] = slug
-                            target_id = requested.id
-                        else:
-                            return redirect("/my-comps")
-                    else:
-                        # Not the same account/person -> if we have a viewer_id, bounce to it, else /my-comps
-                        if viewer_id:
-                            return redirect(f"/comp/{slug}/competitor/{viewer_id}/sections")
-                        return redirect("/my-comps")
-
-            else:
-                # Requested competitor doesn't exist
+            if not requested:
                 return redirect("/my-comps")
 
-        # If we still don't have a target_id, user is logged in but has no competitor context for this comp
+            req_email = (requested.email or "").strip().lower()
+
+            # Preferred: competitor row is linked to this account
+            owns_by_account = bool(account_id and requested.account_id == account_id)
+
+            # Legacy fallback: competitor row not linked yet, but email matches logged-in account
+            owns_by_email = bool(account_id and requested.account_id is None and acct_email and req_email and req_email == acct_email)
+
+            if not (owns_by_account or owns_by_email):
+                # Not yours — if you do have a viewer_id, bounce to it, else /my-comps
+                if viewer_id:
+                    return redirect(f"/comp/{slug}/competitor/{viewer_id}/sections")
+                return redirect("/my-comps")
+
+            # Must belong to THIS slug competition
+            requested_comp = Competition.query.get(requested.competition_id) if requested.competition_id else None
+            if not requested_comp or requested_comp.slug != slug:
+                return redirect("/my-comps")
+
+            # Switch session to this competitor row
+            session["competitor_id"] = requested.id
+            session["competitor_email"] = requested.email
+            session["active_comp_slug"] = slug
+            target_id = requested.id
+
+            # (Optional but recommended) backfill linkage once proven safe
+            if requested.account_id is None and account_id:
+                requested.account_id = account_id
+                db.session.commit()
+
+        # If still no target_id, user has no competitor context for this comp
         if not target_id:
             return redirect("/my-comps")
 
-    # Load competitor
+    # Load competitor row we’re showing
     comp = Competitor.query.get_or_404(target_id)
 
-    # Competitor MUST belong to a competition for this slugged route
     if not comp.competition_id:
         abort(404)
 
-    # Resolve the competition from the competitor (NOT from "current active")
     current_comp = Competition.query.get_or_404(comp.competition_id)
-
-    # Guard: slug must match the competitor’s competition
     if current_comp.slug != slug:
         abort(404)
 
-    # For non-admins, enforce that the competitor row belongs to the logged-in account (when accounts exist)
+    # --- Ownership enforcement for non-admins ---
     if not is_admin and account_id:
-        if comp.account_id != account_id:
+        comp_email = (comp.email or "").strip().lower()
+
+        owns_by_account = (comp.account_id == account_id)
+        owns_by_email = (comp.account_id is None and acct_email and comp_email and comp_email == acct_email)
+
+        if not (owns_by_account or owns_by_email):
             abort(403)
 
-    # Only enforce gym-level permissions when an admin is viewing SOMEONE ELSE
-    # (keeps your existing behaviour)
+        # (Optional) backfill linkage once proven safe
+        if comp.account_id is None and owns_by_email:
+            comp.account_id = account_id
+            db.session.commit()
+
+    # Admin gym permission only when viewing someone else (keeping your existing behaviour)
     if is_admin and viewer_id and target_id != viewer_id:
         if not admin_can_manage_competition(current_comp):
             abort(403)
 
-    # --- Gym map + gym name (DB-driven) ---
+    # --- Gym map + gym name ---
     gym_name = None
     gym_map_path = None
     if current_comp.gym:
@@ -1974,7 +1948,6 @@ def comp_competitor_sections(slug, competitor_id):
 
     gym_map_url = get_gym_map_url_for_competition(current_comp)
 
-    # Sections scoped to THIS competition
     sections = (
         Section.query
         .filter(Section.competition_id == current_comp.id)
@@ -1992,13 +1965,10 @@ def comp_competitor_sections(slug, competitor_id):
             position = r["position"]
             break
 
-    # Keep your existing can_edit behaviour
     can_edit = (session.get("competitor_id") == target_id or is_admin)
 
-    # Map dots: climbs with coords for THIS competition’s sections (+ gym guard)
     if sections:
         section_ids = [s.id for s in sections]
-
         q = (
             SectionClimb.query
             .filter(
@@ -2007,14 +1977,10 @@ def comp_competitor_sections(slug, competitor_id):
                 SectionClimb.y_percent.isnot(None),
             )
         )
-
         if current_comp.gym_id:
             q = q.filter(SectionClimb.gym_id == current_comp.gym_id)
 
-        map_climbs = (
-            q.order_by(SectionClimb.climb_number)
-             .all()
-        )
+        map_climbs = q.order_by(SectionClimb.climb_number).all()
     else:
         map_climbs = []
 
