@@ -200,6 +200,7 @@
 	<nav class="nav">
 		<a class="active" href="{% if is_logged_in or is_admin %}/my-comps{% else %}/{% endif %}">Home</a>
 
+		{# Leaderboard only exists in a real comp context #}
 		{% if show_comp_nav %}
 			<a href="/leaderboard?cid={{ viewer_id }}">Leaderboard</a>
 		{% endif %}

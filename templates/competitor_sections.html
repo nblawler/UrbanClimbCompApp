@@ -282,10 +282,13 @@
 </head>
 
 <body>
+	{# IMPORTANT: account_id = logged-in state. competitor_id = only set when actually registered + in comp context. #}
 	{% set is_logged_in = session.get('account_id') %}
 	{% set viewer_id = session.get('competitor_id') %}
 	{% set is_admin = session.get('admin_ok', False) %}
 	{% set comp_slug = comp_slug if comp_slug is defined else session.get('active_comp_slug') %}
+
+	{# Only show comp nav if you're truly in an active comp context #}
 	{% set show_comp_nav = (is_logged_in and viewer_id and comp_slug) %}
 
 	<nav class="nav">
@@ -312,12 +315,12 @@
 			   href="/competitor/{{ viewer_id }}/stats/overall">
 				Overall Stats
 			</a>
-		{% endif %}
 
-		<a class="{% if nav_active == 'leaderboard' %}active{% endif %}"
-			href="/leaderboard{% if show_comp_nav %}?cid={{ viewer_id }}{% endif %}">
-			Leaderboard
-		</a>
+			<a class="{% if nav_active == 'leaderboard' %}active{% endif %}"
+			   href="/leaderboard?cid={{ viewer_id }}">
+				Leaderboard
+			</a>
+		{% endif %}
 
 		{% if is_logged_in or is_admin %}
 			<a href="/logout">Log out</a>
@@ -397,7 +400,7 @@
 									   data-section-id="{{ c.section.id }}"
 									   style="left: {{ c.x_percent }}%; top: {{ c.y_percent }}%; background: {{ bg }};"
 									   href="/competitor/{{ competitor.id }}/section/{{ c.section.slug }}#climb-{{ c.climb_number }}"
-									   title="Section {{ c.section.name }} · Climb #{{ c.section.name }} · Climb #{{ c.climb_number }}"></a>
+									   title="Section {{ c.section.name }} · Climb #{{ c.climb_number }}"></a>
 								{% endif %}
 							{% else %}
 								<div class="map-marker disabled"

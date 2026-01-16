@@ -201,6 +201,7 @@
     {% set viewer_id = session.get('competitor_id') %}
     {% set is_admin = session.get('admin_ok', False) %}
     {% set slug = slug if slug is defined else (request.args.get('slug') if request is defined else '') %}
+    {% set next = next if next is defined else (request.args.get('next') if request is defined else session.get('login_next', '')) %}
 
     <nav class="nav">
       {# HOME LOGIC: logged-in users/admins go /my-comps; public users go / #}
@@ -214,7 +215,8 @@
       {% if is_logged_in or is_admin %}
         <a href="/logout">Log out</a>
       {% else %}
-        <a class="{% if nav_active == 'login' %}active{% endif %}" href="/login{% if slug %}?slug={{ slug }}{% endif %}">
+        <a class="{% if nav_active == 'login' %}active{% endif %}"
+           href="/login{% if slug or next %}?{% if slug %}slug={{ slug }}{% endif %}{% if slug and next %}&{% endif %}{% if next %}next={{ next|urlencode }}{% endif %}{% endif %}">
           Log in
         </a>
       {% endif %}
@@ -243,6 +245,7 @@
 
       <form method="post" class="form-card">
         <input type="hidden" name="slug" value="{{ slug or '' }}" />
+        <input type="hidden" name="next" value="{{ next or '' }}" />
 
         <label for="email">Email</label>
         <input type="email" id="email" name="email" value="{{ email or '' }}" placeholder="your@email.com" required />

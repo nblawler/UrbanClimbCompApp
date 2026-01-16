@@ -185,20 +185,25 @@
 </head>
 
 <body>
+	{% set is_logged_in = session.get('account_id') %}
 	{% set viewer_id = session.get('competitor_id') %}
 	{% set is_admin = session.get('admin_ok', False) %}
+	{% set comp_slug = session.get('active_comp_slug') %}
+	{% set show_comp_nav = (is_logged_in and viewer_id and comp_slug) %}
 
 	<nav class="nav">
 		<a class="{% if nav_active == 'my_comps' %}active{% endif %}"
-		   href="{% if viewer_id or is_admin %}/my-comps{% else %}/{% endif %}">Home</a>
+		   href="{% if is_logged_in or is_admin %}/my-comps{% else %}/{% endif %}">Home</a>
 
-		<a class="{% if nav_active == 'leaderboard' %}active{% endif %}" href="/leaderboard">Leaderboard</a>
+		{% if show_comp_nav %}
+			<a class="{% if nav_active == 'leaderboard' %}active{% endif %}" href="/leaderboard?cid={{ viewer_id }}">Leaderboard</a>
+		{% endif %}
 
 		{% if is_admin %}
 			<a class="{% if nav_active == 'admin' %}active{% endif %}" href="/admin/comps">Admin</a>
 		{% endif %}
 
-		{% if viewer_id or is_admin %}
+		{% if is_logged_in or is_admin %}
 			<a href="/logout">Log out</a>
 		{% else %}
 			<a class="{% if nav_active == 'login' %}active{% endif %}" href="/login">Log in</a>
@@ -258,7 +263,10 @@
 						<footer class="card-footer">
 							{% if comp.is_active %}
 								<a class="pill-button" href="/comp/{{ comp.slug }}/join">Join this comp</a>
-								<a class="pill-button pill-ghost" href="/leaderboard">View leaderboard</a>
+
+								{% if show_comp_nav %}
+									<a class="pill-button pill-ghost" href="/leaderboard?cid={{ viewer_id }}">View leaderboard</a>
+								{% endif %}
 							{% else %}
 								<span class="pill-badge">Archived</span>
 							{% endif %}
