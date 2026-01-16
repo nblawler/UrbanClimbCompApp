@@ -3,6 +3,7 @@ from functools import wraps
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import UniqueConstraint
 from datetime import datetime, timedelta
+from urllib.parse import quote
 import os
 import sys
 import re
@@ -1334,6 +1335,12 @@ def login_request():
         slug = ""
         current_comp = None
 
+    # Capture "next" on entry (GET) and preserve in session through verify step
+    if request.method == "GET":
+        next_url = (request.args.get("next") or "").strip()
+        if next_url:
+            session["login_next"] = next_url
+
     # If they came from nav (no slug), clear comp context
     if not slug:
         session.pop("active_comp_slug", None)
@@ -1348,6 +1355,11 @@ def login_request():
             if not current_comp:
                 slug = ""
                 current_comp = None
+
+        # Also allow next to be carried via hidden input (optional, but safe)
+        posted_next = (request.form.get("next") or "").strip()
+        if posted_next:
+            session["login_next"] = posted_next
 
         if not email:
             error = "Please enter your email."
@@ -1365,7 +1377,6 @@ def login_request():
                 now = datetime.utcnow()
 
                 # We still need a competitor_id for legacy column (NOT used for auth)
-                # Pick any competitor row tied to this account if exists, else create a neutral shell.
                 comp_shell = (
                     Competitor.query
                     .filter(Competitor.account_id == acct.id)
@@ -1398,11 +1409,17 @@ def login_request():
 
                 session["login_email"] = email
 
+                # If comp context exists, keep it and pass next through to verify
+                next_url = session.get("login_next")
                 if current_comp and current_comp.slug:
                     session["active_comp_slug"] = current_comp.slug
+                    if next_url:
+                        return redirect(f"/login/verify?slug={current_comp.slug}&next={quote(next_url)}")
                     return redirect(f"/login/verify?slug={current_comp.slug}")
 
                 session.pop("active_comp_slug", None)
+                if next_url:
+                    return redirect(f"/login/verify?next={quote(next_url)}")
                 return redirect("/login/verify")
 
     return render_template(
@@ -1411,8 +1428,9 @@ def login_request():
         error=error,
         message=message,
         slug=slug,
+        # Optional: if you add a hidden field in the template, you can use this
+        next=session.get("login_next", ""),
     )
-
 
 
 # --- Email login: verify code ---
@@ -1428,6 +1446,12 @@ def login_verify():
         slug = ""
         current_comp = None
 
+    # Capture / preserve next (GET entry point)
+    if request.method == "GET":
+        next_qs = (request.args.get("next") or "").strip()
+        if next_qs:
+            session["login_next"] = next_qs
+
     email = normalize_email(session.get("login_email"))
 
     def pending_join_matches(comp_slug: str) -> bool:
@@ -1436,6 +1460,33 @@ def login_verify():
             and (session.get("pending_join_slug") or "").strip() == comp_slug
             and (session.get("pending_join_name") or "").strip()
         )
+
+    def get_next_url_from_request() -> str:
+        """
+        Prefer explicit next passed through the form (POST),
+        else querystring (GET/POST), else session.
+        """
+        if request.method == "POST":
+            posted_next = (request.form.get("next") or "").strip()
+            if posted_next:
+                return posted_next
+        qs_next = (request.args.get("next") or "").strip()
+        if qs_next:
+            return qs_next
+        return (session.get("login_next") or "").strip()
+
+    def safe_redirect(url: str):
+        """
+        Only allow internal redirects. If url is blank or looks external, ignore it.
+        """
+        if not url:
+            return None
+        u = url.strip()
+        if not u.startswith("/"):
+            return None
+        if u.startswith("//"):
+            return None
+        return redirect(u)
 
     if request.method == "POST":
         email = normalize_email(request.form.get("email"))
@@ -1448,6 +1499,11 @@ def login_verify():
             if not current_comp:
                 slug = ""
                 current_comp = None
+
+        # Keep next alive across POSTs
+        next_url = get_next_url_from_request()
+        if next_url:
+            session["login_next"] = next_url
 
         if not email or not code:
             error = "Please enter both your email and the code."
@@ -1486,7 +1542,7 @@ def login_verify():
                     if current_comp and current_comp.slug:
                         session["active_comp_slug"] = current_comp.slug
 
-                        # JOIN FLOW FINALIZE (delayed registration)
+                        # 1) JOIN FLOW FINALIZE (delayed registration)
                         if pending_join_matches(current_comp.slug):
                             name = (session.get("pending_join_name") or "").strip()
                             gender = (session.get("pending_join_gender") or "Inclusive").strip()
@@ -1514,7 +1570,6 @@ def login_verify():
                                 db.session.commit()
                                 invalidate_leaderboard_cache()
 
-                            # NOW they are a comp competitor
                             session["competitor_id"] = registered.id
 
                             # Clear pending join state
@@ -1523,9 +1578,17 @@ def login_verify():
                             session.pop("pending_join_gender", None)
                             session.pop("pending_comp_verify", None)
 
+                            # If next exists, honour it (common: /comp/<slug>/join or similar)
+                            next_url = get_next_url_from_request()
+                            r = safe_redirect(next_url)
+                            if r:
+                                session.pop("login_next", None)
+                                return r
+
+                            session.pop("login_next", None)
                             return redirect(f"/comp/{current_comp.slug}/competitor/{registered.id}/sections")
 
-                        # Normal comp-scoped login: if they have a competitor row for this comp, jump in
+                        # 2) Normal comp-scoped login:
                         registered = (
                             Competitor.query
                             .filter(
@@ -1534,19 +1597,39 @@ def login_verify():
                             )
                             .first()
                         )
+
+                        # If they have a competitor row, set it
                         if registered:
                             session["competitor_id"] = registered.id
                             session.pop("pending_comp_verify", None)
+
+                            # If next exists, honour it (but keep internal-only safety)
+                            next_url = get_next_url_from_request()
+                            r = safe_redirect(next_url)
+                            if r:
+                                session.pop("login_next", None)
+                                return r
+
+                            session.pop("login_next", None)
                             return redirect(f"/comp/{current_comp.slug}/competitor/{registered.id}/sections")
 
-                        # Otherwise: must join
+                        # Otherwise: they must join
+                        # If next points to join, go there; else go to join anyway.
+                        next_url = get_next_url_from_request()
+                        if next_url == f"/comp/{current_comp.slug}/join":
+                            session.pop("login_next", None)
+                            return redirect(next_url)
+
+                        session.pop("login_next", None)
                         return redirect(f"/comp/{current_comp.slug}/join")
 
                     # Non-comp scoped login: keep them logged in as account only.
-                    # competitor_id should point to the neutral shell competitor if you need it for legacy templates.
                     shell = (
                         Competitor.query
-                        .filter(Competitor.account_id == acct.id, Competitor.competition_id.is_(None))
+                        .filter(
+                            Competitor.account_id == acct.id,
+                            Competitor.competition_id.is_(None),
+                        )
                         .first()
                     )
                     if not shell:
@@ -1563,11 +1646,23 @@ def login_verify():
                     session["competitor_id"] = shell.id
                     session.pop("active_comp_slug", None)
                     session.pop("pending_comp_verify", None)
+
+                    # Honour next for non-comp flows too (e.g., returning to a page)
+                    next_url = get_next_url_from_request()
+                    r = safe_redirect(next_url)
+                    if r:
+                        session.pop("login_next", None)
+                        return r
+
+                    session.pop("login_next", None)
                     return redirect("/my-comps")
 
     else:
         if email and not message:
             message = "We've emailed you a 6-digit code. Enter it below to continue."
+
+    # Make sure template can carry next through as hidden field (optional but recommended)
+    next_url = get_next_url_from_request()
 
     return render_template(
         "login_verify.html",
@@ -1575,8 +1670,8 @@ def login_verify():
         error=error,
         message=message,
         slug=slug,
+        next=next_url,
     )
-
 
 
 @app.route("/competitor/<int:competitor_id>")
@@ -2772,7 +2867,6 @@ def register_competitor():
     return render_template("register.html", error=None, competitor=None)
 
 
-
 @app.route("/comp/<slug>/join", methods=["GET", "POST"])
 def public_register_for_comp(slug):
     comp = get_comp_or_404(slug)
@@ -2791,7 +2885,9 @@ def public_register_for_comp(slug):
     acct = get_account_for_session()
     if not acct:
         flash("Please log in first to join this competition.", "warning")
-        return redirect(f"/login?slug={comp.slug}")
+        # IMPORTANT: preserve the return destination
+        next_path = f"/comp/{comp.slug}/join"
+        return redirect(f"/login?slug={comp.slug}&next={quote(next_path)}")
 
     # If already registered for this comp -> go score
     existing_for_comp = (
@@ -2876,7 +2972,9 @@ def public_register_for_comp(slug):
         send_login_code_via_email(acct.email, code)
 
         flash(f"We sent a 6-digit code to {acct.email}.", "success")
-        return redirect(f"/login/verify?slug={comp.slug}")
+        # preserve next through verify as well
+        next_path = f"/comp/{comp.slug}/join"
+        return redirect(f"/login/verify?slug={comp.slug}&next={quote(next_path)}")
 
     return render_template(
         "register_public.html",
@@ -2885,8 +2983,6 @@ def public_register_for_comp(slug):
         name="",
         gender="Inclusive",
     )
-
-
 
     
 @app.route("/logout")
@@ -2909,7 +3005,11 @@ def logout():
     session.pop("pending_join_gender", None)
     session.pop("pending_comp_verify", None)
 
+    # Clear any login return target
+    session.pop("login_next", None)
+
     return redirect("/my-comps")
+
 
 
 
