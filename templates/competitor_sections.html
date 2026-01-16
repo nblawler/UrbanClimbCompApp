@@ -282,13 +282,15 @@
 </head>
 
 <body>
-	{% set viewer_id = viewer_id if viewer_id is defined else session.get('competitor_id') %}
+	{% set is_logged_in = session.get('account_id') %}
+	{% set viewer_id = session.get('competitor_id') %}
 	{% set is_admin = session.get('admin_ok', False) %}
 	{% set comp_slug = comp_slug if comp_slug is defined else session.get('active_comp_slug') %}
-	{% set show_comp_nav = (viewer_id and comp_slug) %}
+	{% set show_comp_nav = (is_logged_in and viewer_id and comp_slug) %}
 
 	<nav class="nav">
-		<a class="{% if nav_active == 'my_comps' %}active{% endif %}" href="/my-comps">Home</a>
+		<a class="{% if nav_active == 'my_comps' %}active{% endif %}"
+		   href="{% if is_logged_in or is_admin %}/my-comps{% else %}/{% endif %}">Home</a>
 
 		{% if is_admin %}
 			<a class="{% if nav_active == 'admin' %}active{% endif %}" href="/admin/comps">Admin</a>
@@ -317,7 +319,7 @@
 			Leaderboard
 		</a>
 
-		{% if viewer_id or is_admin %}
+		{% if is_logged_in or is_admin %}
 			<a href="/logout">Log out</a>
 		{% else %}
 			<a class="{% if nav_active == 'login' %}active{% endif %}"
@@ -395,7 +397,7 @@
 									   data-section-id="{{ c.section.id }}"
 									   style="left: {{ c.x_percent }}%; top: {{ c.y_percent }}%; background: {{ bg }};"
 									   href="/competitor/{{ competitor.id }}/section/{{ c.section.slug }}#climb-{{ c.climb_number }}"
-									   title="Section {{ c.section.name }} · Climb #{{ c.climb_number }}"></a>
+									   title="Section {{ c.section.name }} · Climb #{{ c.section.name }} · Climb #{{ c.climb_number }}"></a>
 								{% endif %}
 							{% else %}
 								<div class="map-marker disabled"

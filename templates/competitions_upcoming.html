@@ -222,44 +222,35 @@
 </head>
 
 <body>
-	{% set viewer_id = viewer_id if viewer_id is defined else session.get('competitor_id') %}
+	{% set is_logged_in = session.get('account_id') %}
+	{% set viewer_id = session.get('competitor_id') %}
 	{% set is_admin = session.get('admin_ok', False) %}
+	{% set comp_slug = session.get('active_comp_slug') %}
+	{% set show_comp_nav = (is_logged_in and viewer_id and comp_slug) %}
 
 	<nav class="nav">
-		{# HOME LOGIC (important): logged-in users can go /my-comps; public users go / #}
 		<a class="{% if nav_active == 'my_comps' %}active{% endif %}"
-		   href="{% if viewer_id or is_admin %}/my-comps{% else %}/{% endif %}">Home</a>
+		   href="{% if is_logged_in or is_admin %}/my-comps{% else %}/{% endif %}">Home</a>
 
 		{% if is_admin %}
 			<a class="{% if nav_active == 'admin' %}active{% endif %}" href="/admin/comps">Admin</a>
 		{% endif %}
 
-		{# Only show comp-specific nav when we're actually in a live comp context #}
 		{% if show_comp_nav %}
-			{% if competitor %}
-				{% if competitor.competition and competitor.competition.slug %}
-					<a class="{% if nav_active == 'sections' %}active{% endif %}"
-					   href="/comp/{{ competitor.competition.slug }}/competitor/{{ competitor.id }}/sections">My Scoring</a>
-				{% else %}
-					<a class="{% if nav_active == 'sections' %}active{% endif %}"
-					   href="/competitor/{{ competitor.id }}/sections">My Scoring</a>
-				{% endif %}
+			<a class="{% if nav_active == 'sections' %}active{% endif %}"
+			   href="/comp/{{ comp_slug }}/competitor/{{ viewer_id }}/sections">My Scoring</a>
 
-				<a class="{% if nav_active == 'leaderboard' %}active{% endif %}"
-				   href="/leaderboard?cid={{ competitor.id }}">Leaderboard</a>
-			{% else %}
-				<a class="{% if nav_active == 'leaderboard' %}active{% endif %}" href="/leaderboard">Leaderboard</a>
-			{% endif %}
+			<a class="{% if nav_active == 'leaderboard' %}active{% endif %}"
+			   href="/leaderboard?cid={{ viewer_id }}">Leaderboard</a>
 		{% endif %}
 
-		{% if viewer_id or is_admin %}
+		{% if is_logged_in or is_admin %}
 			<a href="/logout">Log out</a>
 		{% else %}
-			{% if competitor and competitor.competition and competitor.competition.slug %}
-				<a class="{% if nav_active == 'login' %}active{% endif %}" href="/login?slug={{ competitor.competition.slug }}">Log in</a>
-			{% else %}
-				<a class="{% if nav_active == 'login' %}active{% endif %}" href="/login">Log in</a>
-			{% endif %}
+			<a class="{% if nav_active == 'login' %}active{% endif %}"
+			   href="/login{% if comp_slug %}?slug={{ comp_slug }}{% endif %}">
+				Log in
+			</a>
 		{% endif %}
 	</nav>
 

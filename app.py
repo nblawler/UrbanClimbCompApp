@@ -2867,10 +2867,13 @@ def register_competitor():
     return render_template("register.html", error=None, competitor=None)
 
 
+from urllib.parse import quote
+
 @app.route("/comp/<slug>/join", methods=["GET", "POST"])
 def public_register_for_comp(slug):
     comp = get_comp_or_404(slug)
 
+    # Competition must be live
     if not comp_is_live(comp):
         flash("That competition isn’t live — registration is closed.", "warning")
         session.pop("pending_join_slug", None)
@@ -2880,16 +2883,29 @@ def public_register_for_comp(slug):
         session.pop("active_comp_slug", None)
         return redirect("/my-comps")
 
+    # Establish comp context
     session["active_comp_slug"] = comp.slug
 
-    acct = get_account_for_session()
-    if not acct:
+    # 🔒 HARD GATE: must have an account_id in session (NOT competitor_id, NOT competitor_email)
+    account_id = session.get("account_id")
+    if not account_id:
         flash("Please log in first to join this competition.", "warning")
-        # IMPORTANT: preserve the return destination
         next_path = f"/comp/{comp.slug}/join"
         return redirect(f"/login?slug={comp.slug}&next={quote(next_path)}")
 
-    # If already registered for this comp -> go score
+    # Fetch account (now safe)
+    acct = Account.query.get(account_id)
+    if not acct:
+        # Session is stale/bad: clear and force login
+        session.pop("account_id", None)
+        session.pop("competitor_id", None)
+        session.pop("competitor_email", None)
+        session.pop("active_comp_slug", None)
+        flash("Please log in again to continue.", "warning")
+        next_path = f"/comp/{comp.slug}/join"
+        return redirect(f"/login?slug={comp.slug}&next={quote(next_path)}")
+
+    # Already registered? go score
     existing_for_comp = (
         Competitor.query
         .filter(
@@ -2898,6 +2914,7 @@ def public_register_for_comp(slug):
         )
         .first()
     )
+
     if existing_for_comp and request.method == "GET":
         session["competitor_id"] = existing_for_comp.id
         session["competitor_email"] = acct.email
@@ -2926,7 +2943,7 @@ def public_register_for_comp(slug):
             session.pop("pending_comp_verify", None)
             return redirect(f"/comp/{comp.slug}/competitor/{existing_for_comp.id}/sections")
 
-        # DELAYED: store pending join details and send code to account
+        # Store pending join details
         session["pending_join_slug"] = comp.slug
         session["pending_join_name"] = name
         session["pending_join_gender"] = gender
@@ -2972,7 +2989,6 @@ def public_register_for_comp(slug):
         send_login_code_via_email(acct.email, code)
 
         flash(f"We sent a 6-digit code to {acct.email}.", "success")
-        # preserve next through verify as well
         next_path = f"/comp/{comp.slug}/join"
         return redirect(f"/login/verify?slug={comp.slug}&next={quote(next_path)}")
 
@@ -2984,31 +3000,26 @@ def public_register_for_comp(slug):
         gender="Inclusive",
     )
 
+
     
 @app.route("/logout")
 def logout():
-    # Clear everything auth-related (competitor + admin + comp context)
+    session.pop("account_id", None)
     session.pop("competitor_id", None)
-    session.pop("login_email", None)
-    session.pop("active_comp_slug", None)
     session.pop("competitor_email", None)
-    session.pop("admin_competitor_id", None)
 
     session.pop("admin_ok", None)
-    session.pop("admin_is_super", None)
-    session.pop("admin_gym_ids", None)
     session.pop("admin_comp_id", None)
 
-    # Clear any join/verify loop state too (keys you actually use)
+    session.pop("active_comp_slug", None)
+
     session.pop("pending_join_slug", None)
     session.pop("pending_join_name", None)
     session.pop("pending_join_gender", None)
     session.pop("pending_comp_verify", None)
+    session.pop("login_email", None)
 
-    # Clear any login return target
-    session.pop("login_next", None)
-
-    return redirect("/my-comps")
+    return redirect("/")
 
 
 

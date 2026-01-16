@@ -197,20 +197,21 @@
   </head>
 
   <body>
-    {% set viewer_id = viewer_id if viewer_id is defined else session.get('competitor_id') %}
+    {% set is_logged_in = session.get('account_id') %}
+    {% set viewer_id = session.get('competitor_id') %}
     {% set is_admin = session.get('admin_ok', False) %}
     {% set slug = slug if slug is defined else (request.args.get('slug') if request is defined else '') %}
 
     <nav class="nav">
       {# HOME LOGIC: logged-in users/admins go /my-comps; public users go / #}
       <a class="{% if nav_active == 'my_comps' %}active{% endif %}"
-         href="{% if viewer_id or is_admin %}/my-comps{% else %}/{% endif %}">Home</a>
+         href="{% if is_logged_in or is_admin %}/my-comps{% else %}/{% endif %}">Home</a>
 
       {% if is_admin %}
         <a class="{% if nav_active == 'admin' %}active{% endif %}" href="/admin/comps">Admin</a>
       {% endif %}
 
-      {% if viewer_id or is_admin %}
+      {% if is_logged_in or is_admin %}
         <a href="/logout">Log out</a>
       {% else %}
         <a class="{% if nav_active == 'login' %}active{% endif %}" href="/login{% if slug %}?slug={{ slug }}{% endif %}">
