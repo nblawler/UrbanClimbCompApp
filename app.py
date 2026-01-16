@@ -996,43 +996,52 @@ def inject_nav_context():
     """
     Control whether competition-only nav appears.
 
-    Only show comp nav if:
-    - viewer is logged in as a competitor
-    - we can resolve a comp context
-    - the comp is LIVE
-    - the viewer's current competitor row belongs to that comp
-    - NOT in the middle of a pending verify/join flow
+    show_comp_nav is TRUE only when:
+    - we have a resolved comp context
+    - comp is LIVE
+    - viewer is a competitor row registered for THAT comp
+    - NOT in the middle of pending join/verify
     """
+
     comp = get_viewer_comp()
     viewer_id = session.get("competitor_id")
     viewer = Competitor.query.get(viewer_id) if viewer_id else None
 
-    show_comp_nav = False
-
     pending_slug = (session.get("pending_comp_verify") or "").strip()
     is_pending_verify_for_this_comp = bool(comp and pending_slug and comp.slug == pending_slug)
 
-    # ✅ extra safety: if *any* pending join exists, hide comp nav
+    # if *any* pending join exists, hide comp nav
     has_any_pending_join = bool((session.get("pending_join_slug") or "").strip())
 
-    if (
+    # Viewer must be REGISTERED for THIS comp (not the "Account shell" row)
+    viewer_registered_for_comp = bool(
         comp
         and viewer
+        and viewer.competition_id is not None
         and viewer.competition_id == comp.id
+    )
+
+    show_comp_nav = bool(
+        comp
         and comp_is_live(comp)
+        and viewer_registered_for_comp
         and not is_pending_verify_for_this_comp
         and not has_any_pending_join
-    ):
-        show_comp_nav = True
+    )
 
     # Never show comp nav on auth pages even if session is weird
     if request.path.startswith("/login") or request.path.startswith("/signup"):
         show_comp_nav = False
 
+    # If show_comp_nav is false, do NOT expose nav_comp to templates.
+    # This prevents templates that mistakenly check "if nav_comp" from showing comp links.
+    nav_comp = comp if show_comp_nav else None
+
     return dict(
-        nav_comp=comp,
+        nav_comp=nav_comp,
         show_comp_nav=show_comp_nav,
     )
+
 
 
 
@@ -3001,25 +3010,30 @@ def public_register_for_comp(slug):
     )
 
 
-    
 @app.route("/logout")
 def logout():
+    # Account/session auth
     session.pop("account_id", None)
-    session.pop("competitor_id", None)
-    session.pop("competitor_email", None)
-
+    session.pop("account_email", None)  # if you store it
     session.pop("admin_ok", None)
     session.pop("admin_comp_id", None)
+    session.pop("admin_gym_id", None)
 
+    # Competitor + competition context (THIS is the bug)
+    session.pop("competitor_id", None)
+    session.pop("competitor_email", None)
     session.pop("active_comp_slug", None)
 
+    # Login / join flow state
+    session.pop("login_email", None)
+    session.pop("login_next", None)
+    session.pop("pending_comp_verify", None)
     session.pop("pending_join_slug", None)
     session.pop("pending_join_name", None)
     session.pop("pending_join_gender", None)
-    session.pop("pending_comp_verify", None)
-    session.pop("login_email", None)
 
     return redirect("/")
+
 
 
 

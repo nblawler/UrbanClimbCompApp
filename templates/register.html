@@ -181,20 +181,25 @@
 </head>
 
 <body>
+	{% set is_logged_in = session.get('account_id') %}
 	{% set viewer_id = session.get('competitor_id') %}
 	{% set is_admin = session.get('admin_ok', False) %}
 	{% set comp_slug = session.get('active_comp_slug') %}
+	{% set show_comp_nav = (is_logged_in and viewer_id and comp_slug) %}
 
 	<nav class="nav">
-		<a href="/my-comps" class="active">Home</a>
+		<a href="{% if is_logged_in or is_admin %}/my-comps{% else %}/{% endif %}" class="active">Home</a>
 
 		{% if is_admin %}
 			<a href="/admin/comps">Admin</a>
 		{% endif %}
 
-		<a href="/leaderboard{% if viewer_id %}?cid={{ viewer_id }}{% endif %}">Leaderboard</a>
+		{# Only show leaderboard if we have an actual active comp + competitor context #}
+		{% if show_comp_nav %}
+			<a href="/leaderboard?cid={{ viewer_id }}">Leaderboard</a>
+		{% endif %}
 
-		{% if viewer_id or is_admin %}
+		{% if is_logged_in or is_admin %}
 			<a href="/logout">Log out</a>
 		{% else %}
 			<a href="/login{% if comp_slug %}?slug={{ comp_slug }}{% endif %}">Log in</a>

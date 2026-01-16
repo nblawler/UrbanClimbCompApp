@@ -222,6 +222,7 @@
 </head>
 
 <body>
+	{# Bulletproof session-derived state #}
 	{% set is_logged_in = session.get('account_id') %}
 	{% set viewer_id = session.get('competitor_id') %}
 	{% set is_admin = session.get('admin_ok', False) %}
@@ -236,6 +237,7 @@
 			<a class="{% if nav_active == 'admin' %}active{% endif %}" href="/admin/comps">Admin</a>
 		{% endif %}
 
+		{# Only show scoring + leaderboard when user is ACTUALLY in a comp context #}
 		{% if show_comp_nav %}
 			<a class="{% if nav_active == 'sections' %}active{% endif %}"
 			   href="/comp/{{ comp_slug }}/competitor/{{ viewer_id }}/sections">My Scoring</a>
