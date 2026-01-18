@@ -1066,10 +1066,11 @@ def index():
 @app.route("/signup", methods=["GET", "POST"])
 def signup():
     """
-    App-level signup:
+    App-level signup (ACCOUNT-based):
     - Collect name + email
-    - Create a Competitor "account" with no competition yet
-    - Send a 6-digit code for verification (same as login)
+    - Create/find Account for email
+    - Ensure a shell Competitor row exists for legacy linkage (competition_id=None)
+    - Send a 6-digit code for verification
     - Redirect to /login/verify
     """
     error = None
@@ -1086,56 +1087,58 @@ def signup():
         elif not email:
             error = "Please enter your email."
         else:
-            # Does this email already have an account?
-            existing = Competitor.query.filter_by(email=email).first()
-
-            if existing:
-                # Already signed up → just send them a login code instead
-                code = f"{secrets.randbelow(1_000_000):06d}"
-                now = datetime.utcnow()
-                login_code = LoginCode(
-                    competitor_id=existing.id,
-                    code=code,
-                    created_at=now,
-                    expires_at=now + timedelta(minutes=10),
-                    used=False,
-                )
-                db.session.add(login_code)
+            # 1) Create/find Account (REAL identity)
+            acct = Account.query.filter_by(email=email).first()
+            if not acct:
+                acct = Account(email=email)
+                db.session.add(acct)
                 db.session.commit()
 
-                send_login_code_via_email(email, code)
-
-                session["login_email"] = email
-                message = "You already have an account. We've emailed you a login code."
-                return redirect("/login/verify")
-            else:
-                # Create a new "account" competitor (no competition yet)
-                comp = Competitor(
-                    name=name,
+            # 2) Ensure a shell competitor exists for this account (legacy competitor_id)
+            shell = (
+                Competitor.query
+                .filter(
+                    Competitor.account_id == acct.id,
+                    Competitor.competition_id.is_(None),
+                )
+                .first()
+            )
+            if not shell:
+                shell = Competitor(
+                    name=name or "Account",
                     gender="Inclusive",
-                    email=email,
+                    email=acct.email,          # legacy copy
                     competition_id=None,
+                    account_id=acct.id,
                 )
-                db.session.add(comp)
+                db.session.add(shell)
                 db.session.commit()
+            else:
+                # Optional: keep shell name fresh-ish
+                if name and shell.name in (None, "", "Account"):
+                    shell.name = name
+                    db.session.commit()
 
-                # Send a login/verification code
-                code = f"{secrets.randbelow(1_000_000):06d}"
-                now = datetime.utcnow()
-                login_code = LoginCode(
-                    competitor_id=comp.id,
-                    code=code,
-                    created_at=now,
-                    expires_at=now + timedelta(minutes=10),
-                    used=False,
-                )
-                db.session.add(login_code)
-                db.session.commit()
+            # 3) Send a login/verification code (tied to ACCOUNT)
+            code = f"{secrets.randbelow(1_000_000):06d}"
+            now = datetime.utcnow()
 
-                send_login_code_via_email(email, code)
+            login_code = LoginCode(
+                competitor_id=shell.id,   # legacy column
+                account_id=acct.id,       # REAL identity
+                code=code,
+                created_at=now,
+                expires_at=now + timedelta(minutes=10),
+                used=False,
+            )
+            db.session.add(login_code)
+            db.session.commit()
 
-                session["login_email"] = email
-                return redirect("/login/verify")
+            send_login_code_via_email(email, code)
+
+            session["login_email"] = email
+            message = "We emailed you a login code."
+            return redirect("/login/verify")
 
     return render_template(
         "signup.html",
@@ -1144,6 +1147,8 @@ def signup():
         name=name,
         email=email,
     )
+
+
 
 @app.route("/competitions")
 def competitions_index():
@@ -1389,10 +1394,14 @@ def login_request():
                 # We still need a competitor_id for legacy column (NOT used for auth)
                 comp_shell = (
                     Competitor.query
-                    .filter(Competitor.account_id == acct.id)
+                    .filter(
+                        Competitor.account_id == acct.id,
+                        Competitor.competition_id.is_(None),
+                    )
                     .order_by(Competitor.created_at.desc())
                     .first()
                 )
+
                 if not comp_shell:
                     comp_shell = Competitor(
                         name="Account",
@@ -1849,98 +1858,91 @@ def competitor_sections(competitor_id):
 
 @app.route("/comp/<slug>/competitor/<int:competitor_id>/sections")
 def comp_competitor_sections(slug, competitor_id):
-    viewer_id   = session.get("competitor_id")
-    is_admin    = session.get("admin_ok", False)
-    account_id  = session.get("account_id")
+    """
+    Sections index page scoped to a competition slug.
 
-    # Establish comp context from URL
-    session["active_comp_slug"] = slug
+    Key rule:
+    - REAL identity is session['account_id']
+    - Competition-specific identity is Competitor row where:
+        Competitor.account_id == account_id AND Competitor.competition_id == current_comp.id
 
-    # Must be logged in as account OR be admin
-    if not account_id and not is_admin:
-        next_path = request.path
-        return redirect(f"/login?slug={slug}&next={quote(next_path)}")
+    This route is tolerant of stale/wrong competitor_id in URLs:
+    - If the URL competitor_id isn't valid for this account+comp, we redirect to the correct one.
+    """
 
-    acct = Account.query.get(account_id) if account_id else None
-    acct_email = (acct.email or "").strip().lower() if acct else ""
+    is_admin = session.get("admin_ok", False)
 
-    # --- Determine which competitor to show ---
+    # Resolve competition from slug (source of truth)
+    current_comp = Competition.query.filter_by(slug=slug).first_or_404()
+
+    # --- ADMIN PATH ---
     if is_admin:
-        target_id = competitor_id
+        comp = Competitor.query.get_or_404(competitor_id)
+
+        # competitor must belong to this competition
+        if not comp.competition_id or comp.competition_id != current_comp.id:
+            abort(404)
+
+        # Only enforce gym-level permissions when admin is viewing someone else
+        # (If you want to enforce always, remove the "and ..." condition.)
+        viewer_id = session.get("competitor_id")
+        if viewer_id and comp.id != viewer_id:
+            if not admin_can_manage_competition(current_comp):
+                abort(403)
+
+        target_id = comp.id
+
+    # --- NON-ADMIN PATH (ACCOUNT based) ---
     else:
-        target_id = viewer_id
+        account_id = session.get("account_id")
+        if not account_id:
+            # Not logged in -> back to public home (or login)
+            return redirect("/")
 
-        # If URL competitor differs (or viewer_id missing), attempt safe switch
-        if competitor_id != viewer_id:
-            requested = Competitor.query.get(competitor_id)
-            if not requested:
-                return redirect("/my-comps")
+        acct = Account.query.get(account_id)
+        if not acct:
+            # stale session
+            for k in ["account_id", "competitor_id", "active_comp_slug", "competitor_email"]:
+                session.pop(k, None)
+            return redirect("/login")
 
-            req_email = (requested.email or "").strip().lower()
+        # 1) Try: does this exact competitor_id belong to this account + this comp?
+        comp = (
+            Competitor.query
+            .filter(
+                Competitor.id == competitor_id,
+                Competitor.account_id == acct.id,
+                Competitor.competition_id == current_comp.id,
+            )
+            .first()
+        )
 
-            # Preferred: competitor row is linked to this account
-            owns_by_account = bool(account_id and requested.account_id == account_id)
+        if not comp:
+            # 2) If not, try to find the correct competitor row for this account+comp
+            correct = (
+                Competitor.query
+                .filter(
+                    Competitor.account_id == acct.id,
+                    Competitor.competition_id == current_comp.id,
+                )
+                .first()
+            )
 
-            # Legacy fallback: competitor row not linked yet, but email matches logged-in account
-            owns_by_email = bool(account_id and requested.account_id is None and acct_email and req_email and req_email == acct_email)
+            if correct:
+                # Redirect to the correct URL (fixes stale/wrong Keep Scoring links)
+                return redirect(f"/comp/{slug}/competitor/{correct.id}/sections")
 
-            if not (owns_by_account or owns_by_email):
-                # Not yours — if you do have a viewer_id, bounce to it, else /my-comps
-                if viewer_id:
-                    return redirect(f"/comp/{slug}/competitor/{viewer_id}/sections")
-                return redirect("/my-comps")
+            # 3) Not registered for this comp -> go to join
+            return redirect(f"/comp/{slug}/join")
 
-            # Must belong to THIS slug competition
-            requested_comp = Competition.query.get(requested.competition_id) if requested.competition_id else None
-            if not requested_comp or requested_comp.slug != slug:
-                return redirect("/my-comps")
+        # Keep session consistent with what they're viewing
+        session["competitor_id"] = comp.id
+        session["competitor_email"] = acct.email
+        session["active_comp_slug"] = slug
 
-            # Switch session to this competitor row
-            session["competitor_id"] = requested.id
-            session["competitor_email"] = requested.email
-            session["active_comp_slug"] = slug
-            target_id = requested.id
+        target_id = comp.id
 
-            # (Optional but recommended) backfill linkage once proven safe
-            if requested.account_id is None and account_id:
-                requested.account_id = account_id
-                db.session.commit()
-
-        # If still no target_id, user has no competitor context for this comp
-        if not target_id:
-            return redirect("/my-comps")
-
-    # Load competitor row we’re showing
-    comp = Competitor.query.get_or_404(target_id)
-
-    if not comp.competition_id:
-        abort(404)
-
-    current_comp = Competition.query.get_or_404(comp.competition_id)
-    if current_comp.slug != slug:
-        abort(404)
-
-    # --- Ownership enforcement for non-admins ---
-    if not is_admin and account_id:
-        comp_email = (comp.email or "").strip().lower()
-
-        owns_by_account = (comp.account_id == account_id)
-        owns_by_email = (comp.account_id is None and acct_email and comp_email and comp_email == acct_email)
-
-        if not (owns_by_account or owns_by_email):
-            abort(403)
-
-        # (Optional) backfill linkage once proven safe
-        if comp.account_id is None and owns_by_email:
-            comp.account_id = account_id
-            db.session.commit()
-
-    # Admin gym permission only when viewing someone else (keeping your existing behaviour)
-    if is_admin and viewer_id and target_id != viewer_id:
-        if not admin_can_manage_competition(current_comp):
-            abort(403)
-
-    # --- Gym map + gym name ---
+    # --- Gym map + gym name (DB-driven) ---
     gym_name = None
     gym_map_path = None
     if current_comp.gym:
@@ -1949,6 +1951,7 @@ def comp_competitor_sections(slug, competitor_id):
 
     gym_map_url = get_gym_map_url_for_competition(current_comp)
 
+    # Sections scoped to THIS competition
     sections = (
         Section.query
         .filter(Section.competition_id == current_comp.id)
@@ -1959,7 +1962,6 @@ def comp_competitor_sections(slug, competitor_id):
     total_points = competitor_total_points(target_id, current_comp.id)
 
     rows, _ = build_leaderboard(None, competition_id=current_comp.id)
-
     position = None
     for r in rows:
         if r["competitor_id"] == target_id:
@@ -1968,6 +1970,7 @@ def comp_competitor_sections(slug, competitor_id):
 
     can_edit = (session.get("competitor_id") == target_id or is_admin)
 
+    # Map dots: climbs with coords for THIS competition’s sections (+ gym guard)
     if sections:
         section_ids = [s.id for s in sections]
         q = (
@@ -1987,7 +1990,7 @@ def comp_competitor_sections(slug, competitor_id):
 
     return render_template(
         "competitor_sections.html",
-        competitor=comp,
+        competitor=Competitor.query.get_or_404(target_id),
         sections=sections,
         total_points=total_points,
         position=position,
@@ -2002,7 +2005,6 @@ def comp_competitor_sections(slug, competitor_id):
         gym_map_path=gym_map_path,
         gym_map_url=gym_map_url,
     )
-
 
 
 # --- Competitor stats page: My Stats + Overall Stats ---
@@ -3001,10 +3003,14 @@ def public_register_for_comp(slug):
     # Need a shell competitor_id for legacy LoginCode column
     shell = (
         Competitor.query
-        .filter(Competitor.account_id == acct.id)
+        .filter(
+            Competitor.account_id == acct.id,
+            Competitor.competition_id.is_(None),
+        )
         .order_by(Competitor.created_at.desc())
         .first()
     )
+
     if not shell:
         shell = Competitor(
             name="Account",
