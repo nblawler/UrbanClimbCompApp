@@ -4,6 +4,7 @@ from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import UniqueConstraint
 from datetime import datetime, timedelta
 from urllib.parse import quote
+from typing import Optional
 import os
 import sys
 import re
@@ -509,7 +510,7 @@ def get_or_create_account_for_email(email: str) -> Account:
     return acct
 
 
-def get_account_for_session() -> Account | None:
+def get_account_for_session() -> Optional[Account]:
     # Prefer explicit session account_id if present
     account_id = session.get("account_id")
     if account_id:
