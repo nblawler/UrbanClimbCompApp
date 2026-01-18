@@ -1859,23 +1859,30 @@ def competitor_sections(competitor_id):
 @app.route("/comp/<slug>/competitor/<int:competitor_id>/sections")
 def comp_competitor_sections(slug, competitor_id):
     """
-    Sections index page scoped to a competition slug.
+    Sections index page, scoped to a specific competition slug.
 
-    Key rule:
-    - REAL identity is session['account_id']
-    - Competition-specific identity is Competitor row where:
+    Identity rules:
+    - REAL auth identity is session['account_id']
+    - Competition participation identity is a Competitor row:
         Competitor.account_id == account_id AND Competitor.competition_id == current_comp.id
 
-    This route is tolerant of stale/wrong competitor_id in URLs:
-    - If the URL competitor_id isn't valid for this account+comp, we redirect to the correct one.
+    Behaviour:
+    - Non-admins:
+        * If URL competitor_id is wrong/stale -> redirect to correct one
+        * If not registered -> redirect to /comp/<slug>/join
+        * Never 403 for normal competitor flows (403 is for true access violations)
+    - Admins:
+        * Can view any competitor in this comp, but must have gym permissions
     """
 
     is_admin = session.get("admin_ok", False)
 
-    # Resolve competition from slug (source of truth)
+    # Source of truth: comp by slug
     current_comp = Competition.query.filter_by(slug=slug).first_or_404()
 
-    # --- ADMIN PATH ---
+    # -------------------
+    # ADMIN PATH
+    # -------------------
     if is_admin:
         comp = Competitor.query.get_or_404(competitor_id)
 
@@ -1883,20 +1890,22 @@ def comp_competitor_sections(slug, competitor_id):
         if not comp.competition_id or comp.competition_id != current_comp.id:
             abort(404)
 
-        # Only enforce gym-level permissions when admin is viewing someone else
-        # (If you want to enforce always, remove the "and ..." condition.)
-        viewer_id = session.get("competitor_id")
-        if viewer_id and comp.id != viewer_id:
-            if not admin_can_manage_competition(current_comp):
-                abort(403)
+        # Admin permission guard (gym-based)
+        if not admin_can_manage_competition(current_comp):
+            abort(403)
 
         target_id = comp.id
 
-    # --- NON-ADMIN PATH (ACCOUNT based) ---
+        # Admin can always edit in admin context
+        can_edit = True
+
+    # -------------------
+    # NON-ADMIN PATH (ACCOUNT-based)
+    # -------------------
     else:
         account_id = session.get("account_id")
         if not account_id:
-            # Not logged in -> back to public home (or login)
+            # Not logged in -> no access
             return redirect("/")
 
         acct = Account.query.get(account_id)
@@ -1906,41 +1915,33 @@ def comp_competitor_sections(slug, competitor_id):
                 session.pop(k, None)
             return redirect("/login")
 
-        # 1) Try: does this exact competitor_id belong to this account + this comp?
-        comp = (
+        # Find the correct competitor row for THIS account + THIS competition
+        registered = (
             Competitor.query
             .filter(
-                Competitor.id == competitor_id,
                 Competitor.account_id == acct.id,
                 Competitor.competition_id == current_comp.id,
             )
             .first()
         )
 
-        if not comp:
-            # 2) If not, try to find the correct competitor row for this account+comp
-            correct = (
-                Competitor.query
-                .filter(
-                    Competitor.account_id == acct.id,
-                    Competitor.competition_id == current_comp.id,
-                )
-                .first()
-            )
-
-            if correct:
-                # Redirect to the correct URL (fixes stale/wrong Keep Scoring links)
-                return redirect(f"/comp/{slug}/competitor/{correct.id}/sections")
-
-            # 3) Not registered for this comp -> go to join
+        if not registered:
+            # Not registered for this comp -> go join (and clear sticky scoring context)
+            session.pop("competitor_id", None)
+            session.pop("active_comp_slug", None)
             return redirect(f"/comp/{slug}/join")
 
-        # Keep session consistent with what they're viewing
-        session["competitor_id"] = comp.id
+        # If URL competitor_id is wrong/stale, redirect to correct one
+        if competitor_id != registered.id:
+            return redirect(f"/comp/{slug}/competitor/{registered.id}/sections")
+
+        # Establish correct session context for scoring
+        session["competitor_id"] = registered.id
         session["competitor_email"] = acct.email
         session["active_comp_slug"] = slug
 
-        target_id = comp.id
+        target_id = registered.id
+        can_edit = True  # It's their own row
 
     # --- Gym map + gym name (DB-driven) ---
     gym_name = None
@@ -1968,8 +1969,6 @@ def comp_competitor_sections(slug, competitor_id):
             position = r["position"]
             break
 
-    can_edit = (session.get("competitor_id") == target_id or is_admin)
-
     # Map dots: climbs with coords for THIS competition’s sections (+ gym guard)
     if sections:
         section_ids = [s.id for s in sections]
@@ -1988,9 +1987,12 @@ def comp_competitor_sections(slug, competitor_id):
     else:
         map_climbs = []
 
+    # Load competitor for template
+    comp = Competitor.query.get_or_404(target_id)
+
     return render_template(
         "competitor_sections.html",
-        competitor=Competitor.query.get_or_404(target_id),
+        competitor=comp,
         sections=sections,
         total_points=total_points,
         position=position,
