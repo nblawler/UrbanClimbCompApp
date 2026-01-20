@@ -181,7 +181,7 @@
 			box-shadow: 0 10px 20px rgba(93, 244, 162, 0.3);
 		}
 
-		/* --- Interactive map wrapper (zoom/pan) --- */
+		/* Map wrapper */
 		.map-wrapper {
 			position: relative;
 			width: 100%;
@@ -191,18 +191,21 @@
 			background: #000;
 		}
 
+		/* The viewport (window) */
 		.map-viewport {
 			position: relative;
 			width: 100%;
 			height: min(70vh, 700px);
 			overflow: hidden;
-			touch-action: none; /* we manage pinch/pan ourselves */
+			touch-action: none; /* critical */
 			background: #000;
 		}
 
+		/* The thing we pan/zoom (will be sized to the image in JS) */
 		.map-layer {
 			position: absolute;
-			inset: 0;
+			left: 0;
+			top: 0;
 			transform-origin: 0 0;
 			will-change: transform;
 		}
@@ -213,7 +216,7 @@
 			height: auto;
 			user-select: none;
 			-webkit-user-drag: none;
-			pointer-events: none; /* image shouldn't steal taps */
+			pointer-events: none; /* don't steal taps */
 		}
 
 		.map-marker {
@@ -245,7 +248,7 @@
 			transform: translate(-50%, -50%);
 		}
 
-		/* --- Counter-scale markers so they SHRINK relative to map zoom --- */
+		/* Counter-scale markers so they shrink relative to zoom */
 		#mapWrapperSections { --map-scale: 1; }
 
 		#mapWrapperSections .map-marker {
@@ -258,7 +261,6 @@
 				rgba(0, 0, 0, 0.5);
 		}
 
-		/* Keep phone tap targets sane (don't let them become microscopic) */
 		@media (max-width: 520px) {
 			#mapWrapperSections .map-marker {
 				width: max(24px, calc(28px / var(--map-scale)));
@@ -296,41 +298,27 @@
 		/* Responsive */
 		@media (max-width: 768px) {
 			.nav { padding: 1rem; }
-
 			.container { padding: 1.5rem 1rem; }
-
 			.comp-header { padding: 1.5rem; }
-
 			.comp-name { font-size: 1.6rem; }
-
 			.comp-pill { min-width: 90px; }
-
 			.comp-pill-value { font-size: 1.25rem; }
-
 			.map-card { padding: 1.5rem; }
-
 			.section-title { font-size: 1.4rem; }
 		}
 
 		@media (max-width: 520px) {
 			.comp-meta-row { gap: 0.75rem; }
-
-			.comp-pill {
-				flex: 1 1 calc(50% - 0.375rem);
-				min-width: 0;
-			}
+			.comp-pill { flex: 1 1 calc(50% - 0.375rem); min-width: 0; }
 		}
 	</style>
 </head>
 
 <body>
-	{# IMPORTANT: account_id = logged-in state. competitor_id = only set when actually registered + in comp context. #}
 	{% set is_logged_in = session.get('account_id') %}
 	{% set viewer_id = session.get('competitor_id') %}
 	{% set is_admin = session.get('admin_ok', False) %}
 	{% set comp_slug = comp_slug if comp_slug is defined else session.get('active_comp_slug') %}
-
-	{# Only show comp nav if you're truly in an active comp context #}
 	{% set show_comp_nav = (is_logged_in and viewer_id and comp_slug) %}
 
 	<nav class="nav">
@@ -341,36 +329,25 @@
 			<a class="{% if nav_active == 'admin' %}active{% endif %}" href="/admin/comps">Admin</a>
 		{% endif %}
 
-		{# Only show comp-specific links if we have an active comp context #}
 		{% if show_comp_nav %}
 			<a class="{% if nav_active == 'sections' %}active{% endif %}"
-			   href="/comp/{{ comp_slug }}/competitor/{{ viewer_id }}/sections">
-				Climb Map
-			</a>
+			   href="/comp/{{ comp_slug }}/competitor/{{ viewer_id }}/sections">Climb Map</a>
 
 			<a class="{% if nav_active == 'my_stats' %}active{% endif %}"
-			   href="/competitor/{{ viewer_id }}/stats/my">
-				My Stats
-			</a>
+			   href="/competitor/{{ viewer_id }}/stats/my">My Stats</a>
 
 			<a class="{% if nav_active == 'overall_stats' %}active{% endif %}"
-			   href="/competitor/{{ viewer_id }}/stats/overall">
-				Overall Stats
-			</a>
+			   href="/competitor/{{ viewer_id }}/stats/overall">Overall Stats</a>
 
 			<a class="{% if nav_active == 'leaderboard' %}active{% endif %}"
-			   href="/leaderboard?cid={{ viewer_id }}">
-				Leaderboard
-			</a>
+			   href="/leaderboard?cid={{ viewer_id }}">Leaderboard</a>
 		{% endif %}
 
 		{% if is_logged_in or is_admin %}
 			<a href="/logout">Log out</a>
 		{% else %}
 			<a class="{% if nav_active == 'login' %}active{% endif %}"
-			   href="/login{% if comp_slug %}?slug={{ comp_slug }}{% endif %}">
-				Log in
-			</a>
+			   href="/login{% if comp_slug %}?slug={{ comp_slug }}{% endif %}">Log in</a>
 		{% endif %}
 	</nav>
 
@@ -425,9 +402,13 @@
 
 			{% if gym_map_path %}
 				<div class="map-wrapper" id="mapWrapperSections">
-					<div class="map-viewport">
+					<div class="map-viewport" id="mapViewportSections">
 						<div class="map-layer" id="mapLayerSections">
-							<img class="gym-map-image" src="{{ gym_map_path }}" alt="{{ gym_name }} Gym Map" draggable="false" />
+							<img id="mapImageSections"
+							     class="gym-map-image"
+							     src="{{ gym_map_path }}"
+							     alt="{{ gym_name }} Gym Map"
+							     draggable="false" />
 
 							{% for c in map_climbs %}
 								{% if c.x_percent is not none and c.y_percent is not none %}
@@ -469,6 +450,7 @@
 	</main>
 
 	<script>
+		// Section filter (unchanged)
 		document.addEventListener("DOMContentLoaded", function () {
 			const pills   = Array.from(document.querySelectorAll(".section-filter-pill"));
 			const markers = Array.from(document.querySelectorAll(".map-marker"));
@@ -515,33 +497,50 @@
 	</script>
 
 	<script>
+		// Zoom/pan controller that sizes the layer to the IMAGE so % marker positions stay correct
 		(function () {
 			const wrapper = document.getElementById("mapWrapperSections");
+			const viewport = document.getElementById("mapViewportSections");
 			const layer = document.getElementById("mapLayerSections");
-			if (!wrapper || !layer) return;
+			const img = document.getElementById("mapImageSections");
 
-			const viewport = wrapper.querySelector(".map-viewport");
+			if (!wrapper || !viewport || !layer || !img) return;
 
 			let scale = 1;
 			const minScale = 1;
 			const maxScale = 4;
 
-			let tx = 0;
-			let ty = 0;
+			let tx = 0, ty = 0;
 
-			// Touch / mouse state
+			// Base (unscaled) layer size in px (must match rendered image size)
+			let baseW = 0;
+			let baseH = 0;
+
+			// Drag/pinch state
 			let isPanning = false;
 			let startX = 0, startY = 0;
 			let lastTx = 0, lastTy = 0;
-
 			let pinchStartDist = 0;
 			let pinchStartScale = 1;
 
-			// Tap-vs-drag protection for markers (prevents accidental nav while panning)
+			// Prevent accidental marker navigation after a pan
 			let movedTooFar = false;
 			let panStartClient = { x: 0, y: 0 };
 
 			function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
+
+			function updateLayerSizeFromImage() {
+				// Use the image's rendered size
+				const r = img.getBoundingClientRect();
+				baseW = Math.max(1, Math.round(r.width));
+				baseH = Math.max(1, Math.round(r.height));
+
+				layer.style.width = baseW + "px";
+				layer.style.height = baseH + "px";
+
+				clampPan();
+				applyTransform();
+			}
 
 			function applyTransform() {
 				layer.style.transform = `translate(${tx}px, ${ty}px) scale(${scale})`;
@@ -549,32 +548,47 @@
 			}
 
 			function clampPan() {
-				const rect = viewport.getBoundingClientRect();
-				const scaledW = rect.width * scale;
-				const scaledH = rect.height * scale;
+				const vr = viewport.getBoundingClientRect();
+				const viewW = vr.width;
+				const viewH = vr.height;
 
-				const minTx = rect.width - scaledW;
-				const minTy = rect.height - scaledH;
+				const scaledW = baseW * scale;
+				const scaledH = baseH * scale;
 
-				tx = clamp(tx, minTx, 0);
-				ty = clamp(ty, minTy, 0);
+				// If the map is smaller than viewport in one dimension, center it
+				if (scaledW <= viewW) {
+					tx = (viewW - scaledW) / 2;
+				} else {
+					const minTx = viewW - scaledW;
+					tx = clamp(tx, minTx, 0);
+				}
+
+				if (scaledH <= viewH) {
+					ty = (viewH - scaledH) / 2;
+				} else {
+					const minTy = viewH - scaledH;
+					ty = clamp(ty, minTy, 0);
+				}
 			}
 
 			function reset() {
 				scale = 1;
 				tx = 0;
 				ty = 0;
+				clampPan();
 				applyTransform();
 			}
 
 			function zoomBy(factor, centerClientX, centerClientY) {
-				const rect = viewport.getBoundingClientRect();
-				const cx = (centerClientX ?? rect.left + rect.width / 2) - rect.left;
-				const cy = (centerClientY ?? rect.top + rect.height / 2) - rect.top;
+				const vr = viewport.getBoundingClientRect();
+
+				const cx = (centerClientX ?? (vr.left + vr.width / 2)) - vr.left;
+				const cy = (centerClientY ?? (vr.top + vr.height / 2)) - vr.top;
 
 				const nextScale = clamp(scale * factor, minScale, maxScale);
 				const scaleChange = nextScale / scale;
 
+				// Zoom around viewport point (cx, cy)
 				tx = cx - (cx - tx) * scaleChange;
 				ty = cy - (cy - ty) * scaleChange;
 
@@ -593,7 +607,7 @@
 				return { x: (t1.clientX + t2.clientX) / 2, y: (t1.clientY + t2.clientY) / 2 };
 			}
 
-			// Prevent page scroll while interacting
+			// Stop browser scroll/zoom while using the map
 			viewport.addEventListener("touchmove", (e) => e.preventDefault(), { passive: false });
 
 			viewport.addEventListener("touchstart", (e) => {
@@ -637,9 +651,9 @@
 					const factor = dist / (pinchStartDist || dist);
 					const nextScale = clamp(pinchStartScale * factor, minScale, maxScale);
 
-					const rect = viewport.getBoundingClientRect();
-					const cx = mid.x - rect.left;
-					const cy = mid.y - rect.top;
+					const vr = viewport.getBoundingClientRect();
+					const cx = mid.x - vr.left;
+					const cy = mid.y - vr.top;
 
 					const scaleChange = nextScale / scale;
 					tx = cx - (cx - tx) * scaleChange;
@@ -655,7 +669,7 @@
 				if (e.touches.length === 0) isPanning = false;
 			});
 
-			// Mouse support
+			// Mouse drag + wheel zoom (desktop)
 			let mouseDown = false;
 
 			viewport.addEventListener("mousedown", (e) => {
@@ -682,14 +696,13 @@
 
 			window.addEventListener("mouseup", () => { mouseDown = false; });
 
-			// Wheel zoom
 			viewport.addEventListener("wheel", (e) => {
 				e.preventDefault();
 				const factor = e.deltaY < 0 ? 1.1 : 0.9;
 				zoomBy(factor, e.clientX, e.clientY);
 			}, { passive: false });
 
-			// Stop accidental marker click after pan
+			// Block click on a marker if the user was panning
 			wrapper.addEventListener("click", (e) => {
 				const marker = e.target.closest(".map-marker");
 				if (!marker) return;
@@ -700,7 +713,22 @@
 				}
 			}, true);
 
-			reset();
+			// Wait for the image to load, then lock layer size to image render size
+			function initWhenReady() {
+				updateLayerSizeFromImage();
+				reset();
+			}
+
+			if (img.complete) {
+				initWhenReady();
+			} else {
+				img.addEventListener("load", initWhenReady, { once: true });
+			}
+
+			// Recompute if layout changes (orientation change / resize)
+			window.addEventListener("resize", () => {
+				updateLayerSizeFromImage();
+			});
 		})();
 	</script>
 </body>
