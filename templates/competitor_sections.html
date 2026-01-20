@@ -112,9 +112,7 @@
 			color: rgba(255, 255, 255, 0.9);
 		}
 
-		.view-only-note strong {
-			color: #fff;
-		}
+		.view-only-note strong { color: #fff; }
 
 		/* Map card */
 		.map-card {
@@ -191,13 +189,13 @@
 		.map-viewport {
 			position: relative;
 			width: 100%;
-			height: clamp(420px, 75vh, 820px);
+			height: clamp(460px, 78vh, 900px);
 			overflow: hidden;
-			touch-action: none; /* we manage pinch/pan ourselves */
+			touch-action: none;
 			background: #000;
 		}
 
-		/* The thing we pan/zoom (sized to the IMAGE in JS) */
+		/* The thing we pan/zoom */
 		.map-layer {
 			position: absolute;
 			left: 0;
@@ -244,25 +242,27 @@
 			transform: translate(-50%, -50%);
 		}
 
-		/* Marker sizing vs zoom:
-		   - map scales by `scale`
-		   - marker scales by 1/(scale^p) where p=0.65 (set in JS)
-		   - net effect: markers grow with zoom, but slower than the map */
+		/* Visual marker scaling vs zoom */
 		#mapWrapperSections { --map-scale: 1; --marker-scale: 1; }
 
+		/* The *visible* dot changes size with zoom (slower than map) */
 		#mapWrapperSections .map-marker {
 			width: calc(20px / var(--marker-scale));
 			height: calc(20px / var(--marker-scale));
-			border-width: 2px; /* keep consistent */
-			box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+			border-width: 2px;
 		}
 
-		/* Keep markers tappable on phones */
-		@media (max-width: 520px) {
-			#mapWrapperSections .map-marker {
-				width: max(24px, calc(28px / var(--marker-scale)));
-				height: max(24px, calc(28px / var(--marker-scale)));
-			}
+		/* Big invisible tap target (so we DON'T need max() clamping that kills scaling on phone) */
+		#mapWrapperSections .map-marker::after {
+			content: "";
+			position: absolute;
+			left: 50%;
+			top: 50%;
+			width: 38px;
+			height: 38px;
+			transform: translate(-50%, -50%);
+			border-radius: 999px;
+			background: transparent;
 		}
 
 		/* Map missing state */
@@ -493,7 +493,6 @@
 	</script>
 
 	<script>
-		// Zoom/pan controller (correct image-sized layer + fit/center on load)
 		(function () {
 			const wrapper  = document.getElementById("mapWrapperSections");
 			const viewport = document.getElementById("mapViewportSections");
@@ -502,7 +501,9 @@
 			if (!wrapper || !viewport || !layer || !img) return;
 
 			let scale = 1;
-			const minScale = 1;
+
+			// ✅ KEY FIX: allow zooming out so the whole map can fit on laptop
+			const minScale = 0.5;
 			const maxScale = 4;
 
 			let tx = 0, ty = 0;
@@ -533,11 +534,11 @@
 
 			function applyTransform() {
 				layer.style.transform = `translate(${tx}px, ${ty}px) scale(${scale})`;
-				wrapper.style.setProperty("--map-scale", String(scale));
 
-				// p=0.65: markers grow with zoom, but slower than map
+				// marker scaling: p=0.65 means markers change size with zoom, but slower than the map
 				const markerScale = Math.pow(scale, 0.65);
 				wrapper.style.setProperty("--marker-scale", String(markerScale));
+				wrapper.style.setProperty("--map-scale", String(scale));
 			}
 
 			function clampPan() {
@@ -551,17 +552,11 @@
 				const minTx = viewW - scaledW;
 				const minTy = viewH - scaledH;
 
-				if (scaledW <= viewW) {
-					tx = (viewW - scaledW) / 2;
-				} else {
-					tx = clamp(tx, minTx, 0);
-				}
+				if (scaledW <= viewW) tx = (viewW - scaledW) / 2;
+				else tx = clamp(tx, minTx, 0);
 
-				if (scaledH <= viewH) {
-					ty = (viewH - scaledH) / 2;
-				} else {
-					ty = clamp(ty, minTy, 0);
-				}
+				if (scaledH <= viewH) ty = (viewH - scaledH) / 2;
+				else ty = clamp(ty, minTy, 0);
 			}
 
 			function resetFit() {
@@ -569,9 +564,8 @@
 				const viewW = vr.width;
 				const viewH = vr.height;
 
-				// Fit whole image into viewport (no upscaling beyond 1)
-				const fitScale = Math.min(1, viewW / baseW, viewH / baseH);
-
+				// Fit whole image into viewport (allow <1 now)
+				const fitScale = Math.min(viewW / baseW, viewH / baseH, 1);
 				scale = clamp(fitScale, minScale, maxScale);
 
 				tx = (viewW - baseW * scale) / 2;
@@ -581,20 +575,23 @@
 				applyTransform();
 			}
 
-			function zoomBy(factor, centerClientX, centerClientY) {
+			function zoomTo(nextScale, centerClientX, centerClientY) {
+				nextScale = clamp(nextScale, minScale, maxScale);
 				const vr = viewport.getBoundingClientRect();
 				const cx = (centerClientX ?? (vr.left + vr.width / 2)) - vr.left;
 				const cy = (centerClientY ?? (vr.top + vr.height / 2)) - vr.top;
 
-				const nextScale = clamp(scale * factor, minScale, maxScale);
 				const scaleChange = nextScale / scale;
-
 				tx = cx - (cx - tx) * scaleChange;
 				ty = cy - (cy - ty) * scaleChange;
 
 				scale = nextScale;
 				clampPan();
 				applyTransform();
+			}
+
+			function zoomBy(factor, clientX, clientY) {
+				zoomTo(scale * factor, clientX, clientY);
 			}
 
 			function getTouchDist(t1, t2) {
@@ -648,19 +645,9 @@
 					const mid = getTouchMid(e.touches[0], e.touches[1]);
 
 					const factor = dist / (pinchStartDist || dist);
-					const nextScale = clamp(pinchStartScale * factor, minScale, maxScale);
+					const nextScale = pinchStartScale * factor;
 
-					const vr = viewport.getBoundingClientRect();
-					const cx = mid.x - vr.left;
-					const cy = mid.y - vr.top;
-
-					const scaleChange = nextScale / scale;
-					tx = cx - (cx - tx) * scaleChange;
-					ty = cy - (cy - ty) * scaleChange;
-
-					scale = nextScale;
-					clampPan();
-					applyTransform();
+					zoomTo(nextScale, mid.x, mid.y);
 				}
 			}, { passive: false });
 
@@ -668,7 +655,7 @@
 				if (e.touches.length === 0) isPanning = false;
 			});
 
-			// Desktop: drag + wheel
+			// Desktop drag + wheel
 			let mouseDown = false;
 
 			viewport.addEventListener("mousedown", (e) => {
@@ -712,19 +699,14 @@
 				}
 			}, true);
 
-			// Init after image renders
 			function init() {
 				updateLayerSizeFromImage();
 				resetFit();
 			}
 
-			if (img.complete) {
-				init();
-			} else {
-				img.addEventListener("load", init, { once: true });
-			}
+			if (img.complete) init();
+			else img.addEventListener("load", init, { once: true });
 
-			// Re-fit on resize/orientation change
 			let resizeTimer = null;
 			window.addEventListener("resize", () => {
 				clearTimeout(resizeTimer);
