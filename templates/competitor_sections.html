@@ -126,9 +126,7 @@
 			margin-bottom: 2rem;
 		}
 
-		.section-header {
-			margin-bottom: 1.5rem;
-		}
+		.section-header { margin-bottom: 1.5rem; }
 
 		.section-title {
 			font-size: 1.75rem;
@@ -137,9 +135,7 @@
 		}
 
 		/* Section filter */
-		.section-filter-row {
-			margin-bottom: 1.5rem;
-		}
+		.section-filter-row { margin-bottom: 1.5rem; }
 
 		.section-filter-label {
 			font-size: 0.95rem;
@@ -195,13 +191,13 @@
 		.map-viewport {
 			position: relative;
 			width: 100%;
-			height: min(70vh, 700px);
+			height: clamp(420px, 75vh, 820px);
 			overflow: hidden;
-			touch-action: none; /* critical */
+			touch-action: none; /* we manage pinch/pan ourselves */
 			background: #000;
 		}
 
-		/* The thing we pan/zoom (will be sized to the image in JS) */
+		/* The thing we pan/zoom (sized to the IMAGE in JS) */
 		.map-layer {
 			position: absolute;
 			left: 0;
@@ -216,7 +212,7 @@
 			height: auto;
 			user-select: none;
 			-webkit-user-drag: none;
-			pointer-events: none; /* don't steal taps */
+			pointer-events: none;
 		}
 
 		.map-marker {
@@ -248,24 +244,24 @@
 			transform: translate(-50%, -50%);
 		}
 
-		/* Counter-scale markers so they shrink relative to zoom */
-		#mapWrapperSections { --map-scale: 1; }
+		/* Marker sizing vs zoom:
+		   - map scales by `scale`
+		   - marker scales by 1/(scale^p) where p=0.65 (set in JS)
+		   - net effect: markers grow with zoom, but slower than the map */
+		#mapWrapperSections { --map-scale: 1; --marker-scale: 1; }
 
 		#mapWrapperSections .map-marker {
-			width: calc(20px / var(--map-scale));
-			height: calc(20px / var(--map-scale));
-			border-width: calc(2px / var(--map-scale));
-			box-shadow:
-				0 calc(4px / var(--map-scale))
-				calc(12px / var(--map-scale))
-				rgba(0, 0, 0, 0.5);
+			width: calc(20px / var(--marker-scale));
+			height: calc(20px / var(--marker-scale));
+			border-width: 2px; /* keep consistent */
+			box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
 		}
 
+		/* Keep markers tappable on phones */
 		@media (max-width: 520px) {
 			#mapWrapperSections .map-marker {
-				width: max(24px, calc(28px / var(--map-scale)));
-				height: max(24px, calc(28px / var(--map-scale)));
-				border-width: calc(2px / var(--map-scale));
+				width: max(24px, calc(28px / var(--marker-scale)));
+				height: max(24px, calc(28px / var(--marker-scale)));
 			}
 		}
 
@@ -497,13 +493,12 @@
 	</script>
 
 	<script>
-		// Zoom/pan controller that sizes the layer to the IMAGE so % marker positions stay correct
+		// Zoom/pan controller (correct image-sized layer + fit/center on load)
 		(function () {
-			const wrapper = document.getElementById("mapWrapperSections");
+			const wrapper  = document.getElementById("mapWrapperSections");
 			const viewport = document.getElementById("mapViewportSections");
-			const layer = document.getElementById("mapLayerSections");
-			const img = document.getElementById("mapImageSections");
-
+			const layer    = document.getElementById("mapLayerSections");
+			const img      = document.getElementById("mapImageSections");
 			if (!wrapper || !viewport || !layer || !img) return;
 
 			let scale = 1;
@@ -512,39 +507,37 @@
 
 			let tx = 0, ty = 0;
 
-			// Base (unscaled) layer size in px (must match rendered image size)
-			let baseW = 0;
-			let baseH = 0;
+			let baseW = 1;
+			let baseH = 1;
 
-			// Drag/pinch state
 			let isPanning = false;
 			let startX = 0, startY = 0;
 			let lastTx = 0, lastTy = 0;
+
 			let pinchStartDist = 0;
 			let pinchStartScale = 1;
 
-			// Prevent accidental marker navigation after a pan
 			let movedTooFar = false;
 			let panStartClient = { x: 0, y: 0 };
 
 			function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
 
 			function updateLayerSizeFromImage() {
-				// Use the image's rendered size
 				const r = img.getBoundingClientRect();
 				baseW = Math.max(1, Math.round(r.width));
 				baseH = Math.max(1, Math.round(r.height));
 
-				layer.style.width = baseW + "px";
+				layer.style.width  = baseW + "px";
 				layer.style.height = baseH + "px";
-
-				clampPan();
-				applyTransform();
 			}
 
 			function applyTransform() {
 				layer.style.transform = `translate(${tx}px, ${ty}px) scale(${scale})`;
 				wrapper.style.setProperty("--map-scale", String(scale));
+
+				// p=0.65: markers grow with zoom, but slower than map
+				const markerScale = Math.pow(scale, 0.65);
+				wrapper.style.setProperty("--marker-scale", String(markerScale));
 			}
 
 			function clampPan() {
@@ -555,40 +548,47 @@
 				const scaledW = baseW * scale;
 				const scaledH = baseH * scale;
 
-				// If the map is smaller than viewport in one dimension, center it
+				const minTx = viewW - scaledW;
+				const minTy = viewH - scaledH;
+
 				if (scaledW <= viewW) {
 					tx = (viewW - scaledW) / 2;
 				} else {
-					const minTx = viewW - scaledW;
 					tx = clamp(tx, minTx, 0);
 				}
 
 				if (scaledH <= viewH) {
 					ty = (viewH - scaledH) / 2;
 				} else {
-					const minTy = viewH - scaledH;
 					ty = clamp(ty, minTy, 0);
 				}
 			}
 
-			function reset() {
-				scale = 1;
-				tx = 0;
-				ty = 0;
+			function resetFit() {
+				const vr = viewport.getBoundingClientRect();
+				const viewW = vr.width;
+				const viewH = vr.height;
+
+				// Fit whole image into viewport (no upscaling beyond 1)
+				const fitScale = Math.min(1, viewW / baseW, viewH / baseH);
+
+				scale = clamp(fitScale, minScale, maxScale);
+
+				tx = (viewW - baseW * scale) / 2;
+				ty = (viewH - baseH * scale) / 2;
+
 				clampPan();
 				applyTransform();
 			}
 
 			function zoomBy(factor, centerClientX, centerClientY) {
 				const vr = viewport.getBoundingClientRect();
-
 				const cx = (centerClientX ?? (vr.left + vr.width / 2)) - vr.left;
 				const cy = (centerClientY ?? (vr.top + vr.height / 2)) - vr.top;
 
 				const nextScale = clamp(scale * factor, minScale, maxScale);
 				const scaleChange = nextScale / scale;
 
-				// Zoom around viewport point (cx, cy)
 				tx = cx - (cx - tx) * scaleChange;
 				ty = cy - (cy - ty) * scaleChange;
 
@@ -607,7 +607,6 @@
 				return { x: (t1.clientX + t2.clientX) / 2, y: (t1.clientY + t2.clientY) / 2 };
 			}
 
-			// Stop browser scroll/zoom while using the map
 			viewport.addEventListener("touchmove", (e) => e.preventDefault(), { passive: false });
 
 			viewport.addEventListener("touchstart", (e) => {
@@ -669,7 +668,7 @@
 				if (e.touches.length === 0) isPanning = false;
 			});
 
-			// Mouse drag + wheel zoom (desktop)
+			// Desktop: drag + wheel
 			let mouseDown = false;
 
 			viewport.addEventListener("mousedown", (e) => {
@@ -702,7 +701,7 @@
 				zoomBy(factor, e.clientX, e.clientY);
 			}, { passive: false });
 
-			// Block click on a marker if the user was panning
+			// Block marker click if user was panning
 			wrapper.addEventListener("click", (e) => {
 				const marker = e.target.closest(".map-marker");
 				if (!marker) return;
@@ -713,21 +712,26 @@
 				}
 			}, true);
 
-			// Wait for the image to load, then lock layer size to image render size
-			function initWhenReady() {
+			// Init after image renders
+			function init() {
 				updateLayerSizeFromImage();
-				reset();
+				resetFit();
 			}
 
 			if (img.complete) {
-				initWhenReady();
+				init();
 			} else {
-				img.addEventListener("load", initWhenReady, { once: true });
+				img.addEventListener("load", init, { once: true });
 			}
 
-			// Recompute if layout changes (orientation change / resize)
+			// Re-fit on resize/orientation change
+			let resizeTimer = null;
 			window.addEventListener("resize", () => {
-				updateLayerSizeFromImage();
+				clearTimeout(resizeTimer);
+				resizeTimer = setTimeout(() => {
+					updateLayerSizeFromImage();
+					resetFit();
+				}, 120);
 			});
 		})();
 	</script>
