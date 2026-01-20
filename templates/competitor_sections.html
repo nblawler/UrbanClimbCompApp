@@ -196,7 +196,7 @@
 			width: 100%;
 			height: min(70vh, 700px);
 			overflow: hidden;
-			touch-action: none; /* key: lets us control pinch/pan */
+			touch-action: none; /* we manage pinch/pan ourselves */
 			background: #000;
 		}
 
@@ -213,7 +213,7 @@
 			height: auto;
 			user-select: none;
 			-webkit-user-drag: none;
-			pointer-events: none; /* image should not steal taps/gestures */
+			pointer-events: none; /* image shouldn't steal taps */
 		}
 
 		.map-marker {
@@ -224,14 +224,14 @@
 			border: 2px solid #fff;
 			transform: translate(-50%, -50%);
 			box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
-			transition: all 0.2s;
+			transition: transform 0.15s, box-shadow 0.15s;
 			cursor: pointer;
 			text-decoration: none;
 			pointer-events: auto;
 		}
 
 		.map-marker:hover {
-			transform: translate(-50%, -50%) scale(1.3);
+			transform: translate(-50%, -50%) scale(1.15);
 			box-shadow: 0 8px 20px rgba(0, 0, 0, 0.7);
 			z-index: 10;
 		}
@@ -245,27 +245,27 @@
 			transform: translate(-50%, -50%);
 		}
 
-		.map-controls {
-			position: absolute;
-			right: 12px;
-			bottom: 12px;
-			display: flex;
-			gap: 8px;
-			z-index: 50;
+		/* --- Counter-scale markers so they SHRINK relative to map zoom --- */
+		#mapWrapperSections { --map-scale: 1; }
+
+		#mapWrapperSections .map-marker {
+			width: calc(20px / var(--map-scale));
+			height: calc(20px / var(--map-scale));
+			border-width: calc(2px / var(--map-scale));
+			box-shadow:
+				0 calc(4px / var(--map-scale))
+				calc(12px / var(--map-scale))
+				rgba(0, 0, 0, 0.5);
 		}
 
-		.map-btn {
-			border-radius: 999px;
-			border: 1px solid rgba(255,255,255,0.25);
-			background: rgba(10, 22, 40, 0.85);
-			color: #fff;
-			padding: 10px 12px;
-			font-weight: 800;
-			cursor: pointer;
-			backdrop-filter: blur(8px);
+		/* Keep phone tap targets sane (don't let them become microscopic) */
+		@media (max-width: 520px) {
+			#mapWrapperSections .map-marker {
+				width: max(24px, calc(28px / var(--map-scale)));
+				height: max(24px, calc(28px / var(--map-scale)));
+				border-width: calc(2px / var(--map-scale));
+			}
 		}
-
-		.map-btn:active { transform: scale(0.97); }
 
 		/* Map missing state */
 		.map-missing {
@@ -318,12 +318,6 @@
 			.comp-pill {
 				flex: 1 1 calc(50% - 0.375rem);
 				min-width: 0;
-			}
-
-			/* make markers easier to tap on phones */
-			.map-marker {
-				width: 28px;
-				height: 28px;
 			}
 		}
 	</style>
@@ -462,12 +456,6 @@
 							{% endfor %}
 						</div>
 					</div>
-
-					<div class="map-controls" aria-label="Map controls">
-						<button type="button" class="map-btn" data-map-action="zoom-in" aria-label="Zoom in">+</button>
-						<button type="button" class="map-btn" data-map-action="zoom-out" aria-label="Zoom out">−</button>
-						<button type="button" class="map-btn" data-map-action="reset" aria-label="Reset zoom">Reset</button>
-					</div>
 				</div>
 			{% else %}
 				<div class="map-missing">
@@ -485,44 +473,44 @@
 			const pills   = Array.from(document.querySelectorAll(".section-filter-pill"));
 			const markers = Array.from(document.querySelectorAll(".map-marker"));
 
-			if (pills.length && markers.length) {
-				let activeIds = new Set();
+			if (!pills.length || !markers.length) return;
 
-				function applyFilter() {
-					if (!activeIds.size) {
-						markers.forEach((m) => { m.style.display = ""; });
-						return;
-					}
-					markers.forEach((m) => {
-						const sid = m.dataset.sectionId;
-						m.style.display = (!sid || activeIds.has(sid)) ? "" : "none";
-					});
+			let activeIds = new Set();
+
+			function applyFilter() {
+				if (!activeIds.size) {
+					markers.forEach((m) => { m.style.display = ""; });
+					return;
 				}
-
-				pills.forEach((pill) => {
-					pill.addEventListener("click", () => {
-						const sid = pill.dataset.sectionId;
-						if (!sid) return;
-
-						const isActive = pill.classList.contains("is-active");
-
-						if (isActive) {
-							pill.classList.remove("is-active");
-							activeIds.delete(sid);
-						} else {
-							pill.classList.add("is-active");
-							activeIds.add(sid);
-						}
-
-						const anyActive = pills.some((p) => p.classList.contains("is-active"));
-						if (!anyActive) activeIds.clear();
-
-						applyFilter();
-					});
+				markers.forEach((m) => {
+					const sid = m.dataset.sectionId;
+					m.style.display = (!sid || activeIds.has(sid)) ? "" : "none";
 				});
-
-				applyFilter();
 			}
+
+			pills.forEach((pill) => {
+				pill.addEventListener("click", () => {
+					const sid = pill.dataset.sectionId;
+					if (!sid) return;
+
+					const isActive = pill.classList.contains("is-active");
+
+					if (isActive) {
+						pill.classList.remove("is-active");
+						activeIds.delete(sid);
+					} else {
+						pill.classList.add("is-active");
+						activeIds.add(sid);
+					}
+
+					const anyActive = pills.some((p) => p.classList.contains("is-active"));
+					if (!anyActive) activeIds.clear();
+
+					applyFilter();
+				});
+			});
+
+			applyFilter();
 		});
 	</script>
 
@@ -533,16 +521,15 @@
 			if (!wrapper || !layer) return;
 
 			const viewport = wrapper.querySelector(".map-viewport");
-			const controls = wrapper.querySelector(".map-controls");
 
 			let scale = 1;
-			let minScale = 1;
-			let maxScale = 4;
+			const minScale = 1;
+			const maxScale = 4;
 
 			let tx = 0;
 			let ty = 0;
 
-			// Track touches
+			// Touch / mouse state
 			let isPanning = false;
 			let startX = 0, startY = 0;
 			let lastTx = 0, lastTy = 0;
@@ -550,7 +537,7 @@
 			let pinchStartDist = 0;
 			let pinchStartScale = 1;
 
-			// Tap-vs-drag protection for markers (prevents accidental navigation while panning)
+			// Tap-vs-drag protection for markers (prevents accidental nav while panning)
 			let movedTooFar = false;
 			let panStartClient = { x: 0, y: 0 };
 
@@ -558,6 +545,7 @@
 
 			function applyTransform() {
 				layer.style.transform = `translate(${tx}px, ${ty}px) scale(${scale})`;
+				wrapper.style.setProperty("--map-scale", String(scale));
 			}
 
 			function clampPan() {
@@ -579,10 +567,10 @@
 				applyTransform();
 			}
 
-			function zoomBy(factor, centerX, centerY) {
+			function zoomBy(factor, centerClientX, centerClientY) {
 				const rect = viewport.getBoundingClientRect();
-				const cx = (centerX ?? rect.left + rect.width / 2) - rect.left;
-				const cy = (centerY ?? rect.top + rect.height / 2) - rect.top;
+				const cx = (centerClientX ?? rect.left + rect.width / 2) - rect.left;
+				const cy = (centerClientY ?? rect.top + rect.height / 2) - rect.top;
 
 				const nextScale = clamp(scale * factor, minScale, maxScale);
 				const scaleChange = nextScale / scale;
@@ -605,7 +593,7 @@
 				return { x: (t1.clientX + t2.clientX) / 2, y: (t1.clientY + t2.clientY) / 2 };
 			}
 
-			// Prevent page scroll when interacting with map
+			// Prevent page scroll while interacting
 			viewport.addEventListener("touchmove", (e) => e.preventDefault(), { passive: false });
 
 			viewport.addEventListener("touchstart", (e) => {
@@ -630,8 +618,10 @@
 					const dx = e.touches[0].clientX - startX;
 					const dy = e.touches[0].clientY - startY;
 
-					// movement threshold
-					const moved = Math.hypot(e.touches[0].clientX - panStartClient.x, e.touches[0].clientY - panStartClient.y);
+					const moved = Math.hypot(
+						e.touches[0].clientX - panStartClient.x,
+						e.touches[0].clientY - panStartClient.y
+					);
 					if (moved > 8) movedTooFar = true;
 
 					tx = lastTx + dx;
@@ -640,6 +630,7 @@
 					applyTransform();
 				} else if (e.touches.length === 2) {
 					movedTooFar = true;
+
 					const dist = getTouchDist(e.touches[0], e.touches[1]);
 					const mid = getTouchMid(e.touches[0], e.touches[1]);
 
@@ -664,17 +655,22 @@
 				if (e.touches.length === 0) isPanning = false;
 			});
 
-			// Mouse support (desktop)
+			// Mouse support
 			let mouseDown = false;
+
 			viewport.addEventListener("mousedown", (e) => {
 				mouseDown = true;
 				movedTooFar = false;
-				startX = e.clientX; startY = e.clientY;
-				lastTx = tx; lastTy = ty;
+				startX = e.clientX;
+				startY = e.clientY;
+				lastTx = tx;
+				lastTy = ty;
 				panStartClient = { x: startX, y: startY };
 			});
+
 			window.addEventListener("mousemove", (e) => {
 				if (!mouseDown) return;
+
 				const moved = Math.hypot(e.clientX - panStartClient.x, e.clientY - panStartClient.y);
 				if (moved > 6) movedTooFar = true;
 
@@ -683,31 +679,21 @@
 				clampPan();
 				applyTransform();
 			});
+
 			window.addEventListener("mouseup", () => { mouseDown = false; });
 
-			// Wheel zoom (desktop)
+			// Wheel zoom
 			viewport.addEventListener("wheel", (e) => {
 				e.preventDefault();
 				const factor = e.deltaY < 0 ? 1.1 : 0.9;
 				zoomBy(factor, e.clientX, e.clientY);
 			}, { passive: false });
 
-			// Controls
-			if (controls) {
-				controls.addEventListener("click", (e) => {
-					const btn = e.target.closest("[data-map-action]");
-					if (!btn) return;
-					const action = btn.dataset.mapAction;
-					if (action === "zoom-in") zoomBy(1.2);
-					if (action === "zoom-out") zoomBy(0.85);
-					if (action === "reset") reset();
-				});
-			}
-
 			// Stop accidental marker click after pan
 			wrapper.addEventListener("click", (e) => {
 				const marker = e.target.closest(".map-marker");
 				if (!marker) return;
+
 				if (movedTooFar) {
 					e.preventDefault();
 					e.stopPropagation();
