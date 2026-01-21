@@ -132,7 +132,7 @@
 			color: #fff;
 		}
 
-		/* Section filter */
+		/* Section cards */
 		.section-filter-row { margin-bottom: 1.5rem; }
 
 		.section-filter-label {
@@ -142,37 +142,100 @@
 			font-weight: 700;
 		}
 
-		.section-filter-pills {
+		.section-card-grid {
+			display: grid;
+			grid-template-columns: repeat(4, minmax(0, 1fr));
+			gap: 0.9rem;
+		}
+
+		.section-card {
+			text-align: left;
+			border-radius: 1rem;
+			border: 1px solid rgba(255, 255, 255, 0.12);
+			background: rgba(255, 255, 255, 0.05);
+			padding: 0.9rem 1rem;
+			cursor: pointer;
+			color: rgba(255, 255, 255, 0.92);
+			transition: transform 0.15s, background 0.15s, border-color 0.15s, box-shadow 0.15s;
+		}
+
+		.section-card:hover {
+			transform: translateY(-1px);
+			background: rgba(255, 255, 255, 0.08);
+			border-color: rgba(255, 255, 255, 0.22);
+			box-shadow: 0 10px 20px rgba(0, 0, 0, 0.22);
+		}
+
+		.section-card.is-active {
+			background: rgba(93, 244, 162, 0.15);
+			border-color: rgba(93, 244, 162, 0.55);
+			box-shadow: 0 14px 26px rgba(93, 244, 162, 0.12);
+		}
+
+		.section-card-top {
 			display: flex;
-			flex-wrap: wrap;
+			align-items: baseline;
+			justify-content: space-between;
+			gap: 0.75rem;
+			margin-bottom: 0.55rem;
+		}
+
+		.section-card-name {
+			font-weight: 900;
+			font-size: 1rem;
+			color: #fff;
+			line-height: 1.15;
+		}
+
+		.section-card-meta {
+			font-size: 0.8rem;
+			color: rgba(255, 255, 255, 0.72);
+			font-weight: 700;
+			white-space: nowrap;
+		}
+
+		.section-card-stats {
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
 			gap: 0.75rem;
 		}
 
-		.section-filter-pill {
-			padding: 0.65rem 1.25rem;
+		.section-stat {
+			display: flex;
+			flex-direction: column;
+			gap: 0.2rem;
+		}
+
+		.section-stat-label {
+			font-size: 0.7rem;
+			text-transform: uppercase;
+			letter-spacing: 0.06em;
+			color: rgba(255, 255, 255, 0.6);
+			font-weight: 800;
+		}
+
+		.section-stat-value {
+			font-size: 1.05rem;
+			font-weight: 900;
+			color: #fff;
+		}
+
+		.section-progress {
+			margin-top: 0.65rem;
+			height: 10px;
 			border-radius: 999px;
-			border: 2px solid rgba(255, 255, 255, 0.2);
-			background: rgba(255, 255, 255, 0.05);
-			color: rgba(255, 255, 255, 0.85);
-			font-size: 0.9rem;
-			font-weight: 700;
-			cursor: pointer;
-			text-decoration: none;
-			transition: all 0.2s;
-		}
-
-		.section-filter-pill:hover {
 			background: rgba(255, 255, 255, 0.1);
-			border-color: rgba(255, 255, 255, 0.4);
-			transform: translateY(-1px);
+			overflow: hidden;
+			border: 1px solid rgba(255, 255, 255, 0.12);
 		}
 
-		.section-filter-pill.is-active {
-			background: #5df4a2;
-			color: #0a1628;
-			border-color: #5df4a2;
-			transform: translateY(-1px);
-			box-shadow: 0 10px 20px rgba(93, 244, 162, 0.3);
+		.section-progress > div {
+			height: 100%;
+			width: 0%;
+			background: linear-gradient(90deg, rgba(93, 244, 162, 0.85), rgba(93, 244, 162, 0.55));
+			border-radius: 999px;
+			transition: width 0.25s ease;
 		}
 
 		/* Map wrapper */
@@ -185,7 +248,6 @@
 			background: #000;
 		}
 
-		/* The viewport (window) */
 		.map-viewport {
 			position: relative;
 			width: 100%;
@@ -195,7 +257,6 @@
 			background: #000;
 		}
 
-		/* The thing we pan/zoom */
 		.map-layer {
 			position: absolute;
 			left: 0;
@@ -242,17 +303,14 @@
 			transform: translate(-50%, -50%);
 		}
 
-		/* Visual marker scaling vs zoom */
-		#mapWrapperSections { --map-scale: 1; --marker-scale: 1; }
+		#mapWrapperSections { --marker-scale: 1; }
 
-		/* Visible dot changes size with zoom (slower than map) */
 		#mapWrapperSections .map-marker {
 			width: calc(20px / var(--marker-scale));
 			height: calc(20px / var(--marker-scale));
 			border-width: 2px;
 		}
 
-		/* Big invisible tap target so the visible dot can still scale */
 		#mapWrapperSections .map-marker::after {
 			content: "";
 			position: absolute;
@@ -291,7 +349,10 @@
 			color: #5df4a2;
 		}
 
-		/* Responsive */
+		@media (max-width: 980px) {
+			.section-card-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+		}
+
 		@media (max-width: 768px) {
 			.nav { padding: 1rem; }
 			.container { padding: 1.5rem 1rem; }
@@ -301,11 +362,14 @@
 			.comp-pill-value { font-size: 1.25rem; }
 			.map-card { padding: 1.5rem; }
 			.section-title { font-size: 1.4rem; }
+
+			.section-card-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 		}
 
 		@media (max-width: 520px) {
 			.comp-meta-row { gap: 0.75rem; }
 			.comp-pill { flex: 1 1 calc(50% - 0.375rem); min-width: 0; }
+			.section-card-grid { grid-template-columns: 1fr; }
 		}
 	</style>
 </head>
@@ -385,11 +449,38 @@
 
 			{% if sections %}
 				<div class="section-filter-row">
-					<div class="section-filter-label">Filter by section:</div>
-					<div class="section-filter-pills">
+					<div class="section-filter-label">Sections (tap to filter dots):</div>
+
+					<div class="section-card-grid" id="sectionCardGrid">
 						{% for sec in sections %}
-							<button type="button" class="section-filter-pill" data-section-id="{{ sec.id }}">
-								{{ sec.name }}
+							<button
+								type="button"
+								class="section-card"
+								data-section-id="{{ sec.id }}"
+								aria-pressed="false"
+							>
+								<div class="section-card-top">
+									<div class="section-card-name">{{ sec.name }}</div>
+									<div class="section-card-meta">
+										<span class="sec-done" data-k="done">0</span>/<span class="sec-total" data-k="total">0</span>
+									</div>
+								</div>
+
+								<div class="section-card-stats">
+									<div class="section-stat">
+										<div class="section-stat-label">Done</div>
+										<div class="section-stat-value sec-done" data-k="done">0</div>
+									</div>
+
+									<div class="section-stat">
+										<div class="section-stat-label">Left</div>
+										<div class="section-stat-value sec-left" data-k="left">0</div>
+									</div>
+								</div>
+
+								<div class="section-progress" aria-hidden="true">
+									<div class="sec-bar"></div>
+								</div>
 							</button>
 						{% endfor %}
 					</div>
@@ -413,12 +504,14 @@
 										{% if comp_slug %}
 											<a class="map-marker"
 											   data-section-id="{{ c.section.id }}"
+											   data-climb-number="{{ c.climb_number }}"
 											   style="left: {{ c.x_percent }}%; top: {{ c.y_percent }}%; background: {{ bg }};"
 											   href="/comp/{{ comp_slug }}/competitor/{{ competitor.id }}/section/{{ c.section.slug }}#climb-{{ c.climb_number }}"
 											   title="Section {{ c.section.name }} · Climb #{{ c.climb_number }}"></a>
 										{% else %}
 											<a class="map-marker"
 											   data-section-id="{{ c.section.id }}"
+											   data-climb-number="{{ c.climb_number }}"
 											   style="left: {{ c.x_percent }}%; top: {{ c.y_percent }}%; background: {{ bg }};"
 											   href="/competitor/{{ competitor.id }}/section/{{ c.section.slug }}#climb-{{ c.climb_number }}"
 											   title="Section {{ c.section.name }} · Climb #{{ c.climb_number }}"></a>
@@ -426,6 +519,7 @@
 									{% else %}
 										<div class="map-marker disabled"
 										     data-section-id="{{ c.section.id }}"
+										     data-climb-number="{{ c.climb_number }}"
 										     style="left: {{ c.x_percent }}%; top: {{ c.y_percent }}%; background: {{ bg }};"
 										     title="Section {{ c.section.name }} · Climb #{{ c.climb_number }}"></div>
 									{% endif %}
@@ -446,13 +540,95 @@
 	</main>
 
 	<script>
-		// Section filter (unchanged)
-		document.addEventListener("DOMContentLoaded", function () {
-			const pills   = Array.from(document.querySelectorAll(".section-filter-pill"));
+		(function () {
+			// -------- Section cards filtering + progress counts --------
+			const competitorId = {{ competitor.id }};
+			const cards = Array.from(document.querySelectorAll(".section-card"));
 			const markers = Array.from(document.querySelectorAll(".map-marker"));
 
-			if (!pills.length || !markers.length) return;
+			if (!cards.length || !markers.length) return;
 
+			// Totals per section from markers on the map
+			const totalsBySection = new Map();
+			// map climb_number -> section_id (assumes climb_number is globally unique in comp)
+			const sectionByClimb = new Map();
+
+			markers.forEach((m) => {
+				const sid = m.dataset.sectionId;
+				const cn = m.dataset.climbNumber;
+				if (!sid) return;
+
+				totalsBySection.set(sid, (totalsBySection.get(sid) || 0) + 1);
+
+				if (cn) sectionByClimb.set(String(cn), sid);
+			});
+
+			// Helper: update one card UI
+			function setCardProgress(card, done, total) {
+				const left = Math.max(0, total - done);
+				card.querySelectorAll(".sec-done").forEach(el => el.textContent = String(done));
+				card.querySelectorAll(".sec-total").forEach(el => el.textContent = String(total));
+				const leftEl = card.querySelector(".sec-left");
+				if (leftEl) leftEl.textContent = String(left);
+
+				const bar = card.querySelector(".sec-bar");
+				if (bar) {
+					const pct = total ? Math.round((done / total) * 100) : 0;
+					bar.style.width = pct + "%";
+				}
+			}
+
+			// Default card totals immediately (done=0 until we load scores)
+			cards.forEach((card) => {
+				const sid = card.dataset.sectionId;
+				const total = totalsBySection.get(sid) || 0;
+				setCardProgress(card, 0, total);
+			});
+
+			// Load scores and compute "done" per section
+			async function loadProgress() {
+				try {
+					const res = await fetch(`/api/score/${competitorId}`);
+					if (!res.ok) return;
+
+					const rows = await res.json();
+
+					// Decide "done": any saved attempt/points/topped implies done
+					const doneClimbs = new Set();
+					(rows || []).forEach((r) => {
+						if (!r) return;
+						const cn = r.climb_number;
+						if (cn === undefined || cn === null) return;
+
+						const topped = !!r.topped;
+
+						// Only count as done if topped/flashed
+						if (topped) {
+						doneClimbs.add(String(cn));
+						}
+					});
+
+					const doneBySection = new Map();
+					doneClimbs.forEach((cn) => {
+						const sid = sectionByClimb.get(String(cn));
+						if (!sid) return;
+						doneBySection.set(sid, (doneBySection.get(sid) || 0) + 1);
+					});
+
+					cards.forEach((card) => {
+						const sid = card.dataset.sectionId;
+						const total = totalsBySection.get(sid) || 0;
+						const done = doneBySection.get(sid) || 0;
+						setCardProgress(card, done, total);
+					});
+				} catch (e) {
+					// ignore; counts just stay at 0 done
+				}
+			}
+
+			loadProgress();
+
+			// Filter behaviour (same logic as before, just applied to cards)
 			let activeIds = new Set();
 
 			function applyFilter() {
@@ -466,22 +642,23 @@
 				});
 			}
 
-			pills.forEach((pill) => {
-				pill.addEventListener("click", () => {
-					const sid = pill.dataset.sectionId;
+			cards.forEach((card) => {
+				card.addEventListener("click", () => {
+					const sid = card.dataset.sectionId;
 					if (!sid) return;
 
-					const isActive = pill.classList.contains("is-active");
-
+					const isActive = card.classList.contains("is-active");
 					if (isActive) {
-						pill.classList.remove("is-active");
+						card.classList.remove("is-active");
+						card.setAttribute("aria-pressed", "false");
 						activeIds.delete(sid);
 					} else {
-						pill.classList.add("is-active");
+						card.classList.add("is-active");
+						card.setAttribute("aria-pressed", "true");
 						activeIds.add(sid);
 					}
 
-					const anyActive = pills.some((p) => p.classList.contains("is-active"));
+					const anyActive = cards.some((c) => c.classList.contains("is-active"));
 					if (!anyActive) activeIds.clear();
 
 					applyFilter();
@@ -489,11 +666,12 @@
 			});
 
 			applyFilter();
-		});
+		})();
 	</script>
 
 	<script>
 		(function () {
+			// -------- Pan/zoom map with dynamic minScale = fit (no zooming out into black space) --------
 			const wrapper  = document.getElementById("mapWrapperSections");
 			const viewport = document.getElementById("mapViewportSections");
 			const layer    = document.getElementById("mapLayerSections");
@@ -501,16 +679,11 @@
 			if (!wrapper || !viewport || !layer || !img) return;
 
 			let scale = 1;
-
-			// ✅ dynamic: minScale = "fit to viewport" (so you can't zoom out into black space)
-			let minScale = 1;
-
+			let minScale = 1; // computed from fit
 			const maxScale = 4;
 
 			let tx = 0, ty = 0;
-
-			let baseW = 1;
-			let baseH = 1;
+			let baseW = 1, baseH = 1;
 
 			let isPanning = false;
 			let startX = 0, startY = 0;
@@ -534,23 +707,14 @@
 
 			function computeFitScale() {
 				const vr = viewport.getBoundingClientRect();
-				const viewW = vr.width;
-				const viewH = vr.height;
-
-				// Scale needed to fit entire image into viewport
-				const fit = Math.min(viewW / baseW, viewH / baseH);
-
-				// Don't upscale beyond 1 on fit; and don't allow zoom out below fit
+				const fit = Math.min(vr.width / baseW, vr.height / baseH);
 				return Math.min(1, fit);
 			}
 
 			function applyTransform() {
 				layer.style.transform = `translate(${tx}px, ${ty}px) scale(${scale})`;
-
-				// p=0.65 means markers change size with zoom, but slower than map
 				const markerScale = Math.pow(scale, 0.65);
 				wrapper.style.setProperty("--marker-scale", String(markerScale));
-				wrapper.style.setProperty("--map-scale", String(scale));
 			}
 
 			function clampPan() {
@@ -573,19 +737,13 @@
 
 			function resetFit() {
 				updateLayerSizeFromImage();
-
-				// ✅ key: set minScale to the fit scale
 				minScale = computeFitScale();
 
-				// Start at fit (shows full map without black space)
 				scale = clamp(minScale, minScale, maxScale);
 
 				const vr = viewport.getBoundingClientRect();
-				const viewW = vr.width;
-				const viewH = vr.height;
-
-				tx = (viewW - baseW * scale) / 2;
-				ty = (viewH - baseH * scale) / 2;
+				tx = (vr.width - baseW * scale) / 2;
+				ty = (vr.height - baseH * scale) / 2;
 
 				clampPan();
 				applyTransform();
@@ -716,9 +874,7 @@
 				}
 			}, true);
 
-			function init() {
-				resetFit();
-			}
+			function init() { resetFit(); }
 
 			if (img.complete) init();
 			else img.addEventListener("load", init, { once: true });
