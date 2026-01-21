@@ -103,11 +103,11 @@
 			color: #fff;
 		}
 
-		/* Section filter row */
+		/* Section header row */
 		.section-filter-row {
 			display: flex;
 			justify-content: space-between;
-			align-items: center;
+			align-items: flex-start;
 			gap: 1.5rem;
 			margin-bottom: 2rem;
 			flex-wrap: wrap;
@@ -117,6 +117,8 @@
 			display: flex;
 			flex-direction: column;
 			gap: 0.75rem;
+			min-width: 0;
+			flex: 1;
 		}
 
 		.section-filter-label {
@@ -125,37 +127,111 @@
 			font-weight: 700;
 		}
 
-		.section-filter-pills {
+		/* Section cards */
+		.section-card-grid {
+			display: grid;
+			grid-template-columns: repeat(4, minmax(0, 1fr));
+			gap: 0.9rem;
+		}
+
+		.section-card {
+			display: block;
+			text-decoration: none;
+			text-align: left;
+			border-radius: 1rem;
+			border: 1px solid rgba(255, 255, 255, 0.12);
+			background: rgba(255, 255, 255, 0.05);
+			padding: 0.9rem 1rem;
+			cursor: pointer;
+			color: rgba(255, 255, 255, 0.92);
+			transition: transform 0.15s, background 0.15s, border-color 0.15s, box-shadow 0.15s;
+		}
+
+		.section-card:hover {
+			transform: translateY(-1px);
+			background: rgba(255, 255, 255, 0.08);
+			border-color: rgba(255, 255, 255, 0.22);
+			box-shadow: 0 10px 20px rgba(0, 0, 0, 0.22);
+		}
+
+		.section-card.is-active {
+			background: rgba(93, 244, 162, 0.15);
+			border-color: rgba(93, 244, 162, 0.55);
+			box-shadow: 0 14px 26px rgba(93, 244, 162, 0.12);
+		}
+
+		.section-card-top {
 			display: flex;
-			flex-wrap: wrap;
+			align-items: baseline;
+			justify-content: space-between;
+			gap: 0.75rem;
+			margin-bottom: 0.55rem;
+		}
+
+		.section-card-name {
+			font-weight: 900;
+			font-size: 1rem;
+			color: #fff;
+			line-height: 1.15;
+			overflow: hidden;
+			text-overflow: ellipsis;
+			white-space: nowrap;
+		}
+
+		.section-card-meta {
+			font-size: 0.8rem;
+			color: rgba(255, 255, 255, 0.72);
+			font-weight: 800;
+			white-space: nowrap;
+		}
+
+		.section-card-stats {
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
 			gap: 0.75rem;
 		}
 
-		.section-filter-pill {
-			padding: 0.65rem 1.25rem;
+		.section-stat {
+			display: flex;
+			flex-direction: column;
+			gap: 0.2rem;
+		}
+
+		.section-stat-label {
+			font-size: 0.7rem;
+			text-transform: uppercase;
+			letter-spacing: 0.06em;
+			color: rgba(255, 255, 255, 0.6);
+			font-weight: 800;
+		}
+
+		.section-stat-value {
+			font-size: 1.05rem;
+			font-weight: 900;
+			color: #fff;
+		}
+
+		.section-progress {
+			margin-top: 0.65rem;
+			height: 10px;
 			border-radius: 999px;
-			border: 2px solid rgba(255, 255, 255, 0.2);
-			background: rgba(255, 255, 255, 0.05);
-			color: rgba(255, 255, 255, 0.85);
-			font-size: 0.9rem;
-			font-weight: 700;
-			text-decoration: none;
-			cursor: pointer;
-			transition: all 0.2s;
-		}
-
-		.section-filter-pill:hover {
 			background: rgba(255, 255, 255, 0.1);
-			border-color: rgba(255, 255, 255, 0.4);
-			transform: translateY(-1px);
+			overflow: hidden;
+			border: 1px solid rgba(255, 255, 255, 0.12);
 		}
 
-		.section-filter-pill.is-active {
-			background: #5df4a2;
-			color: #0a1628;
-			border-color: #5df4a2;
-			transform: translateY(-1px);
-			box-shadow: 0 10px 20px rgba(93, 244, 162, 0.3);
+		.section-progress > div {
+			height: 100%;
+			width: 0%;
+			background: linear-gradient(90deg, rgba(93, 244, 162, 0.85), rgba(93, 244, 162, 0.55));
+			border-radius: 999px;
+			transition: width 0.25s ease;
+		}
+
+		.section-card.is-inactive .section-card-meta,
+		.section-card.is-inactive .section-stat-value {
+			opacity: 0.75;
 		}
 
 		/* Back to map button */
@@ -187,9 +263,7 @@
 			margin-bottom: 2rem;
 		}
 
-		.section-header {
-			margin-bottom: 1.5rem;
-		}
+		.section-header { margin-bottom: 1.5rem; }
 
 		.section-title {
 			font-size: 1.75rem;
@@ -238,6 +312,13 @@
 			transform: translate(-50%, -50%) scale(1.3);
 			box-shadow: 0 8px 20px rgba(0, 0, 0, 0.7);
 			z-index: 10;
+		}
+
+		/* Done state for map dots (topped/flashed only) */
+		.map-dot.is-done {
+			background: #22c55e;
+			color: #05060a;
+			box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.75);
 		}
 
 		/* Climbs section */
@@ -330,9 +411,7 @@
 			flex-wrap: wrap;
 		}
 
-		.attempts-row {
-			margin-top: 0.25rem;
-		}
+		.attempts-row { margin-top: 0.25rem; }
 
 		.attempts-label {
 			font-size: 0.75rem;
@@ -385,11 +464,6 @@
 			cursor: not-allowed;
 		}
 
-		/* Flash button */
-		.flash-btn {
-			font-weight: 700;
-		}
-
 		/* Status message */
 		.status {
 			min-height: 1.2em;
@@ -418,51 +492,26 @@
 		}
 
 		/* Responsive */
+		@media (max-width: 980px) {
+			.section-card-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+		}
+
 		@media (max-width: 768px) {
-			.nav {
-				padding: 1rem;
-			}
-
-			.container {
-				padding: 1.5rem 1rem;
-			}
-
-			.comp-header {
-				padding: 1.5rem;
-			}
-
-			.comp-name {
-				font-size: 1.6rem;
-			}
-
-			.section-filter-row {
-				flex-direction: column;
-				align-items: flex-start;
-			}
-
-			.map-card,
-			.climbs-section {
-				padding: 1.5rem;
-			}
-
-			.section-title {
-				font-size: 1.4rem;
-			}
-
-			.grid {
-				grid-template-columns: 1fr;
-			}
+			.nav { padding: 1rem; }
+			.container { padding: 1.5rem 1rem; }
+			.comp-header { padding: 1.5rem; }
+			.comp-name { font-size: 1.6rem; }
+			.section-filter-row { flex-direction: column; align-items: flex-start; }
+			.map-card, .climbs-section { padding: 1.5rem; }
+			.section-title { font-size: 1.4rem; }
+			.grid { grid-template-columns: 1fr; }
+			.section-card-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 		}
 
 		@media (max-width: 520px) {
-			.comp-meta-row {
-				gap: 0.75rem;
-			}
-
-			.comp-pill {
-				flex: 1 1 calc(50% - 0.375rem);
-				min-width: 0;
-			}
+			.comp-meta-row { gap: 0.75rem; }
+			.comp-pill { flex: 1 1 calc(50% - 0.375rem); min-width: 0; }
+			.section-card-grid { grid-template-columns: 1fr; }
 		}
 	</style>
 </head>
@@ -475,44 +524,31 @@
 
 	<nav class="nav">
 		<a href="{% if is_logged_in or is_admin %}/my-comps{% else %}/{% endif %}"
-		   class="{% if nav_active == 'my_comps' %}active{% endif %}">
-			Home
-		</a>
+		   class="{% if nav_active == 'my_comps' %}active{% endif %}">Home</a>
 
 		{% if is_admin %}
 			<a href="/admin/comps" class="{% if nav_active == 'admin' %}active{% endif %}">Admin</a>
 		{% endif %}
 
-
 		{% if show_comp_nav %}
 			<a href="/comp/{{ comp_slug }}/competitor/{{ viewer_id }}/sections"
-			   class="{% if nav_active == 'sections' %}active{% endif %}">
-				Climb Map
-			</a>
+			   class="{% if nav_active == 'sections' %}active{% endif %}">Climb Map</a>
 
 			<a href="/competitor/{{ viewer_id }}/stats/my"
-			   class="{% if nav_active == 'my_stats' %}active{% endif %}">
-				My Stats
-			</a>
+			   class="{% if nav_active == 'my_stats' %}active{% endif %}">My Stats</a>
 
 			<a href="/competitor/{{ viewer_id }}/stats/overall"
-			   class="{% if nav_active == 'overall_stats' %}active{% endif %}">
-				Overall Stats
-			</a>
+			   class="{% if nav_active == 'overall_stats' %}active{% endif %}">Overall Stats</a>
 		{% endif %}
 
 		<a href="/leaderboard{% if show_comp_nav %}?cid={{ viewer_id }}{% endif %}"
-		   class="{% if nav_active == 'leaderboard' %}active{% endif %}">
-			Leaderboard
-		</a>
+		   class="{% if nav_active == 'leaderboard' %}active{% endif %}">Leaderboard</a>
 
 		{% if is_logged_in or is_admin %}
 			<a href="/logout">Log out</a>
 		{% else %}
 			<a href="/login{% if comp_slug %}?slug={{ comp_slug }}{% endif %}"
-			   class="{% if nav_active == 'login' %}active{% endif %}">
-				Log in
-			</a>
+			   class="{% if nav_active == 'login' %}active{% endif %}">Log in</a>
 		{% endif %}
 	</nav>
 
@@ -543,29 +579,46 @@
 		{% if sections is defined and sections %}
 		<div class="section-filter-row">
 			<div class="section-filter-left">
-				<div class="section-filter-label">Sections:</div>
-				<div class="section-filter-pills">
+				<div class="section-filter-label">Sections (Done = topped only):</div>
+
+				<div class="section-card-grid" id="sectionCardGrid">
 					{% for sec in sections %}
 						<a
 							href="/competitor/{{ competitor.id }}/section/{{ sec.slug }}"
-							class="section-filter-pill {% if section is defined and section and section.id == sec.id %}is-active{% endif %}"
+							class="section-card {% if section is defined and section and section.id == sec.id %}is-active{% endif %} {% if not (section is defined and section and section.id == sec.id) %}is-inactive{% endif %}"
+							data-section-id="{{ sec.id }}"
 						>
-							{{ sec.name }}
+							<div class="section-card-top">
+								<div class="section-card-name">{{ sec.name }}</div>
+								<div class="section-card-meta">
+									<span class="sec-done">—</span>/<span class="sec-total">—</span>
+								</div>
+							</div>
+
+							<div class="section-card-stats">
+								<div class="section-stat">
+									<div class="section-stat-label">Done</div>
+									<div class="section-stat-value sec-done">—</div>
+								</div>
+
+								<div class="section-stat">
+									<div class="section-stat-label">Left</div>
+									<div class="section-stat-value sec-left">—</div>
+								</div>
+							</div>
+
+							<div class="section-progress" aria-hidden="true">
+								<div class="sec-bar"></div>
+							</div>
 						</a>
 					{% endfor %}
 				</div>
 			</div>
 
 			{% if comp_slug %}
-				<a class="back-to-map-btn"
-				   href="/comp/{{ comp_slug }}/competitor/{{ competitor.id }}/sections">
-					Back to Gym Map
-				</a>
+				<a class="back-to-map-btn" href="/comp/{{ comp_slug }}/competitor/{{ competitor.id }}/sections">Back to Gym Map</a>
 			{% else %}
-				<a class="back-to-map-btn"
-				   href="/competitor/{{ competitor.id }}/sections">
-					Back to Gym Map
-				</a>
+				<a class="back-to-map-btn" href="/competitor/{{ competitor.id }}/sections">Back to Gym Map</a>
 			{% endif %}
 		</div>
 		{% endif %}
@@ -580,9 +633,7 @@
 				{% if gym_map_url %}
 					<img class="gym-map" src="{{ gym_map_url }}" alt="Gym map" />
 				{% else %}
-				<div class="alert">
-					No gym map found for this competition/gym.
-				</div>
+					<div class="alert">No gym map found for this competition/gym.</div>
 				{% endif %}
 
 				{% for sc in section_climbs %}
@@ -601,11 +652,7 @@
 							{% set bg = "#5df29c" %}
 						{% endif %}
 
-						{% if bg|lower in ["white", "#fff", "#ffffff"] %}
-							{% set text_color = "#000000" %}
-						{% else %}
-							{% set text_color = "#000000" %}
-						{% endif %}
+						{% set text_color = "#000000" %}
 
 						<button
 							type="button"
@@ -613,9 +660,7 @@
 							style="left: {{ sc.x_percent }}%; top: {{ sc.y_percent }}%; background: {{ bg }}; color: {{ text_color }};"
 							data-climb="{{ sc.climb_number }}"
 							title="Climb {{ sc.climb_number }}{% if sc.colour %} · {{ sc.colour }}{% endif %}"
-						>
-							{{ sc.climb_number }}
-						</button>
+						>{{ sc.climb_number }}</button>
 					{% endif %}
 				{% endfor %}
 			</div>
@@ -624,9 +669,7 @@
 
 		<section class="climbs-section">
 			<header class="section-header">
-				<h2 class="section-title">
-					{% if section %} {{ section.name }} {% else %} Climbs {% endif %}
-				</h2>
+				<h2 class="section-title">{% if section %} {{ section.name }} {% else %} Climbs {% endif %}</h2>
 			</header>
 
 			<div class="grid">
@@ -677,9 +720,7 @@
 							<span class="climb-title">Climb #{{ n }}</span>
 
 							{% if col_raw %}
-								<span class="climb-colour-pill" style="background: {{ col_bg }}; color: {{ pill_text_color }};">
-									{{ col_raw }}
-								</span>
+								<span class="climb-colour-pill" style="background: {{ col_bg }}; color: {{ pill_text_color }};">{{ col_raw }}</span>
 							{% endif %}
 						</div>
 
@@ -796,8 +837,10 @@
 					pointsSpan.textContent = data.points;
 				}
 
+				// After save, refresh totals + dot done state + section card progress
 				await refreshTotalPoints();
 				refreshPosition();
+				await refreshDoneDotsAndSectionProgress();
 			} catch (e) {
 				showStatus(status, "Network error", false);
 			}
@@ -892,8 +935,71 @@
 			setTimeout(() => { row.classList.remove("climb-row-highlight"); }, 1500);
 		});
 
+		// DONE = topped only. Use API to update:
+		// - map dots (green if topped)
+		// - current section card progress (done/left)
+		async function refreshDoneDotsAndSectionProgress() {
+			const dots = Array.from(document.querySelectorAll(".map-dot-interactive"));
+			const sectionCards = Array.from(document.querySelectorAll(".section-card"));
+			if (!dots.length && !sectionCards.length) return;
+
+			// Total climbs in *this* section (from dots on this page)
+			const totalInThisSection = dots.length;
+
+			function setCardProgressForActive(done, total) {
+				const active = document.querySelector(".section-card.is-active");
+				if (!active) return;
+
+				const left = Math.max(0, total - done);
+				active.querySelectorAll(".sec-done").forEach(el => el.textContent = String(done));
+				active.querySelectorAll(".sec-total").forEach(el => el.textContent = String(total));
+				const leftEl = active.querySelector(".sec-left");
+				if (leftEl) leftEl.textContent = String(left);
+
+				const bar = active.querySelector(".sec-bar");
+				if (bar) {
+					const pct = total ? Math.round((done / total) * 100) : 0;
+					bar.style.width = pct + "%";
+				}
+			}
+
+			try {
+				if (viewerId === null) {
+					// Viewer not set; leave as —
+					return;
+				}
+
+				const res = await fetch(`/api/score/${viewerId}`);
+				if (!res.ok) return;
+				const rows = await res.json();
+
+				// Build topped set
+				const toppedSet = new Set();
+				(rows || []).forEach((r) => {
+					if (!r) return;
+					if (r.topped) toppedSet.add(String(r.climb_number));
+				});
+
+				// Apply to dots
+				let doneCountThisSection = 0;
+				dots.forEach((d) => {
+					const cn = String(d.dataset.climb || "");
+					const isDone = toppedSet.has(cn);
+					d.classList.toggle("is-done", isDone);
+					if (isDone) doneCountThisSection += 1;
+				});
+
+				// Only show real progress for active (current) section card.
+				setCardProgressForActive(doneCountThisSection, totalInThisSection);
+			} catch (e) {
+				// ignore
+			}
+		}
+
+		// Init once on load
 		refreshTotalPoints();
 		refreshPosition();
+		refreshDoneDotsAndSectionProgress();
 	</script>
 </body>
 </html>
