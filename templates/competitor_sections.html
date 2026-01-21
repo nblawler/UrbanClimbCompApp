@@ -245,14 +245,14 @@
 		/* Visual marker scaling vs zoom */
 		#mapWrapperSections { --map-scale: 1; --marker-scale: 1; }
 
-		/* The *visible* dot changes size with zoom (slower than map) */
+		/* Visible dot changes size with zoom (slower than map) */
 		#mapWrapperSections .map-marker {
 			width: calc(20px / var(--marker-scale));
 			height: calc(20px / var(--marker-scale));
 			border-width: 2px;
 		}
 
-		/* Big invisible tap target (so we DON'T need max() clamping that kills scaling on phone) */
+		/* Big invisible tap target so the visible dot can still scale */
 		#mapWrapperSections .map-marker::after {
 			content: "";
 			position: absolute;
@@ -502,8 +502,9 @@
 
 			let scale = 1;
 
-			// ✅ KEY FIX: allow zooming out so the whole map can fit on laptop
-			const minScale = 0.5;
+			// ✅ dynamic: minScale = "fit to viewport" (so you can't zoom out into black space)
+			let minScale = 1;
+
 			const maxScale = 4;
 
 			let tx = 0, ty = 0;
@@ -527,15 +528,26 @@
 				const r = img.getBoundingClientRect();
 				baseW = Math.max(1, Math.round(r.width));
 				baseH = Math.max(1, Math.round(r.height));
-
 				layer.style.width  = baseW + "px";
 				layer.style.height = baseH + "px";
+			}
+
+			function computeFitScale() {
+				const vr = viewport.getBoundingClientRect();
+				const viewW = vr.width;
+				const viewH = vr.height;
+
+				// Scale needed to fit entire image into viewport
+				const fit = Math.min(viewW / baseW, viewH / baseH);
+
+				// Don't upscale beyond 1 on fit; and don't allow zoom out below fit
+				return Math.min(1, fit);
 			}
 
 			function applyTransform() {
 				layer.style.transform = `translate(${tx}px, ${ty}px) scale(${scale})`;
 
-				// marker scaling: p=0.65 means markers change size with zoom, but slower than the map
+				// p=0.65 means markers change size with zoom, but slower than map
 				const markerScale = Math.pow(scale, 0.65);
 				wrapper.style.setProperty("--marker-scale", String(markerScale));
 				wrapper.style.setProperty("--map-scale", String(scale));
@@ -560,13 +572,17 @@
 			}
 
 			function resetFit() {
+				updateLayerSizeFromImage();
+
+				// ✅ key: set minScale to the fit scale
+				minScale = computeFitScale();
+
+				// Start at fit (shows full map without black space)
+				scale = clamp(minScale, minScale, maxScale);
+
 				const vr = viewport.getBoundingClientRect();
 				const viewW = vr.width;
 				const viewH = vr.height;
-
-				// Fit whole image into viewport (allow <1 now)
-				const fitScale = Math.min(viewW / baseW, viewH / baseH, 1);
-				scale = clamp(fitScale, minScale, maxScale);
 
 				tx = (viewW - baseW * scale) / 2;
 				ty = (viewH - baseH * scale) / 2;
@@ -577,6 +593,7 @@
 
 			function zoomTo(nextScale, centerClientX, centerClientY) {
 				nextScale = clamp(nextScale, minScale, maxScale);
+
 				const vr = viewport.getBoundingClientRect();
 				const cx = (centerClientX ?? (vr.left + vr.width / 2)) - vr.left;
 				const cy = (centerClientY ?? (vr.top + vr.height / 2)) - vr.top;
@@ -700,7 +717,6 @@
 			}, true);
 
 			function init() {
-				updateLayerSizeFromImage();
 				resetFit();
 			}
 
@@ -711,7 +727,6 @@
 			window.addEventListener("resize", () => {
 				clearTimeout(resizeTimer);
 				resizeTimer = setTimeout(() => {
-					updateLayerSizeFromImage();
 					resetFit();
 				}, 120);
 			});
