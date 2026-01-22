@@ -241,35 +241,51 @@ class Competitor(db.Model):
     )
 
 
-
 class Score(db.Model):
     __tablename__ = "scores"
 
     id = db.Column(db.Integer, primary_key=True)
+
     competitor_id = db.Column(
         db.Integer,
         db.ForeignKey("competitor.id"),
         nullable=False,
-        index=True,  # INDEX for "all scores for this competitor"
+        index=True,
     )
+
+    # Keep climb_number because your table has it NOT NULL and your stats/points use it.
     climb_number = db.Column(
         db.Integer,
         nullable=False,
-        index=True,  # INDEX for "all scores for this climb"
+        index=True,
     )
+
     attempts = db.Column(db.Integer, nullable=False, default=0)
     topped = db.Column(db.Boolean, nullable=False, default=False)
+
+    # NEW: match DB column (NOT NULL, FK in DB is optional but we enforce linkage in code)
+    section_climb_id = db.Column(
+        db.Integer,
+        db.ForeignKey("section_climb.id"),
+        nullable=False,
+        index=True,
+    )
+
+    # NEW: match DB column
+    flashed = db.Column(db.Boolean, nullable=False, default=False)
+
     updated_at = db.Column(
         db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
     )
 
     __table_args__ = (
-        UniqueConstraint("competitor_id", "climb_number", name="uq_competitor_climb"),
+        # match your DB constraint name + meaning
+        UniqueConstraint("competitor_id", "section_climb_id", name="uq_competitor_section_climb"),
     )
 
-    competitor = db.relationship(
-        "Competitor", backref=db.backref("scores", lazy=True)
-    )
+    competitor = db.relationship("Competitor", backref=db.backref("scores", lazy=True))
+    section_climb = db.relationship("SectionClimb")
+
 
 
 class Section(db.Model):
@@ -3099,14 +3115,13 @@ def api_save_score():
     viewer_id = session.get("competitor_id")
     is_admin = session.get("admin_ok", False)
 
-    # Allow your local 500-competitor sim (no session) when running in debug on localhost
     if (
         not viewer_id
         and not is_admin
         and app.debug
         and request.remote_addr in ("127.0.0.1", "::1")
     ):
-        is_admin = True  # treat local debug caller as trusted
+        is_admin = True
 
     if viewer_id != competitor_id and not is_admin:
         return "Not allowed", 403
@@ -3115,7 +3130,6 @@ def api_save_score():
     if not comp:
         return "Competitor not found", 404
 
-    # Scope everything to the competitor's competition (source of truth)
     if not comp.competition_id:
         return "Competitor not registered for a competition", 400
 
@@ -3123,11 +3137,11 @@ def api_save_score():
     if not current_comp:
         return "Competition not found", 404
 
-    # NEW: block edits once the comp is finished
+    # Block edits once the comp is finished
     if comp_is_finished(current_comp):
         return "Competition finished — scoring locked", 403
 
-    # Ensure this climb exists in THIS competition (so correct gym/map)
+    # Ensure this climb exists in THIS competition and get the SectionClimb row
     sc = (
         SectionClimb.query
         .join(Section, Section.id == SectionClimb.section_id)
@@ -3137,7 +3151,6 @@ def api_save_score():
         )
         .first()
     )
-
     if not sc:
         return "Unknown climb number for this competition", 400
 
@@ -3147,34 +3160,46 @@ def api_save_score():
     elif attempts > 50:
         attempts = 50
 
+    # flashed = topped on attempt 1
+    flashed = bool(topped and attempts == 1)
+
+    # Upsert by (competitor_id, section_climb_id) — matches DB UNIQUE constraint
     score = Score.query.filter_by(
-        competitor_id=competitor_id, climb_number=climb_number
+        competitor_id=competitor_id,
+        section_climb_id=sc.id,
     ).first()
 
     if not score:
         score = Score(
             competitor_id=competitor_id,
-            climb_number=climb_number,
+            section_climb_id=sc.id,
+            climb_number=sc.climb_number,  # keep table happy + keep stats logic working
             attempts=attempts,
             topped=topped,
+            flashed=flashed,
         )
         db.session.add(score)
     else:
+        # Keep climb_number in sync just in case
+        score.climb_number = sc.climb_number
         score.attempts = attempts
         score.topped = topped
+        score.flashed = flashed
 
     db.session.commit()
     invalidate_leaderboard_cache()
 
-    points = points_for(climb_number, attempts, topped, current_comp.id)
+    points = points_for(sc.climb_number, attempts, topped, current_comp.id)
 
     return jsonify(
         {
             "ok": True,
             "competitor_id": competitor_id,
-            "climb_number": climb_number,
+            "climb_number": sc.climb_number,
+            "section_climb_id": sc.id,
             "attempts": attempts,
             "topped": topped,
+            "flashed": flashed,
             "points": points,
         }
     )
@@ -3573,6 +3598,7 @@ def admin_comp(slug):
         sections=sections,
     )
 
+
 @app.route("/admin/section/<int:section_id>/edit", methods=["GET", "POST"])
 def edit_section(section_id):
     # Require an unlocked admin session
@@ -3615,11 +3641,45 @@ def edit_section(section_id):
     if not admin_can_manage_competition(current_comp):
         abort(403)
 
+    # Helper: delete scores safely (scoped to this comp/gym/section when possible)
+    def _delete_scores_for_climb_number(climb_number: int):
+        q = Score.query.filter(Score.climb_number == climb_number)
+
+        # Scope to competition if the column exists
+        if hasattr(Score, "competition_id"):
+            q = q.filter(Score.competition_id == current_comp.id)
+
+        # Scope to gym if the column exists
+        if hasattr(Score, "gym_id") and current_comp.gym_id:
+            q = q.filter(Score.gym_id == current_comp.gym_id)
+
+        # Scope to section if the column exists
+        if hasattr(Score, "section_id"):
+            q = q.filter(Score.section_id == section.id)
+
+        q.delete(synchronize_session=False)
+
+    def _delete_scores_for_climb_numbers(climb_numbers: list[int]):
+        if not climb_numbers:
+            return
+        q = Score.query.filter(Score.climb_number.in_(climb_numbers))
+
+        if hasattr(Score, "competition_id"):
+            q = q.filter(Score.competition_id == current_comp.id)
+
+        if hasattr(Score, "gym_id") and current_comp.gym_id:
+            q = q.filter(Score.gym_id == current_comp.gym_id)
+
+        if hasattr(Score, "section_id"):
+            q = q.filter(Score.section_id == section.id)
+
+        q.delete(synchronize_session=False)
+
     error = None
     message = None
 
     if request.method == "POST":
-        action = request.form.get("action")
+        action = (request.form.get("action") or "").strip()
 
         if action == "save_section":
             name = request.form.get("name", "").strip()
@@ -3628,6 +3688,7 @@ def edit_section(section_id):
             else:
                 section.name = name
                 db.session.commit()
+                invalidate_leaderboard_cache()
                 message = "Section name updated."
 
         elif action == "add_climb":
@@ -3660,7 +3721,7 @@ def edit_section(section_id):
                 elif base_points < 0 or penalty_per_attempt < 0 or attempt_cap <= 0:
                     error = "Base points and penalty must be ≥ 0 and attempt cap must be > 0."
                 else:
-                    # Uniqueness check should include gym_id (your schema wants gym separation)
+                    # Uniqueness check should include gym_id (gym separation)
                     existing = (
                         SectionClimb.query
                         .filter_by(
@@ -3685,6 +3746,7 @@ def edit_section(section_id):
                         )
                         db.session.add(sc)
                         db.session.commit()
+                        invalidate_leaderboard_cache()
                         message = f"Climb {climb_number} added to {section.name}."
 
         elif action == "delete_climb":
@@ -3698,12 +3760,12 @@ def edit_section(section_id):
                 if not sc or sc.section_id != section.id:
                     error = "Climb not found in this section."
                 else:
-                    # Optional extra safety: ensure you're not deleting across gyms
-                    if current_comp.gym_id and sc.gym_id and sc.gym_id != current_comp.gym_id:
+                    # Extra safety: ensure you're not deleting across gyms
+                    if current_comp.gym_id and getattr(sc, "gym_id", None) and sc.gym_id != current_comp.gym_id:
                         abort(403)
 
-                    # Delete all scores for this climb (for all competitors)
-                    Score.query.filter_by(climb_number=sc.climb_number).delete()
+                    # Delete scores for this climb number, scoped to this comp/gym/section when possible
+                    _delete_scores_for_climb_number(sc.climb_number)
 
                     # Then delete the climb config itself
                     db.session.delete(sc)
@@ -3715,16 +3777,22 @@ def edit_section(section_id):
                     )
 
         elif action == "delete_section":
-            # Find all climb numbers in this section
-            section_climbs = SectionClimb.query.filter_by(section_id=section.id).all()
+            # Find all climb numbers in this section (and gym, if applicable)
+            section_climbs_q = SectionClimb.query.filter_by(section_id=section.id)
+            if hasattr(SectionClimb, "gym_id") and current_comp.gym_id:
+                section_climbs_q = section_climbs_q.filter(SectionClimb.gym_id == current_comp.gym_id)
+
+            section_climbs = section_climbs_q.all()
             climb_numbers = [sc.climb_number for sc in section_climbs]
 
-            # Delete all scores for those climbs (for all competitors)
-            if climb_numbers:
-                Score.query.filter(Score.climb_number.in_(climb_numbers)).delete()
+            # Delete all scores for those climbs (scoped where possible)
+            _delete_scores_for_climb_numbers(climb_numbers)
 
-            # Delete the section's climbs
-            SectionClimb.query.filter_by(section_id=section.id).delete()
+            # Delete the section's climbs (scoped where possible)
+            delete_climbs_q = SectionClimb.query.filter_by(section_id=section.id)
+            if hasattr(SectionClimb, "gym_id") and current_comp.gym_id:
+                delete_climbs_q = delete_climbs_q.filter(SectionClimb.gym_id == current_comp.gym_id)
+            delete_climbs_q.delete(synchronize_session=False)
 
             # Delete the section itself
             db.session.delete(section)
@@ -3734,12 +3802,14 @@ def edit_section(section_id):
             # Keep comp context on redirect
             return redirect(f"/admin/comp/{current_comp.slug}" if current_comp.slug else "/admin/comps")
 
-    climbs = (
-        SectionClimb.query
-        .filter_by(section_id=section.id)
-        .order_by(SectionClimb.climb_number)
-        .all()
-    )
+        else:
+            error = "Unknown action."
+
+    climbs_q = SectionClimb.query.filter_by(section_id=section.id)
+    if hasattr(SectionClimb, "gym_id") and current_comp.gym_id:
+        climbs_q = climbs_q.filter(SectionClimb.gym_id == current_comp.gym_id)
+
+    climbs = climbs_q.order_by(SectionClimb.climb_number).all()
 
     return render_template(
         "admin_section_edit.html",
@@ -3750,6 +3820,7 @@ def edit_section(section_id):
         current_comp=current_comp,
         current_comp_id=current_comp.id,
     )
+
 
 @app.route("/admin/map")
 def admin_map():
