@@ -2577,8 +2577,6 @@ def climb_stats(climb_number):
 @app.route("/comp/<slug>/competitor/<int:competitor_id>/section/<section_slug>")
 def comp_competitor_section_climbs(slug, competitor_id, section_slug):
     """
-    DROP-IN replacement for your comp-scoped section climbs page.
-
     Key fix:
     - Build `existing` keyed by section_climb_id (matches DB uniqueness)
     - Also provide `existing_by_number` for backward compatibility

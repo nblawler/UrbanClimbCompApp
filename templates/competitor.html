@@ -424,6 +424,28 @@
 			cursor: not-allowed;
 		}
 
+		/* Active state styles */
+		.flash-btn.is-active {
+			background: #0ea5e9;
+			border-color: #0ea5e9;
+			color: #ffffff;
+			box-shadow: 0 10px 26px rgba(14, 165, 233, 0.35);
+		}
+
+		.topped-toggle-btn.is-active {
+			background: #111827;
+			border-color: #111827;
+			color: #ffffff;
+			box-shadow: 0 10px 26px rgba(17, 24, 39, 0.28);
+		}
+
+		.attempt-pill.is-active {
+			background: #16a34a;
+			border-color: #16a34a;
+			color: #ffffff;
+			box-shadow: 0 10px 26px rgba(22, 163, 74, 0.28);
+		}
+
 		/* Status message */
 		.status {
 			min-height: 1.2em;
@@ -614,6 +636,7 @@
 							class="map-dot map-dot-interactive"
 							style="left: {{ sc.x_percent }}%; top: {{ sc.y_percent }}%; background: {{ bg }}; color: {{ text_color }};"
 							data-climb="{{ sc.climb_number }}"
+							data-section-climb-id="{{ sc.id }}"
 							title="Climb {{ sc.climb_number }}{% if sc.colour %} · {{ sc.colour }}{% endif %}"
 						>
 							{{ sc.climb_number }}
@@ -632,93 +655,124 @@
 			</header>
 
 			<div class="grid">
-				{% for n in climbs %}
-					{% set s = existing.get(n) %}
-					{% set max_pts = max_points.get(n) if max_points is defined else None %}
-					{% set col_raw = colours.get(n) if colours is defined else None %}
+				{% if section_climbs is defined %}
+					{% for sc in section_climbs %}
+						{% set n = sc.climb_number %}
+						{% set s = existing.get(sc.id) %}
+						{% set max_pts = sc.base_points if sc.base_points is not none else (max_points.get(n) if max_points is defined else None) %}
+						{% set col_raw = sc.colour if sc.colour else (colours.get(n) if colours is defined else None) %}
 
-					{% if col_raw %}
-						{% set lc = col_raw|lower %}
-						{% if lc == "red" %}
-							{% set col_bg = "#b32121" %}
-						{% elif lc in ["white", "#fff", "#ffffff"] %}
-							{% set col_bg = "#ffffff" %}
+						{% if col_raw %}
+							{% set lc = col_raw|lower %}
+							{% if lc == "red" %}
+								{% set col_bg = "#b32121" %}
+							{% elif lc in ["white", "#fff", "#ffffff"] %}
+								{% set col_bg = "#ffffff" %}
+							{% else %}
+								{% set col_bg = col_raw %}
+							{% endif %}
 						{% else %}
-							{% set col_bg = col_raw %}
-						{% endif %}
-					{% else %}
-						{% set col_bg = "#e5e7eb" %}
-					{% endif %}
-
-					{% if col_bg|lower in ["white", "#fff", "#ffffff", "#e5e7eb", "#facc15", "#fef9c3"] %}
-						{% set pill_text_color = "#05060a" %}
-					{% else %}
-						{% set pill_text_color = "#ffffff" %}
-					{% endif %}
-
-					{% set cap = 5 %}
-					{% if section_climbs is defined %}
-						{% for sc in section_climbs %}
-							{% if sc.climb_number == n and sc.attempt_cap %}
-								{% set cap = sc.attempt_cap %}
-							{% endif %}
-						{% endfor %}
-					{% endif %}
-
-					{% if s %}
-						{% set sel_attempt = s.attempts %}
-					{% else %}
-						{% set sel_attempt = 1 %}
-					{% endif %}
-					{% if sel_attempt > cap %}
-						{% set sel_attempt = cap %}
-					{% endif %}
-
-					<div class="climb-card climb-row" id="climb-{{ n }}" data-climb="{{ n }}" data-climb-row="{{ n }}" data-attempt-cap="{{ cap }}">
-						<div class="climb-header">
-							<span class="climb-title">Climb #{{ n }}</span>
-
-							{% if col_raw %}
-								<span class="climb-colour-pill" style="background: {{ col_bg }}; color: {{ pill_text_color }};">
-									{{ col_raw }}
-								</span>
-							{% endif %}
-						</div>
-
-						{% if max_pts is not none %}
-							<p>Max Points: <strong>{{ max_pts }}</strong></p>
+							{% set col_bg = "#e5e7eb" %}
 						{% endif %}
 
-						<p>
-							Points Scored:
-							<span class="points-scored-value">
-								{% if per_climb_points is defined %}
-									{{ per_climb_points.get(n, 0) }}
-								{% else %}
-									0
+						{% if col_bg|lower in ["white", "#fff", "#ffffff", "#e5e7eb", "#facc15", "#fef9c3"] %}
+							{% set pill_text_color = "#05060a" %}
+						{% else %}
+							{% set pill_text_color = "#ffffff" %}
+						{% endif %}
+
+						{% set cap = sc.attempt_cap if sc.attempt_cap else 5 %}
+
+						{% if s %}
+							{% set sel_attempt = s.attempts if s.attempts else 1 %}
+						{% else %}
+							{% set sel_attempt = 1 %}
+						{% endif %}
+						{% if sel_attempt > cap %}
+							{% set sel_attempt = cap %}
+						{% endif %}
+
+						{% set is_topped = (s and s.topped) %}
+						{% set is_flashed = (s and s.flashed) %}
+
+						<div
+							class="climb-card climb-row"
+							id="climb-{{ n }}"
+							data-climb="{{ n }}"
+							data-climb-row="{{ n }}"
+							data-section-climb-id="{{ sc.id }}"
+							data-attempt-cap="{{ cap }}"
+							data-initial-attempt="{{ sel_attempt }}"
+							data-initial-topped="{{ '1' if is_topped else '0' }}"
+							data-initial-flashed="{{ '1' if is_flashed else '0' }}"
+						>
+							<div class="climb-header">
+								<span class="climb-title">Climb #{{ n }}</span>
+
+								{% if col_raw %}
+									<span class="climb-colour-pill" style="background: {{ col_bg }}; color: {{ pill_text_color }};">
+										{{ col_raw }}
+									</span>
 								{% endif %}
-							</span>
-						</p>
-
-						<div class="climb-actions">
-							<div class="climb-actions-row">
-								<button type="button" class="flash-btn action-pill" {% if not can_edit %}disabled{% endif %}>Flash</button>
-								<button type="button" class="topped-toggle-btn action-pill" {% if not can_edit %}disabled{% endif %}>Topped</button>
 							</div>
 
-							<div class="climb-actions-row attempts-row">
-								<span class="attempts-label">Attempts</span>
-								<div class="attempts-pill-row" data-selected-attempt="{{ sel_attempt }}">
-									{% for i in range(1, cap + 1) %}
-										<button type="button" class="attempt-pill" data-attempt="{{ i }}" {% if not can_edit %}disabled{% endif %}>{{ i }}</button>
-									{% endfor %}
+							{% if max_pts is not none %}
+								<p>Max Points: <strong>{{ max_pts }}</strong></p>
+							{% endif %}
+
+							<p>
+								Points Scored:
+								<span class="points-scored-value">
+									{% if per_climb_points is defined %}
+										{{ per_climb_points.get(n, 0) }}
+									{% else %}
+										0
+									{% endif %}
+								</span>
+							</p>
+
+							<div class="climb-actions">
+								<div class="climb-actions-row">
+									<button
+										type="button"
+										class="flash-btn action-pill {% if is_flashed %}is-active{% endif %}"
+										{% if not can_edit %}disabled{% endif %}
+									>
+										Flash
+									</button>
+
+									<button
+										type="button"
+										class="topped-toggle-btn action-pill {% if is_topped and not is_flashed %}is-active{% endif %}"
+										{% if not can_edit %}disabled{% endif %}
+									>
+										Topped
+									</button>
 								</div>
-							</div>
 
-							<div class="status" aria-live="polite"></div>
+								<div class="climb-actions-row attempts-row">
+									<span class="attempts-label">Attempts</span>
+									<div class="attempts-pill-row" data-selected-attempt="{{ sel_attempt }}">
+										{% for i in range(1, cap + 1) %}
+											<button
+												type="button"
+												class="attempt-pill {% if i == sel_attempt %}is-active{% endif %}"
+												data-attempt="{{ i }}"
+												{% if not can_edit %}disabled{% endif %}
+											>
+												{{ i }}
+											</button>
+										{% endfor %}
+									</div>
+								</div>
+
+								<div class="status" aria-live="polite"></div>
+							</div>
 						</div>
-					</div>
-				{% endfor %}
+					{% endfor %}
+				{% else %}
+					<div class="alert">No climbs found for this section.</div>
+				{% endif %}
 			</div>
 		</section>
 	</main>
@@ -743,6 +797,7 @@
 		function getCurrentState(card) {
 			const attemptsContainer = card.querySelector(".attempts-pill-row");
 			const toppedToggle = card.querySelector(".topped-toggle-btn");
+			const flashBtn = card.querySelector(".flash-btn");
 
 			let attempts = 1;
 			if (attemptsContainer) {
@@ -752,8 +807,33 @@
 			}
 
 			const topped = !!(toppedToggle && toppedToggle.classList.contains("is-active"));
-			return { attempts, topped };
+			const flashed = !!(flashBtn && flashBtn.classList.contains("is-active"));
+			return { attempts, topped, flashed };
 		}
+
+		// Ensure toggles reflect server state on load
+		function hydrateFromDataset(card) {
+			const attemptsContainer = card.querySelector(".attempts-pill-row");
+			const attemptButtons = attemptsContainer ? Array.from(attemptsContainer.querySelectorAll(".attempt-pill")) : [];
+
+			const initialAttempt = parseInt(card.dataset.initialAttempt || "1", 10);
+			const initialTopped = card.dataset.initialTopped === "1";
+			const initialFlashed = card.dataset.initialFlashed === "1";
+
+			if (attemptsContainer) {
+				const attempt = (!isNaN(initialAttempt) && initialAttempt >= 1) ? String(initialAttempt) : "1";
+				attemptsContainer.dataset.selectedAttempt = attempt;
+				attemptButtons.forEach((btn) => btn.classList.toggle("is-active", btn.dataset.attempt === attempt));
+			}
+
+			const flashBtn = card.querySelector(".flash-btn");
+			const toppedBtn = card.querySelector(".topped-toggle-btn");
+
+			if (flashBtn) flashBtn.classList.toggle("is-active", initialFlashed);
+			if (toppedBtn) toppedBtn.classList.toggle("is-active", initialTopped && !initialFlashed);
+		}
+
+		cards.forEach(hydrateFromDataset);
 
 		async function save(card, override) {
 			if (!canEdit || viewerId === null) {
@@ -762,12 +842,14 @@
 			}
 
 			const climb = parseInt(card.dataset.climb, 10);
+			const sectionClimbId = parseInt(card.dataset.sectionClimbId, 10);
 			const status = card.querySelector(".status");
 
-			let { attempts, topped } = getCurrentState(card);
+			let { attempts, topped, flashed } = getCurrentState(card);
 
 			if (override && typeof override.attempts === "number") attempts = override.attempts;
 			if (override && typeof override.topped === "boolean") topped = override.topped;
+			if (override && typeof override.flashed === "boolean") flashed = override.flashed;
 
 			if (isNaN(attempts) || attempts < 1) attempts = 1;
 			if (attempts > 50) attempts = 50;
@@ -778,9 +860,11 @@
 					headers: { "Content-Type": "application/json" },
 					body: JSON.stringify({
 						competitor_id: viewerId,
-						climb_number: climb,
+						section_climb_id: isNaN(sectionClimbId) ? null : sectionClimbId,
+						climb_number: climb, // keep for backwards compatibility
 						attempts,
 						topped,
+						flashed,
 					}),
 				});
 
@@ -815,7 +899,7 @@
 				if (!totalEl) return;
 
 				let totalPoints = 0;
-				rows.forEach((r) => { totalPoints += r.points || 0; });
+				(rows || []).forEach((r) => { totalPoints += r.points || 0; });
 				totalEl.textContent = totalPoints;
 			} catch (e) {}
 		}
@@ -850,6 +934,7 @@
 					flashBtn.addEventListener("click", async () => {
 						if (!attemptsContainer) return;
 
+						// Flash implies: attempts=1, topped=true, flashed=true
 						attemptsContainer.dataset.selectedAttempt = "1";
 						attemptButtons.forEach((btn) => {
 							btn.classList.toggle("is-active", btn.dataset.attempt === "1");
@@ -858,7 +943,7 @@
 						flashBtn.classList.add("is-active");
 						if (toppedToggle) toppedToggle.classList.remove("is-active");
 
-						await save(card, { attempts: 1, topped: true });
+						await save(card, { attempts: 1, topped: true, flashed: true });
 					});
 				}
 
@@ -866,8 +951,11 @@
 					toppedToggle.addEventListener("click", async () => {
 						const nowActive = !toppedToggle.classList.contains("is-active");
 						toppedToggle.classList.toggle("is-active", nowActive);
+
+						// If you manually topped it, it is NOT flashed.
 						if (flashBtn && nowActive) flashBtn.classList.remove("is-active");
-						await save(card);
+
+						await save(card, { topped: nowActive, flashed: false });
 					});
 				}
 
@@ -876,7 +964,11 @@
 						const attempt = btn.dataset.attempt;
 						attemptsContainer.dataset.selectedAttempt = attempt;
 						attemptButtons.forEach((b) => { b.classList.toggle("is-active", b === btn); });
-						await save(card);
+
+						// Changing attempts makes it not a flash anymore
+						if (flashBtn) flashBtn.classList.remove("is-active");
+
+						await save(card, { flashed: false });
 					});
 				});
 			});
@@ -895,10 +987,8 @@
 			setTimeout(() => { row.classList.remove("climb-row-highlight"); }, 1500);
 		});
 
-		// DONE = topped only.
-		// Update:
-		// - map dots (green if topped)
-		// - active section tab badge (done/total) for THIS section only (we only know totals here)
+		// DONE = topped OR flashed.
+		// Uses section_climb_id to avoid collisions across sections.
 		async function refreshDoneDotsAndActiveTab() {
 			const dots = Array.from(document.querySelectorAll(".map-dot-interactive"));
 			const activeTab = document.querySelector(".section-tab.is-active");
@@ -919,15 +1009,29 @@
 				if (!res.ok) return;
 				const rows = await res.json();
 
-				const toppedSet = new Set();
+				// Expect API to include section_climb_id. If it doesn't, dots will still work
+				// by climb_number, but collisions may occur across sections.
+				const doneBySectionClimbId = new Set();
+				const doneByClimbNumber = new Set();
+
 				(rows || []).forEach((r) => {
-					if (r && r.topped) toppedSet.add(String(r.climb_number));
+					const isDone = !!(r && (r.topped || r.flashed));
+					if (!isDone) return;
+
+					if (r.section_climb_id !== undefined && r.section_climb_id !== null) {
+						doneBySectionClimbId.add(String(r.section_climb_id));
+					}
+					if (r.climb_number !== undefined && r.climb_number !== null) {
+						doneByClimbNumber.add(String(r.climb_number));
+					}
 				});
 
 				let doneCountThisSection = 0;
 				dots.forEach((d) => {
+					const sid = String(d.dataset.sectionClimbId || "");
 					const cn = String(d.dataset.climb || "");
-					const isDone = toppedSet.has(cn);
+
+					const isDone = (sid && doneBySectionClimbId.has(sid)) || (cn && doneByClimbNumber.has(cn));
 					d.classList.toggle("is-done", isDone);
 					if (isDone) doneCountThisSection += 1;
 				});
