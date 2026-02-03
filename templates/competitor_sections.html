@@ -111,10 +111,9 @@
 			margin-bottom: 1.5rem;
 			color: rgba(255, 255, 255, 0.9);
 		}
-
 		.view-only-note strong { color: #fff; }
 
-		/* Map card */
+		/* Map card (match competitor.html vibe) */
 		.map-card {
 			background: rgba(255, 255, 255, 0.05);
 			backdrop-filter: blur(10px);
@@ -238,7 +237,7 @@
 			transition: width 0.25s ease;
 		}
 
-		/* Map wrapper */
+		/* Map wrapper (match competitor.html) */
 		.map-wrapper {
 			position: relative;
 			width: 100%;
@@ -248,10 +247,15 @@
 			background: #000;
 		}
 
+		/*
+		  IMPORTANT: make the viewport behave like competitor.html (image dictates height),
+		  while still allowing pan/zoom by keeping a fixed-aspect box.
+		*/
 		.map-viewport {
 			position: relative;
 			width: 100%;
-			height: clamp(460px, 78vh, 900px);
+			height: auto;
+			aspect-ratio: var(--map-ar, 4 / 3); /* JS sets this from the actual image */
 			overflow: hidden;
 			touch-action: none;
 			background: #000;
@@ -274,7 +278,7 @@
 			pointer-events: none;
 		}
 
-		/* --- MARKERS (FIXED) --- */
+		/* MARKERS (smaller + sane scaling) */
 		.map-marker {
 			position: absolute;
 			width: 12px;
@@ -306,14 +310,12 @@
 
 		#mapWrapperSections { --marker-scale: 1; }
 
-		/* Keep marker size visually consistent as you zoom IN, but NEVER let it inflate when zoomed OUT */
 		#mapWrapperSections .map-marker {
 			width: calc(12px / var(--marker-scale));
 			height: calc(12px / var(--marker-scale));
 			border-width: 2px;
 		}
 
-		/* Smaller click target (still fat-finger friendly) */
 		#mapWrapperSections .map-marker::after {
 			content: "";
 			position: absolute;
@@ -562,11 +564,9 @@
 				if (!sid) return;
 
 				totalsBySection.set(sid, (totalsBySection.get(sid) || 0) + 1);
-
 				if (cn) sectionByClimb.set(String(cn), sid);
 			});
 
-			// Helper: update one card UI
 			function setCardProgress(card, done, total) {
 				const left = Math.max(0, total - done);
 				card.querySelectorAll(".sec-done").forEach(el => el.textContent = String(done));
@@ -581,14 +581,12 @@
 				}
 			}
 
-			// Default card totals immediately (done=0 until we load scores)
 			cards.forEach((card) => {
 				const sid = card.dataset.sectionId;
 				const total = totalsBySection.get(sid) || 0;
 				setCardProgress(card, 0, total);
 			});
 
-			// Load scores and compute "done" per section
 			async function loadProgress() {
 				try {
 					const res = await fetch(`/api/score/${competitorId}`);
@@ -596,7 +594,6 @@
 
 					const rows = await res.json();
 
-					// Decide "done": only topped/flashed implies done
 					const doneClimbs = new Set();
 					(rows || []).forEach((r) => {
 						if (!r) return;
@@ -604,11 +601,7 @@
 						if (cn === undefined || cn === null) return;
 
 						const topped = !!r.topped;
-
-						// Only count as done if topped/flashed
-						if (topped) {
-							doneClimbs.add(String(cn));
-						}
+						if (topped) doneClimbs.add(String(cn));
 					});
 
 					const doneBySection = new Map();
@@ -625,13 +618,12 @@
 						setCardProgress(card, done, total);
 					});
 				} catch (e) {
-					// ignore; counts just stay at 0 done
+					// ignore
 				}
 			}
 
 			loadProgress();
 
-			// Filter behaviour (same logic as before, just applied to cards)
 			let activeIds = new Set();
 
 			function applyFilter() {
@@ -682,7 +674,7 @@
 			if (!wrapper || !viewport || !layer || !img) return;
 
 			let scale = 1;
-			let minScale = 1; // computed from fit
+			let minScale = 1;
 			const maxScale = 4;
 
 			let tx = 0, ty = 0;
@@ -717,7 +709,7 @@
 			function applyTransform() {
 				layer.style.transform = `translate(${tx}px, ${ty}px) scale(${scale})`;
 
-				// Keep markers visually consistent as you zoom IN, but never inflate when zoomed OUT
+				// Never let markers inflate when zoomed OUT
 				const markerScale = Math.max(1, Math.pow(scale, 0.65));
 				wrapper.style.setProperty("--marker-scale", String(markerScale));
 			}
@@ -879,7 +871,13 @@
 				}
 			}, true);
 
-			function init() { resetFit(); }
+			function init() {
+				// Make viewport height behave like competitor.html by matching the map image aspect ratio
+				if (img.naturalWidth && img.naturalHeight) {
+					viewport.style.setProperty("--map-ar", `${img.naturalWidth} / ${img.naturalHeight}`);
+				}
+				resetFit();
+			}
 
 			if (img.complete) init();
 			else img.addEventListener("load", init, { once: true });
