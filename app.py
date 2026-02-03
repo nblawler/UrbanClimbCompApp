@@ -1192,8 +1192,7 @@ def signup():
         name=name,
         email=email,
     )
-
-
+    
 
 @app.route("/competitions")
 def competitions_index():
@@ -1847,7 +1846,7 @@ def competitor_sections(competitor_id):
 
     total_points = competitor_total_points(target_id, comp_row.id)
 
-    # ✅ IMPORTANT: Leaderboard must be scoped to THIS competition
+    # IMPORTANT: Leaderboard must be scoped to THIS competition
     rows, _ = build_leaderboard(None, competition_id=comp_row.id)
     position = None
     for r in rows:
@@ -2843,7 +2842,7 @@ def register_competitor():
     IMPORTANT:
     - This route is now ADMIN-ONLY to avoid bypassing the email verification flow.
     """
-    # ✅ Staff/admin only (prevents bypassing delayed verify flow)
+    # Staff/admin only (prevents bypassing delayed verify flow)
     if not session.get("admin_ok"):
         return redirect("/admin")
 
@@ -3080,8 +3079,6 @@ def logout():
         session.pop(k, None)
 
     return redirect("/")
-
-
 
 
 @app.route("/join", methods=["GET", "POST"])
@@ -4162,7 +4159,6 @@ def admin_competitions():
         error=error,
     )
 
-    
 
 @app.route("/admin/comp/<int:competition_id>/configure")
 def admin_configure_competition(competition_id):
