@@ -274,14 +274,15 @@
 			pointer-events: none;
 		}
 
+		/* --- MARKERS (FIXED) --- */
 		.map-marker {
 			position: absolute;
-			width: 20px;
-			height: 20px;
+			width: 12px;
+			height: 12px;
 			border-radius: 999px;
 			border: 2px solid #fff;
 			transform: translate(-50%, -50%);
-			box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+			box-shadow: 0 3px 10px rgba(0, 0, 0, 0.45);
 			transition: transform 0.15s, box-shadow 0.15s;
 			cursor: pointer;
 			text-decoration: none;
@@ -289,8 +290,8 @@
 		}
 
 		.map-marker:hover {
-			transform: translate(-50%, -50%) scale(1.15);
-			box-shadow: 0 8px 20px rgba(0, 0, 0, 0.7);
+			transform: translate(-50%, -50%) scale(1.08);
+			box-shadow: 0 6px 16px rgba(0, 0, 0, 0.6);
 			z-index: 10;
 		}
 
@@ -305,19 +306,21 @@
 
 		#mapWrapperSections { --marker-scale: 1; }
 
+		/* Keep marker size visually consistent as you zoom IN, but NEVER let it inflate when zoomed OUT */
 		#mapWrapperSections .map-marker {
-			width: calc(20px / var(--marker-scale));
-			height: calc(20px / var(--marker-scale));
+			width: calc(12px / var(--marker-scale));
+			height: calc(12px / var(--marker-scale));
 			border-width: 2px;
 		}
 
+		/* Smaller click target (still fat-finger friendly) */
 		#mapWrapperSections .map-marker::after {
 			content: "";
 			position: absolute;
 			left: 50%;
 			top: 50%;
-			width: 38px;
-			height: 38px;
+			width: 28px;
+			height: 28px;
 			transform: translate(-50%, -50%);
 			border-radius: 999px;
 			background: transparent;
@@ -593,7 +596,7 @@
 
 					const rows = await res.json();
 
-					// Decide "done": any saved attempt/points/topped implies done
+					// Decide "done": only topped/flashed implies done
 					const doneClimbs = new Set();
 					(rows || []).forEach((r) => {
 						if (!r) return;
@@ -604,7 +607,7 @@
 
 						// Only count as done if topped/flashed
 						if (topped) {
-						doneClimbs.add(String(cn));
+							doneClimbs.add(String(cn));
 						}
 					});
 
@@ -713,7 +716,9 @@
 
 			function applyTransform() {
 				layer.style.transform = `translate(${tx}px, ${ty}px) scale(${scale})`;
-				const markerScale = Math.pow(scale, 0.65);
+
+				// Keep markers visually consistent as you zoom IN, but never inflate when zoomed OUT
+				const markerScale = Math.max(1, Math.pow(scale, 0.65));
 				wrapper.style.setProperty("--marker-scale", String(markerScale));
 			}
 
