@@ -55,6 +55,7 @@
       overflow: hidden;
       border: 1px solid var(--border-subtle, rgba(255,255,255,0.05));
       cursor: crosshair;
+      background: #000;
     }
 
     .map-image,
@@ -100,9 +101,7 @@
       font-size: 18px;
     }
 
-    .field {
-      margin-bottom: 10px;
-    }
+    .field { margin-bottom: 10px; }
 
     .field label {
       display: block;
@@ -160,9 +159,7 @@
       font-size: 13px;
     }
 
-    .section-list li {
-      margin-bottom: 4px;
-    }
+    .section-list li { margin-bottom: 4px; }
 
     .alert {
       padding: 12px 14px;
@@ -186,21 +183,17 @@
     }
 
     @media (max-width: 800px) {
-      .admin-map-page {
-        grid-template-columns: minmax(0, 1fr);
-      }
+      .admin-map-page { grid-template-columns: minmax(0, 1fr); }
     }
   </style>
 </head>
 <body>
   <nav class="container top-nav">
     <div class="nav-links">
-      {# Preserve admin-selected comp context in "Admin Home" link #}
       <a class="back" href="/admin/comps{% if session.get('admin_comp_id') %}?comp_id={{ session.get('admin_comp_id') }}{% endif %}">
         Admin Home
       </a>
 
-      {# Optional: quick jump back to this comp’s admin page if slug exists #}
       {% if session.get('admin_comp_id') %}
         <a class="back" href="/admin/map?comp_id={{ session.get('admin_comp_id') }}">
           Refresh map
@@ -229,7 +222,6 @@
             {% endif %}
           </h1>
 
-          {# Helpful context line if we know which comp we’re editing #}
           {% if comp_name %}
             <p class="map-subtitle">Editing competition: {{ comp_name }}</p>
           {% endif %}
@@ -247,9 +239,11 @@
       {% else %}
         <div id="mapWrapper" class="map-wrapper">
           <img
+            id="mapImg"
             class="gym-map"
             src="{{ gym_map_url }}"
             alt="Gym map"
+            draggable="false"
           />
 
           {% for c in climbs %}
@@ -281,7 +275,6 @@
         Click on the map first to set the position, then fill the details and save.
       </p>
 
-      {# ✅ Flash messages (so failures aren't silent) #}
       {% with messages = get_flashed_messages(with_categories=true) %}
         {% if messages %}
           {% for category, msg in messages %}
@@ -295,7 +288,6 @@
         {% endif %}
       {% endwith %}
 
-      {# Preserve comp context on submit #}
       <form method="POST" action="/admin/map/add-climb">
         <input type="hidden" name="comp_id" value="{{ session.get('admin_comp_id') }}">
 
@@ -347,37 +339,15 @@
         <div class="field field-row">
           <div>
             <label for="base_points">Base points</label>
-            <input
-              type="number"
-              id="base_points"
-              name="base_points"
-              min="0"
-              step="1"
-              required
-            />
+            <input type="number" id="base_points" name="base_points" min="0" step="1" required />
           </div>
           <div>
             <label for="penalty_per_attempt">Penalty / attempt</label>
-            <input
-              type="number"
-              id="penalty_per_attempt"
-              name="penalty_per_attempt"
-              min="0"
-              step="1"
-              required
-            />
+            <input type="number" id="penalty_per_attempt" name="penalty_per_attempt" min="0" step="1" required />
           </div>
           <div>
             <label for="attempt_cap">Attempt cap</label>
-            <input
-              type="number"
-              id="attempt_cap"
-              name="attempt_cap"
-              min="1"
-              step="1"
-              value="5"
-              required
-            />
+            <input type="number" id="attempt_cap" name="attempt_cap" min="1" step="1" value="5" required />
           </div>
         </div>
 
@@ -412,6 +382,7 @@
   <script>
     (function () {
       const mapWrapper = document.getElementById("mapWrapper");
+      const mapImg = document.getElementById("mapImg");
       const ghostDot = document.getElementById("ghostDot");
       const xInput = document.getElementById("x_percent");
       const yInput = document.getElementById("y_percent");
@@ -419,35 +390,40 @@
       const submitBtn = document.getElementById("submitBtn");
       const clickHint = document.getElementById("clickHint");
 
-      // If there's no map wrapper (no gym_map_url), don't bind clicks
-      if (!mapWrapper) return;
+      if (!mapWrapper || !mapImg) return;
+
+      function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
 
       // Start disabled until we click
       if (submitBtn) submitBtn.disabled = true;
 
       mapWrapper.addEventListener("click", function (e) {
-        const rect = mapWrapper.getBoundingClientRect();
-        const x = e.clientX - rect.left;
-        const y = e.clientY - rect.top;
-        const xPercent = (x / rect.width) * 100;
-        const yPercent = (y / rect.height) * 100;
+        // IMPORTANT: compute relative to the IMAGE, not the wrapper
+        const rect = mapImg.getBoundingClientRect();
 
-        xInput.value = xPercent.toFixed(2);
-        yInput.value = yPercent.toFixed(2);
+        const px = (e.clientX - rect.left) / rect.width;
+        const py = (e.clientY - rect.top) / rect.height;
+
+        // If click somehow lands outside the image bounds, ignore it
+        if (px < 0 || px > 1 || py < 0 || py > 1) return;
+
+        const xPercent = clamp(px, 0, 1) * 100;
+        const yPercent = clamp(py, 0, 1) * 100;
+
+        xInput.value = xPercent.toFixed(4);
+        yInput.value = yPercent.toFixed(4);
 
         ghostDot.style.left = xPercent + "%";
         ghostDot.style.top = yPercent + "%";
         ghostDot.style.display = "flex";
 
-        submitBtn.disabled = false;
+        if (submitBtn) submitBtn.disabled = false;
         if (clickHint) clickHint.textContent = "Nice. Now fill the form and hit save.";
 
-        coordsDisplay.textContent =
-          "Clicked at: " +
-          xPercent.toFixed(1) +
-          "% / " +
-          yPercent.toFixed(1) +
-          "%";
+        if (coordsDisplay) {
+          coordsDisplay.textContent =
+            "Clicked at: " + xPercent.toFixed(2) + "% / " + yPercent.toFixed(2) + "%";
+        }
       });
     })();
   </script>
