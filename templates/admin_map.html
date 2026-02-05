@@ -64,11 +64,11 @@
       height: auto;
       aspect-ratio: var(--map-ar, 4 / 3);
       overflow: hidden;
-      touch-action: none;
+      touch-action: none; /* important: we handle gestures ourselves */
       background: #000;
       cursor: grab;
     }
-    .map-viewport:active { cursor: grabbing; }
+    .map-viewport.is-grabbing { cursor: grabbing; }
 
     .map-layer {
       position: absolute;
@@ -117,7 +117,8 @@
       top: 0;
       width: 100%;
       height: 100%;
-      pointer-events: none; /* clicks pass through to viewport */
+      pointer-events: auto; /* Allow pointer events so taps register reliably */
+      /* but we still treat drags as pan via pointer logic */
     }
 
     .map-controls {
@@ -352,7 +353,7 @@
         </div>
 
         <div class="map-coords" id="coordsDisplay">
-          Click on the map to choose a location for a new climb.
+          Tap on the map to choose a location for a new climb.
         </div>
       {% endif %}
     </section>
@@ -360,7 +361,7 @@
     <section class="form-card">
       <h2>Add climb from map</h2>
       <p class="tiny-muted">
-        Click on the map first to set the position, then fill the details and save.
+        Tap the map first to set the position, then fill the details and save.
       </p>
 
       {% with messages = get_flashed_messages(with_categories=true) %}
@@ -469,11 +470,11 @@
           id="submitBtn"
           {% if not gym_map_url %}disabled{% endif %}
         >
-          Save climb at clicked position
+          Save climb at tapped position
         </button>
 
         <div class="tiny-muted" id="clickHint">
-          Button unlocks once you’ve clicked on the map.
+          Button unlocks once you’ve tapped on the map.
         </div>
       </form>
 
@@ -498,10 +499,10 @@
       const ghostDot = document.getElementById("ghostDot");
       const resetBtn = document.getElementById("btnResetZoom");
 
-      const btnDrawBoundary = document.getElementById("btnDrawBoundary");
-      const btnUndoBoundary = document.getElementById("btnUndoBoundary");
+      const btnDrawBoundary  = document.getElementById("btnDrawBoundary");
+      const btnUndoBoundary  = document.getElementById("btnUndoBoundary");
       const btnClearBoundary = document.getElementById("btnClearBoundary");
-      const btnSaveBoundary = document.getElementById("btnSaveBoundary");
+      const btnSaveBoundary  = document.getElementById("btnSaveBoundary");
 
       const boundarySelect = document.getElementById("boundary_section");
       const boundaryStatus = document.getElementById("boundaryStatus");
@@ -514,12 +515,11 @@
 
       const compId = "{{ session.get('admin_comp_id') }}";
 
-      if (!wrapper || !viewport || !layer || !img) return;
+      if (!wrapper || !viewport || !layer || !img || !overlay) return;
 
       function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
       function setBoundaryStatus(msg) { if (boundaryStatus) boundaryStatus.textContent = msg || ""; }
 
-      // Start disabled until we click (climb placement)
       if (submitBtn) submitBtn.disabled = true;
 
       // ---- Pan/zoom state ----
@@ -530,20 +530,25 @@
       let tx = 0, ty = 0;
       let baseW = 1, baseH = 1;
 
-      let isPanning = false;
-      let startX = 0, startY = 0;
-      let lastTx = 0, lastTy = 0;
+      // ---- Pointer state ----
+      const pointers = new Map(); // pointerId -> {x,y}
+      let isDragging = false;
+      let dragStart = { x: 0, y: 0 };
+      let dragStartTx = 0;
+      let dragStartTy = 0;
 
       let pinchStartDist = 0;
       let pinchStartScale = 1;
+      let pinchStartMid = { x: 0, y: 0 };
 
+      // tap detection
+      let downAt = { x: 0, y: 0 };
       let movedTooFar = false;
-      let panStartClient = { x: 0, y: 0 };
 
       // ---- Boundary state ----
       const state = {
         drawingBoundary: false,
-        boundaries: {}, // sectionId -> [{x,y}, ...] where x,y are percent 0..100
+        boundaries: {}, // sectionId -> [{x,y}] in percent
       };
 
       function currentBoundarySectionId() {
@@ -551,6 +556,7 @@
       }
 
       function updateLayerSizeFromImage() {
+        // These are the base pixel dimensions *inside the layer* (before our scale transform).
         const r = img.getBoundingClientRect();
         baseW = Math.max(1, Math.round(r.width));
         baseH = Math.max(1, Math.round(r.height));
@@ -586,10 +592,15 @@
         else ty = clamp(ty, minTy, 0);
       }
 
+      function ensureOverlaySize() {
+        overlay.setAttribute("width", baseW);
+        overlay.setAttribute("height", baseH);
+        overlay.setAttribute("viewBox", `0 0 ${baseW} ${baseH}`);
+      }
+
       function resetFit() {
         updateLayerSizeFromImage();
         minScale = computeFitScale();
-
         scale = clamp(minScale, minScale, maxScale);
 
         const vr = viewport.getBoundingClientRect();
@@ -622,115 +633,16 @@
         zoomTo(scale * factor, clientX, clientY);
       }
 
-      function getTouchDist(t1, t2) {
-        const dx = t2.clientX - t1.clientX;
-        const dy = t2.clientY - t1.clientY;
+      function getDist(a, b) {
+        const dx = b.x - a.x;
+        const dy = b.y - a.y;
         return Math.hypot(dx, dy);
       }
 
-      function getTouchMid(t1, t2) {
-        return { x: (t1.clientX + t2.clientX) / 2, y: (t1.clientY + t2.clientY) / 2 };
+      function getMid(a, b) {
+        return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
       }
 
-      viewport.addEventListener("touchmove", (e) => e.preventDefault(), { passive: false });
-
-      viewport.addEventListener("touchstart", (e) => {
-        movedTooFar = false;
-
-        if (e.touches.length === 1) {
-          isPanning = true;
-          startX = e.touches[0].clientX;
-          startY = e.touches[0].clientY;
-          lastTx = tx;
-          lastTy = ty;
-          panStartClient = { x: startX, y: startY };
-        } else if (e.touches.length === 2) {
-          isPanning = false;
-          pinchStartDist = getTouchDist(e.touches[0], e.touches[1]);
-          pinchStartScale = scale;
-        }
-      }, { passive: true });
-
-      viewport.addEventListener("touchmove", (e) => {
-        if (e.touches.length === 1 && isPanning) {
-          const dx = e.touches[0].clientX - startX;
-          const dy = e.touches[0].clientY - startY;
-
-          const moved = Math.hypot(
-            e.touches[0].clientX - panStartClient.x,
-            e.touches[0].clientY - panStartClient.y
-          );
-          if (moved > 8) movedTooFar = true;
-
-          tx = lastTx + dx;
-          ty = lastTy + dy;
-          clampPan();
-          applyTransform();
-          redrawBoundary();
-        } else if (e.touches.length === 2) {
-          movedTooFar = true;
-
-          const dist = getTouchDist(e.touches[0], e.touches[1]);
-          const mid = getTouchMid(e.touches[0], e.touches[1]);
-
-          const factor = dist / (pinchStartDist || dist);
-          const nextScale = pinchStartScale * factor;
-
-          zoomTo(nextScale, mid.x, mid.y);
-        }
-      }, { passive: false });
-
-      viewport.addEventListener("touchend", (e) => {
-        if (e.touches.length === 0) isPanning = false;
-      });
-
-      // Desktop drag + wheel
-      let mouseDown = false;
-
-      viewport.addEventListener("mousedown", (e) => {
-        mouseDown = true;
-        movedTooFar = false;
-        startX = e.clientX;
-        startY = e.clientY;
-        lastTx = tx;
-        lastTy = ty;
-        panStartClient = { x: startX, y: startY };
-      });
-
-      window.addEventListener("mousemove", (e) => {
-        if (!mouseDown) return;
-
-        const moved = Math.hypot(e.clientX - panStartClient.x, e.clientY - panStartClient.y);
-        if (moved > 6) movedTooFar = true;
-
-        tx = lastTx + (e.clientX - startX);
-        ty = lastTy + (e.clientY - startY);
-        clampPan();
-        applyTransform();
-        redrawBoundary();
-      });
-
-      window.addEventListener("mouseup", () => { mouseDown = false; });
-
-      viewport.addEventListener("wheel", (e) => {
-        e.preventDefault();
-        const factor = e.deltaY < 0 ? 1.1 : 0.9;
-        zoomBy(factor, e.clientX, e.clientY);
-      }, { passive: false });
-
-      if (resetBtn) resetBtn.addEventListener("click", () => resetFit());
-
-      function init() {
-        if (img.naturalWidth && img.naturalHeight) {
-          viewport.style.setProperty("--map-ar", `${img.naturalWidth} / ${img.naturalHeight}`);
-        }
-        resetFit();
-        loadBoundaries().catch(() => setBoundaryStatus("Failed to load boundaries."));
-      }
-      if (img.complete) init();
-      else img.addEventListener("load", init, { once: true });
-
-      // ---- Click placement (correct under transform) ----
       function clientToImagePercent(clientX, clientY) {
         const vr = viewport.getBoundingClientRect();
         const xV = clientX - vr.left;
@@ -766,7 +678,7 @@
 
         if (coordsDisplay) {
           coordsDisplay.textContent =
-            "Clicked at: " + pt.x.toFixed(2) + "% / " + pt.y.toFixed(2) + "%";
+            "Tapped at: " + pt.x.toFixed(2) + "% / " + pt.y.toFixed(2) + "%";
         }
       }
 
@@ -785,33 +697,9 @@
         if (coordsDisplay) coordsDisplay.textContent = `Boundary point: ${pt.x.toFixed(2)}% / ${pt.y.toFixed(2)}%`;
       }
 
-      viewport.addEventListener("click", (e) => {
-        // If user was panning, don’t treat it as a click
-        if (movedTooFar) return;
-
-        updateLayerSizeFromImage();
-
-        if (state.drawingBoundary) {
-          addBoundaryPoint(e.clientX, e.clientY);
-          return;
-        }
-
-        placeClimbAt(e.clientX, e.clientY);
-      }, true);
-
       // ---- Boundary render ----
       function clearOverlay() {
-        if (!overlay) return;
         while (overlay.firstChild) overlay.removeChild(overlay.firstChild);
-      }
-
-      function ensureOverlaySize() {
-        if (!overlay || !img) return;
-        // overlay lives in mapLayer, so it scales with the layer transform.
-        // We size it to the layer's base pixel size.
-        overlay.setAttribute("width", baseW);
-        overlay.setAttribute("height", baseH);
-        overlay.setAttribute("viewBox", `0 0 ${baseW} ${baseH}`);
       }
 
       function pctToPx(pt) {
@@ -819,7 +707,7 @@
       }
 
       function redrawBoundary() {
-        if (!overlay) return;
+        updateLayerSizeFromImage();
         ensureOverlaySize();
         clearOverlay();
 
@@ -831,8 +719,9 @@
 
         const pxPts = pts.map(pctToPx);
 
-        // Polygon
-        const d = pxPts.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`).join(" ") + (pxPts.length >= 3 ? " Z" : "");
+        const d = pxPts
+          .map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`)
+          .join(" ") + (pxPts.length >= 3 ? " Z" : "");
 
         const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
         path.setAttribute("d", d);
@@ -841,7 +730,6 @@
         path.setAttribute("stroke-width", "2");
         overlay.appendChild(path);
 
-        // Vertices
         pxPts.forEach((p) => {
           const c = document.createElementNS("http://www.w3.org/2000/svg", "circle");
           c.setAttribute("cx", p.x);
@@ -852,6 +740,7 @@
         });
       }
 
+      // ---- API: load/save boundaries ----
       async function loadBoundaries() {
         if (!compId || compId === "None") {
           setBoundaryStatus("No competition context in session.");
@@ -903,7 +792,7 @@
 
         state.boundaries[sid] = data.points || [];
         redrawBoundary();
-        setBoundaryStatus("Saved boundary ✅");
+        setBoundaryStatus("Saved boundary");
       }
 
       function undoBoundaryPoint() {
@@ -924,13 +813,118 @@
         setBoundaryStatus("Cleared boundary (remember to Save).");
       }
 
+      // ---- Pointer events: pan + pinch + tap (no more flaky click) ----
+      function onPointerDown(e) {
+        // only react to primary button for mouse
+        if (e.pointerType === "mouse" && e.button !== 0) return;
+
+        viewport.setPointerCapture(e.pointerId);
+
+        movedTooFar = false;
+        downAt = { x: e.clientX, y: e.clientY };
+
+        pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+        if (pointers.size === 1) {
+          // start drag
+          isDragging = true;
+          viewport.classList.add("is-grabbing");
+
+          dragStart = { x: e.clientX, y: e.clientY };
+          dragStartTx = tx;
+          dragStartTy = ty;
+        } else if (pointers.size === 2) {
+          // pinch start
+          isDragging = false;
+          viewport.classList.add("is-grabbing");
+
+          const pts = Array.from(pointers.values());
+          pinchStartDist = getDist(pts[0], pts[1]) || 1;
+          pinchStartScale = scale;
+          pinchStartMid = getMid(pts[0], pts[1]);
+        }
+      }
+
+      function onPointerMove(e) {
+        if (!pointers.has(e.pointerId)) return;
+        pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+        const moved = Math.hypot(e.clientX - downAt.x, e.clientY - downAt.y);
+        if (moved > 8) movedTooFar = true;
+
+        if (pointers.size === 1 && isDragging) {
+          const dx = e.clientX - dragStart.x;
+          const dy = e.clientY - dragStart.y;
+          tx = dragStartTx + dx;
+          ty = dragStartTy + dy;
+          clampPan();
+          applyTransform();
+          redrawBoundary();
+        } else if (pointers.size === 2) {
+          movedTooFar = true;
+
+          const pts = Array.from(pointers.values());
+          const dist = getDist(pts[0], pts[1]) || pinchStartDist || 1;
+          const mid = getMid(pts[0], pts[1]);
+
+          const factor = dist / (pinchStartDist || dist);
+          const nextScale = pinchStartScale * factor;
+
+          zoomTo(nextScale, mid.x, mid.y);
+        }
+      }
+
+      function onPointerUp(e) {
+        const wasSinglePointer = (pointers.size === 1);
+
+        pointers.delete(e.pointerId);
+
+        if (pointers.size === 0) {
+          isDragging = false;
+          viewport.classList.remove("is-grabbing");
+
+          // Treat as TAP if you didn’t drag
+          if (wasSinglePointer && !movedTooFar) {
+            updateLayerSizeFromImage();
+
+            if (state.drawingBoundary) addBoundaryPoint(e.clientX, e.clientY);
+            else placeClimbAt(e.clientX, e.clientY);
+          }
+        } else if (pointers.size === 1) {
+          // If we were pinching, drop back to dragging from current state
+          const remaining = Array.from(pointers.values())[0];
+          isDragging = true;
+          dragStart = { x: remaining.x, y: remaining.y };
+          dragStartTx = tx;
+          dragStartTy = ty;
+        }
+      }
+
+      // Attach to overlay so it catches taps reliably even if image ignores pointer events
+      overlay.addEventListener("pointerdown", onPointerDown);
+      overlay.addEventListener("pointermove", onPointerMove);
+      overlay.addEventListener("pointerup", onPointerUp);
+      overlay.addEventListener("pointercancel", onPointerUp);
+      overlay.addEventListener("pointerleave", (e) => {
+        // if pointer leaves while down, still allow pan to continue via capture
+      });
+
+      // Wheel zoom (desktop)
+      viewport.addEventListener("wheel", (e) => {
+        e.preventDefault();
+        const factor = e.deltaY < 0 ? 1.1 : 0.9;
+        zoomBy(factor, e.clientX, e.clientY);
+      }, { passive: false });
+
+      if (resetBtn) resetBtn.addEventListener("click", () => resetFit());
+
       if (btnDrawBoundary) {
         btnDrawBoundary.addEventListener("click", () => {
           state.drawingBoundary = !state.drawingBoundary;
           btnDrawBoundary.classList.toggle("tiny-btn--active", state.drawingBoundary);
           setBoundaryStatus(state.drawingBoundary
-            ? "Drawing ON: click points on the map. (Climb placement disabled while drawing.)"
-            : "Drawing OFF: click to place climbs again."
+            ? "Drawing ON: tap points on the map. (Climb placement disabled while drawing.)"
+            : "Drawing OFF: tap to place climbs again."
           );
         });
       }
@@ -947,6 +941,21 @@
           setBoundaryStatus(sid ? `${pts.length} point(s) in boundary.` : "Pick a section.");
         });
       }
+
+      function init() {
+        if (img.naturalWidth && img.naturalHeight) {
+          viewport.style.setProperty("--map-ar", `${img.naturalWidth} / ${img.naturalHeight}`);
+        }
+        resetFit();
+        loadBoundaries().catch(() => setBoundaryStatus("Failed to load boundaries."));
+      }
+
+      if (img.complete) init();
+      else img.addEventListener("load", init, { once: true });
+
+      window.addEventListener("resize", () => {
+        resetFit();
+      });
 
     })();
   </script>
