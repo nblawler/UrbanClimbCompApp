@@ -2,7 +2,10 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"
+  />
   <title>Admin · Scoring</title>
   <link rel="stylesheet" href="/static/app.css" />
   <style>
@@ -65,13 +68,11 @@
       aspect-ratio: var(--map-ar, 4 / 3);
       overflow: hidden;
       background: #000;
-
-      /* Important: we will use Pointer Events only */
-      touch-action: none;
       cursor: grab;
-      user-select: none;
+      /* Important: stop browser gesture behaviors as much as possible */
+      touch-action: none;
     }
-    .map-viewport.is-grabbing { cursor: grabbing; }
+    .map-viewport:active { cursor: grabbing; }
 
     .map-layer {
       position: absolute;
@@ -86,7 +87,7 @@
       width: 100%;
       height: auto;
       user-select: none;
-      pointer-events: none; /* the overlay handles input */
+      pointer-events: none;
       -webkit-user-drag: none;
     }
 
@@ -113,17 +114,29 @@
       color: var(--accent, #5df29c);
     }
 
-    /* SVG overlay for section boundaries
-       IMPORTANT: must accept pointer events so taps work */
+    /* SVG overlay for section boundaries */
     .map-overlay {
       position: absolute;
       left: 0;
       top: 0;
       width: 100%;
       height: 100%;
-      pointer-events: auto;     /* ✅ accept taps/drags */
-      touch-action: none;       /* ✅ prevent browser gesture handling */
+      pointer-events: none; /* never blocks */
+    }
+
+    /* NEW: interaction layer (captures taps in draw mode) */
+    .map-interaction {
+      position: absolute;
+      left: 0; top: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 5;
+      pointer-events: none; /* default off */
       background: transparent;
+    }
+    .map-interaction--active {
+      pointer-events: auto; /* ON when drawing */
+      cursor: crosshair;
     }
 
     .map-controls {
@@ -327,7 +340,7 @@
                 draggable="false"
               />
 
-              <!-- SVG overlay ABOVE map, INSIDE mapLayer so it moves with pan/zoom -->
+              <!-- SVG overlay above map image (moves with mapLayer transform) -->
               <svg id="mapOverlay" class="map-overlay"></svg>
 
               {% for c in climbs %}
@@ -346,6 +359,9 @@
                 +
               </div>
             </div>
+
+            <!-- NEW: interaction layer sits above everything in viewport -->
+            <div id="mapInteraction" class="map-interaction" aria-label="Map interaction layer"></div>
           </div>
         </div>
 
@@ -503,11 +519,12 @@
       const overlay  = document.getElementById("mapOverlay");
       const ghostDot = document.getElementById("ghostDot");
       const resetBtn = document.getElementById("btnResetZoom");
+      const interaction = document.getElementById("mapInteraction");
 
-      const btnDrawBoundary  = document.getElementById("btnDrawBoundary");
-      const btnUndoBoundary  = document.getElementById("btnUndoBoundary");
+      const btnDrawBoundary = document.getElementById("btnDrawBoundary");
+      const btnUndoBoundary = document.getElementById("btnUndoBoundary");
       const btnClearBoundary = document.getElementById("btnClearBoundary");
-      const btnSaveBoundary  = document.getElementById("btnSaveBoundary");
+      const btnSaveBoundary = document.getElementById("btnSaveBoundary");
 
       const boundarySelect = document.getElementById("boundary_section");
       const boundaryStatus = document.getElementById("boundaryStatus");
@@ -520,7 +537,7 @@
 
       const compId = "{{ session.get('admin_comp_id') }}";
 
-      if (!wrapper || !viewport || !layer || !img || !overlay) return;
+      if (!wrapper || !viewport || !layer || !img || !interaction) return;
 
       function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
       function setBoundaryStatus(msg) { if (boundaryStatus) boundaryStatus.textContent = msg || ""; }
@@ -535,6 +552,20 @@
 
       let tx = 0, ty = 0;
       let baseW = 1, baseH = 1;
+
+      let isPanning = false;
+      let startX = 0, startY = 0;
+      let lastTx = 0, lastTy = 0;
+
+      // ---- Boundary state ----
+      const state = {
+        drawingBoundary: false,
+        boundaries: {}, // sectionId -> [{x,y}, ...] where x,y are percent 0..100
+      };
+
+      function currentBoundarySectionId() {
+        return (boundarySelect && boundarySelect.value) ? boundarySelect.value : "";
+      }
 
       function updateLayerSizeFromImage() {
         const r = img.getBoundingClientRect();
@@ -607,17 +638,7 @@
         zoomTo(scale * factor, clientX, clientY);
       }
 
-      // ---- Boundary state ----
-      const state = {
-        drawingBoundary: false,
-        boundaries: {}, // sectionId -> [{x,y}, ...] where x,y are percent 0..100
-      };
-
-      function currentBoundarySectionId() {
-        return (boundarySelect && boundarySelect.value) ? boundarySelect.value : "";
-      }
-
-      // ---- Map click placement (correct under transform) ----
+      // ---- Coordinate conversion (tap -> percent of image) ----
       function clientToImagePercent(clientX, clientY) {
         const vr = viewport.getBoundingClientRect();
         const xV = clientX - vr.left;
@@ -674,10 +695,12 @@
 
       // ---- Boundary render ----
       function clearOverlay() {
+        if (!overlay) return;
         while (overlay.firstChild) overlay.removeChild(overlay.firstChild);
       }
 
       function ensureOverlaySize() {
+        if (!overlay || !img) return;
         overlay.setAttribute("width", baseW);
         overlay.setAttribute("height", baseH);
         overlay.setAttribute("viewBox", `0 0 ${baseW} ${baseH}`);
@@ -688,6 +711,7 @@
       }
 
       function redrawBoundary() {
+        if (!overlay) return;
         ensureOverlaySize();
         clearOverlay();
 
@@ -698,10 +722,7 @@
         if (!pts.length) return;
 
         const pxPts = pts.map(pctToPx);
-
-        const d = pxPts
-          .map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`)
-          .join(" ")
+        const d = pxPts.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`).join(" ")
           + (pxPts.length >= 3 ? " Z" : "");
 
         const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
@@ -721,7 +742,6 @@
         });
       }
 
-      // ---- Load/save boundaries ----
       async function loadBoundaries() {
         if (!compId || compId === "None") {
           setBoundaryStatus("No competition context in session.");
@@ -794,169 +814,133 @@
         setBoundaryStatus("Cleared boundary (remember to Save).");
       }
 
-      // ---- Pointer events only (this fixes your “grab/zoom/can’t unclick” problem) ----
-      const pointers = new Map();
-      let isDragging = false;
+      function setDrawMode(on) {
+        state.drawingBoundary = !!on;
 
-      let movedTooFar = false;
-      let downAt = { x: 0, y: 0 };
+        // UI state
+        if (btnDrawBoundary) btnDrawBoundary.classList.toggle("tiny-btn--active", state.drawingBoundary);
 
-      let dragStart = { x: 0, y: 0 };
-      let dragStartTx = 0, dragStartTy = 0;
+        // Interaction capture ON in draw mode
+        interaction.classList.toggle("map-interaction--active", state.drawingBoundary);
 
-      let pinchStartDist = 0;
-      let pinchStartScale = 1;
+        // While drawing: stop pan/zoom completely (this is the whole point)
+        viewport.style.cursor = state.drawingBoundary ? "crosshair" : "grab";
 
-      function getDist(a, b) {
-        const dx = b.x - a.x;
-        const dy = b.y - a.y;
-        return Math.hypot(dx, dy);
-      }
-
-      function getMid(a, b) {
-        return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
-      }
-
-      function onPointerDown(e) {
-        // left click only for mouse
-        if (e.pointerType === "mouse" && e.button !== 0) return;
-
-        // capture so we always get pointerup (fixes “stuck grabbing”)
-        overlay.setPointerCapture(e.pointerId);
-
-        movedTooFar = false;
-        downAt = { x: e.clientX, y: e.clientY };
-
-        pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
-
-        // Drawing mode = tap-only (no pan/zoom)
+        // Also: when drawing, disable the climb placement button until you exit draw mode
+        // (prevents “why won’t it save climbs” confusion)
         if (state.drawingBoundary) {
-          isDragging = false;
-          viewport.classList.remove("is-grabbing");
-          return;
-        }
-
-        // Normal mode
-        if (pointers.size === 1) {
-          isDragging = true;
-          viewport.classList.add("is-grabbing");
-          dragStart = { x: e.clientX, y: e.clientY };
-          dragStartTx = tx;
-          dragStartTy = ty;
-        } else if (pointers.size === 2) {
-          isDragging = false;
-          viewport.classList.add("is-grabbing");
-          const pts = Array.from(pointers.values());
-          pinchStartDist = getDist(pts[0], pts[1]) || 1;
-          pinchStartScale = scale;
+          if (clickHint) clickHint.textContent = "Draw mode ON: taps add boundary points (climb placement paused).";
+          setBoundaryStatus("Drawing ON: tap points on the map. Tap Draw boundary again to exit.");
+        } else {
+          if (clickHint) clickHint.textContent = "Button unlocks once you’ve clicked on the map.";
+          setBoundaryStatus("Drawing OFF: click to place climbs again.");
         }
       }
 
-      function onPointerMove(e) {
-        if (!pointers.has(e.pointerId)) return;
-
-        pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
-
-        const moved = Math.hypot(e.clientX - downAt.x, e.clientY - downAt.y);
-        if (moved > 8) movedTooFar = true;
-
-        if (state.drawingBoundary) {
-          // tap-only: do nothing on move
-          return;
-        }
-
-        if (pointers.size === 1 && isDragging) {
-          const dx = e.clientX - dragStart.x;
-          const dy = e.clientY - dragStart.y;
-          tx = dragStartTx + dx;
-          ty = dragStartTy + dy;
-          clampPan();
-          applyTransform();
-          redrawBoundary();
-          return;
-        }
-
-        if (pointers.size === 2) {
-          movedTooFar = true;
-          const pts = Array.from(pointers.values());
-          const dist = getDist(pts[0], pts[1]) || pinchStartDist || 1;
-          const mid = getMid(pts[0], pts[1]);
-
-          const factor = dist / (pinchStartDist || dist);
-          const nextScale = pinchStartScale * factor;
-          zoomTo(nextScale, mid.x, mid.y);
-        }
-      }
-
-      function onPointerUp(e) {
-        const wasSinglePointer = (pointers.size === 1);
-
-        // always release capture (fixes “can’t unclick”)
-        try { overlay.releasePointerCapture(e.pointerId); } catch (_) {}
-
-        pointers.delete(e.pointerId);
-
-        // If it was a tap (not a drag) and it was single pointer interaction:
-        if (wasSinglePointer && !movedTooFar) {
-          updateLayerSizeFromImage();
-          if (state.drawingBoundary) addBoundaryPoint(e.clientX, e.clientY);
-          else placeClimbAt(e.clientX, e.clientY);
-        }
-
-        if (pointers.size === 0) {
-          isDragging = false;
-          viewport.classList.remove("is-grabbing");
-        } else if (!state.drawingBoundary && pointers.size === 1) {
-          // if we were pinching and one pointer remains, resume drag cleanly
-          const remaining = Array.from(pointers.values())[0];
-          isDragging = true;
-          dragStart = { x: remaining.x, y: remaining.y };
-          dragStartTx = tx;
-          dragStartTy = ty;
-        }
-      }
-
-      // Attach pointer listeners to overlay (so taps always reach us)
-      overlay.addEventListener("pointerdown", onPointerDown);
-      overlay.addEventListener("pointermove", onPointerMove);
-      overlay.addEventListener("pointerup", onPointerUp);
-      overlay.addEventListener("pointercancel", onPointerUp);
-
-      // Wheel zoom (disabled while drawing)
+      // ---- Desktop wheel zoom (disabled during draw mode) ----
       viewport.addEventListener("wheel", (e) => {
-        if (state.drawingBoundary) return;
+        if (state.drawingBoundary) {
+          e.preventDefault();
+          return;
+        }
         e.preventDefault();
         const factor = e.deltaY < 0 ? 1.1 : 0.9;
         zoomBy(factor, e.clientX, e.clientY);
       }, { passive: false });
 
+      // ---- Pan/drag (disabled during draw mode) ----
+      viewport.addEventListener("pointerdown", (e) => {
+        if (state.drawingBoundary) return;
+        if (e.button !== undefined && e.button !== 0) return; // left only
+        isPanning = true;
+        startX = e.clientX;
+        startY = e.clientY;
+        lastTx = tx;
+        lastTy = ty;
+        viewport.setPointerCapture(e.pointerId);
+      });
+
+      viewport.addEventListener("pointermove", (e) => {
+        if (!isPanning) return;
+        if (state.drawingBoundary) return;
+        tx = lastTx + (e.clientX - startX);
+        ty = lastTy + (e.clientY - startY);
+        clampPan();
+        applyTransform();
+        redrawBoundary();
+      });
+
+      viewport.addEventListener("pointerup", (e) => {
+        if (isPanning) {
+          isPanning = false;
+          try { viewport.releasePointerCapture(e.pointerId); } catch (_) {}
+        }
+      });
+
+      viewport.addEventListener("pointercancel", (e) => {
+        isPanning = false;
+        try { viewport.releasePointerCapture(e.pointerId); } catch (_) {}
+      });
+
+      // ---- Drawing / tap capture (THIS is the money) ----
+      // We capture taps on the interaction layer ONLY in draw mode.
+      // Use pointer events + preventDefault to stop iOS “tap zoom” weirdness.
+      interaction.addEventListener("pointerdown", (e) => {
+        if (!state.drawingBoundary) return;
+        e.preventDefault();
+        e.stopPropagation();
+        interaction.setPointerCapture(e.pointerId);
+      }, { passive: false });
+
+      interaction.addEventListener("pointerup", (e) => {
+        if (!state.drawingBoundary) return;
+        e.preventDefault();
+        e.stopPropagation();
+
+        // Ensure base size is current
+        updateLayerSizeFromImage();
+
+        addBoundaryPoint(e.clientX, e.clientY);
+
+        try { interaction.releasePointerCapture(e.pointerId); } catch (_) {}
+      }, { passive: false });
+
+      interaction.addEventListener("pointermove", (e) => {
+        if (!state.drawingBoundary) return;
+        // prevent browser gesture detection while drawing
+        e.preventDefault();
+        e.stopPropagation();
+      }, { passive: false });
+
+      // ---- Normal climb placement click (only when NOT drawing) ----
+      viewport.addEventListener("dblclick", (e) => {
+        // prevent any browser zooming behaviour
+        e.preventDefault();
+      });
+
+      viewport.addEventListener("click", (e) => {
+        if (state.drawingBoundary) return;
+        updateLayerSizeFromImage();
+        placeClimbAt(e.clientX, e.clientY);
+      }, true);
+
       if (resetBtn) resetBtn.addEventListener("click", () => resetFit());
 
-      // ---- Buttons / UI ----
       if (btnDrawBoundary) {
         btnDrawBoundary.addEventListener("click", () => {
-          state.drawingBoundary = !state.drawingBoundary;
-          btnDrawBoundary.classList.toggle("tiny-btn--active", state.drawingBoundary);
-
-          // while drawing, we want the viewport to not feel "grabby"
-          viewport.classList.toggle("is-grabbing", false);
-
-          setBoundaryStatus(state.drawingBoundary
-            ? "Drawing ON: tap points on the map. (Pan/zoom disabled while drawing.)"
-            : "Drawing OFF: pan/zoom enabled. Tap to place climbs again."
-          );
-
-          if (coordsDisplay) {
-            coordsDisplay.textContent = state.drawingBoundary
-              ? "Drawing boundary: tap around the section to add points."
-              : "Click on the map to choose a location for a new climb.";
+          // must have a section selected to enter draw mode
+          const sid = currentBoundarySectionId();
+          if (!state.drawingBoundary && !sid) {
+            setBoundaryStatus("Pick a section first.");
+            return;
           }
+          setDrawMode(!state.drawingBoundary);
         });
       }
 
-      if (btnUndoBoundary)  btnUndoBoundary.addEventListener("click", () => undoBoundaryPoint());
+      if (btnUndoBoundary) btnUndoBoundary.addEventListener("click", () => undoBoundaryPoint());
       if (btnClearBoundary) btnClearBoundary.addEventListener("click", () => clearBoundary());
-      if (btnSaveBoundary)  btnSaveBoundary.addEventListener("click", () => saveBoundary());
+      if (btnSaveBoundary) btnSaveBoundary.addEventListener("click", () => saveBoundary());
 
       if (boundarySelect) {
         boundarySelect.addEventListener("change", () => {
@@ -964,20 +948,27 @@
           const sid = currentBoundarySectionId();
           const pts = sid ? (state.boundaries[sid] || []) : [];
           setBoundaryStatus(sid ? `${pts.length} point(s) in boundary.` : "Pick a section.");
+          // If they change section while drawing, keep drawing but switch target
+          if (state.drawingBoundary && !sid) setDrawMode(false);
         });
       }
 
-      // ---- Init ----
       function init() {
         if (img.naturalWidth && img.naturalHeight) {
           viewport.style.setProperty("--map-ar", `${img.naturalWidth} / ${img.naturalHeight}`);
         }
         resetFit();
         loadBoundaries().catch(() => setBoundaryStatus("Failed to load boundaries."));
+        setDrawMode(false);
       }
 
       if (img.complete) init();
       else img.addEventListener("load", init, { once: true });
+
+      // Extra: stop iOS Safari “rubber band” / gesture scrolling while on this page
+      document.addEventListener("touchmove", (e) => {
+        if (state.drawingBoundary) e.preventDefault();
+      }, { passive: false });
 
     })();
   </script>
