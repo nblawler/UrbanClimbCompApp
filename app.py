@@ -5,6 +5,7 @@ from sqlalchemy import UniqueConstraint
 from datetime import datetime, timedelta
 from urllib.parse import quote
 from typing import Optional
+import json
 import os
 import sys
 import re
@@ -287,12 +288,10 @@ class Score(db.Model):
     section_climb = db.relationship("SectionClimb")
 
 
-
 class Section(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(120), nullable=False)
 
-    # remove global unique
     slug = db.Column(db.String(120), nullable=False)
 
     start_climb = db.Column(db.Integer, nullable=False, default=0)
@@ -310,13 +309,14 @@ class Section(db.Model):
 
     competition = db.relationship("Competition", back_populates="sections")
 
+    # Polygon boundary stored as JSON string
+    # Format: [{"x": 12.34, "y": 56.78}, ...] where x/y are % of image width/height
+    boundary_points_json = db.Column(db.Text, nullable=True)
+
     __table_args__ = (
-        # allow same section name in different comps
         db.UniqueConstraint("competition_id", "name", name="uq_section_comp_name"),
-        # allow same slug in different comps (but unique within a comp)
         db.UniqueConstraint("competition_id", "slug", name="uq_section_comp_slug"),
     )
-
 
 
 class SectionClimb(db.Model):
@@ -622,6 +622,50 @@ def slugify(name: str) -> str:
     """Create URL friendly string ("The Slab" -> "the-slab")"""
     s = re.sub(r"[^a-zA-Z0-9]+", "-", name.strip().lower()).strip("-")
     return s or "section"
+
+def _parse_boundary_points(raw) -> list[dict]:
+    """
+    Accepts:
+      - list of dicts [{"x":..,"y":..}, ...]
+      - JSON string of that list
+    Returns cleaned list with floats clamped 0..100.
+    """
+    if raw is None:
+        return []
+
+    if isinstance(raw, str):
+        raw = raw.strip()
+        if not raw:
+            return []
+        try:
+            raw = json.loads(raw)
+        except Exception:
+            return []
+
+    if not isinstance(raw, list):
+        return []
+
+    cleaned = []
+    for p in raw:
+        if not isinstance(p, dict):
+            continue
+        try:
+            x = float(p.get("x"))
+            y = float(p.get("y"))
+        except Exception:
+            continue
+
+        # clamp to 0..100 (since we're storing % coords)
+        x = max(0.0, min(100.0, x))
+        y = max(0.0, min(100.0, y))
+        cleaned.append({"x": x, "y": y})
+
+    return cleaned
+
+
+def _boundary_to_json(points: list[dict]) -> str:
+    return json.dumps(points, separators=(",", ":"))
+
 
 def get_or_create_gym_by_name(name: str):
     """
@@ -2896,8 +2940,6 @@ def register_competitor():
 
     return render_template("register.html", error=None, competitor=None)
 
-from urllib.parse import quote
-
 @app.route("/comp/<slug>/join", methods=["GET", "POST"])
 def public_register_for_comp(slug):
     comp = get_comp_or_404(slug)
@@ -3682,6 +3724,29 @@ def admin_comp(slug):
         competition=comp,
         sections=sections,
     )
+    
+@app.route("/admin/api/comp/<int:comp_id>/section-boundaries")
+def admin_api_comp_section_boundaries(comp_id):
+    """
+    Admin-only: return boundaries for all sections in this comp.
+    Works even if the comp isn't live.
+    """
+    if not session.get("admin_ok"):
+        return jsonify({"ok": False, "error": "Not admin"}), 403
+
+    comp = Competition.query.get_or_404(comp_id)
+    if not admin_can_manage_competition(comp):
+        return jsonify({"ok": False, "error": "Forbidden"}), 403
+
+    sections = Section.query.filter(Section.competition_id == comp.id).all()
+
+    out = {}
+    for s in sections:
+        pts = _parse_boundary_points(s.boundary_points_json)
+        out[str(s.id)] = pts  # include empty list too (useful for UI)
+
+    return jsonify({"ok": True, "boundaries": out})
+
 
 
 @app.route("/admin/section/<int:section_id>/edit", methods=["GET", "POST"])
@@ -4348,6 +4413,82 @@ def admin_map_add_climb():
 
     flash(f"Saved climb #{climb_number}.", "success")
     return back(current_comp.id)
+
+@app.route("/admin/map/save-boundary", methods=["POST"])
+def admin_map_save_boundary():
+    """
+    Save polygon boundary for a section.
+    Payload can be JSON or form-encoded.
+
+    Expects:
+      - comp_id
+      - section_id
+      - points: JSON string or list of points [{x,y},...]
+    """
+    if not session.get("admin_ok"):
+        return jsonify({"ok": False, "error": "Not admin"}), 403
+
+    # Accept JSON body or form
+    data = request.get_json(silent=True) or request.form.to_dict(flat=True)
+
+    comp_id_raw = (data.get("comp_id") or "").strip()
+    section_id_raw = (data.get("section_id") or "").strip()
+    points_raw = data.get("points")
+
+    if not comp_id_raw.isdigit() or not section_id_raw.isdigit():
+        return jsonify({"ok": False, "error": "Missing comp_id or section_id"}), 400
+
+    comp_id = int(comp_id_raw)
+    section_id = int(section_id_raw)
+
+    current_comp = Competition.query.get(comp_id)
+    if not current_comp:
+        return jsonify({"ok": False, "error": "Competition not found"}), 404
+
+    if not admin_can_manage_competition(current_comp):
+        return jsonify({"ok": False, "error": "Forbidden"}), 403
+
+    section = Section.query.get(section_id)
+    if not section or section.competition_id != current_comp.id:
+        return jsonify({"ok": False, "error": "Section not found in this comp"}), 404
+
+    points = _parse_boundary_points(points_raw)
+
+    # Require at least 3 points for a polygon, or allow empty to "clear"
+    if points and len(points) < 3:
+        return jsonify({"ok": False, "error": "Polygon needs at least 3 points"}), 400
+
+    section.boundary_points_json = _boundary_to_json(points) if points else None
+    db.session.commit()
+
+    return jsonify({"ok": True, "section_id": section.id, "points": points})
+
+@app.route("/api/comp/<slug>/section-boundaries")
+def api_comp_section_boundaries(slug):
+    """
+    Return boundaries for all sections in a competition.
+    Used by competitor_sections page to zoom to polygon bounds.
+    """
+    comp = Competition.query.filter_by(slug=slug).first_or_404()
+
+    # Only allow when comp is live (consistent with your UI rules)
+    if not comp_is_live(comp):
+        return jsonify({"ok": True, "boundaries": {}})
+
+    sections = (
+        Section.query
+        .filter(Section.competition_id == comp.id)
+        .all()
+    )
+
+    out = {}
+    for s in sections:
+        pts = _parse_boundary_points(s.boundary_points_json)
+        if pts:
+            out[str(s.id)] = pts
+
+    return jsonify({"ok": True, "boundaries": out})
+
 
 
 

@@ -54,17 +54,37 @@
       border-radius: 14px;
       overflow: hidden;
       border: 1px solid var(--border-subtle, rgba(255,255,255,0.05));
-      cursor: crosshair;
       background: #000;
     }
 
-    .map-image,
+    /* viewport/layer for pan+zoom */
+    .map-viewport {
+      position: relative;
+      width: 100%;
+      height: auto;
+      aspect-ratio: var(--map-ar, 4 / 3);
+      overflow: hidden;
+      touch-action: none;
+      background: #000;
+      cursor: grab;
+    }
+    .map-viewport:active { cursor: grabbing; }
+
+    .map-layer {
+      position: absolute;
+      left: 0;
+      top: 0;
+      transform-origin: 0 0;
+      will-change: transform;
+    }
+
     .gym-map {
       display: block;
       width: 100%;
       height: auto;
       user-select: none;
       pointer-events: none;
+      -webkit-user-drag: none;
     }
 
     .map-dot {
@@ -81,12 +101,57 @@
       font-size: 10px;
       font-weight: 600;
       color: #000;
+      pointer-events: none;
     }
 
     .map-dot--ghost {
       background: transparent;
       border: 2px dashed var(--accent, #5df29c);
       color: var(--accent, #5df29c);
+    }
+
+    /* SVG overlay for section boundaries */
+    .map-overlay {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none; /* clicks pass through to viewport */
+    }
+
+    .map-controls {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      justify-content: flex-end;
+      margin-top: 10px;
+      flex-wrap: wrap;
+    }
+
+    .tiny-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 8px 14px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,0.12);
+      background: rgba(0,0,0,0.35);
+      color: rgba(255,255,255,0.92);
+      font-weight: 700;
+      cursor: pointer;
+      font-size: 12px;
+      text-decoration: none;
+      user-select: none;
+    }
+    .tiny-btn:hover {
+      background: rgba(255,255,255,0.08);
+      border-color: rgba(255,255,255,0.22);
+    }
+    .tiny-btn--active {
+      background: rgba(93, 242, 156, 0.14);
+      border-color: rgba(93, 242, 156, 0.35);
+      color: rgba(255,255,255,0.95);
     }
 
     .map-coords {
@@ -141,6 +206,7 @@
       font-size: 14px;
       margin-top: 6px;
       text-decoration: none;
+      user-select: none;
     }
 
     .pill-button:disabled {
@@ -180,6 +246,13 @@
     .alert-success {
       border-color: rgba(93, 242, 156, 0.25);
       background: rgba(93, 242, 156, 0.08);
+    }
+
+    .divider {
+      height: 1px;
+      width: 100%;
+      background: rgba(255,255,255,0.08);
+      margin: 14px 0;
     }
 
     @media (max-width: 800px) {
@@ -238,29 +311,44 @@
         </div>
       {% else %}
         <div id="mapWrapper" class="map-wrapper">
-          <img
-            id="mapImg"
-            class="gym-map"
-            src="{{ gym_map_url }}"
-            alt="Gym map"
-            draggable="false"
-          />
+          <div id="mapViewport" class="map-viewport">
+            <div id="mapLayer" class="map-layer">
+              <img
+                id="mapImg"
+                class="gym-map"
+                src="{{ gym_map_url }}"
+                alt="Gym map"
+                draggable="false"
+              />
 
-          {% for c in climbs %}
-            {% if c.x_percent is not none and c.y_percent is not none %}
-              <div
-                class="map-dot"
-                style="left: {{ c.x_percent }}%; top: {{ c.y_percent }}%;"
-                title="Climb {{ c.climb_number }} · {{ c.section.name if c.section else 'No section' }}"
-              >
-                {{ c.climb_number }}
+              <!-- SVG overlay sits ABOVE the map image but moves with pan/zoom because it is inside mapLayer -->
+              <svg id="mapOverlay" class="map-overlay"></svg>
+
+              {% for c in climbs %}
+                {% if c.x_percent is not none and c.y_percent is not none %}
+                  <div
+                    class="map-dot"
+                    style="left: {{ c.x_percent }}%; top: {{ c.y_percent }}%;"
+                    title="Climb {{ c.climb_number }} · {{ c.section.name if c.section else 'No section' }}"
+                  >
+                    {{ c.climb_number }}
+                  </div>
+                {% endif %}
+              {% endfor %}
+
+              <div id="ghostDot" class="map-dot map-dot--ghost" style="display:none;">
+                +
               </div>
-            {% endif %}
-          {% endfor %}
-
-          <div id="ghostDot" class="map-dot map-dot--ghost" style="display:none;">
-            +
+            </div>
           </div>
+        </div>
+
+        <div class="map-controls">
+          <button type="button" class="tiny-btn" id="btnResetZoom">Reset zoom</button>
+          <button type="button" class="tiny-btn" id="btnDrawBoundary">Draw boundary</button>
+          <button type="button" class="tiny-btn" id="btnUndoBoundary">Undo</button>
+          <button type="button" class="tiny-btn" id="btnClearBoundary">Clear</button>
+          <button type="button" class="tiny-btn" id="btnSaveBoundary">Save boundary</button>
         </div>
 
         <div class="map-coords" id="coordsDisplay">
@@ -287,6 +375,27 @@
           {% endfor %}
         {% endif %}
       {% endwith %}
+
+      <div class="divider"></div>
+
+      <h2 style="margin-top:0;">Section boundary</h2>
+      <p class="tiny-muted" style="margin-top:-2px;">
+        Pick a section, then click <strong>Draw boundary</strong> and tap points around the section.
+        Save when done. (Minimum 3 points.)
+      </p>
+
+      <div class="field">
+        <label for="boundary_section">Boundary section</label>
+        <select id="boundary_section">
+          <option value="">— Choose section —</option>
+          {% for s in sections %}
+            <option value="{{ s.id }}">{{ s.name }} (id {{ s.id }})</option>
+          {% endfor %}
+        </select>
+        <div class="tiny-muted" id="boundaryStatus">Boundaries will load when the map is ready.</div>
+      </div>
+
+      <div class="divider"></div>
 
       <form method="POST" action="/admin/map/add-climb">
         <input type="hidden" name="comp_id" value="{{ session.get('admin_comp_id') }}">
@@ -381,40 +490,275 @@
 
   <script>
     (function () {
-      const mapWrapper = document.getElementById("mapWrapper");
-      const mapImg = document.getElementById("mapImg");
+      const wrapper  = document.getElementById("mapWrapper");
+      const viewport = document.getElementById("mapViewport");
+      const layer    = document.getElementById("mapLayer");
+      const img      = document.getElementById("mapImg");
+      const overlay  = document.getElementById("mapOverlay");
       const ghostDot = document.getElementById("ghostDot");
+      const resetBtn = document.getElementById("btnResetZoom");
+
+      const btnDrawBoundary = document.getElementById("btnDrawBoundary");
+      const btnUndoBoundary = document.getElementById("btnUndoBoundary");
+      const btnClearBoundary = document.getElementById("btnClearBoundary");
+      const btnSaveBoundary = document.getElementById("btnSaveBoundary");
+
+      const boundarySelect = document.getElementById("boundary_section");
+      const boundaryStatus = document.getElementById("boundaryStatus");
+
       const xInput = document.getElementById("x_percent");
       const yInput = document.getElementById("y_percent");
       const coordsDisplay = document.getElementById("coordsDisplay");
       const submitBtn = document.getElementById("submitBtn");
       const clickHint = document.getElementById("clickHint");
 
-      if (!mapWrapper || !mapImg) return;
+      const compId = "{{ session.get('admin_comp_id') }}";
+
+      if (!wrapper || !viewport || !layer || !img) return;
 
       function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
+      function setBoundaryStatus(msg) { if (boundaryStatus) boundaryStatus.textContent = msg || ""; }
 
-      // Start disabled until we click
+      // Start disabled until we click (climb placement)
       if (submitBtn) submitBtn.disabled = true;
 
-      mapWrapper.addEventListener("click", function (e) {
-        // IMPORTANT: compute relative to the IMAGE, not the wrapper
-        const rect = mapImg.getBoundingClientRect();
+      // ---- Pan/zoom state ----
+      let scale = 1;
+      let minScale = 1;
+      const maxScale = 6;
 
-        const px = (e.clientX - rect.left) / rect.width;
-        const py = (e.clientY - rect.top) / rect.height;
+      let tx = 0, ty = 0;
+      let baseW = 1, baseH = 1;
 
-        // If click somehow lands outside the image bounds, ignore it
-        if (px < 0 || px > 1 || py < 0 || py > 1) return;
+      let isPanning = false;
+      let startX = 0, startY = 0;
+      let lastTx = 0, lastTy = 0;
 
-        const xPercent = clamp(px, 0, 1) * 100;
-        const yPercent = clamp(py, 0, 1) * 100;
+      let pinchStartDist = 0;
+      let pinchStartScale = 1;
 
-        xInput.value = xPercent.toFixed(4);
-        yInput.value = yPercent.toFixed(4);
+      let movedTooFar = false;
+      let panStartClient = { x: 0, y: 0 };
 
-        ghostDot.style.left = xPercent + "%";
-        ghostDot.style.top = yPercent + "%";
+      // ---- Boundary state ----
+      const state = {
+        drawingBoundary: false,
+        boundaries: {}, // sectionId -> [{x,y}, ...] where x,y are percent 0..100
+      };
+
+      function currentBoundarySectionId() {
+        return (boundarySelect && boundarySelect.value) ? boundarySelect.value : "";
+      }
+
+      function updateLayerSizeFromImage() {
+        const r = img.getBoundingClientRect();
+        baseW = Math.max(1, Math.round(r.width));
+        baseH = Math.max(1, Math.round(r.height));
+        layer.style.width = baseW + "px";
+        layer.style.height = baseH + "px";
+      }
+
+      function computeFitScale() {
+        const vr = viewport.getBoundingClientRect();
+        const fit = Math.min(vr.width / baseW, vr.height / baseH);
+        return Math.min(1, fit);
+      }
+
+      function applyTransform() {
+        layer.style.transform = `translate(${tx}px, ${ty}px) scale(${scale})`;
+      }
+
+      function clampPan() {
+        const vr = viewport.getBoundingClientRect();
+        const viewW = vr.width;
+        const viewH = vr.height;
+
+        const scaledW = baseW * scale;
+        const scaledH = baseH * scale;
+
+        const minTx = viewW - scaledW;
+        const minTy = viewH - scaledH;
+
+        if (scaledW <= viewW) tx = (viewW - scaledW) / 2;
+        else tx = clamp(tx, minTx, 0);
+
+        if (scaledH <= viewH) ty = (viewH - scaledH) / 2;
+        else ty = clamp(ty, minTy, 0);
+      }
+
+      function resetFit() {
+        updateLayerSizeFromImage();
+        minScale = computeFitScale();
+
+        scale = clamp(minScale, minScale, maxScale);
+
+        const vr = viewport.getBoundingClientRect();
+        tx = (vr.width - baseW * scale) / 2;
+        ty = (vr.height - baseH * scale) / 2;
+
+        clampPan();
+        applyTransform();
+        redrawBoundary();
+      }
+
+      function zoomTo(nextScale, centerClientX, centerClientY) {
+        nextScale = clamp(nextScale, minScale, maxScale);
+
+        const vr = viewport.getBoundingClientRect();
+        const cx = (centerClientX ?? (vr.left + vr.width / 2)) - vr.left;
+        const cy = (centerClientY ?? (vr.top + vr.height / 2)) - vr.top;
+
+        const scaleChange = nextScale / scale;
+        tx = cx - (cx - tx) * scaleChange;
+        ty = cy - (cy - ty) * scaleChange;
+
+        scale = nextScale;
+        clampPan();
+        applyTransform();
+        redrawBoundary();
+      }
+
+      function zoomBy(factor, clientX, clientY) {
+        zoomTo(scale * factor, clientX, clientY);
+      }
+
+      function getTouchDist(t1, t2) {
+        const dx = t2.clientX - t1.clientX;
+        const dy = t2.clientY - t1.clientY;
+        return Math.hypot(dx, dy);
+      }
+
+      function getTouchMid(t1, t2) {
+        return { x: (t1.clientX + t2.clientX) / 2, y: (t1.clientY + t2.clientY) / 2 };
+      }
+
+      viewport.addEventListener("touchmove", (e) => e.preventDefault(), { passive: false });
+
+      viewport.addEventListener("touchstart", (e) => {
+        movedTooFar = false;
+
+        if (e.touches.length === 1) {
+          isPanning = true;
+          startX = e.touches[0].clientX;
+          startY = e.touches[0].clientY;
+          lastTx = tx;
+          lastTy = ty;
+          panStartClient = { x: startX, y: startY };
+        } else if (e.touches.length === 2) {
+          isPanning = false;
+          pinchStartDist = getTouchDist(e.touches[0], e.touches[1]);
+          pinchStartScale = scale;
+        }
+      }, { passive: true });
+
+      viewport.addEventListener("touchmove", (e) => {
+        if (e.touches.length === 1 && isPanning) {
+          const dx = e.touches[0].clientX - startX;
+          const dy = e.touches[0].clientY - startY;
+
+          const moved = Math.hypot(
+            e.touches[0].clientX - panStartClient.x,
+            e.touches[0].clientY - panStartClient.y
+          );
+          if (moved > 8) movedTooFar = true;
+
+          tx = lastTx + dx;
+          ty = lastTy + dy;
+          clampPan();
+          applyTransform();
+          redrawBoundary();
+        } else if (e.touches.length === 2) {
+          movedTooFar = true;
+
+          const dist = getTouchDist(e.touches[0], e.touches[1]);
+          const mid = getTouchMid(e.touches[0], e.touches[1]);
+
+          const factor = dist / (pinchStartDist || dist);
+          const nextScale = pinchStartScale * factor;
+
+          zoomTo(nextScale, mid.x, mid.y);
+        }
+      }, { passive: false });
+
+      viewport.addEventListener("touchend", (e) => {
+        if (e.touches.length === 0) isPanning = false;
+      });
+
+      // Desktop drag + wheel
+      let mouseDown = false;
+
+      viewport.addEventListener("mousedown", (e) => {
+        mouseDown = true;
+        movedTooFar = false;
+        startX = e.clientX;
+        startY = e.clientY;
+        lastTx = tx;
+        lastTy = ty;
+        panStartClient = { x: startX, y: startY };
+      });
+
+      window.addEventListener("mousemove", (e) => {
+        if (!mouseDown) return;
+
+        const moved = Math.hypot(e.clientX - panStartClient.x, e.clientY - panStartClient.y);
+        if (moved > 6) movedTooFar = true;
+
+        tx = lastTx + (e.clientX - startX);
+        ty = lastTy + (e.clientY - startY);
+        clampPan();
+        applyTransform();
+        redrawBoundary();
+      });
+
+      window.addEventListener("mouseup", () => { mouseDown = false; });
+
+      viewport.addEventListener("wheel", (e) => {
+        e.preventDefault();
+        const factor = e.deltaY < 0 ? 1.1 : 0.9;
+        zoomBy(factor, e.clientX, e.clientY);
+      }, { passive: false });
+
+      if (resetBtn) resetBtn.addEventListener("click", () => resetFit());
+
+      function init() {
+        if (img.naturalWidth && img.naturalHeight) {
+          viewport.style.setProperty("--map-ar", `${img.naturalWidth} / ${img.naturalHeight}`);
+        }
+        resetFit();
+        loadBoundaries().catch(() => setBoundaryStatus("Failed to load boundaries."));
+      }
+      if (img.complete) init();
+      else img.addEventListener("load", init, { once: true });
+
+      // ---- Click placement (correct under transform) ----
+      function clientToImagePercent(clientX, clientY) {
+        const vr = viewport.getBoundingClientRect();
+        const xV = clientX - vr.left;
+        const yV = clientY - vr.top;
+
+        const xImg = (xV - tx) / scale;
+        const yImg = (yV - ty) / scale;
+
+        if (xImg < 0 || yImg < 0 || xImg > baseW || yImg > baseH) return null;
+
+        const xPercent = (xImg / baseW) * 100;
+        const yPercent = (yImg / baseH) * 100;
+
+        return {
+          x: Math.max(0, Math.min(100, xPercent)),
+          y: Math.max(0, Math.min(100, yPercent)),
+        };
+      }
+
+      function placeClimbAt(clientX, clientY) {
+        const pt = clientToImagePercent(clientX, clientY);
+        if (!pt) return;
+
+        xInput.value = pt.x.toFixed(4);
+        yInput.value = pt.y.toFixed(4);
+
+        ghostDot.style.left = pt.x + "%";
+        ghostDot.style.top  = pt.y + "%";
         ghostDot.style.display = "flex";
 
         if (submitBtn) submitBtn.disabled = false;
@@ -422,9 +766,188 @@
 
         if (coordsDisplay) {
           coordsDisplay.textContent =
-            "Clicked at: " + xPercent.toFixed(2) + "% / " + yPercent.toFixed(2) + "%";
+            "Clicked at: " + pt.x.toFixed(2) + "% / " + pt.y.toFixed(2) + "%";
         }
-      });
+      }
+
+      function addBoundaryPoint(clientX, clientY) {
+        const sid = currentBoundarySectionId();
+        if (!sid) { setBoundaryStatus("Pick a section first."); return; }
+
+        const pt = clientToImagePercent(clientX, clientY);
+        if (!pt) return;
+
+        if (!state.boundaries[sid]) state.boundaries[sid] = [];
+        state.boundaries[sid].push({ x: pt.x, y: pt.y });
+
+        redrawBoundary();
+        setBoundaryStatus(`${state.boundaries[sid].length} point(s) in boundary.`);
+        if (coordsDisplay) coordsDisplay.textContent = `Boundary point: ${pt.x.toFixed(2)}% / ${pt.y.toFixed(2)}%`;
+      }
+
+      viewport.addEventListener("click", (e) => {
+        // If user was panning, don’t treat it as a click
+        if (movedTooFar) return;
+
+        updateLayerSizeFromImage();
+
+        if (state.drawingBoundary) {
+          addBoundaryPoint(e.clientX, e.clientY);
+          return;
+        }
+
+        placeClimbAt(e.clientX, e.clientY);
+      }, true);
+
+      // ---- Boundary render ----
+      function clearOverlay() {
+        if (!overlay) return;
+        while (overlay.firstChild) overlay.removeChild(overlay.firstChild);
+      }
+
+      function ensureOverlaySize() {
+        if (!overlay || !img) return;
+        // overlay lives in mapLayer, so it scales with the layer transform.
+        // We size it to the layer's base pixel size.
+        overlay.setAttribute("width", baseW);
+        overlay.setAttribute("height", baseH);
+        overlay.setAttribute("viewBox", `0 0 ${baseW} ${baseH}`);
+      }
+
+      function pctToPx(pt) {
+        return { x: (pt.x / 100) * baseW, y: (pt.y / 100) * baseH };
+      }
+
+      function redrawBoundary() {
+        if (!overlay) return;
+        ensureOverlaySize();
+        clearOverlay();
+
+        const sid = currentBoundarySectionId();
+        if (!sid) return;
+
+        const pts = state.boundaries[sid] || [];
+        if (!pts.length) return;
+
+        const pxPts = pts.map(pctToPx);
+
+        // Polygon
+        const d = pxPts.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`).join(" ") + (pxPts.length >= 3 ? " Z" : "");
+
+        const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+        path.setAttribute("d", d);
+        path.setAttribute("fill", "rgba(255,255,255,0.10)");
+        path.setAttribute("stroke", "rgba(255,255,255,0.85)");
+        path.setAttribute("stroke-width", "2");
+        overlay.appendChild(path);
+
+        // Vertices
+        pxPts.forEach((p) => {
+          const c = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+          c.setAttribute("cx", p.x);
+          c.setAttribute("cy", p.y);
+          c.setAttribute("r", "4");
+          c.setAttribute("fill", "rgba(255,255,255,0.95)");
+          overlay.appendChild(c);
+        });
+      }
+
+      async function loadBoundaries() {
+        if (!compId || compId === "None") {
+          setBoundaryStatus("No competition context in session.");
+          return;
+        }
+        setBoundaryStatus("Loading boundaries…");
+
+        const res = await fetch(`/admin/api/comp/${compId}/section-boundaries`, { credentials: "same-origin" });
+        const data = await res.json();
+
+        if (!data.ok) {
+          setBoundaryStatus(data.error || "Failed to load boundaries.");
+          return;
+        }
+
+        state.boundaries = data.boundaries || {};
+        setBoundaryStatus("Boundaries loaded.");
+        redrawBoundary();
+      }
+
+      async function saveBoundary() {
+        const sid = currentBoundarySectionId();
+        if (!sid) { setBoundaryStatus("Pick a section first."); return; }
+
+        const pts = state.boundaries[sid] || [];
+        if (pts.length > 0 && pts.length < 3) {
+          setBoundaryStatus("Need at least 3 points to save a polygon (or Clear to remove).");
+          return;
+        }
+
+        setBoundaryStatus("Saving boundary…");
+
+        const res = await fetch("/admin/map/save-boundary", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "same-origin",
+          body: JSON.stringify({
+            comp_id: String(compId),
+            section_id: String(sid),
+            points: pts
+          })
+        });
+
+        const data = await res.json();
+        if (!data.ok) {
+          setBoundaryStatus(data.error || "Save failed.");
+          return;
+        }
+
+        state.boundaries[sid] = data.points || [];
+        redrawBoundary();
+        setBoundaryStatus("Saved boundary ✅");
+      }
+
+      function undoBoundaryPoint() {
+        const sid = currentBoundarySectionId();
+        if (!sid) { setBoundaryStatus("Pick a section first."); return; }
+        const pts = state.boundaries[sid] || [];
+        pts.pop();
+        state.boundaries[sid] = pts;
+        redrawBoundary();
+        setBoundaryStatus(`${pts.length} point(s) in boundary.`);
+      }
+
+      function clearBoundary() {
+        const sid = currentBoundarySectionId();
+        if (!sid) { setBoundaryStatus("Pick a section first."); return; }
+        state.boundaries[sid] = [];
+        redrawBoundary();
+        setBoundaryStatus("Cleared boundary (remember to Save).");
+      }
+
+      if (btnDrawBoundary) {
+        btnDrawBoundary.addEventListener("click", () => {
+          state.drawingBoundary = !state.drawingBoundary;
+          btnDrawBoundary.classList.toggle("tiny-btn--active", state.drawingBoundary);
+          setBoundaryStatus(state.drawingBoundary
+            ? "Drawing ON: click points on the map. (Climb placement disabled while drawing.)"
+            : "Drawing OFF: click to place climbs again."
+          );
+        });
+      }
+
+      if (btnUndoBoundary) btnUndoBoundary.addEventListener("click", () => undoBoundaryPoint());
+      if (btnClearBoundary) btnClearBoundary.addEventListener("click", () => clearBoundary());
+      if (btnSaveBoundary) btnSaveBoundary.addEventListener("click", () => saveBoundary());
+
+      if (boundarySelect) {
+        boundarySelect.addEventListener("change", () => {
+          redrawBoundary();
+          const sid = currentBoundarySectionId();
+          const pts = sid ? (state.boundaries[sid] || []) : [];
+          setBoundaryStatus(sid ? `${pts.length} point(s) in boundary.` : "Pick a section.");
+        });
+      }
+
     })();
   </script>
 </body>
