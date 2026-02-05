@@ -9,6 +9,11 @@
   <title>Admin · Scoring</title>
   <link rel="stylesheet" href="/static/app.css" />
   <style>
+    html, body {
+      overscroll-behavior: none;
+      -webkit-text-size-adjust: 100%;
+    }
+
     .admin-map-page {
       max-width: 1100px;
       margin: 32px auto;
@@ -69,8 +74,7 @@
       overflow: hidden;
       background: #000;
       cursor: grab;
-      /* Important: stop browser gesture behaviors as much as possible */
-      touch-action: none;
+      touch-action: none; /* important */
     }
     .map-viewport:active { cursor: grabbing; }
 
@@ -121,21 +125,22 @@
       top: 0;
       width: 100%;
       height: 100%;
-      pointer-events: none; /* never blocks */
+      pointer-events: none;
     }
 
-    /* NEW: interaction layer (captures taps in draw mode) */
+    /* Interaction layer for draw mode */
     .map-interaction {
       position: absolute;
       left: 0; top: 0;
       width: 100%;
       height: 100%;
-      z-index: 5;
-      pointer-events: none; /* default off */
+      z-index: 10;
+      pointer-events: none; /* off by default */
       background: transparent;
+      touch-action: none; /* critical on the actual tap-capturing layer */
     }
     .map-interaction--active {
-      pointer-events: auto; /* ON when drawing */
+      pointer-events: auto;
       cursor: crosshair;
     }
 
@@ -243,7 +248,6 @@
       margin-top: 16px;
       font-size: 13px;
     }
-
     .section-list li { margin-bottom: 4px; }
 
     .alert {
@@ -340,7 +344,6 @@
                 draggable="false"
               />
 
-              <!-- SVG overlay above map image (moves with mapLayer transform) -->
               <svg id="mapOverlay" class="map-overlay"></svg>
 
               {% for c in climbs %}
@@ -355,12 +358,10 @@
                 {% endif %}
               {% endfor %}
 
-              <div id="ghostDot" class="map-dot map-dot--ghost" style="display:none;">
-                +
-              </div>
+              <div id="ghostDot" class="map-dot map-dot--ghost" style="display:none;">+</div>
             </div>
 
-            <!-- NEW: interaction layer sits above everything in viewport -->
+            <!-- Interaction layer on top -->
             <div id="mapInteraction" class="map-interaction" aria-label="Map interaction layer"></div>
           </div>
         </div>
@@ -374,7 +375,7 @@
         </div>
 
         <div class="map-coords" id="coordsDisplay">
-          Click on the map to choose a location for a new climb.
+          Tap the map to choose a location for a new climb.
         </div>
       {% endif %}
     </section>
@@ -382,7 +383,7 @@
     <section class="form-card">
       <h2>Add climb from map</h2>
       <p class="tiny-muted">
-        Click on the map first to set the position, then fill the details and save.
+        Tap the map first to set the position, then fill the details and save.
       </p>
 
       {% with messages = get_flashed_messages(with_categories=true) %}
@@ -402,7 +403,7 @@
 
       <h2 style="margin-top:0;">Section boundary</h2>
       <p class="tiny-muted" style="margin-top:-2px;">
-        Pick a section, then click <strong>Draw boundary</strong> and tap points around the section.
+        Pick a section, then tap <strong>Draw boundary</strong> and tap points around the section.
         Save when done. (Minimum 3 points.)
       </p>
 
@@ -430,41 +431,22 @@
               <option value="{{ s.id }}">{{ s.name }} (id {{ s.id }})</option>
             {% endfor %}
           </select>
-          <div class="tiny-muted">
-            Or create a new section below.
-          </div>
+          <div class="tiny-muted">Or create a new section below.</div>
         </div>
 
         <div class="field">
           <label for="new_section_name">New section name (optional)</label>
-          <input
-            type="text"
-            id="new_section_name"
-            name="new_section_name"
-            placeholder="e.g. Slab Left"
-          />
+          <input type="text" id="new_section_name" name="new_section_name" placeholder="e.g. Slab Left" />
         </div>
 
         <div class="field">
           <label for="climb_number">Climb number</label>
-          <input
-            type="number"
-            id="climb_number"
-            name="climb_number"
-            min="1"
-            step="1"
-            required
-          />
+          <input type="number" id="climb_number" name="climb_number" min="1" step="1" required />
         </div>
 
         <div class="field">
           <label for="colour">Colour / hold set (optional)</label>
-          <input
-            type="text"
-            id="colour"
-            name="colour"
-            placeholder="e.g. Green, Pink Volumes"
-          />
+          <input type="text" id="colour" name="colour" placeholder="e.g. Green, Pink Volumes" />
         </div>
 
         <div class="field field-row">
@@ -485,17 +467,12 @@
         <input type="hidden" name="x_percent" id="x_percent" />
         <input type="hidden" name="y_percent" id="y_percent" />
 
-        <button
-          type="submit"
-          class="pill-button"
-          id="submitBtn"
-          {% if not gym_map_url %}disabled{% endif %}
-        >
-          Save climb at clicked position
+        <button type="submit" class="pill-button" id="submitBtn" {% if not gym_map_url %}disabled{% endif %}>
+          Save climb at tapped position
         </button>
 
         <div class="tiny-muted" id="clickHint">
-          Button unlocks once you’ve clicked on the map.
+          Button unlocks once you’ve tapped on the map.
         </div>
       </form>
 
@@ -542,7 +519,7 @@
       function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
       function setBoundaryStatus(msg) { if (boundaryStatus) boundaryStatus.textContent = msg || ""; }
 
-      // Start disabled until we click (climb placement)
+      // Disable submit until we place a climb point
       if (submitBtn) submitBtn.disabled = true;
 
       // ---- Pan/zoom state ----
@@ -557,10 +534,14 @@
       let startX = 0, startY = 0;
       let lastTx = 0, lastTy = 0;
 
+      // Pinch zoom state
+      let pinchStartDist = 0;
+      let pinchStartScale = 1;
+
       // ---- Boundary state ----
       const state = {
         drawingBoundary: false,
-        boundaries: {}, // sectionId -> [{x,y}, ...] where x,y are percent 0..100
+        boundaries: {}, // sectionId -> [{x,y}, ...] percent 0..100
       };
 
       function currentBoundarySectionId() {
@@ -638,6 +619,15 @@
         zoomTo(scale * factor, clientX, clientY);
       }
 
+      function getTouchDist(t1, t2) {
+        const dx = t2.clientX - t1.clientX;
+        const dy = t2.clientY - t1.clientY;
+        return Math.hypot(dx, dy);
+      }
+      function getTouchMid(t1, t2) {
+        return { x: (t1.clientX + t2.clientX) / 2, y: (t1.clientY + t2.clientY) / 2 };
+      }
+
       // ---- Coordinate conversion (tap -> percent of image) ----
       function clientToImagePercent(clientX, clientY) {
         const vr = viewport.getBoundingClientRect();
@@ -674,7 +664,7 @@
 
         if (coordsDisplay) {
           coordsDisplay.textContent =
-            "Clicked at: " + pt.x.toFixed(2) + "% / " + pt.y.toFixed(2) + "%";
+            "Tapped at: " + pt.x.toFixed(2) + "% / " + pt.y.toFixed(2) + "%";
         }
       }
 
@@ -817,30 +807,44 @@
       function setDrawMode(on) {
         state.drawingBoundary = !!on;
 
-        // UI state
         if (btnDrawBoundary) btnDrawBoundary.classList.toggle("tiny-btn--active", state.drawingBoundary);
-
-        // Interaction capture ON in draw mode
         interaction.classList.toggle("map-interaction--active", state.drawingBoundary);
-
-        // While drawing: stop pan/zoom completely (this is the whole point)
         viewport.style.cursor = state.drawingBoundary ? "crosshair" : "grab";
 
-        // Also: when drawing, disable the climb placement button until you exit draw mode
-        // (prevents “why won’t it save climbs” confusion)
         if (state.drawingBoundary) {
+          if (submitBtn) submitBtn.disabled = true;
           if (clickHint) clickHint.textContent = "Draw mode ON: taps add boundary points (climb placement paused).";
           setBoundaryStatus("Drawing ON: tap points on the map. Tap Draw boundary again to exit.");
+          if (coordsDisplay) coordsDisplay.textContent = "Draw mode: tap points around the section.";
         } else {
-          if (clickHint) clickHint.textContent = "Button unlocks once you’ve clicked on the map.";
-          setBoundaryStatus("Drawing OFF: click to place climbs again.");
+          if (clickHint) clickHint.textContent = "Button unlocks once you’ve tapped on the map.";
+          setBoundaryStatus("Drawing OFF: tap to place climbs again.");
+          if (coordsDisplay) coordsDisplay.textContent = "Tap the map to choose a location for a new climb.";
         }
       }
 
-      // ---- Desktop wheel zoom (disabled during draw mode) ----
+      // --- HARD BLOCK: Chrome smart zoom / double tap zoom (especially in draw mode) ---
+      function blockSmartZoom(e) {
+        if (!state.drawingBoundary) return;
+        e.preventDefault();
+        e.stopPropagation();
+        if (e.stopImmediatePropagation) e.stopImmediatePropagation();
+      }
+
+      // These events exist on Android Chrome and are where the zoom weirdness leaks through
+      ["touchstart","touchend","touchmove"].forEach((evt) => {
+        interaction.addEventListener(evt, blockSmartZoom, { passive: false, capture: true });
+      });
+      ["dblclick","click"].forEach((evt) => {
+        interaction.addEventListener(evt, blockSmartZoom, { passive: false, capture: true });
+        viewport.addEventListener(evt, blockSmartZoom, { passive: false, capture: true });
+      });
+
+      // Wheel zoom: allow when not drawing, block when drawing
       viewport.addEventListener("wheel", (e) => {
         if (state.drawingBoundary) {
           e.preventDefault();
+          e.stopPropagation();
           return;
         }
         e.preventDefault();
@@ -848,21 +852,47 @@
         zoomBy(factor, e.clientX, e.clientY);
       }, { passive: false });
 
-      // ---- Pan/drag (disabled during draw mode) ----
+      // Touch pinch zoom on the viewport (only when NOT drawing)
+      viewport.addEventListener("touchstart", (e) => {
+        if (state.drawingBoundary) return;
+        if (e.touches.length === 2) {
+          pinchStartDist = getTouchDist(e.touches[0], e.touches[1]);
+          pinchStartScale = scale;
+        }
+      }, { passive: true });
+
+      viewport.addEventListener("touchmove", (e) => {
+        if (state.drawingBoundary) {
+          e.preventDefault();
+          return;
+        }
+        if (e.touches.length === 2) {
+          e.preventDefault();
+          const dist = getTouchDist(e.touches[0], e.touches[1]);
+          const mid = getTouchMid(e.touches[0], e.touches[1]);
+          const factor = dist / (pinchStartDist || dist);
+          zoomTo(pinchStartScale * factor, mid.x, mid.y);
+        }
+      }, { passive: false });
+
+      // Pan/drag with pointer events (only when NOT drawing)
       viewport.addEventListener("pointerdown", (e) => {
         if (state.drawingBoundary) return;
-        if (e.button !== undefined && e.button !== 0) return; // left only
+        if (e.button !== undefined && e.button !== 0) return;
+
         isPanning = true;
         startX = e.clientX;
         startY = e.clientY;
         lastTx = tx;
         lastTy = ty;
-        viewport.setPointerCapture(e.pointerId);
+
+        try { viewport.setPointerCapture(e.pointerId); } catch (_) {}
       });
 
       viewport.addEventListener("pointermove", (e) => {
         if (!isPanning) return;
         if (state.drawingBoundary) return;
+
         tx = lastTx + (e.clientX - startX);
         ty = lastTy + (e.clientY - startY);
         clampPan();
@@ -871,35 +901,30 @@
       });
 
       viewport.addEventListener("pointerup", (e) => {
-        if (isPanning) {
-          isPanning = false;
-          try { viewport.releasePointerCapture(e.pointerId); } catch (_) {}
-        }
+        isPanning = false;
+        try { viewport.releasePointerCapture(e.pointerId); } catch (_) {}
       });
-
       viewport.addEventListener("pointercancel", (e) => {
         isPanning = false;
         try { viewport.releasePointerCapture(e.pointerId); } catch (_) {}
       });
 
-      // ---- Drawing / tap capture (THIS is the money) ----
-      // We capture taps on the interaction layer ONLY in draw mode.
-      // Use pointer events + preventDefault to stop iOS “tap zoom” weirdness.
+      // Drawing: pointer events ONLY on interaction layer
       interaction.addEventListener("pointerdown", (e) => {
         if (!state.drawingBoundary) return;
         e.preventDefault();
         e.stopPropagation();
-        interaction.setPointerCapture(e.pointerId);
+        if (e.stopImmediatePropagation) e.stopImmediatePropagation();
+        try { interaction.setPointerCapture(e.pointerId); } catch (_) {}
       }, { passive: false });
 
       interaction.addEventListener("pointerup", (e) => {
         if (!state.drawingBoundary) return;
         e.preventDefault();
         e.stopPropagation();
+        if (e.stopImmediatePropagation) e.stopImmediatePropagation();
 
-        // Ensure base size is current
         updateLayerSizeFromImage();
-
         addBoundaryPoint(e.clientX, e.clientY);
 
         try { interaction.releasePointerCapture(e.pointerId); } catch (_) {}
@@ -907,28 +932,25 @@
 
       interaction.addEventListener("pointermove", (e) => {
         if (!state.drawingBoundary) return;
-        // prevent browser gesture detection while drawing
         e.preventDefault();
         e.stopPropagation();
+        if (e.stopImmediatePropagation) e.stopImmediatePropagation();
       }, { passive: false });
 
-      // ---- Normal climb placement click (only when NOT drawing) ----
-      viewport.addEventListener("dblclick", (e) => {
-        // prevent any browser zooming behaviour
-        e.preventDefault();
-      });
-
-      viewport.addEventListener("click", (e) => {
+      // Normal climb placement: use pointerup on viewport (NOT click) to avoid smart-zoom junk
+      viewport.addEventListener("pointerup", (e) => {
         if (state.drawingBoundary) return;
+        // If they were panning, this pointerup ends the pan; don’t treat as placement
+        if (isPanning) return;
+
         updateLayerSizeFromImage();
         placeClimbAt(e.clientX, e.clientY);
-      }, true);
+      }, { passive: true });
 
       if (resetBtn) resetBtn.addEventListener("click", () => resetFit());
 
       if (btnDrawBoundary) {
         btnDrawBoundary.addEventListener("click", () => {
-          // must have a section selected to enter draw mode
           const sid = currentBoundarySectionId();
           if (!state.drawingBoundary && !sid) {
             setBoundaryStatus("Pick a section first.");
@@ -948,7 +970,7 @@
           const sid = currentBoundarySectionId();
           const pts = sid ? (state.boundaries[sid] || []) : [];
           setBoundaryStatus(sid ? `${pts.length} point(s) in boundary.` : "Pick a section.");
-          // If they change section while drawing, keep drawing but switch target
+
           if (state.drawingBoundary && !sid) setDrawMode(false);
         });
       }
@@ -965,9 +987,9 @@
       if (img.complete) init();
       else img.addEventListener("load", init, { once: true });
 
-      // Extra: stop iOS Safari “rubber band” / gesture scrolling while on this page
-      document.addEventListener("touchmove", (e) => {
-        if (state.drawingBoundary) e.preventDefault();
+      // Prevent the whole page from scrolling while finger is on the map
+      viewport.addEventListener("touchmove", (e) => {
+        e.preventDefault();
       }, { passive: false });
 
     })();
