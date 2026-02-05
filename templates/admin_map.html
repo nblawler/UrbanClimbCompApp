@@ -9,10 +9,7 @@
   <title>Admin · Scoring</title>
   <link rel="stylesheet" href="/static/app.css" />
   <style>
-    html, body {
-      overscroll-behavior: none;
-      -webkit-text-size-adjust: 100%;
-    }
+    html, body { overscroll-behavior: none; }
 
     .admin-map-page {
       max-width: 1100px;
@@ -65,7 +62,6 @@
       background: #000;
     }
 
-    /* viewport/layer for pan+zoom */
     .map-viewport {
       position: relative;
       width: 100%;
@@ -74,7 +70,7 @@
       overflow: hidden;
       background: #000;
       cursor: grab;
-      touch-action: none; /* important */
+      touch-action: none; /* critical */
     }
     .map-viewport:active { cursor: grabbing; }
 
@@ -118,29 +114,18 @@
       color: var(--accent, #5df29c);
     }
 
-    /* SVG overlay for section boundaries */
+    /* SVG overlay sits above map image and moves with layer transform */
     .map-overlay {
       position: absolute;
       left: 0;
       top: 0;
       width: 100%;
       height: 100%;
-      pointer-events: none;
+      pointer-events: none; /* OFF by default */
+      touch-action: none;
     }
-
-    /* Interaction layer for draw mode */
-    .map-interaction {
-      position: absolute;
-      left: 0; top: 0;
-      width: 100%;
-      height: 100%;
-      z-index: 10;
-      pointer-events: none; /* off by default */
-      background: transparent;
-      touch-action: none; /* critical on the actual tap-capturing layer */
-    }
-    .map-interaction--active {
-      pointer-events: auto;
+    .map-overlay--draw {
+      pointer-events: auto;      /* ON in draw mode */
       cursor: crosshair;
     }
 
@@ -191,14 +176,12 @@
     }
 
     .field { margin-bottom: 10px; }
-
     .field label {
       display: block;
       font-size: 13px;
       margin-bottom: 4px;
       color: var(--text-muted, #9aa3b5);
     }
-
     .field input,
     .field select {
       width: 100%;
@@ -232,11 +215,7 @@
       text-decoration: none;
       user-select: none;
     }
-
-    .pill-button:disabled {
-      opacity: 0.6;
-      cursor: not-allowed;
-    }
+    .pill-button:disabled { opacity: 0.6; cursor: not-allowed; }
 
     .tiny-muted {
       font-size: 11px;
@@ -244,10 +223,7 @@
       margin-top: 2px;
     }
 
-    .section-list {
-      margin-top: 16px;
-      font-size: 13px;
-    }
+    .section-list { margin-top: 16px; font-size: 13px; }
     .section-list li { margin-bottom: 4px; }
 
     .alert {
@@ -260,16 +236,8 @@
       font-size: 13px;
       line-height: 1.35;
     }
-
-    .alert-error {
-      border-color: rgba(255,0,0,0.25);
-      background: rgba(139, 30, 30, 0.25);
-    }
-
-    .alert-success {
-      border-color: rgba(93, 242, 156, 0.25);
-      background: rgba(93, 242, 156, 0.08);
-    }
+    .alert-error { border-color: rgba(255,0,0,0.25); background: rgba(139, 30, 30, 0.25); }
+    .alert-success { border-color: rgba(93, 242, 156, 0.25); background: rgba(93, 242, 156, 0.08); }
 
     .divider {
       height: 1px;
@@ -323,7 +291,7 @@
           {% endif %}
         </div>
 
-        <span class="page-tag">Admin · Click to place climbs</span>
+        <span class="page-tag">Admin</span>
       </div>
 
       {% if not gym_map_url %}
@@ -344,6 +312,7 @@
                 draggable="false"
               />
 
+              <!-- IMPORTANT: SVG overlay is the draw surface in draw mode -->
               <svg id="mapOverlay" class="map-overlay"></svg>
 
               {% for c in climbs %}
@@ -360,9 +329,6 @@
 
               <div id="ghostDot" class="map-dot map-dot--ghost" style="display:none;">+</div>
             </div>
-
-            <!-- Interaction layer on top -->
-            <div id="mapInteraction" class="map-interaction" aria-label="Map interaction layer"></div>
           </div>
         </div>
 
@@ -375,7 +341,7 @@
         </div>
 
         <div class="map-coords" id="coordsDisplay">
-          Tap the map to choose a location for a new climb.
+          Tap to place a climb (Draw boundary OFF).
         </div>
       {% endif %}
     </section>
@@ -383,7 +349,7 @@
     <section class="form-card">
       <h2>Add climb from map</h2>
       <p class="tiny-muted">
-        Tap the map first to set the position, then fill the details and save.
+        Tap the map to set the position, then fill details and save.
       </p>
 
       {% with messages = get_flashed_messages(with_categories=true) %}
@@ -403,7 +369,7 @@
 
       <h2 style="margin-top:0;">Section boundary</h2>
       <p class="tiny-muted" style="margin-top:-2px;">
-        Pick a section, then tap <strong>Draw boundary</strong> and tap points around the section.
+        Pick a section, tap <strong>Draw boundary</strong>, then tap points around the section.
         Save when done. (Minimum 3 points.)
       </p>
 
@@ -472,7 +438,7 @@
         </button>
 
         <div class="tiny-muted" id="clickHint">
-          Button unlocks once you’ve tapped on the map.
+          Button unlocks once you’ve tapped on the map (Draw boundary OFF).
         </div>
       </form>
 
@@ -489,14 +455,12 @@
 
   <script>
     (function () {
-      const wrapper  = document.getElementById("mapWrapper");
       const viewport = document.getElementById("mapViewport");
       const layer    = document.getElementById("mapLayer");
       const img      = document.getElementById("mapImg");
       const overlay  = document.getElementById("mapOverlay");
       const ghostDot = document.getElementById("ghostDot");
       const resetBtn = document.getElementById("btnResetZoom");
-      const interaction = document.getElementById("mapInteraction");
 
       const btnDrawBoundary = document.getElementById("btnDrawBoundary");
       const btnUndoBoundary = document.getElementById("btnUndoBoundary");
@@ -514,13 +478,10 @@
 
       const compId = "{{ session.get('admin_comp_id') }}";
 
-      if (!wrapper || !viewport || !layer || !img || !interaction) return;
+      if (!viewport || !layer || !img || !overlay) return;
 
       function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
       function setBoundaryStatus(msg) { if (boundaryStatus) boundaryStatus.textContent = msg || ""; }
-
-      // Disable submit until we place a climb point
-      if (submitBtn) submitBtn.disabled = true;
 
       // ---- Pan/zoom state ----
       let scale = 1;
@@ -534,7 +495,7 @@
       let startX = 0, startY = 0;
       let lastTx = 0, lastTy = 0;
 
-      // Pinch zoom state
+      // Pinch zoom
       let pinchStartDist = 0;
       let pinchStartScale = 1;
 
@@ -639,12 +600,9 @@
 
         if (xImg < 0 || yImg < 0 || xImg > baseW || yImg > baseH) return null;
 
-        const xPercent = (xImg / baseW) * 100;
-        const yPercent = (yImg / baseH) * 100;
-
         return {
-          x: Math.max(0, Math.min(100, xPercent)),
-          y: Math.max(0, Math.min(100, yPercent)),
+          x: Math.max(0, Math.min(100, (xImg / baseW) * 100)),
+          y: Math.max(0, Math.min(100, (yImg / baseH) * 100)),
         };
       }
 
@@ -663,8 +621,7 @@
         if (clickHint) clickHint.textContent = "Nice. Now fill the form and hit save.";
 
         if (coordsDisplay) {
-          coordsDisplay.textContent =
-            "Tapped at: " + pt.x.toFixed(2) + "% / " + pt.y.toFixed(2) + "%";
+          coordsDisplay.textContent = "Tapped at: " + pt.x.toFixed(2) + "% / " + pt.y.toFixed(2) + "%";
         }
       }
 
@@ -684,13 +641,9 @@
       }
 
       // ---- Boundary render ----
-      function clearOverlay() {
-        if (!overlay) return;
-        while (overlay.firstChild) overlay.removeChild(overlay.firstChild);
-      }
+      function clearOverlay() { while (overlay.firstChild) overlay.removeChild(overlay.firstChild); }
 
       function ensureOverlaySize() {
-        if (!overlay || !img) return;
         overlay.setAttribute("width", baseW);
         overlay.setAttribute("height", baseH);
         overlay.setAttribute("viewBox", `0 0 ${baseW} ${baseH}`);
@@ -701,7 +654,6 @@
       }
 
       function redrawBoundary() {
-        if (!overlay) return;
         ensureOverlaySize();
         clearOverlay();
 
@@ -718,7 +670,7 @@
         const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
         path.setAttribute("d", d);
         path.setAttribute("fill", "rgba(255,255,255,0.10)");
-        path.setAttribute("stroke", "rgba(255,255,255,0.85)");
+        path.setAttribute("stroke", "rgba(255,255,255,0.92)");
         path.setAttribute("stroke-width", "2");
         overlay.appendChild(path);
 
@@ -733,19 +685,13 @@
       }
 
       async function loadBoundaries() {
-        if (!compId || compId === "None") {
-          setBoundaryStatus("No competition context in session.");
-          return;
-        }
+        if (!compId || compId === "None") { setBoundaryStatus("No competition context in session."); return; }
         setBoundaryStatus("Loading boundaries…");
 
         const res = await fetch(`/admin/api/comp/${compId}/section-boundaries`, { credentials: "same-origin" });
         const data = await res.json();
 
-        if (!data.ok) {
-          setBoundaryStatus(data.error || "Failed to load boundaries.");
-          return;
-        }
+        if (!data.ok) { setBoundaryStatus(data.error || "Failed to load boundaries."); return; }
 
         state.boundaries = data.boundaries || {};
         setBoundaryStatus("Boundaries loaded.");
@@ -776,10 +722,7 @@
         });
 
         const data = await res.json();
-        if (!data.ok) {
-          setBoundaryStatus(data.error || "Save failed.");
-          return;
-        }
+        if (!data.ok) { setBoundaryStatus(data.error || "Save failed."); return; }
 
         state.boundaries[sid] = data.points || [];
         redrawBoundary();
@@ -807,52 +750,73 @@
       function setDrawMode(on) {
         state.drawingBoundary = !!on;
 
-        if (btnDrawBoundary) btnDrawBoundary.classList.toggle("tiny-btn--active", state.drawingBoundary);
-        interaction.classList.toggle("map-interaction--active", state.drawingBoundary);
-        viewport.style.cursor = state.drawingBoundary ? "crosshair" : "grab";
+        btnDrawBoundary.classList.toggle("tiny-btn--active", state.drawingBoundary);
+        overlay.classList.toggle("map-overlay--draw", state.drawingBoundary);
 
         if (state.drawingBoundary) {
           if (submitBtn) submitBtn.disabled = true;
           if (clickHint) clickHint.textContent = "Draw mode ON: taps add boundary points (climb placement paused).";
-          setBoundaryStatus("Drawing ON: tap points on the map. Tap Draw boundary again to exit.");
+          setBoundaryStatus("Drawing ON: tap points on the map (on the overlay). Tap Draw boundary again to exit.");
           if (coordsDisplay) coordsDisplay.textContent = "Draw mode: tap points around the section.";
         } else {
-          if (clickHint) clickHint.textContent = "Button unlocks once you’ve tapped on the map.";
+          if (clickHint) clickHint.textContent = "Button unlocks once you’ve tapped on the map (Draw boundary OFF).";
           setBoundaryStatus("Drawing OFF: tap to place climbs again.");
-          if (coordsDisplay) coordsDisplay.textContent = "Tap the map to choose a location for a new climb.";
+          if (coordsDisplay) coordsDisplay.textContent = "Tap to place a climb (Draw boundary OFF).";
         }
       }
 
-      // --- HARD BLOCK: Chrome smart zoom / double tap zoom (especially in draw mode) ---
-      function blockSmartZoom(e) {
+      // HARD block smart zoom while drawing (capture phase)
+      function hardBlockIfDrawing(e) {
         if (!state.drawingBoundary) return;
         e.preventDefault();
         e.stopPropagation();
         if (e.stopImmediatePropagation) e.stopImmediatePropagation();
       }
-
-      // These events exist on Android Chrome and are where the zoom weirdness leaks through
-      ["touchstart","touchend","touchmove"].forEach((evt) => {
-        interaction.addEventListener(evt, blockSmartZoom, { passive: false, capture: true });
-      });
-      ["dblclick","click"].forEach((evt) => {
-        interaction.addEventListener(evt, blockSmartZoom, { passive: false, capture: true });
-        viewport.addEventListener(evt, blockSmartZoom, { passive: false, capture: true });
+      ["click","dblclick","touchstart","touchend","touchmove"].forEach((evt) => {
+        overlay.addEventListener(evt, hardBlockIfDrawing, { passive: false, capture: true });
+        viewport.addEventListener(evt, hardBlockIfDrawing, { passive: false, capture: true });
+        document.addEventListener(evt, hardBlockIfDrawing, { passive: false, capture: true });
       });
 
-      // Wheel zoom: allow when not drawing, block when drawing
+      // Pan/drag with pointer events (only when NOT drawing)
+      viewport.addEventListener("pointerdown", (e) => {
+        if (state.drawingBoundary) return;
+        if (e.button !== undefined && e.button !== 0) return;
+        isPanning = true;
+        startX = e.clientX;
+        startY = e.clientY;
+        lastTx = tx;
+        lastTy = ty;
+        try { viewport.setPointerCapture(e.pointerId); } catch (_) {}
+      });
+
+      viewport.addEventListener("pointermove", (e) => {
+        if (!isPanning) return;
+        if (state.drawingBoundary) return;
+        tx = lastTx + (e.clientX - startX);
+        ty = lastTy + (e.clientY - startY);
+        clampPan();
+        applyTransform();
+        redrawBoundary();
+      });
+
+      viewport.addEventListener("pointerup", (e) => {
+        if (state.drawingBoundary) return;
+        isPanning = false;
+        try { viewport.releasePointerCapture(e.pointerId); } catch (_) {}
+      });
+
+      viewport.addEventListener("pointercancel", () => { isPanning = false; });
+
+      // Wheel zoom (desktop only)
       viewport.addEventListener("wheel", (e) => {
-        if (state.drawingBoundary) {
-          e.preventDefault();
-          e.stopPropagation();
-          return;
-        }
+        if (state.drawingBoundary) { e.preventDefault(); return; }
         e.preventDefault();
         const factor = e.deltaY < 0 ? 1.1 : 0.9;
         zoomBy(factor, e.clientX, e.clientY);
       }, { passive: false });
 
-      // Touch pinch zoom on the viewport (only when NOT drawing)
+      // Pinch zoom (only when NOT drawing)
       viewport.addEventListener("touchstart", (e) => {
         if (state.drawingBoundary) return;
         if (e.touches.length === 2) {
@@ -862,10 +826,7 @@
       }, { passive: true });
 
       viewport.addEventListener("touchmove", (e) => {
-        if (state.drawingBoundary) {
-          e.preventDefault();
-          return;
-        }
+        if (state.drawingBoundary) { e.preventDefault(); return; }
         if (e.touches.length === 2) {
           e.preventDefault();
           const dist = getTouchDist(e.touches[0], e.touches[1]);
@@ -875,94 +836,37 @@
         }
       }, { passive: false });
 
-      // Pan/drag with pointer events (only when NOT drawing)
-      viewport.addEventListener("pointerdown", (e) => {
-        if (state.drawingBoundary) return;
-        if (e.button !== undefined && e.button !== 0) return;
-
-        isPanning = true;
-        startX = e.clientX;
-        startY = e.clientY;
-        lastTx = tx;
-        lastTy = ty;
-
-        try { viewport.setPointerCapture(e.pointerId); } catch (_) {}
-      });
-
-      viewport.addEventListener("pointermove", (e) => {
-        if (!isPanning) return;
-        if (state.drawingBoundary) return;
-
-        tx = lastTx + (e.clientX - startX);
-        ty = lastTy + (e.clientY - startY);
-        clampPan();
-        applyTransform();
-        redrawBoundary();
-      });
-
-      viewport.addEventListener("pointerup", (e) => {
-        isPanning = false;
-        try { viewport.releasePointerCapture(e.pointerId); } catch (_) {}
-      });
-      viewport.addEventListener("pointercancel", (e) => {
-        isPanning = false;
-        try { viewport.releasePointerCapture(e.pointerId); } catch (_) {}
-      });
-
-      // Drawing: pointer events ONLY on interaction layer
-      interaction.addEventListener("pointerdown", (e) => {
-        if (!state.drawingBoundary) return;
-        e.preventDefault();
-        e.stopPropagation();
-        if (e.stopImmediatePropagation) e.stopImmediatePropagation();
-        try { interaction.setPointerCapture(e.pointerId); } catch (_) {}
-      }, { passive: false });
-
-      interaction.addEventListener("pointerup", (e) => {
-        if (!state.drawingBoundary) return;
-        e.preventDefault();
-        e.stopPropagation();
-        if (e.stopImmediatePropagation) e.stopImmediatePropagation();
-
-        updateLayerSizeFromImage();
-        addBoundaryPoint(e.clientX, e.clientY);
-
-        try { interaction.releasePointerCapture(e.pointerId); } catch (_) {}
-      }, { passive: false });
-
-      interaction.addEventListener("pointermove", (e) => {
-        if (!state.drawingBoundary) return;
-        e.preventDefault();
-        e.stopPropagation();
-        if (e.stopImmediatePropagation) e.stopImmediatePropagation();
-      }, { passive: false });
-
-      // Normal climb placement: use pointerup on viewport (NOT click) to avoid smart-zoom junk
+      // Place climbs with pointerup (NOT click) when NOT drawing
       viewport.addEventListener("pointerup", (e) => {
         if (state.drawingBoundary) return;
-        // If they were panning, this pointerup ends the pan; don’t treat as placement
         if (isPanning) return;
-
         updateLayerSizeFromImage();
         placeClimbAt(e.clientX, e.clientY);
-      }, { passive: true });
+      });
+
+      // Draw boundary by pointerup on the SVG overlay (THIS is the whole fix)
+      overlay.addEventListener("pointerup", (e) => {
+        if (!state.drawingBoundary) return;
+        e.preventDefault();
+        e.stopPropagation();
+        updateLayerSizeFromImage();
+        addBoundaryPoint(e.clientX, e.clientY);
+      }, { passive: false });
 
       if (resetBtn) resetBtn.addEventListener("click", () => resetFit());
 
-      if (btnDrawBoundary) {
-        btnDrawBoundary.addEventListener("click", () => {
-          const sid = currentBoundarySectionId();
-          if (!state.drawingBoundary && !sid) {
-            setBoundaryStatus("Pick a section first.");
-            return;
-          }
-          setDrawMode(!state.drawingBoundary);
-        });
-      }
+      btnDrawBoundary.addEventListener("click", () => {
+        const sid = currentBoundarySectionId();
+        if (!state.drawingBoundary && !sid) {
+          setBoundaryStatus("Pick a section first.");
+          return;
+        }
+        setDrawMode(!state.drawingBoundary);
+      });
 
-      if (btnUndoBoundary) btnUndoBoundary.addEventListener("click", () => undoBoundaryPoint());
-      if (btnClearBoundary) btnClearBoundary.addEventListener("click", () => clearBoundary());
-      if (btnSaveBoundary) btnSaveBoundary.addEventListener("click", () => saveBoundary());
+      if (btnUndoBoundary) btnUndoBoundary.addEventListener("click", undoBoundaryPoint);
+      if (btnClearBoundary) btnClearBoundary.addEventListener("click", clearBoundary);
+      if (btnSaveBoundary) btnSaveBoundary.addEventListener("click", saveBoundary);
 
       if (boundarySelect) {
         boundarySelect.addEventListener("change", () => {
@@ -970,8 +874,6 @@
           const sid = currentBoundarySectionId();
           const pts = sid ? (state.boundaries[sid] || []) : [];
           setBoundaryStatus(sid ? `${pts.length} point(s) in boundary.` : "Pick a section.");
-
-          if (state.drawingBoundary && !sid) setDrawMode(false);
         });
       }
 
@@ -982,15 +884,14 @@
         resetFit();
         loadBoundaries().catch(() => setBoundaryStatus("Failed to load boundaries."));
         setDrawMode(false);
+        if (submitBtn) submitBtn.disabled = true;
       }
 
       if (img.complete) init();
       else img.addEventListener("load", init, { once: true });
 
-      // Prevent the whole page from scrolling while finger is on the map
-      viewport.addEventListener("touchmove", (e) => {
-        e.preventDefault();
-      }, { passive: false });
+      // Prevent page scroll while on map
+      viewport.addEventListener("touchmove", (e) => e.preventDefault(), { passive: false });
 
     })();
   </script>
