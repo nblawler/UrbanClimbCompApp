@@ -1,893 +1,917 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>{{ competitor.name }} · Enter Scores</title>
-<link rel="stylesheet" href="/static/app.css" />
-<style>
-* { margin: 0; padding: 0; box-sizing: border-box; }
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<title>{{ competitor.name }} · Enter Scores</title>
+	<link rel="stylesheet" href="/static/app.css" />
+	<style>
+		* { margin: 0; padding: 0; box-sizing: border-box; }
 
-body {
-font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-background: linear-gradient(135deg, #0a1628 0%, #1a2942 100%);
-min-height: 100vh;
-display: flex;
-flex-direction: column;
-color: #fff;
-}
+		body {
+			font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+			background: linear-gradient(135deg, #0a1628 0%, #1a2942 100%);
+			min-height: 100vh;
+			display: flex;
+			flex-direction: column;
+			color: #fff;
+		}
 
-/* Top nav */
-.nav {
-padding: 1.25rem 2rem;
-display: flex;
-gap: 1.5rem;
-align-items: center;
-flex-wrap: wrap;
-}
+		/* Top nav */
+		.nav {
+			padding: 1.25rem 2rem;
+			display: flex;
+			gap: 1.5rem;
+			align-items: center;
+			flex-wrap: wrap;
+		}
 
-.nav a {
-color: rgba(255, 255, 255, 0.7);
-text-decoration: none;
-font-size: 0.95rem;
-transition: color 0.2s;
-font-weight: 600;
-}
+		.nav a {
+			color: rgba(255, 255, 255, 0.7);
+			text-decoration: none;
+			font-size: 0.95rem;
+			transition: color 0.2s;
+			font-weight: 600;
+		}
 
-.nav a.active {
-color: #5df4a2;
-font-weight: 700;
-}
+		.nav a.active {
+			color: #5df4a2;
+			font-weight: 700;
+		}
 
-.nav a:hover { color: #fff; }
+		.nav a:hover { color: #fff; }
 
-/* Main container */
-.container {
-flex: 1;
-max-width: 1200px;
-margin: 0 auto;
-padding: 2rem;
-width: 100%;
-}
+		/* Main container */
+		.container {
+			flex: 1;
+			max-width: 1200px;
+			margin: 0 auto;
+			padding: 2rem;
+			width: 100%;
+		}
 
-/* Competitor header card */
-.comp-header {
-background: rgba(255, 255, 255, 0.05);
-backdrop-filter: blur(10px);
-border: 1px solid rgba(255, 255, 255, 0.1);
-border-radius: 1.5rem;
-padding: 2rem;
-margin-bottom: 2rem;
-}
+		/* Competitor header card */
+		.comp-header {
+			background: rgba(255, 255, 255, 0.05);
+			backdrop-filter: blur(10px);
+			border: 1px solid rgba(255, 255, 255, 0.1);
+			border-radius: 1.5rem;
+			padding: 2rem;
+			margin-bottom: 2rem;
+		}
 
-.comp-name {
-font-size: 2rem;
-font-weight: 900;
-margin-bottom: 1.25rem;
-background: linear-gradient(135deg, #fff 0%, #5df4a2 100%);
--webkit-background-clip: text;
--webkit-text-fill-color: transparent;
-background-clip: text;
-letter-spacing: -0.02em;
-}
+		.comp-name {
+			font-size: 2rem;
+			font-weight: 900;
+			margin-bottom: 1.25rem;
+			background: linear-gradient(135deg, #fff 0%, #5df4a2 100%);
+			-webkit-background-clip: text;
+			-webkit-text-fill-color: transparent;
+			background-clip: text;
+			letter-spacing: -0.02em;
+		}
 
-.comp-meta-row {
-display: flex;
-gap: 1rem;
-flex-wrap: wrap;
-}
+		.comp-meta-row {
+			display: flex;
+			gap: 1rem;
+			flex-wrap: wrap;
+		}
 
-.comp-pill {
-background: rgba(0, 0, 0, 0.2);
-border: 1px solid rgba(255, 255, 255, 0.15);
-border-radius: 0.85rem;
-padding: 0.75rem 1.25rem;
-display: flex;
-flex-direction: column;
-gap: 0.25rem;
-min-width: 110px;
-}
+		.comp-pill {
+			background: rgba(0, 0, 0, 0.2);
+			border: 1px solid rgba(255, 255, 255, 0.15);
+			border-radius: 0.85rem;
+			padding: 0.75rem 1.25rem;
+			display: flex;
+			flex-direction: column;
+			gap: 0.25rem;
+			min-width: 110px;
+		}
 
-.comp-pill-label {
-font-size: 0.75rem;
-color: rgba(255, 255, 255, 0.6);
-text-transform: uppercase;
-letter-spacing: 0.05em;
-font-weight: 700;
-}
+		.comp-pill-label {
+			font-size: 0.75rem;
+			color: rgba(255, 255, 255, 0.6);
+			text-transform: uppercase;
+			letter-spacing: 0.05em;
+			font-weight: 700;
+		}
 
-.comp-pill-value {
-font-size: 1.5rem;
-font-weight: 900;
-color: #fff;
-}
+		.comp-pill-value {
+			font-size: 1.5rem;
+			font-weight: 900;
+			color: #fff;
+		}
 
-/* View-only note */
-.view-only-note {
-background: rgba(251, 113, 133, 0.12);
-border: 1px solid rgba(251, 113, 133, 0.3);
-border-radius: 1rem;
-padding: 1rem 1.25rem;
-margin-bottom: 1.5rem;
-color: rgba(255, 255, 255, 0.9);
-}
+		/* View-only note */
+		.view-only-note {
+			background: rgba(251, 113, 133, 0.12);
+			border: 1px solid rgba(251, 113, 133, 0.3);
+			border-radius: 1rem;
+			padding: 1rem 1.25rem;
+			margin-bottom: 1.5rem;
+			color: rgba(255, 255, 255, 0.9);
+		}
 
-.view-only-note strong { color: #fff; }
+		.view-only-note strong { color: #fff; }
 
-/* Map card */
-.map-card {
-background: rgba(255, 255, 255, 0.05);
-backdrop-filter: blur(10px);
-border: 1px solid rgba(255, 255, 255, 0.1);
-border-radius: 1.5rem;
-padding: 2rem;
-margin-bottom: 2rem;
-}
+		/* Map card */
+		/* Map card (match competitor.html vibe) */
+		.map-card {
+			background: rgba(255, 255, 255, 0.05);
+			backdrop-filter: blur(10px);
+			border: 1px solid rgba(255, 255, 255, 0.1);
+			border-radius: 1.5rem;
+			padding: 2rem;
+			margin-bottom: 2rem;
+		}
 
-.section-header { margin-bottom: 1.5rem; }
+		.section-header { margin-bottom: 1.5rem; }
 
-.section-title {
-font-size: 1.75rem;
-font-weight: 900;
-color: #fff;
-}
+		.section-title {
+			font-size: 1.75rem;
+			font-weight: 900;
+			color: #fff;
+		}
 
-/* Section cards */
-.section-filter-row { margin-bottom: 1.5rem; }
+		/* Section cards */
+		.section-filter-row { margin-bottom: 1.5rem; }
 
-.section-filter-label {
-font-size: 0.95rem;
-color: rgba(255, 255, 255, 0.85);
-margin-bottom: 0.75rem;
-font-weight: 700;
-}
+		.section-filter-label {
+			font-size: 0.95rem;
+			color: rgba(255, 255, 255, 0.85);
+			margin-bottom: 0.75rem;
+			font-weight: 700;
+		}
 
-.section-card-grid {
-display: grid;
-grid-template-columns: repeat(4, minmax(0, 1fr));
-gap: 0.9rem;
-}
+		.section-card-grid {
+			display: grid;
+			grid-template-columns: repeat(4, minmax(0, 1fr));
+			gap: 0.9rem;
+		}
 
-.section-card {
-text-align: left;
-border-radius: 1rem;
-border: 1px solid rgba(255, 255, 255, 0.12);
-background: rgba(255, 255, 255, 0.05);
-padding: 0.9rem 1rem;
-cursor: pointer;
-color: rgba(255, 255, 255, 0.92);
-transition: transform 0.15s, background 0.15s, border-color 0.15s, box-shadow 0.15s;
-}
+		.section-card {
+			text-align: left;
+			border-radius: 1rem;
+			border: 1px solid rgba(255, 255, 255, 0.12);
+			background: rgba(255, 255, 255, 0.05);
+			padding: 0.9rem 1rem;
+			cursor: pointer;
+			color: rgba(255, 255, 255, 0.92);
+			transition: transform 0.15s, background 0.15s, border-color 0.15s, box-shadow 0.15s;
+		}
 
-.section-card:hover {
-transform: translateY(-1px);
-background: rgba(255, 255, 255, 0.08);
-border-color: rgba(255, 255, 255, 0.22);
-box-shadow: 0 10px 20px rgba(0, 0, 0, 0.22);
-}
+		.section-card:hover {
+			transform: translateY(-1px);
+			background: rgba(255, 255, 255, 0.08);
+			border-color: rgba(255, 255, 255, 0.22);
+			box-shadow: 0 10px 20px rgba(0, 0, 0, 0.22);
+		}
 
-.section-card.is-active {
-background: rgba(93, 244, 162, 0.15);
-border-color: rgba(93, 244, 162, 0.55);
-box-shadow: 0 14px 26px rgba(93, 244, 162, 0.12);
-}
+		.section-card.is-active {
+			background: rgba(93, 244, 162, 0.15);
+			border-color: rgba(93, 244, 162, 0.55);
+			box-shadow: 0 14px 26px rgba(93, 244, 162, 0.12);
+		}
 
-.section-card-top {
-display: flex;
-align-items: baseline;
-justify-content: space-between;
-gap: 0.75rem;
-margin-bottom: 0.55rem;
-}
+		.section-card-top {
+			display: flex;
+			align-items: baseline;
+			justify-content: space-between;
+			gap: 0.75rem;
+			margin-bottom: 0.55rem;
+		}
 
-.section-card-name {
-font-weight: 900;
-font-size: 1rem;
-color: #fff;
-line-height: 1.15;
-}
+		.section-card-name {
+			font-weight: 900;
+			font-size: 1rem;
+			color: #fff;
+			line-height: 1.15;
+		}
 
-.section-card-meta {
-font-size: 0.8rem;
-color: rgba(255, 255, 255, 0.72);
-font-weight: 700;
-white-space: nowrap;
-}
+		.section-card-meta {
+			font-size: 0.8rem;
+			color: rgba(255, 255, 255, 0.72);
+			font-weight: 700;
+			white-space: nowrap;
+		}
 
-.section-card-stats {
-display: flex;
-align-items: center;
-justify-content: space-between;
-gap: 0.75rem;
-}
+		.section-card-stats {
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			gap: 0.75rem;
+		}
 
-.section-stat {
-display: flex;
-flex-direction: column;
-gap: 0.2rem;
-}
+		.section-stat {
+			display: flex;
+			flex-direction: column;
+			gap: 0.2rem;
+		}
 
-.section-stat-label {
-font-size: 0.7rem;
-text-transform: uppercase;
-letter-spacing: 0.06em;
-color: rgba(255, 255, 255, 0.6);
-font-weight: 800;
-}
+		.section-stat-label {
+			font-size: 0.7rem;
+			text-transform: uppercase;
+			letter-spacing: 0.06em;
+			color: rgba(255, 255, 255, 0.6);
+			font-weight: 800;
+		}
 
-.section-stat-value {
-font-size: 1.05rem;
-font-weight: 900;
-color: #fff;
-}
+		.section-stat-value {
+			font-size: 1.05rem;
+			font-weight: 900;
+			color: #fff;
+		}
 
-.section-progress {
-margin-top: 0.65rem;
-height: 10px;
-border-radius: 999px;
-background: rgba(255, 255, 255, 0.1);
-overflow: hidden;
-border: 1px solid rgba(255, 255, 255, 0.12);
-}
+		.section-progress {
+			margin-top: 0.65rem;
+			height: 10px;
+			border-radius: 999px;
+			background: rgba(255, 255, 255, 0.1);
+			overflow: hidden;
+			border: 1px solid rgba(255, 255, 255, 0.12);
+		}
 
-.section-progress > div {
-height: 100%;
-width: 0%;
-background: linear-gradient(90deg, rgba(93, 244, 162, 0.85), rgba(93, 244, 162, 0.55));
-border-radius: 999px;
-transition: width 0.25s ease;
-}
+		.section-progress > div {
+			height: 100%;
+			width: 0%;
+			background: linear-gradient(90deg, rgba(93, 244, 162, 0.85), rgba(93, 244, 162, 0.55));
+			border-radius: 999px;
+			transition: width 0.25s ease;
+		}
 
-/* Map wrapper */
-.map-wrapper {
-position: relative;
-width: 100%;
-border-radius: 1rem;
-overflow: hidden;
-border: 1px solid rgba(255, 255, 255, 0.1);
-background: #000;
-}
+		/* Map wrapper */
+		/* Map wrapper (match competitor.html) */
+		.map-wrapper {
+			position: relative;
+			width: 100%;
+			border-radius: 1rem;
+			overflow: hidden;
+			border: 1px solid rgba(255, 255, 255, 0.1);
+			background: #000;
+		}
 
-.map-viewport {
-position: relative;
-width: 100%;
-height: clamp(460px, 78vh, 900px);
-overflow: hidden;
-touch-action: none;
-background: #000;
-}
+		/*
+		  IMPORTANT: make the viewport behave like competitor.html (image dictates height),
+		  while still allowing pan/zoom by keeping a fixed-aspect box.
+		*/
+		.map-viewport {
+			position: relative;
+			width: 100%;
+			height: clamp(460px, 78vh, 900px);
+			height: auto;
+			aspect-ratio: var(--map-ar, 4 / 3); /* JS sets this from the actual image */
+			overflow: hidden;
+			touch-action: none;
+			background: #000;
+		}
 
-.map-layer {
-position: absolute;
-left: 0;
-top: 0;
-transform-origin: 0 0;
-will-change: transform;
-}
+		.map-layer {
+			position: absolute;
+			left: 0;
+			top: 0;
+			transform-origin: 0 0;
+			will-change: transform;
+		}
 
-.gym-map-image {
-display: block;
-width: 100%;
-height: auto;
-user-select: none;
--webkit-user-drag: none;
-pointer-events: none;
-}
+		.gym-map-image {
+			display: block;
+			width: 100%;
+			height: auto;
+			user-select: none;
+			-webkit-user-drag: none;
+			pointer-events: none;
+		}
 
-.map-marker {
-position: absolute;
-width: 20px;
-height: 20px;
-border-radius: 999px;
-border: 2px solid #fff;
-transform: translate(-50%, -50%);
-box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
-transition: transform 0.15s, box-shadow 0.15s;
-cursor: pointer;
-text-decoration: none;
-pointer-events: auto;
-}
+		/* --- MARKERS (FIXED) --- */
+		/* MARKERS (smaller + sane scaling) */
+		.map-marker {
+			position: absolute;
+			width: 12px;
+			height: 12px;
+			border-radius: 999px;
+			border: 2px solid #fff;
+			transform: translate(-50%, -50%);
+			box-shadow: 0 3px 10px rgba(0, 0, 0, 0.45);
+			transition: transform 0.15s, box-shadow 0.15s;
+			cursor: pointer;
+			text-decoration: none;
+			pointer-events: auto;
+		}
 
-.map-marker:hover {
-transform: translate(-50%, -50%) scale(1.15);
-box-shadow: 0 8px 20px rgba(0, 0, 0, 0.7);
-z-index: 10;
-}
+		.map-marker:hover {
+			transform: translate(-50%, -50%) scale(1.08);
+			box-shadow: 0 6px 16px rgba(0, 0, 0, 0.6);
+			z-index: 10;
+		}
 
-.map-marker.disabled {
-opacity: 0.4;
-cursor: default;
-}
+		.map-marker.disabled {
+			opacity: 0.4;
+			cursor: default;
+		}
 
-.map-marker.disabled:hover {
-transform: translate(-50%, -50%);
-}
+		.map-marker.disabled:hover {
+			transform: translate(-50%, -50%);
+		}
 
-#mapWrapperSections { --marker-scale: 1; }
+		#mapWrapperSections { --marker-scale: 1; }
 
-#mapWrapperSections .map-marker {
-width: calc(20px / var(--marker-scale));
-height: calc(20px / var(--marker-scale));
-border-width: 2px;
-}
+		/* Keep marker size visually consistent as you zoom IN, but NEVER let it inflate when zoomed OUT */
+		#mapWrapperSections .map-marker {
+			width: calc(12px / var(--marker-scale));
+			height: calc(12px / var(--marker-scale));
+			border-width: 2px;
+		}
 
-#mapWrapperSections .map-marker::after {
-content: "";
-position: absolute;
-left: 50%;
-top: 50%;
-width: 38px;
-height: 38px;
-transform: translate(-50%, -50%);
-border-radius: 999px;
-background: transparent;
-}
+		/* Smaller click target (still fat-finger friendly) */
+		#mapWrapperSections .map-marker::after {
+			content: "";
+			position: absolute;
+			left: 50%;
+			top: 50%;
+			width: 28px;
+			height: 28px;
+			transform: translate(-50%, -50%);
+			border-radius: 999px;
+			background: transparent;
+		}
 
-/* Map missing state */
-.map-missing {
-padding: 2rem;
-text-align: center;
-background: rgba(255, 255, 255, 0.03);
-border: 1px dashed rgba(255, 255, 255, 0.15);
-border-radius: 1rem;
-color: rgba(255, 255, 255, 0.7);
-}
+		/* Map missing state */
+		.map-missing {
+			padding: 2rem;
+			text-align: center;
+			background: rgba(255, 255, 255, 0.03);
+			border: 1px dashed rgba(255, 255, 255, 0.15);
+			border-radius: 1rem;
+			color: rgba(255, 255, 255, 0.7);
+		}
 
-.map-missing strong {
-display: block;
-margin-bottom: 0.75rem;
-color: #fff;
-font-size: 1.1rem;
-}
+		.map-missing strong {
+			display: block;
+			margin-bottom: 0.75rem;
+			color: #fff;
+			font-size: 1.1rem;
+		}
 
-code {
-background: rgba(0, 0, 0, 0.3);
-padding: 0.25rem 0.5rem;
-border-radius: 0.35rem;
-border: 1px solid rgba(255, 255, 255, 0.15);
-font-family: 'Courier New', monospace;
-color: #5df4a2;
-}
+		code {
+			background: rgba(0, 0, 0, 0.3);
+			padding: 0.25rem 0.5rem;
+			border-radius: 0.35rem;
+			border: 1px solid rgba(255, 255, 255, 0.15);
+			font-family: 'Courier New', monospace;
+			color: #5df4a2;
+		}
 
-@media (max-width: 980px) {
-.section-card-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-}
+		@media (max-width: 980px) {
+			.section-card-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+		}
 
-@media (max-width: 768px) {
-.nav { padding: 1rem; }
-.container { padding: 1.5rem 1rem; }
-.comp-header { padding: 1.5rem; }
-.comp-name { font-size: 1.6rem; }
-.comp-pill { min-width: 90px; }
-.comp-pill-value { font-size: 1.25rem; }
-.map-card { padding: 1.5rem; }
-.section-title { font-size: 1.4rem; }
+		@media (max-width: 768px) {
+			.nav { padding: 1rem; }
+			.container { padding: 1.5rem 1rem; }
+			.comp-header { padding: 1.5rem; }
+			.comp-name { font-size: 1.6rem; }
+			.comp-pill { min-width: 90px; }
+			.comp-pill-value { font-size: 1.25rem; }
+			.map-card { padding: 1.5rem; }
+			.section-title { font-size: 1.4rem; }
 
-.section-card-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-}
+			.section-card-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+		}
 
-@media (max-width: 520px) {
-.comp-meta-row { gap: 0.75rem; }
-.comp-pill { flex: 1 1 calc(50% - 0.375rem); min-width: 0; }
-.section-card-grid { grid-template-columns: 1fr; }
-}
-</style>
+		@media (max-width: 520px) {
+			.comp-meta-row { gap: 0.75rem; }
+			.comp-pill { flex: 1 1 calc(50% - 0.375rem); min-width: 0; }
+			.section-card-grid { grid-template-columns: 1fr; }
+		}
+	</style>
 </head>
 
 <body>
-{% set is_logged_in = session.get('account_id') %}
-{% set viewer_id = session.get('competitor_id') %}
-{% set is_admin = session.get('admin_ok', False) %}
-{% set comp_slug = comp_slug if comp_slug is defined else session.get('active_comp_slug') %}
-{% set show_comp_nav = (is_logged_in and viewer_id and comp_slug) %}
+	{% set is_logged_in = session.get('account_id') %}
+	{% set viewer_id = session.get('competitor_id') %}
+	{% set is_admin = session.get('admin_ok', False) %}
+	{% set comp_slug = comp_slug if comp_slug is defined else session.get('active_comp_slug') %}
+	{% set show_comp_nav = (is_logged_in and viewer_id and comp_slug) %}
 
-<nav class="nav">
-<a class="{% if nav_active == 'my_comps' %}active{% endif %}"
-href="{% if is_logged_in or is_admin %}/my-comps{% else %}/{% endif %}">Home</a>
+	<nav class="nav">
+		<a class="{% if nav_active == 'my_comps' %}active{% endif %}"
+		   href="{% if is_logged_in or is_admin %}/my-comps{% else %}/{% endif %}">Home</a>
 
-{% if is_admin %}
-<a class="{% if nav_active == 'admin' %}active{% endif %}" href="/admin/comps">Admin</a>
-{% endif %}
+		{% if is_admin %}
+			<a class="{% if nav_active == 'admin' %}active{% endif %}" href="/admin/comps">Admin</a>
+		{% endif %}
 
-{% if show_comp_nav %}
-<a class="{% if nav_active == 'sections' %}active{% endif %}"
-			   href="/comp/{{ comp_slug }}/competitor/{{ viewer_id }}/sections">Climb Map</a>
+		{% if show_comp_nav %}
+			<a class="{% if nav_active == 'sections' %}active{% endif %}"
 			   href="/comp/{{ comp_slug }}/competitor/{{ viewer_id }}/sections">Scoring</a>
 
-<a class="{% if nav_active == 'my_stats' %}active{% endif %}"
-href="/competitor/{{ viewer_id }}/stats/my">My Stats</a>
-
-<a class="{% if nav_active == 'overall_stats' %}active{% endif %}"
-href="/competitor/{{ viewer_id }}/stats/overall">Overall Stats</a>
-
-<a class="{% if nav_active == 'leaderboard' %}active{% endif %}"
-href="/leaderboard?cid={{ viewer_id }}">Leaderboard</a>
-{% endif %}
-
-{% if is_logged_in or is_admin %}
-<a href="/logout">Log out</a>
-{% else %}
-<a class="{% if nav_active == 'login' %}active{% endif %}"
-href="/login{% if comp_slug %}?slug={{ comp_slug }}{% endif %}">Log in</a>
-{% endif %}
-</nav>
-
-<main class="container">
-<header class="comp-header">
-<h1 class="comp-name">{{ competitor.name }}</h1>
-
-<div class="comp-meta-row">
-<div class="comp-pill">
-<span class="comp-pill-label">Competitor</span>
-<span class="comp-pill-value">{{ competitor.id }}</span>
-</div>
-
-<div class="comp-pill">
-<span class="comp-pill-label">Points</span>
-<span class="comp-pill-value" id="total-points">{{ total_points }}</span>
-</div>
-
-{% if position is not none %}
-<div class="comp-pill">
-<span class="comp-pill-label">Position</span>
-<span class="comp-pill-value">{{ position }}</span>
-</div>
-{% endif %}
-</div>
-</header>
-
-{% if not can_edit %}
-<div class="view-only-note">
-You're viewing climbs for <strong>{{ competitor.name }}</strong> in read-only mode.
-Log attempts on your own competitor page.
-</div>
-{% endif %}
-
-<section class="map-card">
-<header class="section-header">
-<h2 class="section-title">{{ gym_name }} Map</h2>
-</header>
-
-{% if sections %}
-<div class="section-filter-row">
-<div class="section-filter-label">Sections (tap to filter dots):</div>
-
-<div class="section-card-grid" id="sectionCardGrid">
-{% for sec in sections %}
-<button
-type="button"
-class="section-card"
-data-section-id="{{ sec.id }}"
-aria-pressed="false"
->
-<div class="section-card-top">
-<div class="section-card-name">{{ sec.name }}</div>
-<div class="section-card-meta">
-<span class="sec-done" data-k="done">0</span>/<span class="sec-total" data-k="total">0</span>
-</div>
-</div>
-
-<div class="section-card-stats">
-<div class="section-stat">
-<div class="section-stat-label">Done</div>
-<div class="section-stat-value sec-done" data-k="done">0</div>
-</div>
-
-<div class="section-stat">
-<div class="section-stat-label">Left</div>
-<div class="section-stat-value sec-left" data-k="left">0</div>
-</div>
-</div>
-
-<div class="section-progress" aria-hidden="true">
-<div class="sec-bar"></div>
-</div>
-</button>
-{% endfor %}
-</div>
-</div>
-{% endif %}
-
-{% if gym_map_path %}
-<div class="map-wrapper" id="mapWrapperSections">
-<div class="map-viewport" id="mapViewportSections">
-<div class="map-layer" id="mapLayerSections">
-<img id="mapImageSections"
-class="gym-map-image"
-src="{{ gym_map_path }}"
-alt="{{ gym_name }} Gym Map"
-draggable="false" />
-
-{% for c in map_climbs %}
-{% if c.x_percent is not none and c.y_percent is not none %}
-{% set bg = c.colour or '#ff4081' %}
-{% if can_edit %}
-{% if comp_slug %}
-<a class="map-marker"
-data-section-id="{{ c.section.id }}"
-data-climb-number="{{ c.climb_number }}"
-style="left: {{ c.x_percent }}%; top: {{ c.y_percent }}%; background: {{ bg }};"
-href="/comp/{{ comp_slug }}/competitor/{{ competitor.id }}/section/{{ c.section.slug }}#climb-{{ c.climb_number }}"
-title="Section {{ c.section.name }} · Climb #{{ c.climb_number }}"></a>
-{% else %}
-<a class="map-marker"
-data-section-id="{{ c.section.id }}"
-data-climb-number="{{ c.climb_number }}"
-style="left: {{ c.x_percent }}%; top: {{ c.y_percent }}%; background: {{ bg }};"
-href="/competitor/{{ competitor.id }}/section/{{ c.section.slug }}#climb-{{ c.climb_number }}"
-title="Section {{ c.section.name }} · Climb #{{ c.climb_number }}"></a>
-{% endif %}
-{% else %}
-<div class="map-marker disabled"
-data-section-id="{{ c.section.id }}"
-data-climb-number="{{ c.climb_number }}"
-style="left: {{ c.x_percent }}%; top: {{ c.y_percent }}%; background: {{ bg }};"
-title="Section {{ c.section.name }} · Climb #{{ c.climb_number }}"></div>
-{% endif %}
-{% endif %}
-{% endfor %}
-</div>
-</div>
-</div>
-{% else %}
-<div class="map-missing">
-<strong>No map set for this gym yet</strong>
-<div>
-Ask an admin to set <code>gym.map_image_path</code> (e.g. <code>/static/Collingwood_Gym_Map.png</code>).
-</div>
-</div>
-{% endif %}
-</section>
-</main>
-
-<script>
-(function () {
-// -------- Section cards filtering + progress counts --------
-const competitorId = {{ competitor.id }};
-const cards = Array.from(document.querySelectorAll(".section-card"));
-const markers = Array.from(document.querySelectorAll(".map-marker"));
-
-if (!cards.length || !markers.length) return;
-
-// Totals per section from markers on the map
-const totalsBySection = new Map();
-// map climb_number -> section_id (assumes climb_number is globally unique in comp)
-const sectionByClimb = new Map();
-
-markers.forEach((m) => {
-const sid = m.dataset.sectionId;
-const cn = m.dataset.climbNumber;
-if (!sid) return;
-
-totalsBySection.set(sid, (totalsBySection.get(sid) || 0) + 1);
-
-if (cn) sectionByClimb.set(String(cn), sid);
-});
-
-// Helper: update one card UI
-function setCardProgress(card, done, total) {
-const left = Math.max(0, total - done);
-card.querySelectorAll(".sec-done").forEach(el => el.textContent = String(done));
-card.querySelectorAll(".sec-total").forEach(el => el.textContent = String(total));
-const leftEl = card.querySelector(".sec-left");
-if (leftEl) leftEl.textContent = String(left);
-
-const bar = card.querySelector(".sec-bar");
-if (bar) {
-const pct = total ? Math.round((done / total) * 100) : 0;
-bar.style.width = pct + "%";
-}
-}
-
-// Default card totals immediately (done=0 until we load scores)
-cards.forEach((card) => {
-const sid = card.dataset.sectionId;
-const total = totalsBySection.get(sid) || 0;
-setCardProgress(card, 0, total);
-});
-
-// Load scores and compute "done" per section
-async function loadProgress() {
-try {
-const res = await fetch(`/api/score/${competitorId}`);
-if (!res.ok) return;
-
-const rows = await res.json();
-
-// Decide "done": any saved attempt/points/topped implies done
-const doneClimbs = new Set();
-(rows || []).forEach((r) => {
-if (!r) return;
-const cn = r.climb_number;
-if (cn === undefined || cn === null) return;
-
-const topped = !!r.topped;
-
-// Only count as done if topped/flashed
-if (topped) {
-doneClimbs.add(String(cn));
-}
-});
-
-const doneBySection = new Map();
-doneClimbs.forEach((cn) => {
-const sid = sectionByClimb.get(String(cn));
-if (!sid) return;
-doneBySection.set(sid, (doneBySection.get(sid) || 0) + 1);
-});
-
-cards.forEach((card) => {
-const sid = card.dataset.sectionId;
-const total = totalsBySection.get(sid) || 0;
-const done = doneBySection.get(sid) || 0;
-setCardProgress(card, done, total);
-});
-} catch (e) {
-// ignore; counts just stay at 0 done
-}
-}
-
-loadProgress();
-
-// Filter behaviour (same logic as before, just applied to cards)
-let activeIds = new Set();
-
-function applyFilter() {
-if (!activeIds.size) {
-markers.forEach((m) => { m.style.display = ""; });
-return;
-}
-markers.forEach((m) => {
-const sid = m.dataset.sectionId;
-m.style.display = (!sid || activeIds.has(sid)) ? "" : "none";
-});
-}
-
-cards.forEach((card) => {
-card.addEventListener("click", () => {
-const sid = card.dataset.sectionId;
-if (!sid) return;
-
-const isActive = card.classList.contains("is-active");
-if (isActive) {
-card.classList.remove("is-active");
-card.setAttribute("aria-pressed", "false");
-activeIds.delete(sid);
-} else {
-card.classList.add("is-active");
-card.setAttribute("aria-pressed", "true");
-activeIds.add(sid);
-}
-
-const anyActive = cards.some((c) => c.classList.contains("is-active"));
-if (!anyActive) activeIds.clear();
-
-applyFilter();
-});
-});
-
-applyFilter();
-})();
-</script>
-
-<script>
-(function () {
-// -------- Pan/zoom map with dynamic minScale = fit (no zooming out into black space) --------
-const wrapper  = document.getElementById("mapWrapperSections");
-const viewport = document.getElementById("mapViewportSections");
-const layer    = document.getElementById("mapLayerSections");
-const img      = document.getElementById("mapImageSections");
-if (!wrapper || !viewport || !layer || !img) return;
-
-let scale = 1;
-let minScale = 1; // computed from fit
-const maxScale = 4;
-
-let tx = 0, ty = 0;
-let baseW = 1, baseH = 1;
-
-let isPanning = false;
-let startX = 0, startY = 0;
-let lastTx = 0, lastTy = 0;
-
-let pinchStartDist = 0;
-let pinchStartScale = 1;
-
-let movedTooFar = false;
-let panStartClient = { x: 0, y: 0 };
-
-function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
-
-function updateLayerSizeFromImage() {
-const r = img.getBoundingClientRect();
-baseW = Math.max(1, Math.round(r.width));
-baseH = Math.max(1, Math.round(r.height));
-layer.style.width  = baseW + "px";
-layer.style.height = baseH + "px";
-}
-
-function computeFitScale() {
-const vr = viewport.getBoundingClientRect();
-const fit = Math.min(vr.width / baseW, vr.height / baseH);
-return Math.min(1, fit);
-}
-
-function applyTransform() {
-layer.style.transform = `translate(${tx}px, ${ty}px) scale(${scale})`;
-const markerScale = Math.pow(scale, 0.65);
-wrapper.style.setProperty("--marker-scale", String(markerScale));
-}
-
-function clampPan() {
-const vr = viewport.getBoundingClientRect();
-const viewW = vr.width;
-const viewH = vr.height;
-
-const scaledW = baseW * scale;
-const scaledH = baseH * scale;
-
-const minTx = viewW - scaledW;
-const minTy = viewH - scaledH;
-
-if (scaledW <= viewW) tx = (viewW - scaledW) / 2;
-else tx = clamp(tx, minTx, 0);
-
-if (scaledH <= viewH) ty = (viewH - scaledH) / 2;
-else ty = clamp(ty, minTy, 0);
-}
-
-function resetFit() {
-updateLayerSizeFromImage();
-minScale = computeFitScale();
-
-scale = clamp(minScale, minScale, maxScale);
-
-const vr = viewport.getBoundingClientRect();
-tx = (vr.width - baseW * scale) / 2;
-ty = (vr.height - baseH * scale) / 2;
-
-clampPan();
-applyTransform();
-}
-
-function zoomTo(nextScale, centerClientX, centerClientY) {
-nextScale = clamp(nextScale, minScale, maxScale);
-
-const vr = viewport.getBoundingClientRect();
-const cx = (centerClientX ?? (vr.left + vr.width / 2)) - vr.left;
-const cy = (centerClientY ?? (vr.top + vr.height / 2)) - vr.top;
-
-const scaleChange = nextScale / scale;
-tx = cx - (cx - tx) * scaleChange;
-ty = cy - (cy - ty) * scaleChange;
-
-scale = nextScale;
-clampPan();
-applyTransform();
-}
-
-function zoomBy(factor, clientX, clientY) {
-zoomTo(scale * factor, clientX, clientY);
-}
-
-function getTouchDist(t1, t2) {
-const dx = t2.clientX - t1.clientX;
-const dy = t2.clientY - t1.clientY;
-return Math.hypot(dx, dy);
-}
-
-function getTouchMid(t1, t2) {
-return { x: (t1.clientX + t2.clientX) / 2, y: (t1.clientY + t2.clientY) / 2 };
-}
-
-viewport.addEventListener("touchmove", (e) => e.preventDefault(), { passive: false });
-
-viewport.addEventListener("touchstart", (e) => {
-movedTooFar = false;
-
-if (e.touches.length === 1) {
-isPanning = true;
-startX = e.touches[0].clientX;
-startY = e.touches[0].clientY;
-lastTx = tx;
-lastTy = ty;
-panStartClient = { x: startX, y: startY };
-} else if (e.touches.length === 2) {
-isPanning = false;
-pinchStartDist = getTouchDist(e.touches[0], e.touches[1]);
-pinchStartScale = scale;
-}
-}, { passive: true });
-
-viewport.addEventListener("touchmove", (e) => {
-if (e.touches.length === 1 && isPanning) {
-const dx = e.touches[0].clientX - startX;
-const dy = e.touches[0].clientY - startY;
-
-const moved = Math.hypot(
-e.touches[0].clientX - panStartClient.x,
-e.touches[0].clientY - panStartClient.y
-);
-if (moved > 8) movedTooFar = true;
-
-tx = lastTx + dx;
-ty = lastTy + dy;
-clampPan();
-applyTransform();
-} else if (e.touches.length === 2) {
-movedTooFar = true;
-
-const dist = getTouchDist(e.touches[0], e.touches[1]);
-const mid = getTouchMid(e.touches[0], e.touches[1]);
-
-const factor = dist / (pinchStartDist || dist);
-const nextScale = pinchStartScale * factor;
-
-zoomTo(nextScale, mid.x, mid.y);
-}
-}, { passive: false });
-
-viewport.addEventListener("touchend", (e) => {
-if (e.touches.length === 0) isPanning = false;
-});
-
-// Desktop drag + wheel
-let mouseDown = false;
-
-viewport.addEventListener("mousedown", (e) => {
-mouseDown = true;
-movedTooFar = false;
-startX = e.clientX;
-startY = e.clientY;
-lastTx = tx;
-lastTy = ty;
-panStartClient = { x: startX, y: startY };
-});
-
-window.addEventListener("mousemove", (e) => {
-if (!mouseDown) return;
-
-const moved = Math.hypot(e.clientX - panStartClient.x, e.clientY - panStartClient.y);
-if (moved > 6) movedTooFar = true;
-
-tx = lastTx + (e.clientX - startX);
-ty = lastTy + (e.clientY - startY);
-clampPan();
-applyTransform();
-});
-
-window.addEventListener("mouseup", () => { mouseDown = false; });
-
-viewport.addEventListener("wheel", (e) => {
-e.preventDefault();
-const factor = e.deltaY < 0 ? 1.1 : 0.9;
-zoomBy(factor, e.clientX, e.clientY);
-}, { passive: false });
-
-// Block marker click if user was panning
-wrapper.addEventListener("click", (e) => {
-const marker = e.target.closest(".map-marker");
-if (!marker) return;
-
-if (movedTooFar) {
-e.preventDefault();
-e.stopPropagation();
-}
-}, true);
-
-function init() { resetFit(); }
-
-if (img.complete) init();
-else img.addEventListener("load", init, { once: true });
-
-let resizeTimer = null;
-window.addEventListener("resize", () => {
-clearTimeout(resizeTimer);
-resizeTimer = setTimeout(() => {
-resetFit();
-}, 120);
-});
-})();
-</script>
+			<a class="{% if nav_active == 'my_stats' %}active{% endif %}"
+			   href="/competitor/{{ viewer_id }}/stats/my">My Stats</a>
+
+			<a class="{% if nav_active == 'overall_stats' %}active{% endif %}"
+			   href="/competitor/{{ viewer_id }}/stats/overall">Overall Stats</a>
+
+			<a class="{% if nav_active == 'leaderboard' %}active{% endif %}"
+			   href="/leaderboard?cid={{ viewer_id }}">Leaderboard</a>
+		{% endif %}
+
+		{% if is_logged_in or is_admin %}
+			<a href="/logout">Log out</a>
+		{% else %}
+			<a class="{% if nav_active == 'login' %}active{% endif %}"
+			   href="/login{% if comp_slug %}?slug={{ comp_slug }}{% endif %}">Log in</a>
+		{% endif %}
+	</nav>
+
+	<main class="container">
+		<header class="comp-header">
+			<h1 class="comp-name">{{ competitor.name }}</h1>
+
+			<div class="comp-meta-row">
+				<div class="comp-pill">
+					<span class="comp-pill-label">Competitor</span>
+					<span class="comp-pill-value">{{ competitor.id }}</span>
+				</div>
+
+				<div class="comp-pill">
+					<span class="comp-pill-label">Points</span>
+					<span class="comp-pill-value" id="total-points">{{ total_points }}</span>
+				</div>
+
+				{% if position is not none %}
+					<div class="comp-pill">
+						<span class="comp-pill-label">Position</span>
+						<span class="comp-pill-value">{{ position }}</span>
+					</div>
+				{% endif %}
+			</div>
+		</header>
+
+		{% if not can_edit %}
+			<div class="view-only-note">
+				You're viewing climbs for <strong>{{ competitor.name }}</strong> in read-only mode.
+				Log attempts on your own competitor page.
+			</div>
+		{% endif %}
+
+		<section class="map-card">
+			<header class="section-header">
+				<h2 class="section-title">{{ gym_name }} Map</h2>
+			</header>
+
+			{% if sections %}
+				<div class="section-filter-row">
+					<div class="section-filter-label">Sections (tap to filter dots):</div>
+
+					<div class="section-card-grid" id="sectionCardGrid">
+						{% for sec in sections %}
+							<button
+								type="button"
+								class="section-card"
+								data-section-id="{{ sec.id }}"
+								aria-pressed="false"
+							>
+								<div class="section-card-top">
+									<div class="section-card-name">{{ sec.name }}</div>
+									<div class="section-card-meta">
+										<span class="sec-done" data-k="done">0</span>/<span class="sec-total" data-k="total">0</span>
+									</div>
+								</div>
+
+								<div class="section-card-stats">
+									<div class="section-stat">
+										<div class="section-stat-label">Done</div>
+										<div class="section-stat-value sec-done" data-k="done">0</div>
+									</div>
+
+									<div class="section-stat">
+										<div class="section-stat-label">Left</div>
+										<div class="section-stat-value sec-left" data-k="left">0</div>
+									</div>
+								</div>
+
+								<div class="section-progress" aria-hidden="true">
+									<div class="sec-bar"></div>
+								</div>
+							</button>
+						{% endfor %}
+					</div>
+				</div>
+			{% endif %}
+
+			{% if gym_map_path %}
+				<div class="map-wrapper" id="mapWrapperSections">
+					<div class="map-viewport" id="mapViewportSections">
+						<div class="map-layer" id="mapLayerSections">
+							<img id="mapImageSections"
+							     class="gym-map-image"
+							     src="{{ gym_map_path }}"
+							     alt="{{ gym_name }} Gym Map"
+							     draggable="false" />
+
+							{% for c in map_climbs %}
+								{% if c.x_percent is not none and c.y_percent is not none %}
+									{% set bg = c.colour or '#ff4081' %}
+									{% if can_edit %}
+										{% if comp_slug %}
+											<a class="map-marker"
+											   data-section-id="{{ c.section.id }}"
+											   data-climb-number="{{ c.climb_number }}"
+											   style="left: {{ c.x_percent }}%; top: {{ c.y_percent }}%; background: {{ bg }};"
+											   href="/comp/{{ comp_slug }}/competitor/{{ competitor.id }}/section/{{ c.section.slug }}#climb-{{ c.climb_number }}"
+											   title="Section {{ c.section.name }} · Climb #{{ c.climb_number }}"></a>
+										{% else %}
+											<a class="map-marker"
+											   data-section-id="{{ c.section.id }}"
+											   data-climb-number="{{ c.climb_number }}"
+											   style="left: {{ c.x_percent }}%; top: {{ c.y_percent }}%; background: {{ bg }};"
+											   href="/competitor/{{ competitor.id }}/section/{{ c.section.slug }}#climb-{{ c.climb_number }}"
+											   title="Section {{ c.section.name }} · Climb #{{ c.climb_number }}"></a>
+										{% endif %}
+									{% else %}
+										<div class="map-marker disabled"
+										     data-section-id="{{ c.section.id }}"
+										     data-climb-number="{{ c.climb_number }}"
+										     style="left: {{ c.x_percent }}%; top: {{ c.y_percent }}%; background: {{ bg }};"
+										     title="Section {{ c.section.name }} · Climb #{{ c.climb_number }}"></div>
+									{% endif %}
+								{% endif %}
+							{% endfor %}
+						</div>
+					</div>
+				</div>
+			{% else %}
+				<div class="map-missing">
+					<strong>No map set for this gym yet</strong>
+					<div>
+						Ask an admin to set <code>gym.map_image_path</code> (e.g. <code>/static/Collingwood_Gym_Map.png</code>).
+					</div>
+				</div>
+			{% endif %}
+		</section>
+	</main>
+
+	<script>
+		(function () {
+			// -------- Section cards filtering + progress counts --------
+			const competitorId = {{ competitor.id }};
+			const cards = Array.from(document.querySelectorAll(".section-card"));
+			const markers = Array.from(document.querySelectorAll(".map-marker"));
+
+			if (!cards.length || !markers.length) return;
+
+			// Totals per section from markers on the map
+			const totalsBySection = new Map();
+			// map climb_number -> section_id (assumes climb_number is globally unique in comp)
+			const sectionByClimb = new Map();
+
+			markers.forEach((m) => {
+				const sid = m.dataset.sectionId;
+				const cn = m.dataset.climbNumber;
+				if (!sid) return;
+
+				totalsBySection.set(sid, (totalsBySection.get(sid) || 0) + 1);
+
+				if (cn) sectionByClimb.set(String(cn), sid);
+			});
+
+			// Helper: update one card UI
+			function setCardProgress(card, done, total) {
+				const left = Math.max(0, total - done);
+				card.querySelectorAll(".sec-done").forEach(el => el.textContent = String(done));
+				card.querySelectorAll(".sec-total").forEach(el => el.textContent = String(total));
+				const leftEl = card.querySelector(".sec-left");
+				if (leftEl) leftEl.textContent = String(left);
+
+				const bar = card.querySelector(".sec-bar");
+				if (bar) {
+					const pct = total ? Math.round((done / total) * 100) : 0;
+					bar.style.width = pct + "%";
+				}
+			}
+
+			// Default card totals immediately (done=0 until we load scores)
+			cards.forEach((card) => {
+				const sid = card.dataset.sectionId;
+				const total = totalsBySection.get(sid) || 0;
+				setCardProgress(card, 0, total);
+			});
+
+			// Load scores and compute "done" per section
+			async function loadProgress() {
+				try {
+					const res = await fetch(`/api/score/${competitorId}`);
+					if (!res.ok) return;
+
+					const rows = await res.json();
+
+					// Decide "done": only topped/flashed implies done
+					const doneClimbs = new Set();
+					(rows || []).forEach((r) => {
+						if (!r) return;
+						const cn = r.climb_number;
+						if (cn === undefined || cn === null) return;
+
+						const topped = !!r.topped;
+
+						// Only count as done if topped/flashed
+						if (topped) {
+							doneClimbs.add(String(cn));
+						}
+						if (topped) doneClimbs.add(String(cn));
+					});
+
+					const doneBySection = new Map();
+					doneClimbs.forEach((cn) => {
+						const sid = sectionByClimb.get(String(cn));
+						if (!sid) return;
+						doneBySection.set(sid, (doneBySection.get(sid) || 0) + 1);
+					});
+
+					cards.forEach((card) => {
+						const sid = card.dataset.sectionId;
+						const total = totalsBySection.get(sid) || 0;
+						const done = doneBySection.get(sid) || 0;
+						setCardProgress(card, done, total);
+					});
+				} catch (e) {
+					// ignore; counts just stay at 0 done
+					// ignore
+				}
+			}
+
+			loadProgress();
+
+			// Filter behaviour (same logic as before, just applied to cards)
+			let activeIds = new Set();
+
+			function applyFilter() {
+				if (!activeIds.size) {
+					markers.forEach((m) => { m.style.display = ""; });
+					return;
+				}
+				markers.forEach((m) => {
+					const sid = m.dataset.sectionId;
+					m.style.display = (!sid || activeIds.has(sid)) ? "" : "none";
+				});
+			}
+
+			cards.forEach((card) => {
+				card.addEventListener("click", () => {
+					const sid = card.dataset.sectionId;
+					if (!sid) return;
+
+					const isActive = card.classList.contains("is-active");
+					if (isActive) {
+						card.classList.remove("is-active");
+						card.setAttribute("aria-pressed", "false");
+						activeIds.delete(sid);
+					} else {
+						card.classList.add("is-active");
+						card.setAttribute("aria-pressed", "true");
+						activeIds.add(sid);
+					}
+
+					const anyActive = cards.some((c) => c.classList.contains("is-active"));
+					if (!anyActive) activeIds.clear();
+
+					applyFilter();
+				});
+			});
+
+			applyFilter();
+		})();
+	</script>
+
+	<script>
+		(function () {
+			// -------- Pan/zoom map with dynamic minScale = fit (no zooming out into black space) --------
+			const wrapper  = document.getElementById("mapWrapperSections");
+			const viewport = document.getElementById("mapViewportSections");
+			const layer    = document.getElementById("mapLayerSections");
+			const img      = document.getElementById("mapImageSections");
+			if (!wrapper || !viewport || !layer || !img) return;
+
+			let scale = 1;
+			let minScale = 1; // computed from fit
+			let minScale = 1;
+			const maxScale = 4;
+
+			let tx = 0, ty = 0;
+			let baseW = 1, baseH = 1;
+
+			let isPanning = false;
+			let startX = 0, startY = 0;
+			let lastTx = 0, lastTy = 0;
+
+			let pinchStartDist = 0;
+			let pinchStartScale = 1;
+
+			let movedTooFar = false;
+			let panStartClient = { x: 0, y: 0 };
+
+			function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
+
+			function updateLayerSizeFromImage() {
+				const r = img.getBoundingClientRect();
+				baseW = Math.max(1, Math.round(r.width));
+				baseH = Math.max(1, Math.round(r.height));
+				layer.style.width  = baseW + "px";
+				layer.style.height = baseH + "px";
+			}
+
+			function computeFitScale() {
+				const vr = viewport.getBoundingClientRect();
+				const fit = Math.min(vr.width / baseW, vr.height / baseH);
+				return Math.min(1, fit);
+			}
+
+			function applyTransform() {
+				layer.style.transform = `translate(${tx}px, ${ty}px) scale(${scale})`;
+
+				// Keep markers visually consistent as you zoom IN, but never inflate when zoomed OUT
+				// Never let markers inflate when zoomed OUT
+				const markerScale = Math.max(1, Math.pow(scale, 0.65));
+				wrapper.style.setProperty("--marker-scale", String(markerScale));
+			}
+
+			function clampPan() {
+				const vr = viewport.getBoundingClientRect();
+				const viewW = vr.width;
+				const viewH = vr.height;
+
+				const scaledW = baseW * scale;
+				const scaledH = baseH * scale;
+
+				const minTx = viewW - scaledW;
+				const minTy = viewH - scaledH;
+
+				if (scaledW <= viewW) tx = (viewW - scaledW) / 2;
+				else tx = clamp(tx, minTx, 0);
+
+				if (scaledH <= viewH) ty = (viewH - scaledH) / 2;
+				else ty = clamp(ty, minTy, 0);
+			}
+
+			function resetFit() {
+				updateLayerSizeFromImage();
+				minScale = computeFitScale();
+
+				scale = clamp(minScale, minScale, maxScale);
+
+				const vr = viewport.getBoundingClientRect();
+				tx = (vr.width - baseW * scale) / 2;
+				ty = (vr.height - baseH * scale) / 2;
+
+				clampPan();
+				applyTransform();
+			}
+
+			function zoomTo(nextScale, centerClientX, centerClientY) {
+				nextScale = clamp(nextScale, minScale, maxScale);
+
+				const vr = viewport.getBoundingClientRect();
+				const cx = (centerClientX ?? (vr.left + vr.width / 2)) - vr.left;
+				const cy = (centerClientY ?? (vr.top + vr.height / 2)) - vr.top;
+
+				const scaleChange = nextScale / scale;
+				tx = cx - (cx - tx) * scaleChange;
+				ty = cy - (cy - ty) * scaleChange;
+
+				scale = nextScale;
+				clampPan();
+				applyTransform();
+			}
+
+			function zoomBy(factor, clientX, clientY) {
+				zoomTo(scale * factor, clientX, clientY);
+			}
+
+			function getTouchDist(t1, t2) {
+				const dx = t2.clientX - t1.clientX;
+				const dy = t2.clientY - t1.clientY;
+				return Math.hypot(dx, dy);
+			}
+
+			function getTouchMid(t1, t2) {
+				return { x: (t1.clientX + t2.clientX) / 2, y: (t1.clientY + t2.clientY) / 2 };
+			}
+
+			viewport.addEventListener("touchmove", (e) => e.preventDefault(), { passive: false });
+
+			viewport.addEventListener("touchstart", (e) => {
+				movedTooFar = false;
+
+				if (e.touches.length === 1) {
+					isPanning = true;
+					startX = e.touches[0].clientX;
+					startY = e.touches[0].clientY;
+					lastTx = tx;
+					lastTy = ty;
+					panStartClient = { x: startX, y: startY };
+				} else if (e.touches.length === 2) {
+					isPanning = false;
+					pinchStartDist = getTouchDist(e.touches[0], e.touches[1]);
+					pinchStartScale = scale;
+				}
+			}, { passive: true });
+
+			viewport.addEventListener("touchmove", (e) => {
+				if (e.touches.length === 1 && isPanning) {
+					const dx = e.touches[0].clientX - startX;
+					const dy = e.touches[0].clientY - startY;
+
+					const moved = Math.hypot(
+						e.touches[0].clientX - panStartClient.x,
+						e.touches[0].clientY - panStartClient.y
+					);
+					if (moved > 8) movedTooFar = true;
+
+					tx = lastTx + dx;
+					ty = lastTy + dy;
+					clampPan();
+					applyTransform();
+				} else if (e.touches.length === 2) {
+					movedTooFar = true;
+
+					const dist = getTouchDist(e.touches[0], e.touches[1]);
+					const mid = getTouchMid(e.touches[0], e.touches[1]);
+
+					const factor = dist / (pinchStartDist || dist);
+					const nextScale = pinchStartScale * factor;
+
+					zoomTo(nextScale, mid.x, mid.y);
+				}
+			}, { passive: false });
+
+			viewport.addEventListener("touchend", (e) => {
+				if (e.touches.length === 0) isPanning = false;
+			});
+
+			// Desktop drag + wheel
+			let mouseDown = false;
+
+			viewport.addEventListener("mousedown", (e) => {
+				mouseDown = true;
+				movedTooFar = false;
+				startX = e.clientX;
+				startY = e.clientY;
+				lastTx = tx;
+				lastTy = ty;
+				panStartClient = { x: startX, y: startY };
+			});
+
+			window.addEventListener("mousemove", (e) => {
+				if (!mouseDown) return;
+
+				const moved = Math.hypot(e.clientX - panStartClient.x, e.clientY - panStartClient.y);
+				if (moved > 6) movedTooFar = true;
+
+				tx = lastTx + (e.clientX - startX);
+				ty = lastTy + (e.clientY - startY);
+				clampPan();
+				applyTransform();
+			});
+
+			window.addEventListener("mouseup", () => { mouseDown = false; });
+
+			viewport.addEventListener("wheel", (e) => {
+				e.preventDefault();
+				const factor = e.deltaY < 0 ? 1.1 : 0.9;
+				zoomBy(factor, e.clientX, e.clientY);
+			}, { passive: false });
+
+			// Block marker click if user was panning
+			wrapper.addEventListener("click", (e) => {
+				const marker = e.target.closest(".map-marker");
+				if (!marker) return;
+
+				if (movedTooFar) {
+					e.preventDefault();
+					e.stopPropagation();
+				}
+			}, true);
+
+			function init() { resetFit(); }
+			function init() {
+				// Make viewport height behave like competitor.html by matching the map image aspect ratio
+				if (img.naturalWidth && img.naturalHeight) {
+					viewport.style.setProperty("--map-ar", `${img.naturalWidth} / ${img.naturalHeight}`);
+				}
+				resetFit();
+			}
+
+			if (img.complete) init();
+			else img.addEventListener("load", init, { once: true });
+
+			let resizeTimer = null;
+			window.addEventListener("resize", () => {
+				clearTimeout(resizeTimer);
+				resizeTimer = setTimeout(() => {
+					resetFit();
+				}, 120);
+			});
+		})();
+	</script>
 </body>
 </html>
