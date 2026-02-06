@@ -283,8 +283,11 @@
 		#mapWrapperSections .map-marker {
 			width: clamp(7px, calc(var(--marker-base) / var(--marker-scale)), var(--marker-base));
 			height: clamp(7px, calc(var(--marker-base) / var(--marker-scale)), var(--marker-base));
-			border: clamp(1px, calc(2px / var(--marker-scale)), 2px) solid #fff;
-		}
+			border: none;
+			box-shadow:
+				0 0 0 clamp(1px, calc(1.5px / var(--marker-scale)), 1.5px) rgba(0,0,0,0.65),
+				0 3px 10px rgba(0, 0, 0, 0.45);
+		}		
 
 		.map-marker:hover {
 			transform: translate(-50%, -50%) scale(1.08);
