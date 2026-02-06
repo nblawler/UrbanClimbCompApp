@@ -3,8 +3,17 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Admin · Scoring</title>
+
+  <title>
+    {% if competitor %}
+      {{ competitor.name }} · Enter Scores
+    {% else %}
+      Enter Scores
+    {% endif %}
+  </title>
+
   <link rel="stylesheet" href="/static/app.css" />
+
   <style>
     .admin-map-page {
       max-width: 1100px;
@@ -93,6 +102,7 @@
       margin-top: 8px;
       font-size: 12px;
       color: var(--text-muted, #9aa3b5);
+      white-space: pre-wrap;
     }
 
     .form-card h2 {
@@ -170,6 +180,7 @@
       color: var(--text, #f5f7fb);
       font-size: 13px;
       line-height: 1.35;
+      white-space: pre-wrap;
     }
 
     .alert-error {
@@ -187,24 +198,30 @@
     }
   </style>
 </head>
+
 <body>
+  {# --- Establish context safely --- #}
+  {% set viewer_id = viewer_id if viewer_id is defined else session.get('competitor_id') %}
+  {% set is_admin = session.get('admin_ok', False) %}
+  {% set slug = comp_slug if comp_slug is defined else session.get('active_comp_slug') %}
+
+  {# --- COMPETITOR NAV (NOT ADMIN NAV) --- #}
   <nav class="container top-nav">
     <div class="nav-links">
-      <a class="back" href="/admin/comps{% if session.get('admin_comp_id') %}?comp_id={{ session.get('admin_comp_id') }}{% endif %}">
-        Admin Home
-      </a>
+      <a class="back" href="/my-comps">Home</a>
 
-      {% if session.get('admin_comp_id') %}
-        <a class="back" href="/admin/map?comp_id={{ session.get('admin_comp_id') }}">
-          Refresh map
-        </a>
+      {# My scoring link if we can build it #}
+      {% if viewer_id and slug %}
+        <a class="back" href="/comp/{{ slug }}/competitor/{{ viewer_id }}/sections">My scoring</a>
+      {% elif viewer_id %}
+        <a class="back" href="/competitor/{{ viewer_id }}/sections">My scoring</a>
       {% endif %}
 
-      {% if session.get('competitor_id') or session.get('admin_ok') %}
-        <a class="back" href="/logout">Log out</a>
-      {% else %}
-        <a class="back" href="/admin">Admin login</a>
+      {% if is_admin %}
+        <a class="back" href="/admin/comps">Admin</a>
       {% endif %}
+
+      <a class="back" href="/logout">Log out</a>
     </div>
   </nav>
 
@@ -223,18 +240,17 @@
           </h1>
 
           {% if comp_name %}
-            <p class="map-subtitle">Editing competition: {{ comp_name }}</p>
+            <p class="map-subtitle">{{ comp_name }}</p>
           {% endif %}
         </div>
 
-        <span class="page-tag">Admin · Click to place climbs</span>
+        <span class="page-tag">Tap map to select a climb</span>
       </div>
 
       {% if not gym_map_url %}
         <div class="alert alert-error">
-          No map is configured for this competition’s gym yet.<br>
-          Set the gym’s <code>map_image_path</code> (e.g. <code>/static/maps/collingwood-map.png</code>)
-          and reload this page.
+          No map is configured for this gym yet.
+          Ask an admin to set gym.map_image_path (e.g. /static/maps/collingwood-map.png).
         </div>
       {% else %}
         <div id="mapWrapper" class="map-wrapper">
@@ -258,21 +274,19 @@
             {% endif %}
           {% endfor %}
 
-          <div id="ghostDot" class="map-dot map-dot--ghost" style="display:none;">
-            +
-          </div>
+          <div id="ghostDot" class="map-dot map-dot--ghost" style="display:none;">+</div>
         </div>
 
         <div class="map-coords" id="coordsDisplay">
-          Click on the map to choose a location for a new climb.
+          Tap the map to choose the climb location.
         </div>
       {% endif %}
     </section>
 
     <section class="form-card">
-      <h2>Add climb from map</h2>
+      <h2>Enter score</h2>
       <p class="tiny-muted">
-        Click on the map first to set the position, then fill the details and save.
+        Tap a climb on the map to set the position. Then enter attempts/score (whatever your form expects).
       </p>
 
       {% with messages = get_flashed_messages(with_categories=true) %}
@@ -288,94 +302,21 @@
         {% endif %}
       {% endwith %}
 
-      <form method="POST" action="/admin/map/add-climb">
-        <input type="hidden" name="comp_id" value="{{ session.get('admin_comp_id') }}">
+      {# ---- IMPORTANT ----
+         I’m leaving YOUR actual scoring form untouched because you didn’t paste it here.
+         If your real competitor_sections template includes a form for attempts, etc,
+         paste it and I’ll drop it in.
+         For now, we keep a minimal safe block so this template won’t crash.
+      #}
 
-        <div class="field">
-          <label for="section_id">Existing section</label>
-          <select name="section_id" id="section_id">
-            <option value="">— Choose section —</option>
-            {% for s in sections %}
-              <option value="{{ s.id }}">{{ s.name }} (id {{ s.id }})</option>
-            {% endfor %}
-          </select>
-          <div class="tiny-muted">
-            Or create a new section below.
-          </div>
-        </div>
+      <div class="divider"></div>
 
-        <div class="field">
-          <label for="new_section_name">New section name (optional)</label>
-          <input
-            type="text"
-            id="new_section_name"
-            name="new_section_name"
-            placeholder="e.g. Slab Left"
-          />
-        </div>
-
-        <div class="field">
-          <label for="climb_number">Climb number</label>
-          <input
-            type="number"
-            id="climb_number"
-            name="climb_number"
-            min="1"
-            step="1"
-            required
-          />
-        </div>
-
-        <div class="field">
-          <label for="colour">Colour / hold set (optional)</label>
-          <input
-            type="text"
-            id="colour"
-            name="colour"
-            placeholder="e.g. Green, Pink Volumes"
-          />
-        </div>
-
-        <div class="field field-row">
-          <div>
-            <label for="base_points">Base points</label>
-            <input type="number" id="base_points" name="base_points" min="0" step="1" required />
-          </div>
-          <div>
-            <label for="penalty_per_attempt">Penalty / attempt</label>
-            <input type="number" id="penalty_per_attempt" name="penalty_per_attempt" min="0" step="1" required />
-          </div>
-          <div>
-            <label for="attempt_cap">Attempt cap</label>
-            <input type="number" id="attempt_cap" name="attempt_cap" min="1" step="1" value="5" required />
-          </div>
-        </div>
-
-        <input type="hidden" name="x_percent" id="x_percent" />
-        <input type="hidden" name="y_percent" id="y_percent" />
-
-        <button
-          type="submit"
-          class="pill-button"
-          id="submitBtn"
-          {% if not gym_map_url %}disabled{% endif %}
-        >
-          Save climb at clicked position
-        </button>
-
-        <div class="tiny-muted" id="clickHint">
-          Button unlocks once you’ve clicked on the map.
-        </div>
-      </form>
-
-      <div class="section-list">
-        <strong>Existing sections:</strong>
-        <ul>
-          {% for s in sections %}
-            <li>{{ s.name }} (id {{ s.id }})</li>
-          {% endfor %}
-        </ul>
+      <div class="alert">
+        This page’s nav is now the competitor nav again.
+        If you want the full original scoring form restored exactly, paste your previous
+        competitor_sections.html scoring form section and I’ll integrate it cleanly.
       </div>
+
     </section>
   </main>
 
@@ -384,45 +325,42 @@
       const mapWrapper = document.getElementById("mapWrapper");
       const mapImg = document.getElementById("mapImg");
       const ghostDot = document.getElementById("ghostDot");
+
+      // If your competitor scoring form uses these hidden inputs, keep them.
+      // If not, they harmlessly do nothing.
       const xInput = document.getElementById("x_percent");
       const yInput = document.getElementById("y_percent");
+
       const coordsDisplay = document.getElementById("coordsDisplay");
-      const submitBtn = document.getElementById("submitBtn");
-      const clickHint = document.getElementById("clickHint");
 
       if (!mapWrapper || !mapImg) return;
 
       function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
 
-      // Start disabled until we click
-      if (submitBtn) submitBtn.disabled = true;
-
       mapWrapper.addEventListener("click", function (e) {
-        // IMPORTANT: compute relative to the IMAGE, not the wrapper
+        // compute relative to the IMAGE, not the wrapper
         const rect = mapImg.getBoundingClientRect();
 
         const px = (e.clientX - rect.left) / rect.width;
         const py = (e.clientY - rect.top) / rect.height;
 
-        // If click somehow lands outside the image bounds, ignore it
         if (px < 0 || px > 1 || py < 0 || py > 1) return;
 
         const xPercent = clamp(px, 0, 1) * 100;
         const yPercent = clamp(py, 0, 1) * 100;
 
-        xInput.value = xPercent.toFixed(4);
-        yInput.value = yPercent.toFixed(4);
+        if (xInput) xInput.value = xPercent.toFixed(4);
+        if (yInput) yInput.value = yPercent.toFixed(4);
 
-        ghostDot.style.left = xPercent + "%";
-        ghostDot.style.top = yPercent + "%";
-        ghostDot.style.display = "flex";
-
-        if (submitBtn) submitBtn.disabled = false;
-        if (clickHint) clickHint.textContent = "Nice. Now fill the form and hit save.";
+        if (ghostDot) {
+          ghostDot.style.left = xPercent + "%";
+          ghostDot.style.top = yPercent + "%";
+          ghostDot.style.display = "flex";
+        }
 
         if (coordsDisplay) {
           coordsDisplay.textContent =
-            "Clicked at: " + xPercent.toFixed(2) + "% / " + yPercent.toFixed(2) + "%";
+            "Selected: " + xPercent.toFixed(2) + "% / " + yPercent.toFixed(2) + "%";
         }
       });
     })();
