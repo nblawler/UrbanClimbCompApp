@@ -263,19 +263,35 @@
 			pointer-events: none;
 		}
 
-		/* MARKERS (stay same size) */
+		/* ===== MARKERS (fixed on-screen size relative to full-map state) =====
+		   We set a base dot size (slightly smaller than before),
+		   then JS sets --marker-scale = (scale / minScale).
+		   Inside transformed layer:
+		     - element size is divided by --marker-scale
+		     - after layer scaling, dots appear constant on screen.
+		   This prevents "ballooning" when zooming in, and prevents "tiny dots" on reset.
+		*/
+		#mapWrapperSections {
+			--marker-base: 10px;    /* start slightly smaller on full map (was 12px) */
+			--marker-scale: 1;      /* set by JS */
+		}
+
 		.map-marker {
 			position: absolute;
-			width: 12px;
-			height: 12px;
-			border-radius: 999px;
-			border: 2px solid #fff;
 			transform: translate(-50%, -50%);
+			border-radius: 999px;
 			box-shadow: 0 3px 10px rgba(0, 0, 0, 0.45);
 			transition: transform 0.15s, box-shadow 0.15s;
 			cursor: pointer;
 			text-decoration: none;
 			pointer-events: auto;
+		}
+
+		/* Size + border compensate for zoom */
+		#mapWrapperSections .map-marker {
+			width: clamp(7px, calc(var(--marker-base) / var(--marker-scale)), var(--marker-base));
+			height: clamp(7px, calc(var(--marker-base) / var(--marker-scale)), var(--marker-base));
+			border: clamp(1px, calc(2px / var(--marker-scale)), 2px) solid #fff;
 		}
 
 		.map-marker:hover {
@@ -287,11 +303,6 @@
 		.map-marker.disabled { opacity: 0.4; cursor: default; }
 		.map-marker.disabled:hover { transform: translate(-50%, -50%); }
 
-		#mapWrapperSections .map-marker {
-			width: 12px;
-			height: 12px;
-			border-width: 2px;
-		}
 		#mapWrapperSections .map-marker::after {
 			content: "";
 			position: absolute;
@@ -536,6 +547,7 @@
 	<script>
 		(function () {
 			// -------- Auto-fit map to image + boundary-driven zoom (NO manual zoom/pan) --------
+			const wrapper  = document.getElementById("mapWrapperSections");
 			const viewport = document.getElementById("mapViewportSections");
 			const layer    = document.getElementById("mapLayerSections");
 			const img      = document.getElementById("mapImageSections");
@@ -566,6 +578,15 @@
 
 			function applyTransform() {
 				layer.style.transform = `translate(${tx}px, ${ty}px) scale(${scale})`;
+
+				// IMPORTANT: marker scaling normalization
+				// - We define marker scale relative to "full-map" scale (minScale).
+				// - When scale=minScale => marker-scale=1 => markers are base size.
+				// - When zooming in => marker-scale>1 => markers shrink in CSS so on-screen stays stable.
+				if (wrapper) {
+					const normalized = Math.max(1, scale / (minScale || 1));
+					wrapper.style.setProperty("--marker-scale", String(normalized));
+				}
 			}
 
 			function clampPan() {
@@ -669,6 +690,10 @@
 				const availH = Math.max(1, viewH - paddingPx * 2);
 
 				let targetScale = Math.min(availW / rectW, availH / rectH);
+
+				// tiny bump-in so it feels closer to the boundary without cutting it off
+				targetScale *= 1.04;
+
 				targetScale = clamp(targetScale, minScale, maxScale);
 
 				const cxImg = rect.minX + rectW / 2;
