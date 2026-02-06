@@ -265,7 +265,7 @@
 
 		/* ===== MARKERS (fixed on-screen size relative to full-map state) ===== */
 		#mapWrapperSections {
-			--marker-base: 9px;    /* start slightly smaller on full map (was 12px) */
+			--marker-base: 7px;    /* start slightly smaller on full map (was 12px) */
 			--marker-scale: 1;      /* set by JS */
 		}
 
@@ -281,8 +281,8 @@
 		}
 
 		#mapWrapperSections .map-marker {
-			width: clamp(6px, calc(var(--marker-base) / var(--marker-scale)), var(--marker-base));
-			height: clamp(6px, calc(var(--marker-base) / var(--marker-scale)), var(--marker-base));
+			width: clamp(4px, calc(var(--marker-base) / var(--marker-scale)), var(--marker-base));
+			height: clamp(4px, calc(var(--marker-base) / var(--marker-scale)), var(--marker-base));
 			border: none;
 			box-shadow:
 				0 0 0 clamp(1px, calc(1.5px / var(--marker-scale)), 1.5px) rgba(0,0,0,0.65),
