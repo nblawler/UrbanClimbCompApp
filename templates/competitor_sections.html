@@ -131,12 +131,42 @@
 		}
 
 		/* Section cards */
-		.section-filter-row { margin-bottom: 1.5rem; }
+		.section-filter-row { margin-bottom: 1.25rem; }
+
+		.section-filter-header{
+			display:flex;
+			align-items:center;
+			justify-content:space-between;
+			gap:12px;
+			margin-bottom: 0.75rem;
+		}
+
 		.section-filter-label {
 			font-size: 0.95rem;
 			color: rgba(255, 255, 255, 0.85);
-			margin-bottom: 0.75rem;
 			font-weight: 700;
+		}
+
+		/* Reuse admin_map button vibe */
+		.tiny-btn {
+			display: inline-flex;
+			align-items: center;
+			justify-content: center;
+			padding: 8px 14px;
+			border-radius: 999px;
+			border: 1px solid rgba(255,255,255,0.12);
+			background: rgba(0,0,0,0.35);
+			color: rgba(255,255,255,0.92);
+			font-weight: 800;
+			cursor: pointer;
+			font-size: 12px;
+			text-decoration: none;
+			user-select: none;
+			white-space: nowrap;
+		}
+		.tiny-btn:hover {
+			background: rgba(255,255,255,0.08);
+			border-color: rgba(255,255,255,0.22);
 		}
 
 		.section-card-grid {
@@ -144,6 +174,8 @@
 			grid-template-columns: repeat(4, minmax(0, 1fr));
 			gap: 0.9rem;
 		}
+
+		.section-card-grid.is-collapsed{ display:none; }
 
 		.section-card {
 			text-align: left;
@@ -225,7 +257,7 @@
 			transition: width 0.25s ease;
 		}
 
-		/* ✅ Map wrapper: remove black strips by using image aspect ratio like admin_map */
+		/* Map wrapper (no black strips) */
 		.map-wrapper {
 			position: relative;
 			width: 100%;
@@ -235,7 +267,7 @@
 			background: #000;
 		}
 
-		/* Key fix: aspect-ratio matches image, no fixed height clamp */
+		/* Match admin_map: use aspect-ratio so image fits nicely, no weird bars */
 		.map-viewport {
 			position: relative;
 			width: 100%;
@@ -244,15 +276,8 @@
 			overflow: hidden;
 			background: #000;
 
-			/* keep browser out */
-			touch-action: none;
-			-webkit-user-select: none;
-			user-select: none;
-			-webkit-tap-highlight-color: transparent;
-			overscroll-behavior: none;
-
-			/* no “grab” UX, since we’re removing manual pan/zoom */
-			cursor: default;
+			/* Important: no manual zoom gestures */
+			touch-action: pan-y;
 		}
 
 		.map-layer {
@@ -272,7 +297,7 @@
 			pointer-events: none;
 		}
 
-		/* MARKERS */
+		/* MARKERS (stay same visual size even when zoomed) */
 		.map-marker {
 			position: absolute;
 			width: 12px;
@@ -296,10 +321,11 @@
 		.map-marker.disabled { opacity: 0.4; cursor: default; }
 		.map-marker.disabled:hover { transform: translate(-50%, -50%); }
 
+		/* IMPORTANT: keep dot size same as full map (NO shrinking/inflating with zoom) */
 		#mapWrapperSections { --marker-scale: 1; }
 		#mapWrapperSections .map-marker {
-			width: calc(12px / var(--marker-scale));
-			height: calc(12px / var(--marker-scale));
+			width: 12px;
+			height: 12px;
 			border-width: 2px;
 		}
 		#mapWrapperSections .map-marker::after {
@@ -343,6 +369,7 @@
 			.section-card-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 		}
 
+		/* --- Compact section cards on mobile so the map is visible faster --- */
 		@media (max-width: 768px) {
 			.nav { padding: 1rem; }
 			.container { padding: 1.5rem 1rem; }
@@ -350,15 +377,47 @@
 			.comp-name { font-size: 1.6rem; }
 			.comp-pill { min-width: 90px; }
 			.comp-pill-value { font-size: 1.25rem; }
-			.map-card { padding: 1.5rem; }
-			.section-title { font-size: 1.4rem; }
-			.section-card-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+			.map-card { padding: 1.25rem; }
+			.section-title { font-size: 1.35rem; }
+
+			.section-filter-row { margin-bottom: 1rem; }
+
+			.section-card-grid {
+				grid-template-columns: repeat(2, minmax(0, 1fr));
+				gap: 0.65rem;
+			}
+
+			.section-card {
+				padding: 0.65rem 0.75rem;
+				border-radius: 0.9rem;
+			}
+
+			.section-card-top { margin-bottom: 0.4rem; gap: 0.5rem; }
+			.section-card-name { font-size: 0.95rem; line-height: 1.1; }
+			.section-card-meta { font-size: 0.75rem; }
+
+			.section-stat-label { font-size: 0.62rem; letter-spacing: 0.05em; }
+			.section-stat-value { font-size: 0.92rem; }
+
+			.section-progress { margin-top: 0.45rem; height: 8px; }
 		}
 
 		@media (max-width: 520px) {
 			.comp-meta-row { gap: 0.75rem; }
 			.comp-pill { flex: 1 1 calc(50% - 0.375rem); min-width: 0; }
-			.section-card-grid { grid-template-columns: 1fr; }
+
+			.section-card-grid {
+				grid-template-columns: repeat(2, minmax(0, 1fr));
+				gap: 0.55rem;
+			}
+
+			/* Hide the stat row on very small screens (saves height) */
+			.section-card-stats { display: none; }
+
+			.section-card { padding: 0.6rem 0.7rem; }
+			.section-card-name { font-size: 0.92rem; }
+			.section-card-meta { font-size: 0.72rem; }
+			.section-progress { height: 7px; margin-top: 0.4rem; }
 		}
 	</style>
 </head>
@@ -438,7 +497,10 @@
 
 			{% if sections %}
 				<div class="section-filter-row">
-					<div class="section-filter-label">Sections (tap to filter dots):</div>
+					<div class="section-filter-header">
+						<div class="section-filter-label">Sections (tap to filter dots):</div>
+						<button type="button" class="tiny-btn" id="toggleSectionsBtn">Hide</button>
+					</div>
 
 					<div class="section-card-grid" id="sectionCardGrid">
 						{% for sec in sections %}
@@ -530,7 +592,21 @@
 
 	<script>
 		(function () {
-			// -------- Programmatic zoom ONLY + boundary zoom (no manual pan/zoom) --------
+			// ---- Collapsible sections grid (mobile-friendly) ----
+			const btn = document.getElementById("toggleSectionsBtn");
+			const grid = document.getElementById("sectionCardGrid");
+			if (btn && grid) {
+				btn.addEventListener("click", () => {
+					const collapsed = grid.classList.toggle("is-collapsed");
+					btn.textContent = collapsed ? "Show" : "Hide";
+				});
+			}
+		})();
+	</script>
+
+	<script>
+		(function () {
+			// -------- Auto-fit map to image + boundary-driven zoom (NO manual zoom/pan) --------
 			const wrapper  = document.getElementById("mapWrapperSections");
 			const viewport = document.getElementById("mapViewportSections");
 			const layer    = document.getElementById("mapLayerSections");
@@ -539,7 +615,7 @@
 
 			let scale = 1;
 			let minScale = 1;
-			const maxScale = 4;
+			const maxScale = 6; // allow closer zoom to boundary
 
 			let tx = 0, ty = 0;
 			let baseW = 1, baseH = 1;
@@ -562,10 +638,7 @@
 
 			function applyTransform() {
 				layer.style.transform = `translate(${tx}px, ${ty}px) scale(${scale})`;
-
-				// Keep dots the same on-screen size as at full-map fit
-				const markerScale = Math.max(1, scale / (minScale || 1));
-				wrapper.style.setProperty("--marker-scale", String(markerScale));
+				// markers should NOT change size - leave as-is
 			}
 
 			function clampPan() {
@@ -584,6 +657,13 @@
 
 				if (scaledH <= viewH) ty = (viewH - scaledH) / 2;
 				else ty = clamp(ty, minTy, 0);
+			}
+
+			function animateTo(fn, ms = 260) {
+				const old = layer.style.transition;
+				layer.style.transition = `transform ${ms}ms ease`;
+				fn();
+				window.setTimeout(() => { layer.style.transition = old || ""; }, ms + 40);
 			}
 
 			function resetFit(animate = false) {
@@ -649,7 +729,7 @@
 				};
 			}
 
-			function fitRectToViewport(rect, paddingPx = 34) {
+			function fitRectToViewport(rect, paddingPx = 12) {
 				const vr = viewport.getBoundingClientRect();
 				const viewW = vr.width;
 				const viewH = vr.height;
@@ -677,13 +757,6 @@
 				applyTransform();
 			}
 
-			function animateTo(fn, ms = 260) {
-				const old = layer.style.transition;
-				layer.style.transition = `transform ${ms}ms ease`;
-				fn();
-				window.setTimeout(() => { layer.style.transition = old || ""; }, ms + 40);
-			}
-
 			async function zoomToActiveSectionIds(sectionIds) {
 				updateLayerSizeFromImage();
 				minScale = computeFitScale();
@@ -708,7 +781,7 @@
 
 				if (!union) return;
 
-				animateTo(() => fitRectToViewport(union, 14), 280);
+				animateTo(() => fitRectToViewport(union, 12), 280);
 			}
 
 			// Expose helpers for the other script
@@ -716,16 +789,10 @@
 			window.__resetSectionsMapFit = () => animateTo(() => resetFit(false), 220);
 
 			function init() {
-				// Set aspect ratio from natural image size to kill the black top/bottom bars
 				if (img.naturalWidth && img.naturalHeight) {
 					viewport.style.setProperty("--map-ar", `${img.naturalWidth} / ${img.naturalHeight}`);
 				}
 				resetFit(false);
-
-				// Also block wheel/pinch doing anything on this viewport (no manual zoom)
-				viewport.addEventListener("wheel", (e) => e.preventDefault(), { passive: false });
-				viewport.addEventListener("gesturestart", (e) => e.preventDefault?.(), { passive: false });
-				viewport.addEventListener("gesturechange", (e) => e.preventDefault?.(), { passive: false });
 			}
 
 			if (img.complete) init();
@@ -741,14 +808,18 @@
 
 	<script>
 		(function () {
-			// -------- Section cards filtering + progress counts + boundary zoom --------
+			// -------- Section cards filtering + progress counts + boundary zoom + auto-collapse on mobile --------
 			const competitorId = {{ competitor.id }};
 			const cards = Array.from(document.querySelectorAll(".section-card"));
 			const markers = Array.from(document.querySelectorAll(".map-marker"));
+			const grid = document.getElementById("sectionCardGrid");
+			const toggleBtn = document.getElementById("toggleSectionsBtn");
 
 			if (!cards.length || !markers.length) return;
 
+			// Totals per section from markers on the map
 			const totalsBySection = new Map();
+			// map climb_number -> section_id
 			const sectionByClimb = new Map();
 
 			markers.forEach((m) => {
@@ -774,6 +845,7 @@
 				}
 			}
 
+			// Default totals immediately (done=0 until we load scores)
 			cards.forEach((card) => {
 				const sid = card.dataset.sectionId;
 				const total = totalsBySection.get(sid) || 0;
@@ -808,11 +880,14 @@
 						const done = doneBySection.get(sid) || 0;
 						setCardProgress(card, done, total);
 					});
-				} catch (_) {}
+				} catch (_) {
+					// ignore
+				}
 			}
 
 			loadProgress();
 
+			// Filtering + zooming
 			let activeIds = new Set();
 
 			function applyFilter() {
@@ -837,6 +912,17 @@
 				}
 			}
 
+			function isMobile() {
+				return window.matchMedia && window.matchMedia("(max-width: 768px)").matches;
+			}
+
+			function collapseGridOnMobile() {
+				if (!isMobile()) return;
+				if (!grid || !toggleBtn) return;
+				grid.classList.add("is-collapsed");
+				toggleBtn.textContent = "Show";
+			}
+
 			cards.forEach((card) => {
 				card.addEventListener("click", async () => {
 					const sid = card.dataset.sectionId;
@@ -853,15 +939,25 @@
 						activeIds.add(sid);
 					}
 
+					// if none active, clear set
 					const anyActive = cards.some((c) => c.classList.contains("is-active"));
 					if (!anyActive) activeIds.clear();
 
 					applyFilter();
 					try { await syncZoomToActive(); } catch (_) {}
+
+					// auto-collapse section cards on mobile after a selection change
+					collapseGridOnMobile();
 				});
 			});
 
 			applyFilter();
+
+			// On first load, if there are lots of sections, start collapsed on mobile
+			if (isMobile() && cards.length > 2 && grid && toggleBtn) {
+				grid.classList.add("is-collapsed");
+				toggleBtn.textContent = "Show";
+			}
 		})();
 	</script>
 </body>
