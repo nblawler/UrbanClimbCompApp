@@ -263,17 +263,23 @@
 			pointer-events: none;
 		}
 
-		/* ===== MARKERS (fixed on-screen size relative to full-map state) ===== */
+		/* ===== MARKERS (fixed on-screen size relative to full-map state) =====
+		   Phone felt "less different" because your sizes are in px + clamp floors.
+		   So we:
+		     - keep your existing normalized scaling behaviour
+		     - add a marker min var (so we can lower it on mobile)
+		     - set smaller base sizes on mobile breakpoints
+		*/
 		#mapWrapperSections {
-			--marker-base: 7px;    /* start slightly smaller on full map (was 12px) */
-			--marker-scale: 1;      /* set by JS */
+			--marker-base: 7px;  /* desktop full-map dot size */
+			--marker-min: 4px;   /* minimum dot size during zoom */
+			--marker-scale: 1;   /* set by JS */
 		}
 
 		.map-marker {
 			position: absolute;
 			transform: translate(-50%, -50%);
 			border-radius: 999px;
-			box-shadow: 0 3px 10px rgba(0, 0, 0, 0.45);
 			transition: transform 0.15s, box-shadow 0.15s;
 			cursor: pointer;
 			text-decoration: none;
@@ -281,13 +287,13 @@
 		}
 
 		#mapWrapperSections .map-marker {
-			width: clamp(4px, calc(var(--marker-base) / var(--marker-scale)), var(--marker-base));
-			height: clamp(4px, calc(var(--marker-base) / var(--marker-scale)), var(--marker-base));
+			width: clamp(var(--marker-min), calc(var(--marker-base) / var(--marker-scale)), var(--marker-base));
+			height: clamp(var(--marker-min), calc(var(--marker-base) / var(--marker-scale)), var(--marker-base));
 			border: none;
 			box-shadow:
 				0 0 0 clamp(1px, calc(1.5px / var(--marker-scale)), 1.5px) rgba(0,0,0,0.65),
 				0 3px 10px rgba(0, 0, 0, 0.45);
-		}		
+		}
 
 		.map-marker:hover {
 			transform: translate(-50%, -50%) scale(1.08);
@@ -358,6 +364,9 @@
 			.section-stat-label { font-size: 0.62rem; }
 			.section-stat-value { font-size: 0.92rem; }
 			.section-progress { margin-top: 0.45rem; height: 8px; }
+
+			/* ✅ more noticeable dot sizing on phones */
+			#mapWrapperSections { --marker-base: 6px; --marker-min: 3px; }
 		}
 
 		@media (max-width: 520px) {
@@ -370,6 +379,9 @@
 			.section-card-name { font-size: 0.92rem; }
 			.section-card-meta { font-size: 0.72rem; }
 			.section-progress { height: 7px; margin-top: 0.4rem; }
+
+			/* ✅ even smaller base+min on very small screens */
+			#mapWrapperSections { --marker-base: 5px; --marker-min: 2.5px; }
 		}
 	</style>
 </head>
@@ -557,18 +569,15 @@
 
 			function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
 
-			// ✅ FIX: measure base size from layout size, not getBoundingClientRect()
-			// getBoundingClientRect can drift after transforms/animations.
+			// measure base size from layout size, not getBoundingClientRect()
 			function updateLayerSizeFromImage() {
 				const w = img.offsetWidth || img.clientWidth || 0;
 				const h = img.offsetHeight || img.clientHeight || 0;
 
-				// Fallback if image is still 0 for a moment
 				if (w > 0 && h > 0) {
 					baseW = Math.max(1, Math.round(w));
 					baseH = Math.max(1, Math.round(h));
 				} else {
-					// last resort fallback to computed style
 					const cs = window.getComputedStyle(img);
 					baseW = Math.max(1, Math.round(parseFloat(cs.width) || baseW));
 					baseH = Math.max(1, Math.round(parseFloat(cs.height) || baseH));
@@ -630,7 +639,7 @@
 
 				clampPan();
 
-				// ✅ ensure baseline marker size always returns to full-map size
+				// ensure baseline marker size always returns to full-map size
 				if (wrapper) wrapper.style.setProperty("--marker-scale", "1");
 
 				if (animate) animateTo(applyTransform, 220);
