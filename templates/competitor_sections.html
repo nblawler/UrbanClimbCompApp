@@ -111,6 +111,7 @@
 			margin-bottom: 1.5rem;
 			color: rgba(255, 255, 255, 0.9);
 		}
+
 		.view-only-note strong { color: #fff; }
 
 		/* Map card */
@@ -124,6 +125,7 @@
 		}
 
 		.section-header { margin-bottom: 1.5rem; }
+
 		.section-title {
 			font-size: 1.75rem;
 			font-weight: 900;
@@ -132,6 +134,7 @@
 
 		/* Section cards */
 		.section-filter-row { margin-bottom: 1.5rem; }
+
 		.section-filter-label {
 			font-size: 0.95rem;
 			color: rgba(255, 255, 255, 0.85);
@@ -198,7 +201,12 @@
 			gap: 0.75rem;
 		}
 
-		.section-stat { display: flex; flex-direction: column; gap: 0.2rem; }
+		.section-stat {
+			display: flex;
+			flex-direction: column;
+			gap: 0.2rem;
+		}
+
 		.section-stat-label {
 			font-size: 0.7rem;
 			text-transform: uppercase;
@@ -206,7 +214,12 @@
 			color: rgba(255, 255, 255, 0.6);
 			font-weight: 800;
 		}
-		.section-stat-value { font-size: 1.05rem; font-weight: 900; color: #fff; }
+
+		.section-stat-value {
+			font-size: 1.05rem;
+			font-weight: 900;
+			color: #fff;
+		}
 
 		.section-progress {
 			margin-top: 0.65rem;
@@ -282,15 +295,24 @@
 			z-index: 10;
 		}
 
-		.map-marker.disabled { opacity: 0.4; cursor: default; }
-		.map-marker.disabled:hover { transform: translate(-50%, -50%); }
+		.map-marker.disabled {
+			opacity: 0.4;
+			cursor: default;
+		}
+
+		.map-marker.disabled:hover {
+			transform: translate(-50%, -50%);
+		}
 
 		#mapWrapperSections { --marker-scale: 1; }
+
+		/* Keep marker size EXACTLY the same as full-map (minScale) */
 		#mapWrapperSections .map-marker {
 			width: calc(12px / var(--marker-scale));
 			height: calc(12px / var(--marker-scale));
 			border-width: 2px;
 		}
+
 		#mapWrapperSections .map-marker::after {
 			content: "";
 			position: absolute;
@@ -312,6 +334,7 @@
 			border-radius: 1rem;
 			color: rgba(255, 255, 255, 0.7);
 		}
+
 		.map-missing strong {
 			display: block;
 			margin-bottom: 0.75rem;
@@ -519,7 +542,131 @@
 
 	<script>
 		(function () {
-			// -------- Pan/zoom map + Zoom-to-boundary support --------
+			// -------- Section cards filtering + progress counts --------
+			const competitorId = {{ competitor.id }};
+			const cards = Array.from(document.querySelectorAll(".section-card"));
+			const markers = Array.from(document.querySelectorAll(".map-marker"));
+
+			if (!cards.length || !markers.length) return;
+
+			const totalsBySection = new Map();
+			const sectionByClimb = new Map();
+
+			markers.forEach((m) => {
+				const sid = m.dataset.sectionId;
+				const cn = m.dataset.climbNumber;
+				if (!sid) return;
+
+				totalsBySection.set(sid, (totalsBySection.get(sid) || 0) + 1);
+				if (cn) sectionByClimb.set(String(cn), sid);
+			});
+
+			function setCardProgress(card, done, total) {
+				const left = Math.max(0, total - done);
+				card.querySelectorAll(".sec-done").forEach(el => el.textContent = String(done));
+				card.querySelectorAll(".sec-total").forEach(el => el.textContent = String(total));
+				const leftEl = card.querySelector(".sec-left");
+				if (leftEl) leftEl.textContent = String(left);
+
+				const bar = card.querySelector(".sec-bar");
+				if (bar) {
+					const pct = total ? Math.round((done / total) * 100) : 0;
+					bar.style.width = pct + "%";
+				}
+			}
+
+			cards.forEach((card) => {
+				const sid = card.dataset.sectionId;
+				const total = totalsBySection.get(sid) || 0;
+				setCardProgress(card, 0, total);
+			});
+
+			async function loadProgress() {
+				try {
+					const res = await fetch(`/api/score/${competitorId}`);
+					if (!res.ok) return;
+
+					const rows = await res.json();
+
+					const doneClimbs = new Set();
+					(rows || []).forEach((r) => {
+						if (!r) return;
+						const cn = r.climb_number;
+						if (cn === undefined || cn === null) return;
+
+						const topped = !!r.topped;
+						if (topped) doneClimbs.add(String(cn));
+					});
+
+					const doneBySection = new Map();
+					doneClimbs.forEach((cn) => {
+						const sid = sectionByClimb.get(String(cn));
+						if (!sid) return;
+						doneBySection.set(sid, (doneBySection.get(sid) || 0) + 1);
+					});
+
+					cards.forEach((card) => {
+						const sid = card.dataset.sectionId;
+						const total = totalsBySection.get(sid) || 0;
+						const done = doneBySection.get(sid) || 0;
+						setCardProgress(card, done, total);
+					});
+				} catch (e) {
+					// ignore
+				}
+			}
+
+			loadProgress();
+
+			let activeIds = new Set();
+
+			function applyFilter() {
+				if (!activeIds.size) {
+					markers.forEach((m) => { m.style.display = ""; });
+					return;
+				}
+				markers.forEach((m) => {
+					const sid = m.dataset.sectionId;
+					m.style.display = (!sid || activeIds.has(sid)) ? "" : "none";
+				});
+			}
+
+			cards.forEach((card) => {
+				card.addEventListener("click", async () => {
+					const sid = card.dataset.sectionId;
+					if (!sid) return;
+
+					const isActive = card.classList.contains("is-active");
+					if (isActive) {
+						card.classList.remove("is-active");
+						card.setAttribute("aria-pressed", "false");
+						activeIds.delete(sid);
+					} else {
+						card.classList.add("is-active");
+						card.setAttribute("aria-pressed", "true");
+						activeIds.add(sid);
+					}
+
+					const anyActive = cards.some((c) => c.classList.contains("is-active"));
+					if (!anyActive) activeIds.clear();
+
+					applyFilter();
+
+					try {
+						if (window.__zoomToSectionBoundary) {
+							await window.__zoomToSectionBoundary(sid);
+						}
+					} catch (_) {}
+				});
+			});
+
+			applyFilter();
+		})();
+	</script>
+
+	<script>
+		(function () {
+			// -------- Pan/zoom map with dynamic minScale = fit (no zooming out into black space) --------
 			const wrapper  = document.getElementById("mapWrapperSections");
 			const viewport = document.getElementById("mapViewportSections");
 			const layer    = document.getElementById("mapLayerSections");
@@ -561,7 +708,9 @@
 
 			function applyTransform() {
 				layer.style.transform = `translate(${tx}px, ${ty}px) scale(${scale})`;
-				const markerScale = Math.max(1, Math.pow(scale, 0.65));
+
+				// ✅ markers: keep EXACT same on-screen size as at full-map (minScale)
+				const markerScale = Math.max(1, scale / (minScale || 1));
 				wrapper.style.setProperty("--marker-scale", String(markerScale));
 			}
 
@@ -583,9 +732,10 @@
 				else ty = clamp(ty, minTy, 0);
 			}
 
-			function resetFit(animate = false) {
+			function resetFit() {
 				updateLayerSizeFromImage();
 				minScale = computeFitScale();
+
 				scale = clamp(minScale, minScale, maxScale);
 
 				const vr = viewport.getBoundingClientRect();
@@ -593,9 +743,7 @@
 				ty = (vr.height - baseH * scale) / 2;
 
 				clampPan();
-
-				if (animate) animateTo(applyTransform, 220);
-				else applyTransform();
+				applyTransform();
 			}
 
 			function zoomTo(nextScale, centerClientX, centerClientY) {
@@ -722,7 +870,7 @@
 				}
 			}, true);
 
-			// -------- Boundary zoom --------
+			// ---- Zoom-to-section boundary support ----
 			const compSlug = "{{ comp_slug or '' }}";
 			let boundariesCache = null;
 
@@ -745,7 +893,7 @@
 				return { x: (pt.x / 100) * baseW, y: (pt.y / 100) * baseH };
 			}
 
-			function computeBoundsPxFromPercentPts(ptsPercent) {
+			function computePtsBoundsPx(ptsPercent) {
 				const pxPts = (ptsPercent || []).map(pctToPx);
 				if (!pxPts.length) return null;
 
@@ -759,18 +907,7 @@
 				return { minX, minY, maxX, maxY };
 			}
 
-			function unionBounds(a, b) {
-				if (!a) return b;
-				if (!b) return a;
-				return {
-					minX: Math.min(a.minX, b.minX),
-					minY: Math.min(a.minY, b.minY),
-					maxX: Math.max(a.maxX, b.maxX),
-					maxY: Math.max(a.maxY, b.maxY),
-				};
-			}
-
-			function fitRectToViewport(rect, paddingPx = 34) {
+			function fitRectToViewport(rect, paddingPx = 28) {
 				const vr = viewport.getBoundingClientRect();
 				const viewW = vr.width;
 				const viewH = vr.height;
@@ -798,187 +935,39 @@
 				applyTransform();
 			}
 
-			function animateTo(fn, ms = 260) {
+			function animateTo(fn, ms = 240) {
 				const old = layer.style.transition;
 				layer.style.transition = `transform ${ms}ms ease`;
 				fn();
-				window.setTimeout(() => { layer.style.transition = old || ""; }, ms + 40);
+				window.setTimeout(() => { layer.style.transition = old || ""; }, ms + 30);
 			}
 
-			async function zoomToActiveSectionIds(sectionIds) {
-				// sectionIds: array of string ids that are active
-				updateLayerSizeFromImage();
-				minScale = computeFitScale(); // keep current minScale correct
-
-				if (!sectionIds || !sectionIds.length) {
-					animateTo(() => resetFit(false), 220);
-					return;
-				}
-
+			async function zoomToSectionBoundary(sectionId) {
 				const boundaries = await loadBoundariesOnce();
 				if (!boundaries) return;
 
-				let union = null;
+				const pts = boundaries[String(sectionId)] || [];
+				if (!pts || pts.length < 3) return;
 
-				for (const sid of sectionIds) {
-					const pts = boundaries[String(sid)] || [];
-					if (!pts || pts.length < 3) continue;
+				updateLayerSizeFromImage();
+				const bounds = computePtsBoundsPx(pts);
+				if (!bounds) return;
 
-					const b = computeBoundsPxFromPercentPts(pts);
-					if (b) union = unionBounds(union, b);
-				}
-
-				if (!union) return; // no boundaries available for selected ids
-
-				animateTo(() => fitRectToViewport(union, 36), 280);
+				animateTo(() => fitRectToViewport(bounds, 34), 280);
 			}
 
-			// Expose helpers for the other script
-			window.__zoomToActiveSectionIds = zoomToActiveSectionIds;
-			window.__resetSectionsMapFit = () => animateTo(() => resetFit(false), 220);
+			window.__zoomToSectionBoundary = zoomToSectionBoundary;
 
-			function init() { resetFit(false); }
+			function init() { resetFit(); }
+
 			if (img.complete) init();
 			else img.addEventListener("load", init, { once: true });
 
 			let resizeTimer = null;
 			window.addEventListener("resize", () => {
 				clearTimeout(resizeTimer);
-				resizeTimer = setTimeout(() => resetFit(false), 120);
+				resizeTimer = setTimeout(() => resetFit(), 120);
 			});
-		})();
-	</script>
-
-	<script>
-		(function () {
-			// -------- Section cards filtering + progress counts + boundary zoom --------
-			const competitorId = {{ competitor.id }};
-			const cards = Array.from(document.querySelectorAll(".section-card"));
-			const markers = Array.from(document.querySelectorAll(".map-marker"));
-
-			if (!cards.length || !markers.length) return;
-
-			// Totals per section from markers on the map
-			const totalsBySection = new Map();
-			// map climb_number -> section_id
-			const sectionByClimb = new Map();
-
-			markers.forEach((m) => {
-				const sid = m.dataset.sectionId;
-				const cn = m.dataset.climbNumber;
-				if (!sid) return;
-
-				totalsBySection.set(sid, (totalsBySection.get(sid) || 0) + 1);
-				if (cn) sectionByClimb.set(String(cn), sid);
-			});
-
-			function setCardProgress(card, done, total) {
-				const left = Math.max(0, total - done);
-				card.querySelectorAll(".sec-done").forEach(el => el.textContent = String(done));
-				card.querySelectorAll(".sec-total").forEach(el => el.textContent = String(total));
-				const leftEl = card.querySelector(".sec-left");
-				if (leftEl) leftEl.textContent = String(left);
-
-				const bar = card.querySelector(".sec-bar");
-				if (bar) {
-					const pct = total ? Math.round((done / total) * 100) : 0;
-					bar.style.width = pct + "%";
-				}
-			}
-
-			// Default totals immediately (done=0 until we load scores)
-			cards.forEach((card) => {
-				const sid = card.dataset.sectionId;
-				const total = totalsBySection.get(sid) || 0;
-				setCardProgress(card, 0, total);
-			});
-
-			async function loadProgress() {
-				try {
-					const res = await fetch(`/api/score/${competitorId}`);
-					if (!res.ok) return;
-
-					const rows = await res.json();
-
-					const doneClimbs = new Set();
-					(rows || []).forEach((r) => {
-						if (!r) return;
-						const cn = r.climb_number;
-						if (cn === undefined || cn === null) return;
-						if (!!r.topped) doneClimbs.add(String(cn));
-					});
-
-					const doneBySection = new Map();
-					doneClimbs.forEach((cn) => {
-						const sid = sectionByClimb.get(String(cn));
-						if (!sid) return;
-						doneBySection.set(sid, (doneBySection.get(sid) || 0) + 1);
-					});
-
-					cards.forEach((card) => {
-						const sid = card.dataset.sectionId;
-						const total = totalsBySection.get(sid) || 0;
-						const done = doneBySection.get(sid) || 0;
-						setCardProgress(card, done, total);
-					});
-				} catch (_) {
-					// ignore
-				}
-			}
-
-			loadProgress();
-
-			// Filtering + zooming
-			let activeIds = new Set();
-
-			function applyFilter() {
-				if (!activeIds.size) {
-					markers.forEach((m) => { m.style.display = ""; });
-					return;
-				}
-				markers.forEach((m) => {
-					const sid = m.dataset.sectionId;
-					m.style.display = (!sid || activeIds.has(sid)) ? "" : "none";
-				});
-			}
-
-			async function syncZoomToActive() {
-				const ids = Array.from(activeIds);
-				if (!ids.length) {
-					if (window.__resetSectionsMapFit) window.__resetSectionsMapFit();
-					return;
-				}
-				if (window.__zoomToActiveSectionIds) {
-					await window.__zoomToActiveSectionIds(ids);
-				}
-			}
-
-			cards.forEach((card) => {
-				card.addEventListener("click", async () => {
-					const sid = card.dataset.sectionId;
-					if (!sid) return;
-
-					const isActive = card.classList.contains("is-active");
-					if (isActive) {
-						card.classList.remove("is-active");
-						card.setAttribute("aria-pressed", "false");
-						activeIds.delete(sid);
-					} else {
-						card.classList.add("is-active");
-						card.setAttribute("aria-pressed", "true");
-						activeIds.add(sid);
-					}
-
-					// if none active, clear set
-					const anyActive = cards.some((c) => c.classList.contains("is-active"));
-					if (!anyActive) activeIds.clear();
-
-					applyFilter();
-					try { await syncZoomToActive(); } catch (_) {}
-				});
-			});
-
-			applyFilter();
 		})();
 	</script>
 </body>
