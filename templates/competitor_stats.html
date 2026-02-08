@@ -363,7 +363,7 @@
 		{% if mode in ("my", "climber") %}
 			<section class="stats-card">
 				<h2 class="stats-title">
-					{% if mode == "climber" %}Climber Heatmap{% else %}My Heatmap{% endif %}
+					{% if mode == "climber" %}Climber Results{% else %}My Results{% endif %}
 				</h2>
 
 				{% for block in heatmap_sections %}
@@ -435,7 +435,7 @@
 			</section>
 
 			<section class="stats-card">
-				<h2 class="stats-title">Global Difficulty Heatmap</h2>
+				<h2 class="stats-title">Overall Difficulty</h2>
 
 				{% for block in global_heatmap_sections %}
 					<h3 class="heatmap-section-title">{{ block.section.name }}</h3>
