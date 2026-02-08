@@ -242,17 +242,22 @@
 			margin-bottom: 2rem;
 		}
 
-		/* NEW: viewport/layer for section zoom */
+		/* ✅ Make viewport stable like competitor_sections (prevents random letterboxing) */
 		.map-viewport {
 			position: relative;
 			width: 100%;
+			height: auto;
+			aspect-ratio: var(--map-ar, 4 / 3);
 			overflow: hidden;
 			background: #000;
 			touch-action: pan-y;
 		}
 
+		/* ✅ Layer absolute like competitor_sections */
 		.map-layer {
-			position: relative;
+			position: absolute;
+			left: 0;
+			top: 0;
 			transform-origin: 0 0;
 			will-change: transform;
 		}
@@ -629,7 +634,7 @@
 				<h2 class="section-title">{{ section.name }}</h2>
 			</header>
 
-			{# NOTE: This wrapper now zooms to the CURRENT section boundary #}
+			{# NOTE: This wrapper zooms to the CURRENT section boundary #}
 			<div
 				class="map-wrapper"
 				id="sectionMapWrapper"
@@ -819,160 +824,189 @@
 	</main>
 
 	<script>
-		(function () {
-			// ===== Section boundary zoom for THIS page's map =====
-			const wrapper  = document.getElementById("sectionMapWrapper");
-			const viewport = document.getElementById("sectionMapViewport");
-			const layer    = document.getElementById("sectionMapLayer");
-			const img      = document.getElementById("sectionMapImage");
-			if (!wrapper || !viewport || !layer || !img) return;
+	(function () {
+		// ===== Section boundary zoom (no black bars) =====
+		const wrapper  = document.getElementById("sectionMapWrapper");
+		const viewport = document.getElementById("sectionMapViewport");
+		const layer    = document.getElementById("sectionMapLayer");
+		const img      = document.getElementById("sectionMapImage");
+		if (!wrapper || !viewport || !layer || !img) return;
 
-			const compSlug  = (wrapper.dataset.compSlug || "").trim();
-			const sectionId = String(wrapper.dataset.sectionId || "").trim();
+		const compSlug  = (wrapper.dataset.compSlug || "").trim();
+		const sectionId = String(wrapper.dataset.sectionId || "").trim();
 
-			let boundariesCache = null;
+		let boundariesCache = null;
 
-			function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
+		let baseW = 1, baseH = 1; // rendered image size (px) used as our coordinate system
 
-			async function loadBoundariesOnce() {
-				if (boundariesCache) return boundariesCache;
-				if (!compSlug) return null;
+		function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
 
-				try {
-					const res = await fetch(`/api/comp/${compSlug}/section-boundaries`, { credentials: "same-origin" });
-					const data = await res.json();
-					if (!data || !data.ok) return null;
-					boundariesCache = data.boundaries || {};
-					return boundariesCache;
-				} catch (_) {
-					return null;
-				}
+		async function loadBoundariesOnce() {
+			if (boundariesCache) return boundariesCache;
+			if (!compSlug) return null;
+
+			try {
+				const res = await fetch(`/api/comp/${compSlug}/section-boundaries`, { credentials: "same-origin" });
+				const data = await res.json();
+				if (!data || !data.ok) return null;
+				boundariesCache = data.boundaries || {};
+				return boundariesCache;
+			} catch (_) {
+				return null;
+			}
+		}
+
+		function updateLayerSizeFromImage() {
+			// Measure the actual rendered image size
+			const w = img.offsetWidth || img.clientWidth || 0;
+			const h = img.offsetHeight || img.clientHeight || 0;
+			if (w > 0 && h > 0) {
+				baseW = Math.max(1, Math.round(w));
+				baseH = Math.max(1, Math.round(h));
+			}
+			layer.style.width  = baseW + "px";
+			layer.style.height = baseH + "px";
+		}
+
+		function pctToPx(pt) {
+			return { x: (pt.x / 100) * baseW, y: (pt.y / 100) * baseH };
+		}
+
+		function computeBoundsPxFromPercentPts(ptsPercent) {
+			const pxPts = (ptsPercent || []).map(pctToPx);
+			if (!pxPts.length) return null;
+
+			let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+			for (const p of pxPts) {
+				minX = Math.min(minX, p.x);
+				minY = Math.min(minY, p.y);
+				maxX = Math.max(maxX, p.x);
+				maxY = Math.max(maxY, p.y);
+			}
+			return { minX, minY, maxX, maxY };
+		}
+
+		function computeBoundsFromDots() {
+			const dots = Array.from(wrapper.querySelectorAll(".map-dot-interactive"));
+			const pts = [];
+			for (const d of dots) {
+				const xp = parseFloat(d.dataset.xp || "");
+				const yp = parseFloat(d.dataset.yp || "");
+				if (!Number.isFinite(xp) || !Number.isFinite(yp)) continue;
+				pts.push({ x: (xp / 100) * baseW, y: (yp / 100) * baseH });
+			}
+			if (!pts.length) return null;
+
+			let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+			for (const p of pts) {
+				minX = Math.min(minX, p.x);
+				minY = Math.min(minY, p.y);
+				maxX = Math.max(maxX, p.x);
+				maxY = Math.max(maxY, p.y);
 			}
 
-			function computeBoundsFromPercentPts(ptsPercent, imgW, imgH) {
-				const pts = (ptsPercent || []).map(p => ({
-					x: (p.x / 100) * imgW,
-					y: (p.y / 100) * imgH,
-				}));
-				if (!pts.length) return null;
+			const pad = 28;
+			return { minX: minX - pad, minY: minY - pad, maxX: maxX + pad, maxY: maxY + pad };
+		}
 
-				let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-				for (const p of pts) {
-					minX = Math.min(minX, p.x);
-					minY = Math.min(minY, p.y);
-					maxX = Math.max(maxX, p.x);
-					maxY = Math.max(maxY, p.y);
-				}
-				return { minX, minY, maxX, maxY };
+		// ✅ Expand rect to match viewport aspect ratio so we fill without black bars
+		function expandRectToMatchAspect(rect, targetAspect) {
+			const w = Math.max(1, rect.maxX - rect.minX);
+			const h = Math.max(1, rect.maxY - rect.minY);
+			const rectAspect = w / h;
+
+			let minX = rect.minX, minY = rect.minY, maxX = rect.maxX, maxY = rect.maxY;
+
+			if (rectAspect > targetAspect) {
+				// wider than viewport -> expand height
+				const newH = w / targetAspect;
+				const extra = (newH - h) / 2;
+				minY -= extra;
+				maxY += extra;
+			} else {
+				// taller than viewport -> expand width
+				const newW = h * targetAspect;
+				const extra = (newW - w) / 2;
+				minX -= extra;
+				maxX += extra;
+			}
+			return { minX, minY, maxX, maxY };
+		}
+
+		function fitRectToViewport(rect, paddingPx = 12) {
+			const vr = viewport.getBoundingClientRect();
+			const viewW = vr.width;
+			const viewH = vr.height;
+			if (!viewW || !viewH) return;
+
+			const targetAspect = viewW / viewH;
+			const expanded = expandRectToMatchAspect(rect, targetAspect);
+
+			const rectW = Math.max(1, expanded.maxX - expanded.minX);
+			const rectH = Math.max(1, expanded.maxY - expanded.minY);
+
+			const availW = Math.max(1, viewW - paddingPx * 2);
+			const availH = Math.max(1, viewH - paddingPx * 2);
+
+			let scale = Math.min(availW / rectW, availH / rectH);
+			scale *= 1.04;
+
+			const cxImg = expanded.minX + rectW / 2;
+			const cyImg = expanded.minY + rectH / 2;
+
+			const cxView = viewW / 2;
+			const cyView = viewH / 2;
+
+			const tx = cxView - (cxImg * scale);
+			const ty = cyView - (cyImg * scale);
+
+			layer.style.transform = `translate(${tx}px, ${ty}px) scale(${scale})`;
+
+			// Keep dot size stable on screen (cancel the layer scale)
+			const inv = clamp(1 / scale, 0.18, 1.25);
+			wrapper.style.setProperty("--dot-inv-scale", String(inv));
+		}
+
+		async function applySectionZoom() {
+			// Set viewport AR like competitor_sections
+			if (img.naturalWidth && img.naturalHeight) {
+				viewport.style.setProperty("--map-ar", `${img.naturalWidth} / ${img.naturalHeight}`);
 			}
 
-			function computeBoundsFromDots(imgW, imgH) {
-				const dots = Array.from(wrapper.querySelectorAll(".map-dot-interactive"));
-				const pts = [];
-				for (const d of dots) {
-					const xp = parseFloat(d.dataset.xp || "");
-					const yp = parseFloat(d.dataset.yp || "");
-					if (!Number.isFinite(xp) || !Number.isFinite(yp)) continue;
-					pts.push({ x: (xp / 100) * imgW, y: (yp / 100) * imgH });
-				}
-				if (!pts.length) return null;
+			updateLayerSizeFromImage();
+			if (!baseW || !baseH) return;
 
-				let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-				for (const p of pts) {
-					minX = Math.min(minX, p.x);
-					minY = Math.min(minY, p.y);
-					maxX = Math.max(maxX, p.x);
-					maxY = Math.max(maxY, p.y);
-				}
-
-				// Expand a bit so dots don't sit on the edge
-				const pad = 28;
-				minX -= pad; minY -= pad; maxX += pad; maxY += pad;
-
-				return { minX, minY, maxX, maxY };
+			// 1) Prefer boundary polygon from API
+			let bounds = null;
+			const boundaries = await loadBoundariesOnce();
+			if (boundaries && sectionId) {
+				const pts = boundaries[String(sectionId)] || [];
+				if (pts && pts.length >= 3) bounds = computeBoundsPxFromPercentPts(pts);
 			}
 
-			function fitBoundsToViewport(bounds, paddingPx = 12) {
-				const vw = viewport.clientWidth;
-				const vh = viewport.clientHeight;
+			// 2) Fallback: compute bounds from dots
+			if (!bounds) bounds = computeBoundsFromDots();
+			if (!bounds) return;
 
-				const rectW = Math.max(1, bounds.maxX - bounds.minX);
-				const rectH = Math.max(1, bounds.maxY - bounds.minY);
+			const old = layer.style.transition;
+			layer.style.transition = "transform 260ms ease";
+			fitRectToViewport(bounds, 12);
+			setTimeout(() => { layer.style.transition = old || ""; }, 320);
+		}
 
-				const availW = Math.max(1, vw - paddingPx * 2);
-				const availH = Math.max(1, vh - paddingPx * 2);
+		function init() {
+			applySectionZoom();
+		}
 
-				let scale = Math.min(availW / rectW, availH / rectH);
-				scale *= 1.04;
+		if (img.complete) init();
+		else img.addEventListener("load", init, { once: true });
 
-				// Center rect
-				const cxImg = bounds.minX + rectW / 2;
-				const cyImg = bounds.minY + rectH / 2;
-
-				const cxView = vw / 2;
-				const cyView = vh / 2;
-
-				const tx = cxView - (cxImg * scale);
-				const ty = cyView - (cyImg * scale);
-
-				layer.style.transform = `translate(${tx}px, ${ty}px) scale(${scale})`;
-
-				// Keep dot size stable on screen (cancel the layer scale)
-				const inv = clamp(1 / scale, 0.18, 1.25);
-				wrapper.style.setProperty("--dot-inv-scale", String(inv));
-			}
-
-			function setViewportAspect() {
-				if (img.naturalWidth && img.naturalHeight) {
-					const ar = img.naturalHeight / img.naturalWidth;
-					viewport.style.height = Math.round(viewport.clientWidth * ar) + "px";
-				}
-			}
-
-			async function applySectionZoom() {
-				setViewportAspect();
-
-				const imgW = img.clientWidth;
-				const imgH = img.clientHeight;
-				if (!imgW || !imgH) return;
-
-				// 1) Prefer official boundary polygon from API
-				let bounds = null;
-				const boundaries = await loadBoundariesOnce();
-				if (boundaries && sectionId) {
-					const pts = boundaries[String(sectionId)] || [];
-					if (pts && pts.length >= 3) {
-						bounds = computeBoundsFromPercentPts(pts, imgW, imgH);
-					}
-				}
-
-				// 2) Fallback: compute bounds from dots (still gives "section-only" view)
-				if (!bounds) {
-					bounds = computeBoundsFromDots(imgW, imgH);
-				}
-
-				if (!bounds) return;
-
-				// Animate in
-				const old = layer.style.transition;
-				layer.style.transition = "transform 260ms ease";
-				fitBoundsToViewport(bounds, 12);
-				setTimeout(() => { layer.style.transition = old || ""; }, 320);
-			}
-
-			function init() {
-				applySectionZoom();
-			}
-
-			if (img.complete) init();
-			else img.addEventListener("load", init, { once: true });
-
-			let t = null;
-			window.addEventListener("resize", () => {
-				clearTimeout(t);
-				t = setTimeout(() => applySectionZoom(), 120);
-			});
-		})();
+		let t = null;
+		window.addEventListener("resize", () => {
+			clearTimeout(t);
+			t = setTimeout(() => applySectionZoom(), 120);
+		});
+	})();
 	</script>
 
 	<script>
