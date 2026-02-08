@@ -127,12 +127,6 @@
 			font-weight: 800;
 		}
 
-		.section-filter-help {
-			font-size: 0.85rem;
-			color: rgba(255, 255, 255, 0.7);
-			font-weight: 650;
-		}
-
 		/* Compact section tabs (NAV, not FILTER) */
 		.section-tabs {
 			display: flex;
@@ -242,7 +236,7 @@
 			margin-bottom: 2rem;
 		}
 
-		/* ✅ Make viewport stable like competitor_sections (prevents random letterboxing) */
+		/* ✅ Stable viewport like competitor_sections */
 		.map-viewport {
 			position: relative;
 			width: 100%;
@@ -253,7 +247,7 @@
 			touch-action: pan-y;
 		}
 
-		/* ✅ Layer absolute like competitor_sections */
+		/* ✅ Absolute layer like competitor_sections */
 		.map-layer {
 			position: absolute;
 			left: 0;
@@ -634,7 +628,6 @@
 				<h2 class="section-title">{{ section.name }}</h2>
 			</header>
 
-			{# NOTE: This wrapper zooms to the CURRENT section boundary #}
 			<div
 				class="map-wrapper"
 				id="sectionMapWrapper"
@@ -825,7 +818,7 @@
 
 	<script>
 	(function () {
-		// ===== Section boundary zoom (no black bars) =====
+		// ===== Section boundary zoom (NO black strips) =====
 		const wrapper  = document.getElementById("sectionMapWrapper");
 		const viewport = document.getElementById("sectionMapViewport");
 		const layer    = document.getElementById("sectionMapLayer");
@@ -836,8 +829,7 @@
 		const sectionId = String(wrapper.dataset.sectionId || "").trim();
 
 		let boundariesCache = null;
-
-		let baseW = 1, baseH = 1; // rendered image size (px) used as our coordinate system
+		let baseW = 1, baseH = 1;
 
 		function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
 
@@ -857,7 +849,6 @@
 		}
 
 		function updateLayerSizeFromImage() {
-			// Measure the actual rendered image size
 			const w = img.offsetWidth || img.clientWidth || 0;
 			const h = img.offsetHeight || img.clientHeight || 0;
 			if (w > 0 && h > 0) {
@@ -909,7 +900,7 @@
 			return { minX: minX - pad, minY: minY - pad, maxX: maxX + pad, maxY: maxY + pad };
 		}
 
-		// ✅ Expand rect to match viewport aspect ratio so we fill without black bars
+		// Expand rect to match viewport aspect ratio
 		function expandRectToMatchAspect(rect, targetAspect) {
 			const w = Math.max(1, rect.maxX - rect.minX);
 			const h = Math.max(1, rect.maxY - rect.minY);
@@ -918,19 +909,38 @@
 			let minX = rect.minX, minY = rect.minY, maxX = rect.maxX, maxY = rect.maxY;
 
 			if (rectAspect > targetAspect) {
-				// wider than viewport -> expand height
 				const newH = w / targetAspect;
 				const extra = (newH - h) / 2;
 				minY -= extra;
 				maxY += extra;
 			} else {
-				// taller than viewport -> expand width
 				const newW = h * targetAspect;
 				const extra = (newW - w) / 2;
 				minX -= extra;
 				maxX += extra;
 			}
 			return { minX, minY, maxX, maxY };
+		}
+
+		// ✅ Clamp pan so we never reveal black background
+		function clampPan(tx, ty, scale) {
+			const vr = viewport.getBoundingClientRect();
+			const viewW = vr.width;
+			const viewH = vr.height;
+
+			const scaledW = baseW * scale;
+			const scaledH = baseH * scale;
+
+			const minTx = viewW - scaledW;
+			const minTy = viewH - scaledH;
+
+			if (scaledW <= viewW) tx = (viewW - scaledW) / 2;
+			else tx = clamp(tx, minTx, 0);
+
+			if (scaledH <= viewH) ty = (viewH - scaledH) / 2;
+			else ty = clamp(ty, minTy, 0);
+
+			return { tx, ty };
 		}
 
 		function fitRectToViewport(rect, paddingPx = 12) {
@@ -957,18 +967,18 @@
 			const cxView = viewW / 2;
 			const cyView = viewH / 2;
 
-			const tx = cxView - (cxImg * scale);
-			const ty = cyView - (cyImg * scale);
+			let tx = cxView - (cxImg * scale);
+			let ty = cyView - (cyImg * scale);
+
+			({ tx, ty } = clampPan(tx, ty, scale));
 
 			layer.style.transform = `translate(${tx}px, ${ty}px) scale(${scale})`;
 
-			// Keep dot size stable on screen (cancel the layer scale)
 			const inv = clamp(1 / scale, 0.18, 1.25);
 			wrapper.style.setProperty("--dot-inv-scale", String(inv));
 		}
 
 		async function applySectionZoom() {
-			// Set viewport AR like competitor_sections
 			if (img.naturalWidth && img.naturalHeight) {
 				viewport.style.setProperty("--map-ar", `${img.naturalWidth} / ${img.naturalHeight}`);
 			}
@@ -976,7 +986,6 @@
 			updateLayerSizeFromImage();
 			if (!baseW || !baseH) return;
 
-			// 1) Prefer boundary polygon from API
 			let bounds = null;
 			const boundaries = await loadBoundariesOnce();
 			if (boundaries && sectionId) {
@@ -984,7 +993,6 @@
 				if (pts && pts.length >= 3) bounds = computeBoundsPxFromPercentPts(pts);
 			}
 
-			// 2) Fallback: compute bounds from dots
 			if (!bounds) bounds = computeBoundsFromDots();
 			if (!bounds) return;
 
@@ -994,9 +1002,7 @@
 			setTimeout(() => { layer.style.transition = old || ""; }, 320);
 		}
 
-		function init() {
-			applySectionZoom();
-		}
+		function init() { applySectionZoom(); }
 
 		if (img.complete) init();
 		else img.addEventListener("load", init, { once: true });
@@ -1011,7 +1017,6 @@
 
 	<script>
 		const viewerId = {{ viewer_id if viewer_id is not none else 'null' }};
-		const competitorIdForDisplay = {{ competitor.id }};
 		const canEdit = {{ 'true' if can_edit else 'false' }};
 
 		const cards = document.querySelectorAll(".climb-card");
@@ -1043,7 +1048,6 @@
 			return { attempts, topped, flashed };
 		}
 
-		// Ensure toggles reflect server state on load
 		function hydrateFromDataset(card) {
 			const attemptsContainer = card.querySelector(".attempts-pill-row");
 			const attemptButtons = attemptsContainer ? Array.from(attemptsContainer.querySelectorAll(".attempt-pill")) : [];
@@ -1093,7 +1097,7 @@
 					body: JSON.stringify({
 						competitor_id: viewerId,
 						section_climb_id: isNaN(sectionClimbId) ? null : sectionClimbId,
-						climb_number: climb, // keep for backwards compatibility
+						climb_number: climb,
 						attempts,
 						topped,
 						flashed,
@@ -1166,7 +1170,6 @@
 					flashBtn.addEventListener("click", async () => {
 						if (!attemptsContainer) return;
 
-						// Flash implies: attempts=1, topped=true, flashed=true
 						attemptsContainer.dataset.selectedAttempt = "1";
 						attemptButtons.forEach((btn) => {
 							btn.classList.toggle("is-active", btn.dataset.attempt === "1");
@@ -1184,7 +1187,6 @@
 						const nowActive = !toppedToggle.classList.contains("is-active");
 						toppedToggle.classList.toggle("is-active", nowActive);
 
-						// If you manually topped it, it is NOT flashed.
 						if (flashBtn && nowActive) flashBtn.classList.remove("is-active");
 
 						await save(card, { topped: nowActive, flashed: false });
@@ -1197,7 +1199,6 @@
 						attemptsContainer.dataset.selectedAttempt = attempt;
 						attemptButtons.forEach((b) => { b.classList.toggle("is-active", b === btn); });
 
-						// Changing attempts makes it not a flash anymore
 						if (flashBtn) flashBtn.classList.remove("is-active");
 
 						await save(card, { flashed: false });
@@ -1219,8 +1220,6 @@
 			setTimeout(() => { row.classList.remove("climb-row-highlight"); }, 1500);
 		});
 
-		// DONE = topped OR flashed.
-		// Uses section_climb_id to avoid collisions across sections.
 		async function refreshDoneDotsAndActiveTab() {
 			const dots = Array.from(document.querySelectorAll(".map-dot-interactive"));
 			const activeTab = document.querySelector(".section-tab.is-active");
