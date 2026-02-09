@@ -321,27 +321,73 @@
 			gap: 1.25rem;
 		}
 
-		/* Climb card (white cards) */
+		/* ========================================
+		   ENHANCED CLIMB CARD STYLES (UPDATED)
+		   ======================================== */
+
 		.climb-card {
-			background: #ffffff;
+			position: relative;
+			background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
 			color: #05060a;
-			border-radius: 1rem;
-			border: 1px solid rgba(0, 0, 0, 0.08);
-			padding: 1.25rem;
-			box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
-			transition: all 0.2s;
+			border-radius: 1.25rem;
+			padding: 0;
+			overflow: hidden;
+			box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(0, 0, 0, 0.05);
+			transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+		}
+
+		.climb-card::before {
+			content: '';
+			position: absolute;
+			top: 0;
+			left: 0;
+			right: 0;
+			height: 4px;
+			background: linear-gradient(90deg, #5df4a2 0%, #3dd68c 50%, #5df4a2 100%);
+			opacity: 0.6;
+			transition: opacity 0.3s;
 		}
 
 		.climb-card:hover {
-			transform: translateY(-2px);
-			box-shadow: 0 15px 40px rgba(0, 0, 0, 0.4);
+			transform: translateY(-4px);
+			box-shadow: 0 12px 35px rgba(0, 0, 0, 0.2), 0 0 0 1px rgba(93, 244, 162, 0.3);
+		}
+
+		.climb-card:hover::before {
+			opacity: 1;
 		}
 
 		/* Highlight when scrolled to */
 		.climb-row-highlight {
-			outline: 3px solid #5df4a2;
-			box-shadow: 0 0 0 1px rgba(93, 244, 162, 0.5);
-			background: rgba(93, 244, 162, 0.08);
+			outline: none;
+			box-shadow: 0 0 0 3px rgba(93, 244, 162, 0.6), 0 12px 35px rgba(93, 244, 162, 0.3);
+			transform: translateY(-4px);
+		}
+
+		.climb-row-highlight::before {
+			opacity: 1;
+			background: linear-gradient(90deg, #5df4a2 0%, #3dd68c 50%, #5df4a2 100%);
+			animation: shimmer 1.5s ease-in-out;
+		}
+
+		@keyframes shimmer {
+			0%, 100% { opacity: 1; }
+			50% { opacity: 0.7; }
+		}
+
+		/* Inner content wrapper */
+		.climb-card > * {
+			padding-left: 1.5rem;
+			padding-right: 1.5rem;
+		}
+
+		.climb-card .climb-header {
+			padding-top: 1.5rem;
+			padding-bottom: 0;
+		}
+
+		.climb-card .climb-actions {
+			padding-bottom: 1.5rem;
 		}
 
 		/* Climb header */
@@ -354,38 +400,60 @@
 		}
 
 		.climb-title {
-			font-size: 1.1rem;
+			font-size: 1.25rem;
 			font-weight: 900;
 			color: #05060a;
+			letter-spacing: -0.02em;
 		}
 
 		.climb-colour-pill {
-			padding: 0.35rem 0.85rem;
+			padding: 0.4rem 1rem;
 			border-radius: 999px;
-			font-size: 0.8rem;
+			font-size: 0.75rem;
 			font-weight: 800;
-			border: 1px solid rgba(0, 0, 0, 0.15);
+			border: 2px solid rgba(0, 0, 0, 0.1);
 			white-space: nowrap;
+			text-transform: uppercase;
+			letter-spacing: 0.03em;
+			box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 		}
 
 		/* Climb info text */
 		.climb-card p {
 			margin: 0.5rem 0;
 			font-size: 0.9rem;
+			color: #374151;
+			background: rgba(0, 0, 0, 0.02);
+			padding: 0.65rem 1rem;
+			border-radius: 0.65rem;
+			margin-left: 1.5rem;
+			margin-right: 1.5rem;
+			font-weight: 600;
+		}
+
+		.climb-card p strong {
 			color: #05060a;
+			font-weight: 800;
 		}
 
 		.points-scored-value {
 			font-weight: 900;
-			color: #5df4a2;
+			color: #16a34a;
+			font-size: 1.05em;
+			text-shadow: 0 0 12px rgba(22, 163, 74, 0.3);
 		}
 
 		/* Climb actions */
 		.climb-actions {
-			margin-top: 1rem;
+			margin-top: 1.25rem;
 			display: flex;
 			flex-direction: column;
-			gap: 0.75rem;
+			gap: 1rem;
+			background: linear-gradient(180deg, rgba(0, 0, 0, 0.01) 0%, rgba(0, 0, 0, 0.03) 100%);
+			padding-top: 1.25rem;
+			margin-left: 0;
+			margin-right: 0;
+			border-top: 1px solid rgba(0, 0, 0, 0.06);
 		}
 
 		.climb-actions-row {
@@ -395,13 +463,18 @@
 			flex-wrap: wrap;
 		}
 
-		.attempts-row { margin-top: 0.25rem; }
+		.attempts-row { 
+			margin-top: 0.25rem;
+			flex-direction: column;
+			align-items: flex-start;
+			gap: 0.75rem;
+		}
 
 		.attempts-label {
-			font-size: 0.75rem;
+			font-size: 0.7rem;
 			text-transform: uppercase;
-			letter-spacing: 0.05em;
-			color: #05060a;
+			letter-spacing: 0.08em;
+			color: #6b7280;
 			font-weight: 800;
 		}
 
@@ -409,6 +482,7 @@
 			display: flex;
 			flex-wrap: wrap;
 			gap: 0.5rem;
+			width: 100%;
 		}
 
 		/* Action pills (neutral by default) */
@@ -416,76 +490,134 @@
 		.attempt-pill,
 		.topped-toggle-btn,
 		.flash-btn {
-			border-radius: 999px;
-			border: 1px solid rgba(5, 6, 10, 0.2);
-			background: #ffffff;
-			color: #05060a;
+			border-radius: 0.75rem;
+			border: 2px solid rgba(5, 6, 10, 0.12);
+			background: linear-gradient(135deg, #ffffff 0%, #f9fafb 100%);
+			color: #374151;
 			font-size: 0.85rem;
-			padding: 0.5rem 1rem;
+			padding: 0.65rem 1.25rem;
 			cursor: pointer;
 			display: inline-flex;
 			align-items: center;
 			justify-content: center;
 			font-weight: 800;
-			transition: all 0.2s;
+			transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+			position: relative;
+			overflow: hidden;
+			letter-spacing: 0.02em;
+			text-transform: uppercase;
+			font-size: 0.75rem;
+		}
+
+		.action-pill::before,
+		.attempt-pill::before,
+		.topped-toggle-btn::before,
+		.flash-btn::before {
+			content: '';
+			position: absolute;
+			top: 50%;
+			left: 50%;
+			width: 0;
+			height: 0;
+			border-radius: 50%;
+			background: rgba(255, 255, 255, 0.5);
+			transform: translate(-50%, -50%);
+			transition: width 0.5s, height 0.5s;
+		}
+
+		.action-pill:hover::before,
+		.attempt-pill:hover::before,
+		.topped-toggle-btn:hover::before,
+		.flash-btn:hover::before {
+			width: 300px;
+			height: 300px;
 		}
 
 		.action-pill:hover,
 		.attempt-pill:hover,
 		.topped-toggle-btn:hover,
 		.flash-btn:hover {
-			background: #f3f4f6;
-			border-color: rgba(5, 6, 10, 0.3);
-			transform: translateY(-1px);
-			box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+			background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%);
+			border-color: rgba(5, 6, 10, 0.25);
+			transform: translateY(-2px);
+			box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
 		}
 
 		.action-pill:disabled,
 		.attempt-pill:disabled,
 		.topped-toggle-btn:disabled,
 		.flash-btn:disabled {
-			opacity: 0.5;
+			opacity: 0.4;
 			cursor: not-allowed;
+			transform: none;
+		}
+
+		.action-pill:disabled:hover,
+		.attempt-pill:disabled:hover,
+		.topped-toggle-btn:disabled:hover,
+		.flash-btn:disabled:hover {
+			transform: none;
+			box-shadow: none;
 		}
 
 		/* Active state styles */
 		.flash-btn.is-active {
-			background: #0ea5e9;
+			background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
 			border-color: #0ea5e9;
 			color: #ffffff;
-			box-shadow: 0 10px 26px rgba(14, 165, 233, 0.35);
+			box-shadow: 0 8px 20px rgba(14, 165, 233, 0.4), 0 0 20px rgba(14, 165, 233, 0.3);
+			transform: translateY(-2px);
+		}
+
+		.flash-btn.is-active:hover {
+			box-shadow: 0 12px 28px rgba(14, 165, 233, 0.5), 0 0 25px rgba(14, 165, 233, 0.4);
 		}
 
 		.topped-toggle-btn.is-active {
-			background: #111827;
+			background: linear-gradient(135deg, #111827 0%, #1f2937 100%);
 			border-color: #111827;
 			color: #ffffff;
-			box-shadow: 0 10px 26px rgba(17, 24, 39, 0.28);
+			box-shadow: 0 8px 20px rgba(17, 24, 39, 0.35), 0 0 20px rgba(17, 24, 39, 0.2);
+			transform: translateY(-2px);
+		}
+
+		.topped-toggle-btn.is-active:hover {
+			box-shadow: 0 12px 28px rgba(17, 24, 39, 0.45), 0 0 25px rgba(17, 24, 39, 0.3);
 		}
 
 		.attempt-pill.is-active {
-			background: #16a34a;
+			background: linear-gradient(135deg, #16a34a 0%, #15803d 100%);
 			border-color: #16a34a;
 			color: #ffffff;
-			box-shadow: 0 10px 26px rgba(22, 163, 74, 0.28);
+			box-shadow: 0 8px 20px rgba(22, 163, 74, 0.35), 0 0 20px rgba(22, 163, 74, 0.25);
+			transform: translateY(-2px);
+		}
+
+		.attempt-pill.is-active:hover {
+			box-shadow: 0 12px 28px rgba(22, 163, 74, 0.45), 0 0 25px rgba(22, 163, 74, 0.35);
 		}
 
 		/* Status message */
 		.status {
 			min-height: 1.2em;
-			font-size: 0.85rem;
-			color: rgba(5, 6, 10, 0.6);
-			margin-top: 0.5rem;
+			font-size: 0.8rem;
+			color: #9ca3af;
+			margin-top: 0.75rem;
+			font-weight: 700;
+			letter-spacing: 0.02em;
+			padding: 0.5rem 0;
 		}
 
 		.status.ok {
 			color: #16a34a;
-			font-weight: 800;
+			font-weight: 900;
+			text-shadow: 0 0 8px rgba(22, 163, 74, 0.2);
 		}
 
 		.status.err {
 			color: #dc2626;
-			font-weight: 800;
+			font-weight: 900;
+			text-shadow: 0 0 8px rgba(220, 38, 38, 0.2);
 		}
 
 		/* Alert */
@@ -508,6 +640,24 @@
 			.section-title { font-size: 1.4rem; }
 			.grid { grid-template-columns: 1fr; }
 			.section-tab-name { max-width: 26ch; }
+			
+			/* Updated responsive styles for climb cards */
+			.climb-card > * {
+				padding-left: 1.25rem;
+				padding-right: 1.25rem;
+			}
+			
+			.climb-card .climb-header {
+				padding-top: 1.25rem;
+			}
+			
+			.climb-card .climb-actions {
+				padding-bottom: 1.25rem;
+			}
+			
+			.climb-title {
+				font-size: 1.1rem;
+			}
 		}
 
 		@media (max-width: 520px) {
