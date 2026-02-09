@@ -236,7 +236,7 @@
 			margin-bottom: 2rem;
 		}
 
-		/* ✅ Stable viewport like competitor_sections */
+		/* Stable viewport + mobile-safe min height */
 		.map-viewport {
 			position: relative;
 			width: 100%;
@@ -245,9 +245,13 @@
 			overflow: hidden;
 			background: #000;
 			touch-action: pan-y;
+
+			/* Mobile reliability */
+			min-height: 240px;
+			max-height: 70vh;
 		}
 
-		/* ✅ Absolute layer like competitor_sections */
+		/* Absolute layer like competitor_sections */
 		.map-layer {
 			position: absolute;
 			left: 0;
@@ -268,8 +272,8 @@
 
 		/* Dots */
 		#sectionMapWrapper {
-			--dot-base: 28px;          /* baseline dot size */
-			--dot-inv-scale: 1;        /* set by JS so dots don't blow up when map is zoomed */
+			--dot-base: 28px;
+			--dot-inv-scale: 1;
 		}
 
 		.map-dot {
@@ -640,21 +644,21 @@
 			.section-title { font-size: 1.4rem; }
 			.grid { grid-template-columns: 1fr; }
 			.section-tab-name { max-width: 26ch; }
-			
+
 			/* Updated responsive styles for climb cards */
 			.climb-card > * {
 				padding-left: 1.25rem;
 				padding-right: 1.25rem;
 			}
-			
+
 			.climb-card .climb-header {
 				padding-top: 1.25rem;
 			}
-			
+
 			.climb-card .climb-actions {
 				padding-bottom: 1.25rem;
 			}
-			
+
 			.climb-title {
 				font-size: 1.1rem;
 			}
@@ -968,7 +972,7 @@
 
 	<script>
 	(function () {
-		// ===== Section boundary zoom (NO black strips) =====
+		// ===== Section boundary zoom (mobile-safe) =====
 		const wrapper  = document.getElementById("sectionMapWrapper");
 		const viewport = document.getElementById("sectionMapViewport");
 		const layer    = document.getElementById("sectionMapLayer");
@@ -980,8 +984,10 @@
 
 		let boundariesCache = null;
 		let baseW = 1, baseH = 1;
+		let lastAppliedKey = "";
 
 		function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
+		function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
 		async function loadBoundariesOnce() {
 			if (boundariesCache) return boundariesCache;
@@ -998,15 +1004,28 @@
 			}
 		}
 
+		// robust measurement: if offset sizes are 0, derive from viewport + natural size
 		function updateLayerSizeFromImage() {
-			const w = img.offsetWidth || img.clientWidth || 0;
-			const h = img.offsetHeight || img.clientHeight || 0;
+			let w = img.offsetWidth || img.clientWidth || 0;
+			let h = img.offsetHeight || img.clientHeight || 0;
+
+			if ((!w || !h) && img.naturalWidth && img.naturalHeight) {
+				const vr = viewport.getBoundingClientRect();
+				const vw = vr.width || 0;
+				if (vw > 0) {
+					w = vw;
+					h = vw * (img.naturalHeight / img.naturalWidth);
+				}
+			}
+
 			if (w > 0 && h > 0) {
 				baseW = Math.max(1, Math.round(w));
 				baseH = Math.max(1, Math.round(h));
+				layer.style.width  = baseW + "px";
+				layer.style.height = baseH + "px";
+				return true;
 			}
-			layer.style.width  = baseW + "px";
-			layer.style.height = baseH + "px";
+			return false;
 		}
 
 		function pctToPx(pt) {
@@ -1072,7 +1091,7 @@
 			return { minX, minY, maxX, maxY };
 		}
 
-		// ✅ Clamp pan so we never reveal black background
+		// Clamp pan so we never reveal black background
 		function clampPan(tx, ty, scale) {
 			const vr = viewport.getBoundingClientRect();
 			const viewW = vr.width;
@@ -1097,7 +1116,7 @@
 			const vr = viewport.getBoundingClientRect();
 			const viewW = vr.width;
 			const viewH = vr.height;
-			if (!viewW || !viewH) return;
+			if (!viewW || !viewH) return false;
 
 			const targetAspect = viewW / viewH;
 			const expanded = expandRectToMatchAspect(rect, targetAspect);
@@ -1126,15 +1145,38 @@
 
 			const inv = clamp(1 / scale, 0.18, 1.25);
 			wrapper.style.setProperty("--dot-inv-scale", String(inv));
+			return true;
 		}
 
-		async function applySectionZoom() {
+		// wait for decode + layout (mobile Safari needs this sometimes)
+		async function ensureImageReady() {
+			if (!img.complete) {
+				await new Promise((resolve) => img.addEventListener("load", resolve, { once: true }));
+			}
+			if (img.decode) {
+				try { await img.decode(); } catch (_) {}
+			}
+			await new Promise(requestAnimationFrame);
+			await new Promise(requestAnimationFrame);
+		}
+
+		async function applySectionZoomSafe(reason = "") {
+			// avoid thrashing
+			const key = `${reason}|${viewport.clientWidth}x${viewport.clientHeight}|${img.currentSrc || img.src}`;
+			lastAppliedKey = key;
+
+			await ensureImageReady();
+
+			let ok = updateLayerSizeFromImage();
+			for (let i = 0; i < 6 && !ok; i++) {
+				await sleep(60);
+				ok = updateLayerSizeFromImage();
+			}
+			if (!ok) return;
+
 			if (img.naturalWidth && img.naturalHeight) {
 				viewport.style.setProperty("--map-ar", `${img.naturalWidth} / ${img.naturalHeight}`);
 			}
-
-			updateLayerSizeFromImage();
-			if (!baseW || !baseH) return;
 
 			let bounds = null;
 			const boundaries = await loadBoundariesOnce();
@@ -1142,7 +1184,6 @@
 				const pts = boundaries[String(sectionId)] || [];
 				if (pts && pts.length >= 3) bounds = computeBoundsPxFromPercentPts(pts);
 			}
-
 			if (!bounds) bounds = computeBoundsFromDots();
 			if (!bounds) return;
 
@@ -1152,15 +1193,24 @@
 			setTimeout(() => { layer.style.transition = old || ""; }, 320);
 		}
 
-		function init() { applySectionZoom(); }
-
-		if (img.complete) init();
-		else img.addEventListener("load", init, { once: true });
+		applySectionZoomSafe("init");
 
 		let t = null;
 		window.addEventListener("resize", () => {
 			clearTimeout(t);
-			t = setTimeout(() => applySectionZoom(), 120);
+			t = setTimeout(() => applySectionZoomSafe("resize"), 150);
+		});
+
+		window.addEventListener("orientationchange", () => {
+			clearTimeout(t);
+			t = setTimeout(() => applySectionZoomSafe("orientation"), 250);
+		});
+
+		window.addEventListener("pageshow", (e) => {
+			if (e.persisted) {
+				clearTimeout(t);
+				t = setTimeout(() => applySectionZoomSafe("pageshow"), 120);
+			}
 		});
 	})();
 	</script>
