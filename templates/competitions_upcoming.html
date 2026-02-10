@@ -111,7 +111,8 @@
 			display: block;
 		}
 
-		.comp-card:hover {
+		/* Only apply hover lift to clickable cards */
+		.comp-card.clickable:hover {
 			transform: translateY(-4px);
 			border-color: rgba(93, 244, 162, 0.3);
 			box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
@@ -291,13 +292,17 @@
 					{% set c = card.comp %}
 					{% set gym_label = (c.gym.name if c.gym else c.gym_name) %}
 					{% set badge_class = "status-badge--live" if card.status == "live" else "status-badge--scheduled" %}
-					{% set target_href = card.pill_href if (card.pill_href is defined and card.pill_href) else card.my_scoring_url %}
+
+					{# ✅ QR-only rule:
+					   Only clickable if they already have my_scoring_url.
+					   Never link to join from this page. #}
+					{% set target_href = card.my_scoring_url %}
 					{% set is_clickable = target_href is not none and target_href != "" %}
 
 					{% if is_clickable %}
-						<a href="{{ target_href }}" class="comp-card" aria-label="{{ c.name }}">
+						<a href="{{ target_href }}" class="comp-card clickable" aria-label="{{ c.name }}">
 					{% else %}
-						<article class="comp-card">
+						<article class="comp-card" aria-label="{{ c.name }}">
 					{% endif %}
 
 							<h2 class="comp-title">{{ c.name }}</h2>
@@ -339,7 +344,7 @@
 								{% if card.my_scoring_url %}
 									You're registered — tap to continue scoring.
 								{% elif card.status == 'live' %}
-									This comp is live — tap to register.
+									This comp is live — registration is via QR code at the gym.
 								{% else %}
 									Opens {{ c.start_at.strftime('%d %b %Y, %I:%M %p') if c.start_at else "TBC" }}.
 								{% endif %}
@@ -347,16 +352,14 @@
 
 							{% if is_clickable %}
 								<span class="btn">
-									{% if card.my_scoring_url %}
-										Keep scoring
-									{% elif card.status == 'live' %}
-										Register Now
-									{% else %}
-										View Details
-									{% endif %}
+									Keep scoring
 								</span>
 							{% else %}
-								<span class="btn disabled">Registration opens when live</span>
+								{% if card.status == 'live' %}
+									<span class="btn disabled">Scan QR to register</span>
+								{% else %}
+									<span class="btn disabled">Registration opens when live</span>
+								{% endif %}
 							{% endif %}
 
 					{% if is_clickable %}
