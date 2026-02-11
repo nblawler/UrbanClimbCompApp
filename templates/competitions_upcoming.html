@@ -241,7 +241,7 @@
 		{# Only show scoring + leaderboard when user is ACTUALLY in a comp context #}
 		{% if show_comp_nav %}
 			<a class="{% if nav_active == 'sections' %}active{% endif %}"
-			   href="/comp/{{ comp_slug }}/competitor/{{ viewer_id }}/sections">My Scoring</a>
+			   href="/comp/{{ comp_slug }}/competitor/{{ viewer_id }}/sections">Scoring</a>
 
 			<a class="{% if nav_active == 'leaderboard' %}active{% endif %}"
 			   href="/leaderboard?cid={{ viewer_id }}">Leaderboard</a>
