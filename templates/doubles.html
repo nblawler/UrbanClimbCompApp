@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Doubles · {{ comp.name }}</title>
+  <link rel="stylesheet" href="/static/app.css" />
+</head>
+<body>
+  {% set viewer_id = viewer_id if viewer_id is defined else session.get('competitor_id') %}
+  {% set is_admin = session.get('admin_ok', False) %}
+  {% set comp_slug = comp_slug if comp_slug is defined else (comp.slug if comp else session.get('active_comp_slug')) %}
+
+  <!-- NAV (duplicate-friendly) -->
+  <nav class="container top-nav">
+    <div class="nav-links">
+      <a class="back {% if nav_active == 'my_comps' %}active{% endif %}" href="/my-comps">Home</a>
+
+      {% if is_admin %}
+        <a class="back {% if nav_active == 'admin' %}active{% endif %}" href="/admin/comps">Admin</a>
+      {% endif %}
+
+      {% if comp_slug %}
+        <a class="back {% if nav_active == 'leaderboard' %}active{% endif %}" href="/comp/{{ comp_slug }}/leaderboard">Leaderboard</a>
+        <a class="back active" href="/comp/{{ comp_slug }}/doubles">Doubles</a>
+      {% endif %}
+    </div>
+  </nav>
+
+  <main class="container">
+    <div class="card">
+      <h1>Doubles</h1>
+      <p class="muted">
+        Invite one partner. If they accept, you’re locked in and your doubles score is the sum of both individual scores.
+      </p>
+      <hr />
+      <p>Step 1 complete: this page exists. Next step is invite + accept.</p>
+    </div>
+  </main>
+</body>
+</html>
