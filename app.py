@@ -964,17 +964,19 @@ def build_leaderboard(category=None, competition_id=None, slug=None):
     q = Competitor.query.filter(Competitor.competition_id == current_comp.id)
     category_label = "All"
 
-    if category:
-        norm = category.strip().lower()
-        if norm.startswith("m"):
-            q = q.filter(Competitor.gender == "Male")
-            category_label = "Male"
-        elif norm.startswith("f"):
-            q = q.filter(Competitor.gender == "Female")
-            category_label = "Female"
-        else:
-            q = q.filter(Competitor.gender == "Inclusive")
-            category_label = "Gender Inclusive"
+    cat = normalize_leaderboard_category(category)
+    
+    if cat == "male":
+        q = q.filter(Competitor.gender == "Male")
+        category_label = "Male"
+    elif cat == "female":
+        q = q.filter(Competitor.gender == "Female")
+        category_label = "Female"
+    elif cat == "inclusive":
+        q = q.filter(Competitor.gender == "Inclusive")
+        category_label = "Gender Inclusive"
+    else:
+        category_label = "All"
 
     competitors = q.all()
     if not competitors:
@@ -3885,76 +3887,56 @@ def api_get_scores(competitor_id):
 
 # --- Leaderboard pages ---
 
-def normalize_leaderboard_category(raw: Optional[str]):
-    """
-    Returns one of: None, 'male', 'female', 'inclusive', 'doubles'
-    None means 'All' (singles all).
-    """
-    c = (raw or "").strip().lower()
-
-    if c in ("", "all", "overall"):
+def normalize_leaderboard_category(raw: Optional[str]) -> Optional[str]:
+    if not raw:
         return None
+    k = (raw or "").strip().lower()
 
-    if c in ("male", "m"):
+    if k in ("all", "overall", "singles", "none"):
+        return None
+    if k in ("m", "male", "men"):
         return "male"
-
-    if c in ("female", "f"):
+    if k in ("f", "female", "women"):
         return "female"
-
-    if c in ("inclusive", "gender-inclusive", "gender_inclusive", "gender inclusive", "open"):
+    if k in ("i", "incl", "inclusive", "genderinclusive", "gender-inclusive", "gender_inclusive"):
         return "inclusive"
-
-    if c in ("doubles", "double"):
+    if k in ("d", "double", "doubles", "team", "teams"):
         return "doubles"
 
-    # Unknown category -> show All (NOT doubles)
+    # unknown category -> treat like "all" (don’t accidentally return doubles)
     return None
-
 
 @app.route("/leaderboard")
 def leaderboard_all():
-    """
-    Leaderboard page for the currently selected competition context.
-
-    Rules:
-    - Must have a selected competition context (get_viewer_comp()).
-    - That competition must be LIVE to view leaderboard.
-      (If you later want finished comps viewable read-only, we can relax this.)
-    """
-    # Optional highlighting of a competitor row
     cid_raw = (request.args.get("cid") or "").strip()
     competitor = Competitor.query.get(int(cid_raw)) if cid_raw.isdigit() else None
 
     comp = get_viewer_comp()
 
-    # No comp context at all
     if not comp:
         flash("Pick a competition first to view the leaderboard.", "warning")
         return redirect("/my-comps")
 
-    # Comp exists but isn't live -> clear stale comp context and bounce
     if not comp_is_live(comp):
-        # Prevent stale slug from keeping comp-nav alive
         session.pop("active_comp_slug", None)
         flash("That competition isn’t live right now — leaderboard is unavailable.", "warning")
         return redirect("/my-comps")
 
-    rows, category_label = build_leaderboard(None, competition_id=comp.id)
-    doubles_rows = build_doubles_rows(rows, comp.id)
+    # IMPORTANT
+    cat = normalize_leaderboard_category(None)
 
-    current_competitor_id = session.get("competitor_id")
+    rows, category_label = build_leaderboard(cat, competition_id=comp.id)
 
     return render_template(
         "leaderboard.html",
         leaderboard=rows,
-        doubles_leaderboard=doubles_rows,
         category=category_label,
-        competitor=competitor,
-        current_competitor_id=current_competitor_id,
+        current_competitor_id=session.get("competitor_id"),
         nav_active="leaderboard",
         comp=comp,
         comp_slug=comp.slug,
     )
+
 
 @app.route("/leaderboard/<category>")
 def leaderboard_by_category(category):
@@ -3962,6 +3944,7 @@ def leaderboard_by_category(category):
     competitor = Competitor.query.get(int(cid_raw)) if cid_raw.isdigit() else None
 
     comp = get_viewer_comp()
+
     if not comp:
         flash("Pick a competition first to view the leaderboard.", "warning")
         return redirect("/my-comps")
@@ -3971,34 +3954,26 @@ def leaderboard_by_category(category):
         flash("That competition isn’t live right now — leaderboard is unavailable.", "warning")
         return redirect("/my-comps")
 
-    # Normalize category here
+    # CRITICAL FIX
     cat = normalize_leaderboard_category(category)
 
-    # Optional: if someone hits /leaderboard/all, canonicalize
-    if category and category.strip().lower() in ("all", "overall"):
-        # preserve cid
-        q = f"?cid={cid_raw}" if cid_raw else ""
-        return redirect("/leaderboard" + q)
-
     rows, category_label = build_leaderboard(cat, competition_id=comp.id)
-    current_competitor_id = session.get("competitor_id")
 
     return render_template(
         "leaderboard.html",
         leaderboard=rows,
         category=category_label,
-        competitor=competitor,
-        current_competitor_id=current_competitor_id,
+        current_competitor_id=session.get("competitor_id"),
         nav_active="leaderboard",
         comp=comp,
         comp_slug=comp.slug,
     )
 
 
+
 @app.route("/api/leaderboard")
 def api_leaderboard():
-    raw = request.args.get("category")
-    cat = normalize_leaderboard_category(raw)
+    raw_category = request.args.get("category")
 
     comp = get_viewer_comp()
     if not comp:
@@ -4008,13 +3983,13 @@ def api_leaderboard():
         session.pop("active_comp_slug", None)
         return jsonify({"category": "Competition not live", "rows": []})
 
+    # CRITICAL FIX
+    cat = normalize_leaderboard_category(raw_category)
+
     rows, category_label = build_leaderboard(cat, competition_id=comp.id)
 
-    for r in rows:
-        if r.get("last_update") is not None:
-            r["last_update"] = r["last_update"].isoformat()
-
     return jsonify({"category": category_label, "rows": rows})
+
 
 
 

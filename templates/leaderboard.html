@@ -64,9 +64,26 @@
 			font-size: 1.1rem;
 			color: rgba(255, 255, 255, 0.75);
 			margin-bottom: 1.5rem;
+			display: flex;
+			align-items: center;
+			gap: 0.75rem;
+			flex-wrap: wrap;
 		}
 
 		.page-subtitle span { color: #5df4a2; font-weight: 800; }
+
+		.live-pill {
+			padding: 0.35rem 0.75rem;
+			border-radius: 999px;
+			border: 1px solid rgba(255,255,255,0.18);
+			background: rgba(255,255,255,0.06);
+			color: rgba(255,255,255,0.85);
+			font-size: 0.85rem;
+			font-weight: 800;
+		}
+
+		.live-pill.ok { border-color: rgba(93,244,162,0.45); }
+		.live-pill.err { border-color: rgba(239,68,68,0.55); color: rgba(255,255,255,0.9); }
 
 		/* Category tabs */
 		.category-tabs {
@@ -204,25 +221,15 @@
 	{% set is_admin = session.get('admin_ok', False) %}
 	{% set comp_slug = comp_slug if comp_slug is defined else session.get('active_comp_slug') %}
 
-	{# IMPORTANT: cid must persist across category clicks; do NOT depend on show_comp_nav/account_id #}
+	{# persist cid across clicks; do NOT depend on account_id #}
 	{% set cid = request.args.get('cid') %}
 	{% set cid_val = (cid if cid else (viewer_id if viewer_id else None)) %}
 	{% set show_comp_nav = (cid_val is not none and comp_slug) %}
 
-	{# Derive a stable category key from the label you already pass (NO backend change needed) #}
-	{% set cat_label = (category or 'All') %}
-	{% set cat_key = 'all' %}
-	{% if cat_label == 'Male' %}
-		{% set cat_key = 'male' %}
-	{% elif cat_label == 'Female' %}
-		{% set cat_key = 'female' %}
-	{% elif cat_label == 'Gender Inclusive' %}
-		{% set cat_key = 'inclusive' %}
-	{% elif cat_label == 'Doubles' %}
-		{% set cat_key = 'doubles' %}
-	{% else %}
-		{% set cat_key = 'all' %}
-	{% endif %}
+	{# derive a stable category KEY from the path (not the label) #}
+	{% set _pp = request.path.strip('/').split('/') %}
+	{% set category_key = (_pp[1] if (_pp|length) > 1 and _pp[0] == 'leaderboard' else '') %}
+	{% set is_doubles_key = (category_key == 'doubles') %}
 
 	<nav class="nav">
 		<a href="{% if is_logged_in or is_admin %}/my-comps{% else %}/{% endif %}"
@@ -259,35 +266,37 @@
 		{% endif %}
 	</nav>
 
-	<main class="container" data-category-key="{{ cat_key }}">
+	<main class="container">
 		<header class="page-header">
 			<h1 class="page-title">Leaderboard</h1>
+
 			<p class="page-subtitle">
 				Category: <span id="category-label">{{ category }}</span>
+				<span id="live-pill" class="live-pill ok">Live</span>
 			</p>
 
 			<div class="category-tabs">
 				<a href="/leaderboard{% if cid_val %}?cid={{ cid_val }}{% endif %}"
-				   class="category-tab{% if category == 'All' %} active{% endif %}">All</a>
+				   class="category-tab{% if category_key == '' %} active{% endif %}">All</a>
 
 				<a href="/leaderboard/male{% if cid_val %}?cid={{ cid_val }}{% endif %}"
-				   class="category-tab{% if category == 'Male' %} active{% endif %}">Male</a>
+				   class="category-tab{% if category_key == 'male' %} active{% endif %}">Male</a>
 
 				<a href="/leaderboard/female{% if cid_val %}?cid={{ cid_val }}{% endif %}"
-				   class="category-tab{% if category == 'Female' %} active{% endif %}">Female</a>
+				   class="category-tab{% if category_key == 'female' %} active{% endif %}">Female</a>
 
 				<a href="/leaderboard/inclusive{% if cid_val %}?cid={{ cid_val }}{% endif %}"
-				   class="category-tab{% if category == 'Gender Inclusive' %} active{% endif %}">Inclusive</a>
+				   class="category-tab{% if category_key == 'inclusive' %} active{% endif %}">Inclusive</a>
 
 				<a href="/leaderboard/doubles{% if cid_val %}?cid={{ cid_val }}{% endif %}"
-				   class="category-tab{% if category == 'Doubles' %} active{% endif %}">Doubles</a>
+				   class="category-tab{% if category_key == 'doubles' %} active{% endif %}">Doubles</a>
 			</div>
 		</header>
 
 		<div class="leaderboard-wrapper">
-			<table id="leaderboard-table" class="leaderboard {% if category == 'Doubles' %}doubles{% else %}singles{% endif %}">
+			<table id="leaderboard-table" class="leaderboard {% if is_doubles_key %}doubles{% else %}singles{% endif %}">
 				<thead id="leaderboard-head">
-					{% if category == 'Doubles' %}
+					{% if is_doubles_key %}
 						<tr>
 							<th>Pos</th>
 							<th>Team</th>
@@ -305,12 +314,12 @@
 				</thead>
 
 				<tbody id="leaderboard-body">
-					{% if category == 'Doubles' %}
+					{% if is_doubles_key %}
 						{% if leaderboard %}
 							{% for t in leaderboard %}
 								<tr>
 									<td>{{ t.position }}</td>
-									<td>{{ t.name }}</td>
+									<td>{{ t.name or (t.a_name ~ ' + ' ~ t.b_name) }}</td>
 									<td>{{ t.total_points }}</td>
 								</tr>
 							{% endfor %}
@@ -340,21 +349,23 @@
 	</main>
 
 	<script>
-		(() => {
+		(function () {
+			const categoryKey = "{{ category_key }}"; // '' | male | female | inclusive | doubles
+			const isDoubles = (categoryKey === "doubles");
+
 			const leaderboardBody = document.getElementById("leaderboard-body");
 			const leaderboardHead = document.getElementById("leaderboard-head");
 			const leaderboardTable = document.getElementById("leaderboard-table");
 			const catLabel = document.getElementById("category-label");
-
+			const livePill = document.getElementById("live-pill");
 			const viewerId = {{ current_competitor_id if current_competitor_id is not none else 'null' }};
 
-			// Canonical category key from server-rendered HTML (stable)
-			const main = document.querySelector("main.container");
-			let categoryKey = (main && main.dataset && main.dataset.categoryKey) ? main.dataset.categoryKey : "all";
-			categoryKey = String(categoryKey || "all").trim().toLowerCase();
-
-			let isUnloading = false;
-			window.addEventListener("beforeunload", () => { isUnloading = true; });
+			function setLive(ok, text) {
+				if (!livePill) return;
+				livePill.textContent = text || (ok ? "Live" : "Paused");
+				livePill.classList.toggle("ok", !!ok);
+				livePill.classList.toggle("err", !ok);
+			}
 
 			function setSinglesHeader() {
 				leaderboardHead.innerHTML = `
@@ -389,30 +400,30 @@
 					const tr = document.createElement("tr");
 
 					const tdPos = document.createElement("td");
-					tdPos.textContent = (r.position ?? "");
+					tdPos.textContent = r.position;
 					tr.appendChild(tdPos);
 
 					const tdName = document.createElement("td");
 					if (viewerId !== null && r.competitor_id === viewerId) {
-						tdName.textContent = (r.name ?? "");
+						tdName.textContent = r.name;
 					} else {
 						const a = document.createElement("a");
 						a.href = `/competitor/${r.competitor_id}/stats/climber`;
-						a.textContent = (r.name ?? "");
+						a.textContent = r.name;
 						tdName.appendChild(a);
 					}
 					tr.appendChild(tdName);
 
 					const tdTops = document.createElement("td");
-					tdTops.textContent = (r.tops ?? "");
+					tdTops.textContent = r.tops;
 					tr.appendChild(tdTops);
 
 					const tdAttempts = document.createElement("td");
-					tdAttempts.textContent = (r.attempts_on_tops ?? "");
+					tdAttempts.textContent = r.attempts_on_tops;
 					tr.appendChild(tdAttempts);
 
 					const tdPoints = document.createElement("td");
-					tdPoints.textContent = (r.total_points ?? "");
+					tdPoints.textContent = r.total_points;
 					tr.appendChild(tdPoints);
 
 					frag.appendChild(tr);
@@ -439,19 +450,19 @@
 					return;
 				}
 
-				(rows || []).forEach((t) => {
+				rows.forEach((t) => {
 					const tr = document.createElement("tr");
 
 					const tdPos = document.createElement("td");
-					tdPos.textContent = (t.position ?? "");
+					tdPos.textContent = t.position;
 					tr.appendChild(tdPos);
 
 					const tdTeam = document.createElement("td");
-					tdTeam.textContent = t.name || `${t.a_name || ""} + ${t.b_name || ""}`.trim();
+					tdTeam.textContent = t.name || `${t.a_name} + ${t.b_name}`;
 					tr.appendChild(tdTeam);
 
 					const tdPts = document.createElement("td");
-					tdPts.textContent = (t.total_points ?? "");
+					tdPts.textContent = t.total_points;
 					tr.appendChild(tdPts);
 
 					frag.appendChild(tr);
@@ -462,25 +473,19 @@
 			}
 
 			async function refreshLeaderboard() {
-				if (isUnloading) return;
 				if (!leaderboardBody || !leaderboardHead || !leaderboardTable) return;
 
 				let url = "/api/leaderboard";
-				if (categoryKey && categoryKey !== "all") {
-					url += "?category=" + encodeURIComponent(categoryKey);
-				}
+				if (categoryKey) url += "?category=" + encodeURIComponent(categoryKey);
 
 				try {
 					const res = await fetch(url, { cache: "no-store" });
-					if (!res.ok) return;
+					if (!res.ok) { setLive(false, "Paused"); return; }
 
 					const data = await res.json();
 
-					// Update label from API, but DO NOT change categoryKey here
-					if (catLabel && data.category) catLabel.textContent = data.category;
-
-					const apiLabel = String(data.category || "").trim().toLowerCase();
-					const isDoubles = (categoryKey === "doubles") || (apiLabel === "doubles");
+					// Only update the HUMAN label; do not use it as a key.
+					if (catLabel && data && data.category) catLabel.textContent = data.category;
 
 					if (isDoubles) {
 						setDoublesHeader();
@@ -489,14 +494,15 @@
 						setSinglesHeader();
 						renderSingles(data.rows || []);
 					}
+
+					setLive(true, "Live");
 				} catch (e) {
-					// swallow errors to avoid flicker
+					setLive(false, "Paused");
 				}
 			}
 
 			refreshLeaderboard();
-			const intervalId = setInterval(refreshLeaderboard, 5000);
-			window.addEventListener("beforeunload", () => clearInterval(intervalId));
+			setInterval(refreshLeaderboard, 5000);
 		})();
 	</script>
 </body>
