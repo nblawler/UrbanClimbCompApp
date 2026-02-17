@@ -2459,7 +2459,6 @@ def doubles_home(slug):
     )
 
 
-
 @app.route("/comp/<slug>/competitor/<int:competitor_id>/sections")
 def comp_competitor_sections(slug, competitor_id):
     """
@@ -3886,6 +3885,32 @@ def api_get_scores(competitor_id):
 
 # --- Leaderboard pages ---
 
+def normalize_leaderboard_category(raw: Optional[str]):
+    """
+    Returns one of: None, 'male', 'female', 'inclusive', 'doubles'
+    None means 'All' (singles all).
+    """
+    c = (raw or "").strip().lower()
+
+    if c in ("", "all", "overall"):
+        return None
+
+    if c in ("male", "m"):
+        return "male"
+
+    if c in ("female", "f"):
+        return "female"
+
+    if c in ("inclusive", "gender-inclusive", "gender_inclusive", "gender inclusive", "open"):
+        return "inclusive"
+
+    if c in ("doubles", "double"):
+        return "doubles"
+
+    # Unknown category -> show All (NOT doubles)
+    return None
+
+
 @app.route("/leaderboard")
 def leaderboard_all():
     """
@@ -3933,19 +3958,10 @@ def leaderboard_all():
 
 @app.route("/leaderboard/<category>")
 def leaderboard_by_category(category):
-    """
-    Category leaderboard for the currently selected competition context.
-
-    Categories:
-    - all (handled by /leaderboard)
-    - male / female / inclusive
-    - doubles
-    """
     cid_raw = (request.args.get("cid") or "").strip()
     competitor = Competitor.query.get(int(cid_raw)) if cid_raw.isdigit() else None
 
     comp = get_viewer_comp()
-
     if not comp:
         flash("Pick a competition first to view the leaderboard.", "warning")
         return redirect("/my-comps")
@@ -3955,8 +3971,16 @@ def leaderboard_by_category(category):
         flash("That competition isn’t live right now — leaderboard is unavailable.", "warning")
         return redirect("/my-comps")
 
-    # Build rows for this category (including doubles)
-    rows, category_label = build_leaderboard(category, competition_id=comp.id)
+    # Normalize category here
+    cat = normalize_leaderboard_category(category)
+
+    # Optional: if someone hits /leaderboard/all, canonicalize
+    if category and category.strip().lower() in ("all", "overall"):
+        # preserve cid
+        q = f"?cid={cid_raw}" if cid_raw else ""
+        return redirect("/leaderboard" + q)
+
+    rows, category_label = build_leaderboard(cat, competition_id=comp.id)
     current_competitor_id = session.get("competitor_id")
 
     return render_template(
@@ -3971,14 +3995,10 @@ def leaderboard_by_category(category):
     )
 
 
-
 @app.route("/api/leaderboard")
 def api_leaderboard():
-    """
-    JSON leaderboard for the currently selected comp context.
-    Supports category=doubles as well as male/female/inclusive.
-    """
-    category = request.args.get("category")
+    raw = request.args.get("category")
+    cat = normalize_leaderboard_category(raw)
 
     comp = get_viewer_comp()
     if not comp:
@@ -3988,14 +4008,14 @@ def api_leaderboard():
         session.pop("active_comp_slug", None)
         return jsonify({"category": "Competition not live", "rows": []})
 
-    rows, category_label = build_leaderboard(category, competition_id=comp.id)
+    rows, category_label = build_leaderboard(cat, competition_id=comp.id)
 
-    # JSON-safe datetime conversion (singles has last_update; doubles doesn't)
     for r in rows:
         if r.get("last_update") is not None:
             r["last_update"] = r["last_update"].isoformat()
 
     return jsonify({"category": category_label, "rows": rows})
+
 
 
 

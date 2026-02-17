@@ -34,7 +34,7 @@
 			font-weight: 600;
 		}
 
-		.nav a.active { color: #5df4a2; font-weight: 700; }
+		.nav a.active { color: #5df4a2; font-weight: 800; }
 		.nav a:hover { color: #fff; }
 
 		/* Container */
@@ -66,7 +66,7 @@
 			margin-bottom: 1.5rem;
 		}
 
-		.page-subtitle span { color: #5df4a2; font-weight: 700; }
+		.page-subtitle span { color: #5df4a2; font-weight: 800; }
 
 		/* Category tabs */
 		.category-tabs {
@@ -83,7 +83,7 @@
 			color: rgba(255, 255, 255, 0.85);
 			text-decoration: none;
 			font-size: 0.95rem;
-			font-weight: 700;
+			font-weight: 800;
 			transition: all 0.2s;
 			display: inline-block;
 		}
@@ -118,7 +118,7 @@
 
 		.leaderboard thead th {
 			text-align: left;
-			font-weight: 700;
+			font-weight: 800;
 			padding: 1.25rem 1.5rem;
 			border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 			color: rgba(255, 255, 255, 0.7);
@@ -149,7 +149,7 @@
 		#leaderboard-body tr:nth-child(3):hover { background: rgba(205, 127, 50, 0.12); }
 
 		/* Position column */
-		.leaderboard tbody td:first-child { font-weight: 900; font-size: 1.1rem; }
+		.leaderboard tbody td:first-child { font-weight: 950; font-size: 1.1rem; }
 
 		/* Center numeric columns (singles layout) */
 		.leaderboard.singles th:nth-child(3),
@@ -171,7 +171,7 @@
 		.leaderboard a {
 			color: #5df4a2;
 			text-decoration: none;
-			font-weight: 600;
+			font-weight: 700;
 			transition: color 0.2s;
 		}
 		.leaderboard a:hover { color: #7fffa4; text-decoration: underline; }
@@ -203,7 +203,11 @@
 	{% set viewer_id = session.get('competitor_id') %}
 	{% set is_admin = session.get('admin_ok', False) %}
 	{% set comp_slug = comp_slug if comp_slug is defined else session.get('active_comp_slug') %}
-	{% set show_comp_nav = (is_logged_in and viewer_id and comp_slug) %}
+
+	{# IMPORTANT: cid must persist across category clicks; do NOT depend on show_comp_nav/account_id #}
+	{% set cid = request.args.get('cid') %}
+	{% set cid_val = (cid if cid else (viewer_id if viewer_id else None)) %}
+	{% set show_comp_nav = (cid_val is not none and comp_slug) %}
 
 	<nav class="nav">
 		<a href="{% if is_logged_in or is_admin %}/my-comps{% else %}/{% endif %}"
@@ -214,21 +218,22 @@
 		{% endif %}
 
 		{% if show_comp_nav %}
-			<a href="/comp/{{ comp_slug }}/competitor/{{ viewer_id }}/sections"
+			<a href="/comp/{{ comp_slug }}/competitor/{{ cid_val }}/sections"
 			   class="{% if nav_active == 'sections' %}active{% endif %}">Scoring</a>
 
-			<a href="/competitor/{{ viewer_id }}/stats/my"
+			<a href="/competitor/{{ cid_val }}/stats/my"
 			   class="{% if nav_active == 'my_stats' %}active{% endif %}">My Stats</a>
 
-			<a href="/competitor/{{ viewer_id }}/stats/overall"
+			<a href="/competitor/{{ cid_val }}/stats/overall"
 			   class="{% if nav_active == 'overall_stats' %}active{% endif %}">Overall Stats</a>
 		{% endif %}
 
-		<a href="/leaderboard{% if show_comp_nav %}?cid={{ viewer_id }}{% endif %}"
+		<a href="/leaderboard{% if cid_val %}?cid={{ cid_val }}{% endif %}"
 		   class="{% if nav_active == 'leaderboard' %}active{% endif %}">Leaderboard</a>
 
 		{% if comp_slug %}
-			<a class="{% if nav_active == 'doubles' %}active{% endif %}" href="/comp/{{ comp_slug }}/doubles">Doubles</a>
+			<a class="{% if nav_active == 'doubles' %}active{% endif %}"
+			   href="/comp/{{ comp_slug }}/doubles">Doubles</a>
 		{% endif %}
 
 		{% if is_logged_in or is_admin %}
@@ -247,19 +252,19 @@
 			</p>
 
 			<div class="category-tabs">
-				<a href="/leaderboard{% if show_comp_nav %}?cid={{ viewer_id }}{% endif %}"
+				<a href="/leaderboard{% if cid_val %}?cid={{ cid_val }}{% endif %}"
 				   class="category-tab{% if category == 'All' %} active{% endif %}">All</a>
 
-				<a href="/leaderboard/male{% if show_comp_nav %}?cid={{ viewer_id }}{% endif %}"
+				<a href="/leaderboard/male{% if cid_val %}?cid={{ cid_val }}{% endif %}"
 				   class="category-tab{% if category == 'Male' %} active{% endif %}">Male</a>
 
-				<a href="/leaderboard/female{% if show_comp_nav %}?cid={{ viewer_id }}{% endif %}"
+				<a href="/leaderboard/female{% if cid_val %}?cid={{ cid_val }}{% endif %}"
 				   class="category-tab{% if category == 'Female' %} active{% endif %}">Female</a>
 
-				<a href="/leaderboard/inclusive{% if show_comp_nav %}?cid={{ viewer_id }}{% endif %}"
+				<a href="/leaderboard/inclusive{% if cid_val %}?cid={{ cid_val }}{% endif %}"
 				   class="category-tab{% if category == 'Gender Inclusive' %} active{% endif %}">Inclusive</a>
 
-				<a href="/leaderboard/doubles{% if show_comp_nav %}?cid={{ viewer_id }}{% endif %}"
+				<a href="/leaderboard/doubles{% if cid_val %}?cid={{ cid_val }}{% endif %}"
 				   class="category-tab{% if category == 'Doubles' %} active{% endif %}">Doubles</a>
 			</div>
 		</header>
@@ -422,7 +427,6 @@
 				tr.appendChild(tdPos);
 
 				const tdTeam = document.createElement("td");
-				// API returns either {name} or {a_name,b_name}
 				tdTeam.textContent = t.name || `${t.a_name} + ${t.b_name}`;
 				tr.appendChild(tdTeam);
 
