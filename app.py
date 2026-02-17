@@ -2100,8 +2100,82 @@ def doubles_invite(slug):
 
 @app.route("/comp/<slug>/doubles/accept", methods=["GET"])
 def doubles_accept(slug):
-    # Step 4 will implement real acceptance logic.
-    return "Doubles accept endpoint exists. Next step will implement acceptance.", 200
+    token = (request.args.get("token") or "").strip()
+    if not token:
+        flash("Missing doubles token.", "error")
+        return redirect(f"/comp/{slug}/doubles")
+
+    viewer_id = session.get("competitor_id")
+    if not viewer_id:
+        # Force login then come back here
+        return redirect(url_for("login", next=request.url))
+
+    comp = Competition.query.filter_by(slug=slug).first_or_404()
+
+    invite = DoublesInvite.query.filter_by(
+        competition_id=comp.id,
+        token_hash=_hash_token(token),
+        status="pending"
+    ).first()
+
+    if not invite:
+        flash("That doubles link is invalid or already used.", "error")
+        return redirect(f"/comp/{slug}/doubles")
+
+    if invite.expires_at < _utcnow():
+        invite.status = "expired"
+        db.session.commit()
+        flash("That doubles link expired. Ask them to resend.", "error")
+        return redirect(f"/comp/{slug}/doubles")
+
+    me = Competitor.query.filter_by(id=viewer_id, competition_id=comp.id).first()
+    if not me:
+        abort(403)
+
+    # Make sure the logged-in user is the intended invitee
+    if (me.email or "").strip().lower() != (invite.invitee_email or "").strip().lower():
+        flash("This invite was sent to a different email address.", "error")
+        return redirect(f"/comp/{slug}/doubles")
+
+    # Ensure inviter isn't already locked in a team
+    inviter_team = DoublesTeam.query.filter(
+        DoublesTeam.competition_id == comp.id,
+        ((DoublesTeam.competitor_a_id == invite.inviter_competitor_id) |
+         (DoublesTeam.competitor_b_id == invite.inviter_competitor_id))
+    ).first()
+    if inviter_team:
+        flash("The inviter is already in a doubles team. This invite can’t be used.", "error")
+        invite.status = "cancelled"
+        db.session.commit()
+        return redirect(f"/comp/{slug}/doubles")
+
+    # Ensure invitee (me) isn't already locked in a team
+    my_team = DoublesTeam.query.filter(
+        DoublesTeam.competition_id == comp.id,
+        ((DoublesTeam.competitor_a_id == viewer_id) | (DoublesTeam.competitor_b_id == viewer_id))
+    ).first()
+    if my_team:
+        flash("You’re already in a doubles team. This invite can’t be used.", "error")
+        invite.status = "cancelled"
+        db.session.commit()
+        return redirect(f"/comp/{slug}/doubles")
+
+    # Create the team (order doesn't matter; DB unique index enforces no duplicates)
+    team = DoublesTeam(
+        competition_id=comp.id,
+        competitor_a_id=invite.inviter_competitor_id,
+        competitor_b_id=viewer_id,
+    )
+    db.session.add(team)
+
+    invite.status = "accepted"
+    invite.accepted_at = _utcnow()
+
+    db.session.commit()
+
+    flash("Doubles team created! You’re locked in and will appear on the doubles leaderboard.", "success")
+    return redirect(f"/comp/{slug}/doubles")
+
 
 @app.route("/comp/<slug>/competitor/<int:competitor_id>/sections")
 def comp_competitor_sections(slug, competitor_id):
