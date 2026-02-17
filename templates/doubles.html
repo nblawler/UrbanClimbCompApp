@@ -22,7 +22,7 @@
     .nav {
       padding: 1.25rem 2rem;
       display: flex;
-      gap: 1.5rem;
+      gap: 1.15rem;
       align-items: center;
       flex-wrap: wrap;
     }
@@ -32,12 +32,12 @@
       text-decoration: none;
       font-size: 0.95rem;
       transition: color 0.2s;
-      font-weight: 600;
+      font-weight: 700;
     }
 
     .nav a.active {
       color: #5df4a2;
-      font-weight: 700;
+      font-weight: 900;
     }
 
     .nav a:hover { color: #fff; }
@@ -70,13 +70,6 @@
       -webkit-text-fill-color: transparent;
       background-clip: text;
       letter-spacing: -0.02em;
-    }
-
-    .hero p {
-      font-size: 1.05rem;
-      color: rgba(255, 255, 255, 0.75);
-      line-height: 1.6;
-      margin: 0.35rem 0;
     }
 
     /* Glass card */
@@ -221,7 +214,7 @@
     }
 
     @media (max-width: 768px) {
-      .nav { padding: 1rem; }
+      .nav { padding: 1rem; gap: 0.9rem; }
       .container { padding: 1.25rem; }
       .hero h1 { font-size: 2.3rem; }
       .card { padding: 1.5rem; }
@@ -241,10 +234,26 @@
       <a class="{% if nav_active == 'admin' %}active{% endif %}" href="/admin/comps">Admin</a>
     {% endif %}
 
-    {% if comp_slug %}
-      <a class="{% if nav_active == 'leaderboard' %}active{% endif %}" href="/comp/{{ comp_slug }}/leaderboard">Leaderboard</a>
-      <a class="active" href="/comp/{{ comp_slug }}/doubles">Doubles</a>
+    {% if comp_slug and viewer_id %}
+      <a class="{% if nav_active == 'scoring' %}active{% endif %}"
+         href="/comp/{{ comp_slug }}/competitor/{{ viewer_id }}/sections">Scoring</a>
+
+      <a class="{% if nav_active == 'my_stats' %}active{% endif %}"
+         href="/comp/{{ comp_slug }}/competitor/{{ viewer_id }}/stats/my">My Stats</a>
+
+      <a class="{% if nav_active == 'overall_stats' %}active{% endif %}"
+         href="/comp/{{ comp_slug }}/competitor/{{ viewer_id }}/stats/overall">Overall Stats</a>
     {% endif %}
+
+    {% if comp_slug %}
+      <a class="{% if nav_active == 'leaderboard' %}active{% endif %}"
+         href="/comp/{{ comp_slug }}/leaderboard">Leaderboard</a>
+
+      <a class="{% if nav_active == 'doubles' %}active{% endif %}"
+         href="/comp/{{ comp_slug }}/doubles">Doubles</a>
+    {% endif %}
+
+    <a class="{% if nav_active == 'logout' %}active{% endif %}" href="/logout">Log out</a>
   </nav>
 
   <main class="container">
@@ -344,7 +353,6 @@
         </p>
       </section>
     {% endif %}
-
   </main>
 </body>
 </html>
