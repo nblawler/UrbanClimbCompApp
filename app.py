@@ -2176,6 +2176,50 @@ def doubles_accept(slug):
     flash("Doubles team created! You’re locked in and will appear on the doubles leaderboard.", "success")
     return redirect(f"/comp/{slug}/doubles")
 
+@app.route("/comp/<slug>/doubles", methods=["GET"])
+def doubles_home(slug):
+    viewer_id = session.get("competitor_id")
+    if not viewer_id:
+        return redirect(url_for("login", next=request.path))
+
+    comp = Competition.query.filter_by(slug=slug).first_or_404()
+
+    competitor = Competitor.query.filter_by(id=viewer_id, competition_id=comp.id).first()
+    if not competitor:
+        abort(403)
+
+    # Team (if locked in)
+    team = DoublesTeam.query.filter(
+        DoublesTeam.competition_id == comp.id,
+        ((DoublesTeam.competitor_a_id == viewer_id) | (DoublesTeam.competitor_b_id == viewer_id))
+    ).first()
+
+    partner = None
+    if team:
+        partner_id = team.competitor_b_id if team.competitor_a_id == viewer_id else team.competitor_a_id
+        partner = Competitor.query.filter_by(id=partner_id, competition_id=comp.id).first()
+
+    # Pending invite (if not in team)
+    pending = None
+    if not team:
+        pending = DoublesInvite.query.filter_by(
+            competition_id=comp.id,
+            inviter_competitor_id=viewer_id,
+            status="pending"
+        ).order_by(DoublesInvite.created_at.desc()).first()
+
+    return render_template(
+        "doubles.html",
+        comp=comp,
+        competitor=competitor,
+        comp_slug=slug,
+        nav_active="doubles",
+        team=team,
+        partner=partner,
+        pending=pending,
+    )
+
+
 
 @app.route("/comp/<slug>/competitor/<int:competitor_id>/sections")
 def comp_competitor_sections(slug, competitor_id):
