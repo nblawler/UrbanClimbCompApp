@@ -2058,16 +2058,41 @@ def doubles_invite(slug):
 
     accept_url = url_for("doubles_accept", slug=slug, _external=True) + f"?token={token}"
 
-    # 5) send email — IMPORTANT: replace send_email(...) with your existing mail function
-    send_email(
-        to=invitee_email,
-        subject=f"Doubles invite for {comp.name}",
-        text=(
-            f"{me.name} invited you as a doubles partner for {comp.name}.\n\n"
-            f"Accept here:\n{accept_url}\n\n"
-            f"This link expires in 48 hours."
-        )
-    )
+    # 5) send doubles invite email via Resend (same pattern as login code)
+
+    if not RESEND_API_KEY:
+        print(f"[DOUBLES INVITE - DEV ONLY] {invitee_email} -> {accept_url}", file=sys.stderr)
+    else:
+        html = f"""
+          <div style="font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; padding: 16px;">
+            <p>Hey climber 👋</p>
+            <p><strong>{me.name}</strong> has invited you to form a doubles team for:</p>
+            <p style="font-weight: 600; margin: 8px 0;">{comp.name}</p>
+
+            <p>Click below to accept:</p>
+
+            <p style="margin: 16px 0;">
+              <a href="{accept_url}"
+                 style="display:inline-block; padding:10px 18px; border-radius:999px; background:#111; color:#fff; text-decoration:none;">
+                 Accept Doubles Invite
+              </a>
+            </p>
+
+            <p>This link expires in 48 hours.</p>
+          </div>
+        """
+
+        try:
+            params = {
+                "from": RESEND_FROM_EMAIL,
+                "to": [invitee_email],
+                "subject": f"Doubles invite for {comp.name}",
+                "html": html,
+            }
+            resend.Emails.send(params)
+            print(f"[DOUBLES INVITE] Sent doubles invite to {invitee_email}", file=sys.stderr)
+        except Exception as e:
+            print(f"[DOUBLES INVITE] Failed to send via Resend: {e}", file=sys.stderr)
 
     flash("Invite sent. Waiting for them to accept.", "success")
     return redirect(f"/comp/{slug}/doubles")
