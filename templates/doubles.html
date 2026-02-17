@@ -22,7 +22,7 @@
     .nav {
       padding: 1.25rem 2rem;
       display: flex;
-      gap: 1.15rem;
+      gap: 1.5rem;
       align-items: center;
       flex-wrap: wrap;
     }
@@ -64,12 +64,19 @@
     .hero h1 {
       font-size: 3.0rem;
       font-weight: 900;
-      margin-bottom: 0.85rem;
+      margin-bottom: 0.65rem;
       background: linear-gradient(135deg, #fff 0%, #5df4a2 100%);
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
       background-clip: text;
       letter-spacing: -0.02em;
+    }
+
+    .hero p {
+      font-size: 1.05rem;
+      color: rgba(255, 255, 255, 0.75);
+      line-height: 1.6;
+      margin: 0.35rem 0;
     }
 
     /* Glass card */
@@ -86,7 +93,7 @@
 
     .card-title {
       font-size: 1.6rem;
-      font-weight: 850;
+      font-weight: 900;
       margin-bottom: 0.35rem;
     }
 
@@ -103,15 +110,18 @@
       padding: 0.75rem 1rem;
       border-radius: 14px;
       background: rgba(0,0,0,0.25);
+      border: 1px solid rgba(255,255,255,0.10);
     }
 
     .team-box-title {
-      font-weight: 700;
+      font-weight: 900;
       margin-bottom: 0.35rem;
+      color: rgba(255,255,255,0.9);
     }
 
     .team-box-content {
-      color: rgba(255,255,255,0.85);
+      color: rgba(255,255,255,0.92);
+      font-weight: 800;
     }
 
     /* Form styling */
@@ -123,7 +133,7 @@
     }
 
     label {
-      font-weight: 600;
+      font-weight: 800;
       font-size: 0.95rem;
       color: rgba(255,255,255,0.9);
     }
@@ -155,7 +165,7 @@
       background: #5df4a2;
       color: #0a1628;
       text-decoration: none;
-      font-weight: 900;
+      font-weight: 950;
       font-size: 0.95rem;
       transition: all 0.2s;
       border: 0;
@@ -169,7 +179,7 @@
 
     .pill-button.pill-ghost {
       background: rgba(255, 255, 255, 0.08);
-      color: rgba(255, 255, 255, 0.9);
+      color: rgba(255, 255, 255, 0.92);
     }
 
     .pill-button.pill-ghost:hover {
@@ -203,62 +213,82 @@
     .flash-message strong {
       text-transform: capitalize;
       color: #5df4a2;
+      font-weight: 950;
     }
 
     /* Note text */
     .note {
-      opacity: 0.7;
+      opacity: 0.72;
       margin-top: 0.75rem;
       font-size: 0.9rem;
       line-height: 1.5;
     }
 
     @media (max-width: 768px) {
-      .nav { padding: 1rem; gap: 0.9rem; }
+      .nav { padding: 1rem; }
       .container { padding: 1.25rem; }
       .hero h1 { font-size: 2.3rem; }
       .card { padding: 1.5rem; }
     }
   </style>
 </head>
+
 <body>
-  {% set viewer_id = viewer_id if viewer_id is defined else session.get('competitor_id') %}
+  {% set is_logged_in = session.get('account_id') %}
+  {% set viewer_id = session.get('competitor_id') %}
   {% set is_admin = session.get('admin_ok', False) %}
   {% set comp_slug = comp_slug if comp_slug is defined else (comp.slug if comp else session.get('active_comp_slug')) %}
+  {% set show_comp_nav = (is_logged_in and viewer_id and comp_slug) %}
 
   <!-- NAV -->
   <nav class="nav">
-    <a class="{% if nav_active == 'my_comps' %}active{% endif %}" href="/my-comps">Home</a>
+    <a href="/my-comps" class="{% if nav_active == 'my_comps' %}active{% endif %}">Home</a>
 
     {% if is_admin %}
-      <a class="{% if nav_active == 'admin' %}active{% endif %}" href="/admin/comps">Admin</a>
+      <a href="/admin/comps" class="{% if nav_active == 'admin' %}active{% endif %}">Admin</a>
     {% endif %}
 
-    {% if comp_slug and viewer_id %}
-      <a class="{% if nav_active == 'scoring' %}active{% endif %}"
-         href="/comp/{{ comp_slug }}/competitor/{{ viewer_id }}/sections">Scoring</a>
+    {% if show_comp_nav %}
+      <a href="/comp/{{ comp_slug }}/competitor/{{ viewer_id }}/sections"
+         class="{% if nav_active == 'sections' %}active{% endif %}">
+        Scoring
+      </a>
 
-      <a class="{% if nav_active == 'my_stats' %}active{% endif %}"
-         href="/comp/{{ comp_slug }}/competitor/{{ viewer_id }}/stats/my">My Stats</a>
+      <a href="/competitor/{{ viewer_id }}/stats/my"
+         class="{% if nav_active == 'my_stats' %}active{% endif %}">
+        My Stats
+      </a>
 
-      <a class="{% if nav_active == 'overall_stats' %}active{% endif %}"
-         href="/comp/{{ comp_slug }}/competitor/{{ viewer_id }}/stats/overall">Overall Stats</a>
+      <a href="/competitor/{{ viewer_id }}/stats/overall"
+         class="{% if nav_active == 'overall_stats' %}active{% endif %}">
+        Overall Stats
+      </a>
     {% endif %}
 
-    {% if comp_slug %}
-      <a class="{% if nav_active == 'leaderboard' %}active{% endif %}"
-         href="/comp/{{ comp_slug }}/leaderboard">Leaderboard</a>
+    <a href="/leaderboard{% if show_comp_nav %}?cid={{ viewer_id }}{% endif %}"
+       class="{% if nav_active == 'leaderboard' %}active{% endif %}">
+      Leaderboard
+    </a>
 
-      <a class="{% if nav_active == 'doubles' %}active{% endif %}"
-         href="/comp/{{ comp_slug }}/doubles">Doubles</a>
+    <a href="/comp/{{ comp_slug }}/doubles"
+       class="{% if nav_active == 'doubles' %}active{% endif %}">
+      Doubles
+    </a>
+
+    {% if is_logged_in or is_admin %}
+      <a href="/logout" class="{% if nav_active == 'logout' %}active{% endif %}">Log out</a>
+    {% else %}
+      <a href="/login{% if comp_slug %}?slug={{ comp_slug }}{% endif %}"
+         class="{% if nav_active == 'login' %}active{% endif %}">
+        Log in
+      </a>
     {% endif %}
-
-    <a class="{% if nav_active == 'logout' %}active{% endif %}" href="/logout">Log out</a>
   </nav>
 
   <main class="container">
     <header class="hero">
       <h1>Doubles</h1>
+      <p>{{ comp.name }}</p>
     </header>
 
     <!-- Flash messages -->
@@ -278,9 +308,7 @@
       <!-- LOCKED TEAM STATE -->
       <section class="card">
         <h2 class="card-title">Team locked in</h2>
-        <p class="card-line">
-          You are in a doubles team for this comp.
-        </p>
+        <p class="card-line">You are in a doubles team for this comp.</p>
 
         <div class="team-box">
           <div class="team-box-title">Team</div>
@@ -294,9 +322,7 @@
           </div>
         </div>
 
-        <p class="note">
-          This team will appear on the doubles leaderboard.
-        </p>
+        <p class="note">This team will appear on the doubles leaderboard.</p>
       </section>
 
     {% elif pending %}
@@ -304,20 +330,17 @@
       <section class="card">
         <h2 class="card-title">Invite pending</h2>
         <p class="card-line">
-          You've invited <strong>{{ pending.invitee_email }}</strong>. You can't invite someone else until this is accepted, declined, cancelled, or expired.
+          You've invited <strong>{{ pending.invitee_email }}</strong>.
+          You can't invite someone else until this is accepted, declined, cancelled, or expired.
         </p>
 
         <div class="button-group">
           <form method="post" action="/comp/{{ comp_slug }}/doubles/resend">
-            <button type="submit" class="pill-button pill-ghost">
-              Resend invite
-            </button>
+            <button type="submit" class="pill-button pill-ghost">Resend invite</button>
           </form>
 
           <form method="post" action="/comp/{{ comp_slug }}/doubles/cancel">
-            <button type="submit" class="pill-button pill-ghost">
-              Cancel invite
-            </button>
+            <button type="submit" class="pill-button pill-ghost">Cancel invite</button>
           </form>
         </div>
 
@@ -336,21 +359,11 @@
 
         <form method="post" action="/comp/{{ comp_slug }}/doubles/invite" class="form-container">
           <label for="email">Partner email</label>
-          <input
-            id="email"
-            name="email"
-            type="email"
-            required
-            placeholder="partner@example.com"
-          />
-          <button type="submit" class="pill-button">
-            Send invite
-          </button>
+          <input id="email" name="email" type="email" required placeholder="partner@example.com" />
+          <button type="submit" class="pill-button">Send invite</button>
         </form>
 
-        <p class="note">
-          Once they accept, you can't invite anyone else for this comp.
-        </p>
+        <p class="note">Once they accept, you can't invite anyone else for this comp.</p>
       </section>
     {% endif %}
   </main>
