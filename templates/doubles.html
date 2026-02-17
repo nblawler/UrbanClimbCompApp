@@ -5,6 +5,228 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Doubles · {{ comp.name }}</title>
   <link rel="stylesheet" href="/static/app.css" />
+
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      background: linear-gradient(135deg, #0a1628 0%, #1a2942 100%);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      color: #fff;
+    }
+
+    /* Top nav */
+    .nav {
+      padding: 1.25rem 2rem;
+      display: flex;
+      gap: 1.5rem;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .nav a {
+      color: rgba(255, 255, 255, 0.7);
+      text-decoration: none;
+      font-size: 0.95rem;
+      transition: color 0.2s;
+      font-weight: 600;
+    }
+
+    .nav a.active {
+      color: #5df4a2;
+      font-weight: 700;
+    }
+
+    .nav a:hover { color: #fff; }
+
+    /* Main container */
+    .container {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 2rem;
+      max-width: 1200px;
+      margin: 0 auto;
+      width: 100%;
+    }
+
+    /* Header */
+    .hero {
+      text-align: center;
+      margin: 2.25rem 0 2.25rem;
+      max-width: 840px;
+    }
+
+    .hero h1 {
+      font-size: 3.0rem;
+      font-weight: 900;
+      margin-bottom: 0.85rem;
+      background: linear-gradient(135deg, #fff 0%, #5df4a2 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      letter-spacing: -0.02em;
+    }
+
+    .hero p {
+      font-size: 1.05rem;
+      color: rgba(255, 255, 255, 0.75);
+      line-height: 1.6;
+      margin: 0.35rem 0;
+    }
+
+    /* Glass card */
+    .card {
+      background: rgba(255, 255, 255, 0.05);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 1.5rem;
+      padding: 2rem;
+      transition: all 0.3s ease;
+      width: 100%;
+      max-width: 680px;
+    }
+
+    .card-title {
+      font-size: 1.6rem;
+      font-weight: 850;
+      margin-bottom: 0.35rem;
+    }
+
+    .card-line {
+      color: rgba(255,255,255,0.78);
+      line-height: 1.6;
+      font-size: 0.95rem;
+      margin: 0.35rem 0;
+    }
+
+    /* Team info box */
+    .team-box {
+      margin-top: 0.75rem;
+      padding: 0.75rem 1rem;
+      border-radius: 14px;
+      background: rgba(0,0,0,0.25);
+    }
+
+    .team-box-title {
+      font-weight: 700;
+      margin-bottom: 0.35rem;
+    }
+
+    .team-box-content {
+      color: rgba(255,255,255,0.85);
+    }
+
+    /* Form styling */
+    .form-container {
+      display: grid;
+      gap: 0.75rem;
+      max-width: 520px;
+      width: 100%;
+    }
+
+    label {
+      font-weight: 600;
+      font-size: 0.95rem;
+      color: rgba(255,255,255,0.9);
+    }
+
+    input[type="email"] {
+      padding: 0.75rem 1rem;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,0.18);
+      background: rgba(0,0,0,0.25);
+      color: #fff;
+      font-size: 0.95rem;
+      transition: all 0.2s;
+    }
+
+    input[type="email"]:focus {
+      outline: none;
+      border-color: #5df4a2;
+    }
+
+    input[type="email"]::placeholder {
+      color: rgba(255,255,255,0.4);
+    }
+
+    /* Buttons */
+    .pill-button {
+      display: inline-block;
+      padding: 0.85rem 1.1rem;
+      border-radius: 999px;
+      background: #5df4a2;
+      color: #0a1628;
+      text-decoration: none;
+      font-weight: 900;
+      font-size: 0.95rem;
+      transition: all 0.2s;
+      border: 0;
+      cursor: pointer;
+    }
+
+    .pill-button:hover {
+      background: #4de392;
+      transform: translateY(-1px);
+    }
+
+    .pill-button.pill-ghost {
+      background: rgba(255, 255, 255, 0.08);
+      color: rgba(255, 255, 255, 0.9);
+    }
+
+    .pill-button.pill-ghost:hover {
+      background: rgba(255, 255, 255, 0.12);
+    }
+
+    /* Button container */
+    .button-group {
+      margin-top: 0.75rem;
+      display: flex;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+    }
+
+    /* Flash messages */
+    .flash-container {
+      margin: 1rem 0;
+      display: grid;
+      gap: 0.5rem;
+      width: 100%;
+      max-width: 680px;
+    }
+
+    .flash-message {
+      padding: 0.75rem 1rem;
+      border-radius: 12px;
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.12);
+    }
+
+    .flash-message strong {
+      text-transform: capitalize;
+      color: #5df4a2;
+    }
+
+    /* Note text */
+    .note {
+      opacity: 0.7;
+      margin-top: 0.75rem;
+      font-size: 0.9rem;
+      line-height: 1.5;
+    }
+
+    @media (max-width: 768px) {
+      .nav { padding: 1rem; }
+      .container { padding: 1.25rem; }
+      .hero h1 { font-size: 2.3rem; }
+      .card { padding: 1.5rem; }
+    }
+  </style>
 </head>
 <body>
   {% set viewer_id = viewer_id if viewer_id is defined else session.get('competitor_id') %}
@@ -12,34 +234,34 @@
   {% set comp_slug = comp_slug if comp_slug is defined else (comp.slug if comp else session.get('active_comp_slug')) %}
 
   <!-- NAV -->
-  <nav class="container top-nav">
-    <div class="nav-links">
-      <a class="back {% if nav_active == 'my_comps' %}active{% endif %}" href="/my-comps">Home</a>
+  <nav class="nav">
+    <a class="{% if nav_active == 'my_comps' %}active{% endif %}" href="/my-comps">Home</a>
 
-      {% if is_admin %}
-        <a class="back {% if nav_active == 'admin' %}active{% endif %}" href="/admin/comps">Admin</a>
-      {% endif %}
+    {% if is_admin %}
+      <a class="{% if nav_active == 'admin' %}active{% endif %}" href="/admin/comps">Admin</a>
+    {% endif %}
 
-      {% if comp_slug %}
-        <a class="back {% if nav_active == 'leaderboard' %}active{% endif %}" href="/comp/{{ comp_slug }}/leaderboard">Leaderboard</a>
-        <a class="back active" href="/comp/{{ comp_slug }}/doubles">Doubles</a>
-      {% endif %}
-    </div>
+    {% if comp_slug %}
+      <a class="{% if nav_active == 'leaderboard' %}active{% endif %}" href="/comp/{{ comp_slug }}/leaderboard">Leaderboard</a>
+      <a class="active" href="/comp/{{ comp_slug }}/doubles">Doubles</a>
+    {% endif %}
   </nav>
 
   <main class="container">
-    <h1>Doubles</h1>
-    <p>
-      Invite one partner. If they accept, you’re locked in and your doubles score is the sum of both individual scores.
-    </p>
+    <header class="hero">
+      <h1>Doubles</h1>
+      <p>
+        Invite one partner. If they accept, you're locked in and your doubles score is the sum of both individual scores.
+      </p>
+    </header>
 
     <!-- Flash messages -->
     {% with messages = get_flashed_messages(with_categories=true) %}
       {% if messages %}
-        <div style="margin: 1rem 0; display: grid; gap: .5rem;">
+        <div class="flash-container">
           {% for category, msg in messages %}
-            <div style="padding: .75rem 1rem; border-radius: 12px; background: rgba(255,255,255,0.08);">
-              <strong style="text-transform: capitalize;">{{ category }}</strong> — {{ msg }}
+            <div class="flash-message">
+              <strong>{{ category }}</strong> — {{ msg }}
             </div>
           {% endfor %}
         </div>
@@ -48,15 +270,15 @@
 
     {% if team %}
       <!-- LOCKED TEAM STATE -->
-      <section style="margin-top: 1.25rem; padding: 1rem; border-radius: 16px; background: rgba(255,255,255,0.06);">
-        <h2 style="margin-bottom: .5rem;">Locked in ✅</h2>
-        <p style="opacity: .9;">
+      <section class="card">
+        <h2 class="card-title">Locked in ✅</h2>
+        <p class="card-line">
           You are in a doubles team for this comp.
         </p>
 
-        <div style="margin-top: .75rem; padding: .75rem 1rem; border-radius: 14px; background: rgba(0,0,0,0.25);">
-          <div><strong>Team</strong></div>
-          <div style="margin-top: .35rem;">
+        <div class="team-box">
+          <div class="team-box-title">Team</div>
+          <div class="team-box-content">
             {{ competitor.name }}
             {% if partner %}
               + {{ partner.name }}
@@ -66,48 +288,47 @@
           </div>
         </div>
 
-        <p style="opacity: .75; margin-top: .75rem;">
+        <p class="note">
           This team will appear on the doubles leaderboard.
         </p>
       </section>
 
     {% elif pending %}
       <!-- PENDING INVITE STATE -->
-      <section style="margin-top: 1.25rem; padding: 1rem; border-radius: 16px; background: rgba(255,255,255,0.06);">
-        <h2 style="margin-bottom: .5rem;">Invite pending ⏳</h2>
-        <p style="opacity: .9;">
-          You’ve invited <strong>{{ pending.invitee_email }}</strong>. You can’t invite someone else until this is accepted, declined, cancelled, or expired.
+      <section class="card">
+        <h2 class="card-title">Invite pending ⏳</h2>
+        <p class="card-line">
+          You've invited <strong>{{ pending.invitee_email }}</strong>. You can't invite someone else until this is accepted, declined, cancelled, or expired.
         </p>
 
-        <div style="margin-top: .75rem; display: flex; gap: .75rem; flex-wrap: wrap;">
-          <!-- We’ll wire these routes in the next step -->
+        <div class="button-group">
           <form method="post" action="/comp/{{ comp_slug }}/doubles/resend">
-            <button type="submit" style="padding: .65rem 1rem; border-radius: 999px; border: 0; cursor: pointer;">
+            <button type="submit" class="pill-button pill-ghost">
               Resend invite
             </button>
           </form>
 
           <form method="post" action="/comp/{{ comp_slug }}/doubles/cancel">
-            <button type="submit" style="padding: .65rem 1rem; border-radius: 999px; border: 0; cursor: pointer;">
+            <button type="submit" class="pill-button pill-ghost">
               Cancel invite
             </button>
           </form>
         </div>
 
-        <p style="opacity: .7; margin-top: .75rem;">
+        <p class="note">
           Note: Resend/Cancel buttons will 404 until we add the routes (next step).
         </p>
       </section>
 
     {% else %}
       <!-- INVITE FORM STATE -->
-      <section style="margin-top: 1.25rem;">
-        <h2 style="margin-bottom: .5rem;">Invite a doubles partner</h2>
-        <p style="opacity: .85; margin-bottom: .75rem;">
-          Enter their email and we’ll send them an accept link.
+      <section class="card">
+        <h2 class="card-title">Invite a doubles partner</h2>
+        <p class="card-line" style="margin-bottom: 0.75rem;">
+          Enter their email and we'll send them an accept link.
         </p>
 
-        <form method="post" action="/comp/{{ comp_slug }}/doubles/invite" style="display: grid; gap: .75rem; max-width: 520px;">
+        <form method="post" action="/comp/{{ comp_slug }}/doubles/invite" class="form-container">
           <label for="email">Partner email</label>
           <input
             id="email"
@@ -115,18 +336,14 @@
             type="email"
             required
             placeholder="partner@example.com"
-            style="padding: .75rem 1rem; border-radius: 12px; border: 1px solid rgba(255,255,255,0.18); background: rgba(0,0,0,0.25); color: #fff;"
           />
-          <button
-            type="submit"
-            style="padding: .75rem 1rem; border-radius: 999px; border: 0; cursor: pointer;"
-          >
+          <button type="submit" class="pill-button">
             Send invite
           </button>
         </form>
 
-        <p style="opacity: .75; margin-top: .75rem;">
-          Once they accept, you can’t invite anyone else for this comp.
+        <p class="note">
+          Once they accept, you can't invite anyone else for this comp.
         </p>
       </section>
     {% endif %}
