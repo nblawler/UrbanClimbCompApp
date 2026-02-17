@@ -3931,16 +3931,15 @@ def leaderboard_all():
         comp_slug=comp.slug,
     )
 
-
-
 @app.route("/leaderboard/<category>")
 def leaderboard_by_category(category):
     """
     Category leaderboard for the currently selected competition context.
 
-    Same rules as /leaderboard:
-    - Must have a selected comp context
-    - Must be LIVE
+    Categories:
+    - all (handled by /leaderboard)
+    - male / female / inclusive
+    - doubles
     """
     cid_raw = (request.args.get("cid") or "").strip()
     competitor = Competitor.query.get(int(cid_raw)) if cid_raw.isdigit() else None
@@ -3956,15 +3955,13 @@ def leaderboard_by_category(category):
         flash("That competition isn’t live right now — leaderboard is unavailable.", "warning")
         return redirect("/my-comps")
 
+    # Build rows for this category (including doubles)
     rows, category_label = build_leaderboard(category, competition_id=comp.id)
-    doubles_rows = build_doubles_rows(rows, comp.id)
-
     current_competitor_id = session.get("competitor_id")
 
     return render_template(
         "leaderboard.html",
         leaderboard=rows,
-        doubles_leaderboard=doubles_rows,
         category=category_label,
         competitor=competitor,
         current_competitor_id=current_competitor_id,
@@ -3979,9 +3976,7 @@ def leaderboard_by_category(category):
 def api_leaderboard():
     """
     JSON leaderboard for the currently selected comp context.
-
-    Rules:
-    - If no comp selected or comp not live -> return empty rows with message.
+    Supports category=doubles as well as male/female/inclusive.
     """
     category = request.args.get("category")
 
@@ -3990,23 +3985,18 @@ def api_leaderboard():
         return jsonify({"category": "No competition selected", "rows": []})
 
     if not comp_is_live(comp):
-        # Clear stale session context so UI stops thinking a comp is active
         session.pop("active_comp_slug", None)
         return jsonify({"category": "Competition not live", "rows": []})
 
     rows, category_label = build_leaderboard(category, competition_id=comp.id)
-    doubles_rows = build_doubles_rows(rows, comp.id)
 
-    # JSON-safe datetime conversion
+    # JSON-safe datetime conversion (singles has last_update; doubles doesn't)
     for r in rows:
         if r.get("last_update") is not None:
             r["last_update"] = r["last_update"].isoformat()
 
-    return jsonify({
-        "category": category_label,
-        "rows": rows,
-        "doubles_rows": doubles_rows
-    })
+    return jsonify({"category": category_label, "rows": rows})
+
 
 
 
