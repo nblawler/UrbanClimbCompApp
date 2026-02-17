@@ -33,7 +33,7 @@
       Invite one partner. If they accept, you’re locked in and your doubles score is the sum of both individual scores.
     </p>
 
-    <!-- Flash messages (if your app uses flash()) -->
+    <!-- Flash messages -->
     {% with messages = get_flashed_messages(with_categories=true) %}
       {% if messages %}
         <div style="margin: 1rem 0; display: grid; gap: .5rem;">
@@ -46,34 +46,91 @@
       {% endif %}
     {% endwith %}
 
-    <section style="margin-top: 1.25rem;">
-      <h2 style="margin-bottom: .5rem;">Invite a doubles partner</h2>
-      <p style="opacity: .85; margin-bottom: .75rem;">
-        Enter their email and we’ll send them an accept link.
-      </p>
+    {% if team %}
+      <!-- LOCKED TEAM STATE -->
+      <section style="margin-top: 1.25rem; padding: 1rem; border-radius: 16px; background: rgba(255,255,255,0.06);">
+        <h2 style="margin-bottom: .5rem;">Locked in ✅</h2>
+        <p style="opacity: .9;">
+          You are in a doubles team for this comp.
+        </p>
 
-      <form method="post" action="/comp/{{ comp_slug }}/doubles/invite" style="display: grid; gap: .75rem; max-width: 520px;">
-        <label for="email">Partner email</label>
-        <input
-          id="email"
-          name="email"
-          type="email"
-          required
-          placeholder="partner@example.com"
-          style="padding: .75rem 1rem; border-radius: 12px; border: 1px solid rgba(255,255,255,0.18); background: rgba(0,0,0,0.25); color: #fff;"
-        />
-        <button
-          type="submit"
-          style="padding: .75rem 1rem; border-radius: 999px; border: 0; cursor: pointer;"
-        >
-          Send invite
-        </button>
-      </form>
+        <div style="margin-top: .75rem; padding: .75rem 1rem; border-radius: 14px; background: rgba(0,0,0,0.25);">
+          <div><strong>Team</strong></div>
+          <div style="margin-top: .35rem;">
+            {{ competitor.name }}
+            {% if partner %}
+              + {{ partner.name }}
+            {% else %}
+              + (partner)
+            {% endif %}
+          </div>
+        </div>
 
-      <p style="opacity: .75; margin-top: .75rem;">
-        Once they accept, you can’t invite anyone else for this comp.
-      </p>
-    </section>
+        <p style="opacity: .75; margin-top: .75rem;">
+          This team will appear on the doubles leaderboard.
+        </p>
+      </section>
+
+    {% elif pending %}
+      <!-- PENDING INVITE STATE -->
+      <section style="margin-top: 1.25rem; padding: 1rem; border-radius: 16px; background: rgba(255,255,255,0.06);">
+        <h2 style="margin-bottom: .5rem;">Invite pending ⏳</h2>
+        <p style="opacity: .9;">
+          You’ve invited <strong>{{ pending.invitee_email }}</strong>. You can’t invite someone else until this is accepted, declined, cancelled, or expired.
+        </p>
+
+        <div style="margin-top: .75rem; display: flex; gap: .75rem; flex-wrap: wrap;">
+          <!-- We’ll wire these routes in the next step -->
+          <form method="post" action="/comp/{{ comp_slug }}/doubles/resend">
+            <button type="submit" style="padding: .65rem 1rem; border-radius: 999px; border: 0; cursor: pointer;">
+              Resend invite
+            </button>
+          </form>
+
+          <form method="post" action="/comp/{{ comp_slug }}/doubles/cancel">
+            <button type="submit" style="padding: .65rem 1rem; border-radius: 999px; border: 0; cursor: pointer;">
+              Cancel invite
+            </button>
+          </form>
+        </div>
+
+        <p style="opacity: .7; margin-top: .75rem;">
+          Note: Resend/Cancel buttons will 404 until we add the routes (next step).
+        </p>
+      </section>
+
+    {% else %}
+      <!-- INVITE FORM STATE -->
+      <section style="margin-top: 1.25rem;">
+        <h2 style="margin-bottom: .5rem;">Invite a doubles partner</h2>
+        <p style="opacity: .85; margin-bottom: .75rem;">
+          Enter their email and we’ll send them an accept link.
+        </p>
+
+        <form method="post" action="/comp/{{ comp_slug }}/doubles/invite" style="display: grid; gap: .75rem; max-width: 520px;">
+          <label for="email">Partner email</label>
+          <input
+            id="email"
+            name="email"
+            type="email"
+            required
+            placeholder="partner@example.com"
+            style="padding: .75rem 1rem; border-radius: 12px; border: 1px solid rgba(255,255,255,0.18); background: rgba(0,0,0,0.25); color: #fff;"
+          />
+          <button
+            type="submit"
+            style="padding: .75rem 1rem; border-radius: 999px; border: 0; cursor: pointer;"
+          >
+            Send invite
+          </button>
+        </form>
+
+        <p style="opacity: .75; margin-top: .75rem;">
+          Once they accept, you can’t invite anyone else for this comp.
+        </p>
+      </section>
+    {% endif %}
+
   </main>
 </body>
 </html>
