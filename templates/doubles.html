@@ -11,7 +11,7 @@
   {% set is_admin = session.get('admin_ok', False) %}
   {% set comp_slug = comp_slug if comp_slug is defined else (comp.slug if comp else session.get('active_comp_slug')) %}
 
-  <!-- NAV (duplicate-friendly) -->
+  <!-- NAV -->
   <nav class="container top-nav">
     <div class="nav-links">
       <a class="back {% if nav_active == 'my_comps' %}active{% endif %}" href="/my-comps">Home</a>
@@ -28,14 +28,52 @@
   </nav>
 
   <main class="container">
-    <div class="card">
-      <h1>Doubles</h1>
-      <p class="muted">
-        Invite one partner. If they accept, you’re locked in and your doubles score is the sum of both individual scores.
+    <h1>Doubles</h1>
+    <p>
+      Invite one partner. If they accept, you’re locked in and your doubles score is the sum of both individual scores.
+    </p>
+
+    <!-- Flash messages (if your app uses flash()) -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <div style="margin: 1rem 0; display: grid; gap: .5rem;">
+          {% for category, msg in messages %}
+            <div style="padding: .75rem 1rem; border-radius: 12px; background: rgba(255,255,255,0.08);">
+              <strong style="text-transform: capitalize;">{{ category }}</strong> — {{ msg }}
+            </div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+
+    <section style="margin-top: 1.25rem;">
+      <h2 style="margin-bottom: .5rem;">Invite a doubles partner</h2>
+      <p style="opacity: .85; margin-bottom: .75rem;">
+        Enter their email and we’ll send them an accept link.
       </p>
-      <hr />
-      <p>Step 1 complete: this page exists. Next step is invite + accept.</p>
-    </div>
+
+      <form method="post" action="/comp/{{ comp_slug }}/doubles/invite" style="display: grid; gap: .75rem; max-width: 520px;">
+        <label for="email">Partner email</label>
+        <input
+          id="email"
+          name="email"
+          type="email"
+          required
+          placeholder="partner@example.com"
+          style="padding: .75rem 1rem; border-radius: 12px; border: 1px solid rgba(255,255,255,0.18); background: rgba(0,0,0,0.25); color: #fff;"
+        />
+        <button
+          type="submit"
+          style="padding: .75rem 1rem; border-radius: 999px; border: 0; cursor: pointer;"
+        >
+          Send invite
+        </button>
+      </form>
+
+      <p style="opacity: .75; margin-top: .75rem;">
+        Once they accept, you can’t invite anyone else for this comp.
+      </p>
+    </section>
   </main>
 </body>
 </html>
