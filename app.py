@@ -2,7 +2,7 @@ from flask import Flask, render_template, request, redirect, jsonify, session, a
 from functools import wraps
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import UniqueConstraint
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from urllib.parse import quote
 from typing import Optional
 import json
@@ -10,6 +10,7 @@ import os
 import sys
 import re
 import time
+import hashlib
 import secrets  # for 6-digit codes
 import resend
 
@@ -241,6 +242,33 @@ class Competitor(db.Model):
         UniqueConstraint("competition_id", "account_id", name="uq_competition_account"),
     )
 
+
+class DoublesTeam(db.Model):
+    __tablename__ = "doubles_team"
+
+    id = db.Column(db.Integer, primary_key=True)
+    competition_id = db.Column(db.Integer, db.ForeignKey("competition.id", ondelete="CASCADE"), nullable=False)
+
+    competitor_a_id = db.Column(db.Integer, db.ForeignKey("competitor.id", ondelete="CASCADE"), nullable=False)
+    competitor_b_id = db.Column(db.Integer, db.ForeignKey("competitor.id", ondelete="CASCADE"), nullable=False)
+
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
+
+
+class DoublesInvite(db.Model):
+    __tablename__ = "doubles_invite"
+
+    id = db.Column(db.Integer, primary_key=True)
+    competition_id = db.Column(db.Integer, db.ForeignKey("competition.id", ondelete="CASCADE"), nullable=False)
+    inviter_competitor_id = db.Column(db.Integer, db.ForeignKey("competitor.id", ondelete="CASCADE"), nullable=False)
+
+    invitee_email = db.Column(db.Text, nullable=False)
+    token_hash = db.Column(db.Text, nullable=False)
+
+    status = db.Column(db.Text, nullable=False)  # 'pending','accepted','declined','expired','cancelled'
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
+    expires_at = db.Column(db.DateTime(timezone=True), nullable=False)
+    accepted_at = db.Column(db.DateTime(timezone=True), nullable=True)
 
 class Score(db.Model):
     __tablename__ = "scores"
@@ -1962,6 +1990,93 @@ def doubles_home(slug):
         comp_slug=slug,
         nav_active="doubles",
     )
+    
+def _utcnow():
+    return datetime.now(timezone.utc)
+
+def _make_token() -> str:
+    return secrets.token_urlsafe(32)
+
+def _hash_token(token: str) -> str:
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()
+
+
+@app.route("/comp/<slug>/doubles/invite", methods=["POST"])
+def doubles_invite(slug):
+    viewer_id = session.get("competitor_id")
+    if not viewer_id:
+        return redirect(url_for("login", next=request.path))
+
+    comp = Competition.query.filter_by(slug=slug).first_or_404()
+
+    me = Competitor.query.filter_by(id=viewer_id, competition_id=comp.id).first()
+    if not me:
+        abort(403)
+
+    # 1) locked already?
+    existing_team = DoublesTeam.query.filter(
+        DoublesTeam.competition_id == comp.id,
+        ((DoublesTeam.competitor_a_id == viewer_id) | (DoublesTeam.competitor_b_id == viewer_id))
+    ).first()
+    if existing_team:
+        flash("You’re already locked into a doubles team for this comp.", "error")
+        return redirect(f"/comp/{slug}/doubles")
+
+    # 2) validate email
+    invitee_email = (request.form.get("email") or "").strip().lower()
+    if not invitee_email:
+        flash("Enter an email address.", "error")
+        return redirect(f"/comp/{slug}/doubles")
+
+    my_email = (me.email or "").strip().lower()
+    if my_email and invitee_email == my_email:
+        flash("You can’t invite yourself. That’s just singles with extra paperwork.", "error")
+        return redirect(f"/comp/{slug}/doubles")
+
+    # 3) only one pending invite at a time
+    pending = DoublesInvite.query.filter_by(
+        competition_id=comp.id,
+        inviter_competitor_id=viewer_id,
+        status="pending"
+    ).first()
+    if pending:
+        flash(f"You already invited {pending.invitee_email}. You can’t invite someone else until that’s resolved.", "error")
+        return redirect(f"/comp/{slug}/doubles")
+
+    # 4) create invite row
+    token = _make_token()
+    inv = DoublesInvite(
+        competition_id=comp.id,
+        inviter_competitor_id=viewer_id,
+        invitee_email=invitee_email,
+        token_hash=_hash_token(token),
+        status="pending",
+        expires_at=_utcnow() + timedelta(hours=48),
+    )
+    db.session.add(inv)
+    db.session.commit()
+
+    accept_url = url_for("doubles_accept", slug=slug, _external=True) + f"?token={token}"
+
+    # 5) send email — IMPORTANT: replace send_email(...) with your existing mail function
+    send_email(
+        to=invitee_email,
+        subject=f"Doubles invite for {comp.name}",
+        text=(
+            f"{me.name} invited you as a doubles partner for {comp.name}.\n\n"
+            f"Accept here:\n{accept_url}\n\n"
+            f"This link expires in 48 hours."
+        )
+    )
+
+    flash("Invite sent. Waiting for them to accept.", "success")
+    return redirect(f"/comp/{slug}/doubles")
+
+
+@app.route("/comp/<slug>/doubles/accept", methods=["GET"])
+def doubles_accept(slug):
+    # Step 4 will implement real acceptance logic.
+    return "Doubles accept endpoint exists. Next step will implement acceptance.", 200
 
 @app.route("/comp/<slug>/competitor/<int:competitor_id>/sections")
 def comp_competitor_sections(slug, competitor_id):
