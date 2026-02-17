@@ -34,11 +34,7 @@
 			font-weight: 600;
 		}
 
-		.nav a.active {
-			color: #5df4a2;
-			font-weight: 700;
-		}
-
+		.nav a.active { color: #5df4a2; font-weight: 700; }
 		.nav a:hover { color: #fff; }
 
 		/* Container */
@@ -51,9 +47,7 @@
 		}
 
 		/* Header */
-		.page-header {
-			margin-bottom: 2rem;
-		}
+		.page-header { margin-bottom: 2rem; }
 
 		.page-title {
 			font-size: 2.5rem;
@@ -72,10 +66,7 @@
 			margin-bottom: 1.5rem;
 		}
 
-		.page-subtitle span {
-			color: #5df4a2;
-			font-weight: 700;
-		}
+		.page-subtitle span { color: #5df4a2; font-weight: 700; }
 
 		/* Category tabs */
 		.category-tabs {
@@ -111,20 +102,6 @@
 			box-shadow: 0 10px 20px rgba(93, 244, 162, 0.3);
 		}
 
-		/* Section headings */
-		.section-title {
-			margin-top: 2rem;
-			margin-bottom: 0.75rem;
-			font-size: 1.4rem;
-			font-weight: 900;
-			letter-spacing: -0.01em;
-		}
-
-		.section-subtitle {
-			color: rgba(255, 255, 255, 0.75);
-			margin-bottom: 1rem;
-		}
-
 		/* Leaderboard table wrapper */
 		.leaderboard-wrapper {
 			background: rgba(255, 255, 255, 0.05);
@@ -158,59 +135,23 @@
 			font-size: 1rem;
 		}
 
-		.leaderboard tbody tr {
-			transition: background 0.15s;
-		}
+		.leaderboard tbody tr { transition: background 0.15s; }
+		.leaderboard tbody tr:hover { background: rgba(255, 255, 255, 0.05); }
 
-		.leaderboard tbody tr:hover {
-			background: rgba(255, 255, 255, 0.05);
-		}
-
-		/* Top 3 highlighting — SINGLES */
-		#leaderboard-body tr:nth-child(1) {
-			background: rgba(255, 215, 0, 0.08);
-			border-left: 4px solid #FFD700;
-		}
+		/* Top 3 highlighting */
+		#leaderboard-body tr:nth-child(1) { background: rgba(255, 215, 0, 0.08); border-left: 4px solid #FFD700; }
 		#leaderboard-body tr:nth-child(1):hover { background: rgba(255, 215, 0, 0.12); }
 
-		#leaderboard-body tr:nth-child(2) {
-			background: rgba(192, 192, 192, 0.08);
-			border-left: 4px solid #C0C0C0;
-		}
+		#leaderboard-body tr:nth-child(2) { background: rgba(192, 192, 192, 0.08); border-left: 4px solid #C0C0C0; }
 		#leaderboard-body tr:nth-child(2):hover { background: rgba(192, 192, 192, 0.12); }
 
-		#leaderboard-body tr:nth-child(3) {
-			background: rgba(205, 127, 50, 0.08);
-			border-left: 4px solid #CD7F32;
-		}
+		#leaderboard-body tr:nth-child(3) { background: rgba(205, 127, 50, 0.08); border-left: 4px solid #CD7F32; }
 		#leaderboard-body tr:nth-child(3):hover { background: rgba(205, 127, 50, 0.12); }
 
-		/* Top 3 highlighting — DOUBLES */
-		#doubles-body tr:nth-child(1) {
-			background: rgba(255, 215, 0, 0.08);
-			border-left: 4px solid #FFD700;
-		}
-		#doubles-body tr:nth-child(1):hover { background: rgba(255, 215, 0, 0.12); }
-
-		#doubles-body tr:nth-child(2) {
-			background: rgba(192, 192, 192, 0.08);
-			border-left: 4px solid #C0C0C0;
-		}
-		#doubles-body tr:nth-child(2):hover { background: rgba(192, 192, 192, 0.12); }
-
-		#doubles-body tr:nth-child(3) {
-			background: rgba(205, 127, 50, 0.08);
-			border-left: 4px solid #CD7F32;
-		}
-		#doubles-body tr:nth-child(3):hover { background: rgba(205, 127, 50, 0.12); }
-
 		/* Position column */
-		.leaderboard tbody td:first-child {
-			font-weight: 900;
-			font-size: 1.1rem;
-		}
+		.leaderboard tbody td:first-child { font-weight: 900; font-size: 1.1rem; }
 
-		/* Center numeric columns (singles default) */
+		/* Center numeric columns (singles layout) */
 		.leaderboard.singles th:nth-child(3),
 		.leaderboard.singles td:nth-child(3),
 		.leaderboard.singles th:nth-child(4),
@@ -220,7 +161,7 @@
 			text-align: center;
 		}
 
-		/* Center points column on doubles */
+		/* Center points column on doubles layout */
 		.leaderboard.doubles th:nth-child(3),
 		.leaderboard.doubles td:nth-child(3) {
 			text-align: center;
@@ -233,11 +174,7 @@
 			font-weight: 600;
 			transition: color 0.2s;
 		}
-
-		.leaderboard a:hover {
-			color: #7fffa4;
-			text-decoration: underline;
-		}
+		.leaderboard a:hover { color: #7fffa4; text-decoration: underline; }
 
 		/* Responsive */
 		@media (max-width: 768px) {
@@ -252,7 +189,7 @@
 				font-size: 0.9rem;
 			}
 
-			/* Hide attempts column on mobile (singles) */
+			/* Hide attempts column on mobile (singles only) */
 			.leaderboard.singles thead th:nth-child(4),
 			.leaderboard.singles tbody td:nth-child(4) {
 				display: none;
@@ -260,6 +197,7 @@
 		}
 	</style>
 </head>
+
 <body>
 	{% set is_logged_in = session.get('account_id') %}
 	{% set viewer_id = session.get('competitor_id') %}
@@ -275,40 +213,29 @@
 			<a href="/admin/comps" class="{% if nav_active == 'admin' %}active{% endif %}">Admin</a>
 		{% endif %}
 
-		{# Only show comp-specific links if we have an active comp context #}
 		{% if show_comp_nav %}
 			<a href="/comp/{{ comp_slug }}/competitor/{{ viewer_id }}/sections"
-			   class="{% if nav_active == 'sections' %}active{% endif %}">
-				Scoring
-			</a>
+			   class="{% if nav_active == 'sections' %}active{% endif %}">Scoring</a>
 
 			<a href="/competitor/{{ viewer_id }}/stats/my"
-			   class="{% if nav_active == 'my_stats' %}active{% endif %}">
-				My Stats
-			</a>
+			   class="{% if nav_active == 'my_stats' %}active{% endif %}">My Stats</a>
 
 			<a href="/competitor/{{ viewer_id }}/stats/overall"
-			   class="{% if nav_active == 'overall_stats' %}active{% endif %}">
-				Overall Stats
-			</a>
+			   class="{% if nav_active == 'overall_stats' %}active{% endif %}">Overall Stats</a>
 		{% endif %}
 
 		<a href="/leaderboard{% if show_comp_nav %}?cid={{ viewer_id }}{% endif %}"
-		   class="{% if nav_active == 'leaderboard' %}active{% endif %}">
-			Leaderboard
-		</a>
+		   class="{% if nav_active == 'leaderboard' %}active{% endif %}">Leaderboard</a>
 
 		{% if comp_slug %}
-			<a class="back {% if nav_active == 'doubles' %}active{% endif %}" href="/comp/{{ comp_slug }}/doubles">Doubles</a>
+			<a class="{% if nav_active == 'doubles' %}active{% endif %}" href="/comp/{{ comp_slug }}/doubles">Doubles</a>
 		{% endif %}
 
 		{% if is_logged_in or is_admin %}
 			<a href="/logout">Log out</a>
 		{% else %}
 			<a href="/login{% if comp_slug %}?slug={{ comp_slug }}{% endif %}"
-			   class="{% if nav_active == 'login' %}active{% endif %}">
-				Log in
-			</a>
+			   class="{% if nav_active == 'login' %}active{% endif %}">Log in</a>
 		{% endif %}
 	</nav>
 
@@ -321,87 +248,71 @@
 
 			<div class="category-tabs">
 				<a href="/leaderboard{% if show_comp_nav %}?cid={{ viewer_id }}{% endif %}"
-				   class="category-tab{% if category == 'All' %} active{% endif %}">
-					All
-				</a>
+				   class="category-tab{% if category == 'All' %} active{% endif %}">All</a>
 
 				<a href="/leaderboard/male{% if show_comp_nav %}?cid={{ viewer_id }}{% endif %}"
-				   class="category-tab{% if category == 'Male' %} active{% endif %}">
-					Male
-				</a>
+				   class="category-tab{% if category == 'Male' %} active{% endif %}">Male</a>
 
 				<a href="/leaderboard/female{% if show_comp_nav %}?cid={{ viewer_id }}{% endif %}"
-				   class="category-tab{% if category == 'Female' %} active{% endif %}">
-					Female
-				</a>
+				   class="category-tab{% if category == 'Female' %} active{% endif %}">Female</a>
 
 				<a href="/leaderboard/inclusive{% if show_comp_nav %}?cid={{ viewer_id }}{% endif %}"
-				   class="category-tab{% if category == 'Gender Inclusive' %} active{% endif %}">
-					Inclusive
-				</a>
+				   class="category-tab{% if category == 'Gender Inclusive' %} active{% endif %}">Inclusive</a>
+
+				<a href="/leaderboard/doubles{% if show_comp_nav %}?cid={{ viewer_id }}{% endif %}"
+				   class="category-tab{% if category == 'Doubles' %} active{% endif %}">Doubles</a>
 			</div>
 		</header>
 
-		<!-- Singles -->
 		<div class="leaderboard-wrapper">
-			<table class="leaderboard singles">
-				<thead>
-					<tr>
-						<th>Pos</th>
-						<th>Competitor</th>
-						<th>Tops</th>
-						<th>Attempts</th>
-						<th>Points</th>
-					</tr>
-				</thead>
-				<tbody id="leaderboard-body">
-					{% for row in leaderboard %}
+			<table id="leaderboard-table" class="leaderboard {% if category == 'Doubles' %}doubles{% else %}singles{% endif %}">
+				<thead id="leaderboard-head">
+					{% if category == 'Doubles' %}
 						<tr>
-							<td>{{ row.position }}</td>
-							<td>
-								{% if current_competitor_id and row.competitor_id == current_competitor_id %}
-									<span>{{ row.name }}</span>
-								{% else %}
-									<a href="/competitor/{{ row.competitor_id }}/stats/climber">
-										{{ row.name }}
-									</a>
-								{% endif %}
-							</td>
-							<td>{{ row.tops }}</td>
-							<td>{{ row.attempts_on_tops }}</td>
-							<td>{{ row.total_points }}</td>
+							<th>Pos</th>
+							<th>Team</th>
+							<th>Points</th>
 						</tr>
-					{% endfor %}
-				</tbody>
-			</table>
-		</div>
-
-		<!-- Doubles -->
-		<h2 class="section-title">Doubles</h2>
-		<p class="section-subtitle">Team score = your points + your partner’s points.</p>
-
-		<div class="leaderboard-wrapper">
-			<table class="leaderboard doubles">
-				<thead>
-					<tr>
-						<th>Pos</th>
-						<th>Team</th>
-						<th>Points</th>
-					</tr>
-				</thead>
-				<tbody id="doubles-body">
-					{% if doubles_leaderboard is defined and doubles_leaderboard %}
-						{% for t in doubles_leaderboard %}
-							<tr>
-								<td>{{ t.position }}</td>
-								<td>{{ t.a_name }} + {{ t.b_name }}</td>
-								<td>{{ t.total_points }}</td>
-							</tr>
-						{% endfor %}
 					{% else %}
 						<tr>
-							<td colspan="3" style="opacity: .75;">No doubles teams yet.</td>
+							<th>Pos</th>
+							<th>Competitor</th>
+							<th>Tops</th>
+							<th>Attempts</th>
+							<th>Points</th>
 						</tr>
+					{% endif %}
+				</thead>
+
+				<tbody id="leaderboard-body">
+					{% if category == 'Doubles' %}
+						{% if leaderboard %}
+							{% for t in leaderboard %}
+								<tr>
+									<td>{{ t.position }}</td>
+									<td>{{ t.name }}</td>
+									<td>{{ t.total_points }}</td>
+								</tr>
+							{% endfor %}
+						{% else %}
+							<tr><td colspan="3" style="opacity:.75;">No doubles teams yet.</td></tr>
+						{% endif %}
+					{% else %}
+						{% for row in leaderboard %}
+							<tr>
+								<td>{{ row.position }}</td>
+								<td>
+									{% if current_competitor_id and row.competitor_id == current_competitor_id %}
+										<span>{{ row.name }}</span>
+									{% else %}
+										<a href="/competitor/{{ row.competitor_id }}/stats/climber">{{ row.name }}</a>
+									{% endif %}
+								</td>
+								<td>{{ row.tops }}</td>
+								<td>{{ row.attempts_on_tops }}</td>
+								<td>{{ row.total_points }}</td>
+							</tr>
+						{% endfor %}
 					{% endif %}
 				</tbody>
 			</table>
@@ -410,13 +321,40 @@
 
 	<script>
 		const leaderboardBody = document.getElementById("leaderboard-body");
-		const doublesBody = document.getElementById("doubles-body");
+		const leaderboardHead = document.getElementById("leaderboard-head");
+		const leaderboardTable = document.getElementById("leaderboard-table");
 		const viewerId = {{ current_competitor_id if current_competitor_id is not none else 'null' }};
 
 		function getCategoryFromPath() {
 			const parts = window.location.pathname.split("/").filter(Boolean);
 			if (parts.length >= 2 && parts[0] === "leaderboard") return parts[1];
 			return null;
+		}
+
+		function setSinglesHeader() {
+			leaderboardHead.innerHTML = `
+				<tr>
+					<th>Pos</th>
+					<th>Competitor</th>
+					<th>Tops</th>
+					<th>Attempts</th>
+					<th>Points</th>
+				</tr>
+			`;
+			leaderboardTable.classList.remove("doubles");
+			leaderboardTable.classList.add("singles");
+		}
+
+		function setDoublesHeader() {
+			leaderboardHead.innerHTML = `
+				<tr>
+					<th>Pos</th>
+					<th>Team</th>
+					<th>Points</th>
+				</tr>
+			`;
+			leaderboardTable.classList.remove("singles");
+			leaderboardTable.classList.add("doubles");
 		}
 
 		function renderSingles(rows) {
@@ -471,8 +409,8 @@
 				tr.appendChild(td);
 				frag.appendChild(tr);
 
-				doublesBody.innerHTML = "";
-				doublesBody.appendChild(frag);
+				leaderboardBody.innerHTML = "";
+				leaderboardBody.appendChild(frag);
 				return;
 			}
 
@@ -484,7 +422,8 @@
 				tr.appendChild(tdPos);
 
 				const tdTeam = document.createElement("td");
-				tdTeam.textContent = `${t.a_name} + ${t.b_name}`;
+				// API returns either {name} or {a_name,b_name}
+				tdTeam.textContent = t.name || `${t.a_name} + ${t.b_name}`;
 				tr.appendChild(tdTeam);
 
 				const tdPts = document.createElement("td");
@@ -494,12 +433,12 @@
 				frag.appendChild(tr);
 			});
 
-			doublesBody.innerHTML = "";
-			doublesBody.appendChild(frag);
+			leaderboardBody.innerHTML = "";
+			leaderboardBody.appendChild(frag);
 		}
 
 		async function refreshLeaderboard() {
-			if (!leaderboardBody) return;
+			if (!leaderboardBody || !leaderboardHead || !leaderboardTable) return;
 
 			const categoryFromPath = getCategoryFromPath();
 			let url = "/api/leaderboard";
@@ -511,14 +450,16 @@
 
 				const data = await res.json();
 
-				const rows = data.rows || [];
-				renderSingles(rows);
-
-				const doublesRows = data.doubles_rows || [];
-				if (doublesBody) renderDoubles(doublesRows);
-
 				const catLabel = document.getElementById("category-label");
 				if (catLabel && data.category) catLabel.textContent = data.category;
+
+				if ((data.category || "").toLowerCase() === "doubles") {
+					setDoublesHeader();
+					renderDoubles(data.rows || []);
+				} else {
+					setSinglesHeader();
+					renderSingles(data.rows || []);
+				}
 			} catch (e) {}
 		}
 
