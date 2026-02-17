@@ -971,6 +971,61 @@ def build_leaderboard(category=None, competition_id=None, slug=None):
 
     return rows, category_label
 
+def build_doubles_rows(singles_rows, competition_id: int):
+    """
+    Build doubles leaderboard rows from:
+    - singles_rows: output from build_leaderboard(...) (already category-filtered)
+    - competition_id: current competition scope
+
+    Filtering rule:
+    - If the leaderboard is category-filtered (Male/Female/Inclusive), singles_rows will only include those competitors.
+      We only include doubles teams where BOTH partners are in singles_rows.
+    """
+
+    # competitor_id -> total_points + name lookup (from the already-scoped singles leaderboard)
+    totals_by_id = {r["competitor_id"]: r["total_points"] for r in singles_rows}
+    name_by_id = {r["competitor_id"]: r["name"] for r in singles_rows}
+
+    teams = DoublesTeam.query.filter_by(competition_id=competition_id).all()
+
+    doubles_rows = []
+    for t in teams:
+        a_id = t.competitor_a_id
+        b_id = t.competitor_b_id
+
+        # Only include teams where BOTH partners are in the current singles_rows scope
+        # (so category leaderboards behave sensibly)
+        if a_id not in totals_by_id or b_id not in totals_by_id:
+            continue
+
+        a_pts = totals_by_id.get(a_id, 0)
+        b_pts = totals_by_id.get(b_id, 0)
+
+        doubles_rows.append({
+            "team_id": t.id,
+            "a_id": a_id,
+            "b_id": b_id,
+            "a_name": name_by_id.get(a_id, f"#{a_id}"),
+            "b_name": name_by_id.get(b_id, f"#{b_id}"),
+            "total_points": a_pts + b_pts,
+        })
+
+    # sort by total desc
+    doubles_rows.sort(key=lambda r: (-r["total_points"], r["a_name"], r["b_name"]))
+
+    # assign positions with ties sharing the same place
+    pos = 0
+    prev = None
+    for r in doubles_rows:
+        k = (r["total_points"],)
+        if k != prev:
+            pos += 1
+        prev = k
+        r["position"] = pos
+
+    return doubles_rows
+
+
 
 def init_db():
     """
@@ -3749,11 +3804,14 @@ def leaderboard_all():
         return redirect("/my-comps")
 
     rows, category_label = build_leaderboard(None, competition_id=comp.id)
+    doubles_rows = build_doubles_rows(rows, comp.id)
+
     current_competitor_id = session.get("competitor_id")
 
     return render_template(
         "leaderboard.html",
         leaderboard=rows,
+        doubles_leaderboard=doubles_rows,
         category=category_label,
         competitor=competitor,
         current_competitor_id=current_competitor_id,
@@ -3761,6 +3819,7 @@ def leaderboard_all():
         comp=comp,
         comp_slug=comp.slug,
     )
+
 
 
 @app.route("/leaderboard/<category>")
@@ -3787,11 +3846,14 @@ def leaderboard_by_category(category):
         return redirect("/my-comps")
 
     rows, category_label = build_leaderboard(category, competition_id=comp.id)
+    doubles_rows = build_doubles_rows(rows, comp.id)
+
     current_competitor_id = session.get("competitor_id")
 
     return render_template(
         "leaderboard.html",
         leaderboard=rows,
+        doubles_leaderboard=doubles_rows,
         category=category_label,
         competitor=competitor,
         current_competitor_id=current_competitor_id,
@@ -3799,6 +3861,7 @@ def leaderboard_by_category(category):
         comp=comp,
         comp_slug=comp.slug,
     )
+
 
 
 @app.route("/api/leaderboard")
@@ -3821,13 +3884,19 @@ def api_leaderboard():
         return jsonify({"category": "Competition not live", "rows": []})
 
     rows, category_label = build_leaderboard(category, competition_id=comp.id)
+    doubles_rows = build_doubles_rows(rows, comp.id)
 
     # JSON-safe datetime conversion
     for r in rows:
         if r.get("last_update") is not None:
             r["last_update"] = r["last_update"].isoformat()
 
-    return jsonify({"category": category_label, "rows": rows})
+    return jsonify({
+        "category": category_label,
+        "rows": rows,
+        "doubles_rows": doubles_rows
+    })
+
 
 
 # --- Admin (simple password-protected utility) ---
