@@ -1970,26 +1970,6 @@ def competitor_sections(competitor_id):
         # Legacy
         gym_map_url=gym_map_url,
     )
-
-@app.route("/comp/<slug>/doubles", methods=["GET"])
-def doubles_home(slug):
-    viewer_id = session.get("competitor_id")
-    if not viewer_id:
-        return redirect(url_for("login", next=request.path))
-
-    comp = Competition.query.filter_by(slug=slug).first_or_404()
-
-    competitor = Competitor.query.filter_by(id=viewer_id, competition_id=comp.id).first()
-    if not competitor:
-        abort(403)
-
-    return render_template(
-        "doubles.html",
-        comp=comp,
-        competitor=competitor,
-        comp_slug=slug,
-        nav_active="doubles",
-    )
     
 def _utcnow():
     return datetime.now(timezone.utc)
