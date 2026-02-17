@@ -2156,6 +2156,99 @@ def doubles_accept(slug):
     flash("Doubles team created! You’re locked in and will appear on the doubles leaderboard.", "success")
     return redirect(f"/comp/{slug}/doubles")
 
+@app.route("/comp/<slug>/doubles/cancel", methods=["POST"])
+def doubles_cancel(slug):
+    viewer_id = session.get("competitor_id")
+    if not viewer_id:
+        return redirect(url_for("login", next=request.path))
+
+    comp = Competition.query.filter_by(slug=slug).first_or_404()
+
+    # Only the inviter can cancel their pending invite
+    inv = DoublesInvite.query.filter_by(
+        competition_id=comp.id,
+        inviter_competitor_id=viewer_id,
+        status="pending"
+    ).order_by(DoublesInvite.created_at.desc()).first()
+
+    if not inv:
+        flash("No pending invite to cancel.", "error")
+        return redirect(f"/comp/{slug}/doubles")
+
+    inv.status = "cancelled"
+    db.session.commit()
+
+    flash("Invite cancelled.", "success")
+    return redirect(f"/comp/{slug}/doubles")
+
+@app.route("/comp/<slug>/doubles/resend", methods=["POST"])
+def doubles_resend(slug):
+    viewer_id = session.get("competitor_id")
+    if not viewer_id:
+        return redirect(url_for("login", next=request.path))
+
+    comp = Competition.query.filter_by(slug=slug).first_or_404()
+
+    me = Competitor.query.filter_by(id=viewer_id, competition_id=comp.id).first()
+    if not me:
+        abort(403)
+
+    inv = DoublesInvite.query.filter_by(
+        competition_id=comp.id,
+        inviter_competitor_id=viewer_id,
+        status="pending"
+    ).order_by(DoublesInvite.created_at.desc()).first()
+
+    if not inv:
+        flash("No pending invite to resend.", "error")
+        return redirect(f"/comp/{slug}/doubles")
+
+    # Rotate token
+    token = _make_token()
+    inv.token_hash = _hash_token(token)
+    inv.expires_at = _utcnow() + timedelta(hours=48)
+    db.session.commit()
+
+    accept_url = url_for("doubles_accept", slug=slug, _external=True) + f"?token={token}"
+
+    # Send via Resend (same pattern as doubles_invite)
+    if not RESEND_API_KEY:
+        print(f"[DOUBLES INVITE RESEND - DEV ONLY] {inv.invitee_email} -> {accept_url}", file=sys.stderr)
+    else:
+        html = f"""
+          <div style="font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; padding: 16px;">
+            <p>Hey climber 👋</p>
+            <p><strong>{me.name}</strong> is reminding you about a doubles invite for:</p>
+            <p style="font-weight: 600; margin: 8px 0;">{comp.name}</p>
+
+            <p>Click below to accept:</p>
+
+            <p style="margin: 16px 0;">
+              <a href="{accept_url}"
+                 style="display:inline-block; padding:10px 18px; border-radius:999px; background:#111; color:#fff; text-decoration:none;">
+                 Accept Doubles Invite
+              </a>
+            </p>
+
+            <p>This link expires in 48 hours.</p>
+          </div>
+        """
+        try:
+            params = {
+                "from": RESEND_FROM_EMAIL,
+                "to": [inv.invitee_email],
+                "subject": f"Reminder: Doubles invite for {comp.name}",
+                "html": html,
+            }
+            resend.Emails.send(params)
+            print(f"[DOUBLES INVITE] Resent doubles invite to {inv.invitee_email}", file=sys.stderr)
+        except Exception as e:
+            print(f"[DOUBLES INVITE] Failed to resend via Resend: {e}", file=sys.stderr)
+
+    flash("Invite resent.", "success")
+    return redirect(f"/comp/{slug}/doubles")
+
+
 @app.route("/comp/<slug>/doubles", methods=["GET"])
 def doubles_home(slug):
     viewer_id = session.get("competitor_id")
