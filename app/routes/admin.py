@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, session, jsonify, abort, slugify, redirect, flash
+from flask import Blueprint, render_template, request, session, jsonify, abort, redirect, flash
 from datetime import datetime
 import sys
 import os
@@ -7,7 +7,7 @@ from app.extensions import db
 from app.models import Competition, Competitor, Score, Section, SectionClimb, Gym
 from app.helpers.competition import get_current_comp
 from app.helpers.leaderboard_cache import invalidate_leaderboard_cache
-from app.helpers.leaderboard import admin_can_manage_competition, admin_is_super, _parse_boundary_points, _boundary_to_json, get_session_admin_gym_ids
+from app.helpers.leaderboard import admin_can_manage_competition, admin_is_super, _parse_boundary_points, _boundary_to_json, get_session_admin_gym_ids, slugify
 
 admin_bp = Blueprint("admin", __name__)
 
