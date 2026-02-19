@@ -5,6 +5,7 @@ from sqlalchemy import UniqueConstraint
 from datetime import datetime, timedelta, timezone
 from urllib.parse import quote
 from typing import Optional
+from dotenv import load_dotenv
 import json
 import os
 import sys
@@ -13,6 +14,8 @@ import time
 import hashlib
 import secrets  # for 6-digit codes
 import resend
+
+load_dotenv()
 
 app = Flask(__name__)
 

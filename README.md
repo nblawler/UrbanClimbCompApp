@@ -30,7 +30,7 @@ SETUP
 For Local Development
 
 1. Run App
-   python app.py --port 5001
+   python project.py --port 5001
 
    python -m app.run --port 5001
 
