@@ -8,3 +8,5 @@ psycopg2-binary==2.9.9
 Gunicorn==21.2.0
 # For email login password sending
 resend==2.19.0
+# For dotenv local development
+python-dotenv==1.2.1
