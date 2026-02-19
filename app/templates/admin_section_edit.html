@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+		<title>Edit section · Urban Climb Comp</title>
+		<link rel="stylesheet" href="/static/app.css" />
+	</head>
+	<body>
+		<nav class="container top-nav">
+			<a class="back" href="/admin/comps">Admin Home</a>
+			<div class="nav-links">
+				{% if viewer_id or is_admin %}
+					<a class="back" href="/logout">Log out</a>
+				{% else %}
+					{# If comp_slug isn't passed, fall back to current_comp.slug #}
+					{% set _slug = comp_slug if comp_slug is defined and comp_slug else (current_comp.slug if current_comp is defined and current_comp and current_comp.slug else None) %}
+					<a class="back {% if nav_active == 'login' %}active{% endif %}"
+					   href="/login{% if _slug %}?slug={{ _slug }}{% endif %}">
+						Log in
+					</a>
+				{% endif %}
+			</div>
+		</nav>
+
+		<main class="container">
+			<header class="header">
+				<h1>Edit section</h1>
+			</header>
+
+			{% if error %}
+				<div class="error">{{ error }}</div>
+			{% endif %}
+
+			{% if message %}
+				<div class="status ok">{{ message }}</div>
+			{% endif %}
+
+			<section class="card">
+				<p class="muted" style="margin-top:0;">
+					Editing section <strong>{{ section.name }}</strong>
+					{% if section.start_climb and section.end_climb %}
+						· climbs {{ section.start_climb }}–{{ section.end_climb }}
+					{% endif %}
+					{% if current_comp is defined and current_comp and current_comp.name %}
+						· comp: <strong>{{ current_comp.name }}</strong>
+					{% endif %}
+				</p>
+
+				<form method="post">
+					{# Critical: preserve admin-selected competition across POSTs #}
+					<input type="hidden" name="comp_id" value="{{ current_comp_id if current_comp_id is defined else '' }}">
+
+					<label for="name" style="margin-top:10px;">Section name</label>
+					<input
+						type="text"
+						id="name"
+						name="name"
+						value="{{ section.name }}"
+						required
+					/>
+
+					<button
+						type="submit"
+						name="action"
+						value="save_section"
+						class="primary"
+						style="margin-top:12px;"
+						formnovalidate
+					>
+						Save section name
+					</button>
+
+					<hr style="margin:16px 0; border-color:#262a30;" />
+
+					<h3>Add climb to this section</h3>
+					<p class="muted">
+						Enter a climb number, optional colour / grade, and the scoring configuration.
+						<br />
+						Each climb number can only exist once across all sections.
+					</p>
+
+					<label for="climb_number">Climb number</label>
+					<input
+						type="number"
+						id="climb_number"
+						name="climb_number"
+						min="1"
+						placeholder="e.g. 3"
+						required
+					/>
+
+					<label for="colour" style="margin-top:10px;">Colour / grade</label>
+					<input
+						type="text"
+						id="colour"
+						name="colour"
+						placeholder="e.g. Purple, Green, Yellow"
+					/>
+
+					<div style="display:flex; flex-wrap:wrap; gap:12px; margin-top:12px;">
+						<div style="flex:1; min-width:140px;">
+							<label for="base_points">Base points</label>
+							<input
+								type="number"
+								id="base_points"
+								name="base_points"
+								min="0"
+								required
+								placeholder="e.g. 1000"
+							/>
+						</div>
+
+						<div style="flex:1; min-width:140px;">
+							<label for="penalty_per_attempt">Penalty / attempt</label>
+							<input
+								type="number"
+								id="penalty_per_attempt"
+								name="penalty_per_attempt"
+								min="0"
+								required
+								placeholder="e.g. 10"
+							/>
+						</div>
+
+						<div style="flex:1; min-width:140px;">
+							<label for="attempt_cap">Attempt cap</label>
+							<input
+								type="number"
+								id="attempt_cap"
+								name="attempt_cap"
+								min="1"
+								required
+								placeholder="e.g. 5"
+							/>
+						</div>
+					</div>
+
+					<button
+						type="submit"
+						name="action"
+						value="add_climb"
+						class="primary"
+						style="margin-top:12px;"
+					>
+						Add climb
+					</button>
+
+					<hr style="margin:16px 0; border-color:#262a30;" />
+
+					<h3>Climbs in this section</h3>
+
+					{% if climbs %}
+						<div style="width:100%; overflow-x:auto;">
+							<table class="leaderboard" style="min-width:520px;">
+								<thead>
+									<tr>
+										<th>Climb #</th>
+										<th>Colour</th>
+										<th>Base</th>
+										<th>Penalty / att.</th>
+										<th>Attempt cap</th>
+										<th></th>
+									</tr>
+								</thead>
+								<tbody>
+									{% for c in climbs %}
+										<tr>
+											<td>{{ c.climb_number }}</td>
+											<td>{{ c.colour or "-" }}</td>
+											<td>{{ c.base_points if c.base_points is not none else "-" }}</td>
+											<td>{{ c.penalty_per_attempt if c.penalty_per_attempt is not none else "-" }}</td>
+											<td>{{ c.attempt_cap if c.attempt_cap is not none else "-" }}</td>
+											<td>
+												<button
+													type="submit"
+													name="action"
+													value="delete_climb"
+													class="primary"
+													style="background:#8b1e1e; padding:6px 10px; font-size:12px;"
+													onclick="this.form.climb_id.value='{{ c.id }}';"
+													formnovalidate
+												>
+													Remove
+												</button>
+											</td>
+										</tr>
+									{% endfor %}
+								</tbody>
+							</table>
+						</div>
+						<input type="hidden" name="climb_id" value="">
+					{% else %}
+						<p class="muted">No climbs have been added yet.</p>
+					{% endif %}
+
+					<hr style="margin:16px 0; border-color:#262a30;" />
+
+					<h3>Danger zone</h3>
+					<p class="muted">
+						Delete this section and all its climbs. Scores are not deleted.
+					</p>
+
+					<button
+						type="submit"
+						name="action"
+						value="delete_section"
+						class="primary"
+						style="background:#8b1e1e;"
+						formnovalidate
+					>
+						Delete section
+					</button>
+				</form>
+			</section>
+		</main>
+	</body>
+</html>

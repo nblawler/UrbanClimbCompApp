@@ -1,0 +1,375 @@
+<!doctype html>
+<html lang="en">
+<head>
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<title>
+		{% if competitor %}
+			Home · Upcoming Competitions · {{ competitor.name }}
+		{% else %}
+			Home · Upcoming Competitions · Urban Climb Comp
+		{% endif %}
+	</title>
+
+	<style>
+		* { margin: 0; padding: 0; box-sizing: border-box; }
+
+		body {
+			font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+			background: linear-gradient(135deg, #0a1628 0%, #1a2942 100%);
+			min-height: 100vh;
+			display: flex;
+			flex-direction: column;
+			color: #fff;
+		}
+
+		/* Top nav */
+		.nav {
+			padding: 1.25rem 2rem;
+			display: flex;
+			gap: 1.5rem;
+			align-items: center;
+			flex-wrap: wrap;
+		}
+
+		.nav a {
+			color: rgba(255, 255, 255, 0.7);
+			text-decoration: none;
+			font-size: 0.95rem;
+			transition: color 0.2s;
+		}
+
+		.nav a.active {
+			color: #5df4a2;
+			font-weight: 700;
+		}
+
+		.nav a:hover { color: #fff; }
+
+		/* Main container */
+		.container {
+			flex: 1;
+			display: flex;
+			flex-direction: column;
+			align-items: center;
+			padding: 2rem;
+			max-width: 1200px;
+			margin: 0 auto;
+			width: 100%;
+		}
+
+		/* Hero / header */
+		.hero {
+			text-align: center;
+			margin: 2.5rem 0 2.75rem;
+			max-width: 760px;
+		}
+
+		.hero h1 {
+			font-size: 3.25rem;
+			font-weight: 900;
+			margin-bottom: 0.85rem;
+			background: linear-gradient(135deg, #fff 0%, #5df4a2 100%);
+			-webkit-background-clip: text;
+			-webkit-text-fill-color: transparent;
+			background-clip: text;
+			letter-spacing: -0.02em;
+		}
+
+		.hero p {
+			font-size: 1.15rem;
+			color: rgba(255, 255, 255, 0.75);
+			line-height: 1.6;
+			margin: 0.35rem 0;
+		}
+
+		.hero .hint {
+			font-size: 0.95rem;
+			color: rgba(255, 255, 255, 0.65);
+			margin-top: 0.75rem;
+		}
+
+		/* Grid of comp cards */
+		.pill-grid {
+			width: 100%;
+			display: grid;
+			grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+			gap: 1.5rem;
+			max-width: 980px;
+		}
+
+		/* Glass card */
+		.comp-card {
+			background: rgba(255, 255, 255, 0.05);
+			backdrop-filter: blur(10px);
+			border: 1px solid rgba(255, 255, 255, 0.1);
+			border-radius: 1.5rem;
+			padding: 2rem;
+			transition: all 0.3s ease;
+			color: inherit;
+			text-decoration: none;
+			display: block;
+		}
+
+		/* Only apply hover lift to clickable cards */
+		.comp-card.clickable:hover {
+			transform: translateY(-4px);
+			border-color: rgba(93, 244, 162, 0.3);
+			box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+		}
+
+		.comp-title {
+			font-size: 1.6rem;
+			font-weight: 850;
+			margin-bottom: 0.35rem;
+		}
+
+		.comp-subtitle {
+			color: rgba(255, 255, 255, 0.7);
+			font-size: 0.95rem;
+			margin-bottom: 1.1rem;
+		}
+
+		.meta {
+			background: rgba(0,0,0,0.18);
+			border: 1px solid rgba(255,255,255,0.08);
+			border-radius: 1rem;
+			padding: 1rem 1rem;
+			margin: 1rem 0 1.2rem;
+		}
+
+		.meta-line {
+			display: grid;
+			grid-template-columns: auto 1fr;
+			gap: 0.6rem;
+			align-items: baseline;
+			color: rgba(255, 255, 255, 0.75);
+			font-size: 0.95rem;
+			margin: 0.25rem 0;
+		}
+
+		.meta-label { font-weight: 700; color: rgba(255,255,255,0.65); }
+		.meta-value { color: rgba(255,255,255,0.9); }
+
+		.status-badge {
+			display: inline-block;
+			padding: 0.4rem 0.75rem;
+			border-radius: 999px;
+			font-size: 0.75rem;
+			font-weight: 800;
+			letter-spacing: 0.04em;
+			text-transform: uppercase;
+			border: 1px solid;
+		}
+
+		.status-badge--live {
+			background: rgba(93, 244, 162, 0.15);
+			color: #5df4a2;
+			border-color: #5df4a2;
+		}
+
+		.status-badge--scheduled {
+			background: rgba(255, 255, 255, 0.06);
+			color: rgba(255, 255, 255, 0.7);
+			border-color: rgba(255, 255, 255, 0.12);
+		}
+
+		.desc {
+			color: rgba(255,255,255,0.7);
+			line-height: 1.6;
+			margin: 0.9rem 0 1.25rem;
+			font-size: 0.95rem;
+		}
+
+		/* CTA button */
+		.btn {
+			display: inline-block;
+			width: 100%;
+			padding: 1rem 1.25rem;
+			background: #5df4a2;
+			color: #0a1628;
+			text-decoration: none;
+			border-radius: 0.85rem;
+			font-weight: 900;
+			font-size: 1rem;
+			text-align: center;
+			transition: all 0.2s;
+			border: none;
+			cursor: pointer;
+		}
+
+		.btn:hover { background: #4de392; transform: scale(1.02); }
+
+		.btn.disabled {
+			background: rgba(255,255,255,0.08);
+			color: rgba(255,255,255,0.7);
+			cursor: default;
+			transform: none;
+		}
+
+		/* Empty state */
+		.empty {
+			width: 100%;
+			max-width: 700px;
+		}
+
+		@media (max-width: 768px) {
+			.nav { padding: 1rem; }
+			.container { padding: 1.25rem; }
+			.hero h1 { font-size: 2.4rem; }
+			.hero p { font-size: 1.05rem; }
+		}
+	</style>
+</head>
+
+<body>
+	{# Bulletproof session-derived state #}
+	{% set is_logged_in = session.get('account_id') %}
+	{% set viewer_id = session.get('competitor_id') %}
+	{% set is_admin = session.get('admin_ok', False) %}
+	{% set comp_slug = session.get('active_comp_slug') %}
+	{% set show_comp_nav = (is_logged_in and viewer_id and comp_slug) %}
+
+	<nav class="nav">
+		<a class="{% if nav_active == 'my_comps' %}active{% endif %}"
+		   href="{% if is_logged_in or is_admin %}/my-comps{% else %}/{% endif %}">Home</a>
+
+		{% if is_admin %}
+			<a class="{% if nav_active == 'admin' %}active{% endif %}" href="/admin/comps">Admin</a>
+		{% endif %}
+
+		{# Only show scoring + leaderboard when user is ACTUALLY in a comp context #}
+		{% if show_comp_nav %}
+			<a class="{% if nav_active == 'sections' %}active{% endif %}"
+			   href="/comp/{{ comp_slug }}/competitor/{{ viewer_id }}/sections">Scoring</a>
+
+			<a class="{% if nav_active == 'leaderboard' %}active{% endif %}"
+			   href="/leaderboard?cid={{ viewer_id }}">Leaderboard</a>
+		{% endif %}
+
+		{% if is_logged_in or is_admin %}
+			<a href="/logout">Log out</a>
+		{% else %}
+			<a class="{% if nav_active == 'login' %}active{% endif %}"
+			   href="/login{% if comp_slug %}?slug={{ comp_slug }}{% endif %}">
+				Log in
+			</a>
+		{% endif %}
+	</nav>
+
+	<main class="container">
+		<header class="hero">
+			<h1>Upcoming Competitions</h1>
+
+			<p>
+				{% if competitor %}
+					Welcome back, {{ competitor.name }}. This is your home base for upcoming climbing comps.
+				{% else %}
+					Welcome to Comp Circuit. Sign up or log in to see upcoming competitions and track your scoring.
+				{% endif %}
+			</p>
+
+			<p class="hint">
+				When a comp is live, head to the gym and scan the QR code to register.
+				If you're already registered, you'll see a link to your scoring.
+			</p>
+		</header>
+
+		{% if not cards or cards|length == 0 %}
+			<section class="empty">
+				<div class="comp-card">
+					<h2 class="comp-title">No competitions yet</h2>
+					<p class="desc">
+						There are currently no upcoming competitions in the system.
+						Check back here when your gym announces their next event.
+					</p>
+					<a class="btn disabled" href="#" onclick="return false;">Nothing live right now</a>
+				</div>
+			</section>
+		{% else %}
+			<section class="pill-grid">
+				{% for card in cards %}
+					{% set c = card.comp %}
+					{% set gym_label = (c.gym.name if c.gym else c.gym_name) %}
+					{% set badge_class = "status-badge--live" if card.status == "live" else "status-badge--scheduled" %}
+
+					{# ✅ QR-only rule:
+					   Only clickable if they already have my_scoring_url.
+					   Never link to join from this page. #}
+					{% set target_href = card.my_scoring_url %}
+					{% set is_clickable = target_href is not none and target_href != "" %}
+
+					{% if is_clickable %}
+						<a href="{{ target_href }}" class="comp-card clickable" aria-label="{{ c.name }}">
+					{% else %}
+						<article class="comp-card" aria-label="{{ c.name }}">
+					{% endif %}
+
+							<h2 class="comp-title">{{ c.name }}</h2>
+							{% if gym_label %}
+								<div class="comp-subtitle">{{ gym_label }}</div>
+							{% endif %}
+
+							<div class="meta">
+								{% if c.start_at or c.end_at %}
+									<div class="meta-line">
+										<div class="meta-label">Starts:</div>
+										<div class="meta-value">{{ c.start_at.strftime('%d %b %Y, %I:%M %p') if c.start_at else "TBC" }}</div>
+									</div>
+									<div class="meta-line">
+										<div class="meta-label">Ends:</div>
+										<div class="meta-value">{{ c.end_at.strftime('%d %b %Y, %I:%M %p') if c.end_at else "TBC" }}</div>
+									</div>
+								{% else %}
+									<div class="meta-line">
+										<div class="meta-label">Dates:</div>
+										<div class="meta-value">TBC</div>
+									</div>
+								{% endif %}
+
+								<div style="margin-top: 0.75rem;">
+									<span class="status-badge {{ badge_class }}">
+										{% if card.my_scoring_url %}
+											Keep scoring
+										{% elif card.status == 'live' %}
+											Live Now
+										{% else %}
+											Upcoming
+										{% endif %}
+									</span>
+								</div>
+							</div>
+
+							<p class="desc">
+								{% if card.my_scoring_url %}
+									You're registered — tap to continue scoring.
+								{% elif card.status == 'live' %}
+									This comp is live — registration is via QR code at the gym.
+								{% else %}
+									Opens {{ c.start_at.strftime('%d %b %Y, %I:%M %p') if c.start_at else "TBC" }}.
+								{% endif %}
+							</p>
+
+							{% if is_clickable %}
+								<span class="btn">
+									Keep scoring
+								</span>
+							{% else %}
+								{% if card.status == 'live' %}
+									<span class="btn disabled">Scan QR to register</span>
+								{% else %}
+									<span class="btn disabled">Registration opens when live</span>
+								{% endif %}
+							{% endif %}
+
+					{% if is_clickable %}
+						</a>
+					{% else %}
+						</article>
+					{% endif %}
+				{% endfor %}
+			</section>
+		{% endif %}
+	</main>
+</body>
+</html>

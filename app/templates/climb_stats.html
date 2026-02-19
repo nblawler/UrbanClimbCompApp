@@ -1,0 +1,666 @@
+<!doctype html>
+<html lang="en">
+<head>
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<title>
+		{% if competitor %}
+			{% if mode == "personal" %}
+				{{ competitor.name }} · Your Performance · Climb {{ climb_number }}
+			{% else %}
+				{{ competitor.name }} · Global Stats · Climb {{ climb_number }}
+			{% endif %}
+		{% else %}
+			Climb {{ climb_number }} · Stats
+		{% endif %}
+	</title>
+	<link rel="stylesheet" href="/static/app.css" />
+	<style>
+		* { margin: 0; padding: 0; box-sizing: border-box; }
+
+		body {
+			font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+			background: linear-gradient(135deg, #0a1628 0%, #1a2942 100%);
+			min-height: 100vh;
+			display: flex;
+			flex-direction: column;
+			color: #fff;
+		}
+
+		/* Top nav */
+		.nav {
+			padding: 1.25rem 2rem;
+			display: flex;
+			gap: 1.5rem;
+			align-items: center;
+			flex-wrap: wrap;
+		}
+
+		.nav a {
+			color: rgba(255, 255, 255, 0.7);
+			text-decoration: none;
+			font-size: 0.95rem;
+			transition: color 0.2s;
+			font-weight: 600;
+		}
+
+		.nav a.active {
+			color: #5df4a2;
+			font-weight: 800;
+		}
+
+		.nav a:hover { color: #fff; }
+
+		.nav a.disabled {
+			pointer-events: none;
+			cursor: default;
+			opacity: 0.6;
+		}
+
+		/* Container */
+		.container {
+			flex: 1;
+			max-width: 1000px;
+			margin: 0 auto;
+			padding: 2rem;
+			width: 100%;
+		}
+
+		/* Back button */
+		.back-btn {
+			display: inline-block;
+			padding: 0.65rem 1.25rem;
+			background: rgba(255, 255, 255, 0.08);
+			border: 1px solid rgba(255, 255, 255, 0.15);
+			border-radius: 999px;
+			color: #fff;
+			text-decoration: none;
+			font-size: 0.9rem;
+			font-weight: 700;
+			margin-bottom: 1.5rem;
+			transition: all 0.2s;
+		}
+
+		.back-btn:hover {
+			background: rgba(255, 255, 255, 0.12);
+			transform: translateY(-1px);
+		}
+
+		/* Competitor header */
+		.comp-header {
+			background: rgba(255, 255, 255, 0.05);
+			backdrop-filter: blur(10px);
+			border: 1px solid rgba(255, 255, 255, 0.1);
+			border-radius: 1.5rem;
+			padding: 2rem;
+			margin-bottom: 2rem;
+		}
+
+		.comp-name {
+			font-size: 2rem;
+			font-weight: 900;
+			margin-bottom: 1.25rem;
+			background: linear-gradient(135deg, #fff 0%, #5df4a2 100%);
+			-webkit-background-clip: text;
+			-webkit-text-fill-color: transparent;
+			background-clip: text;
+			letter-spacing: -0.02em;
+		}
+
+		.comp-meta-row {
+			display: flex;
+			gap: 1rem;
+			flex-wrap: wrap;
+		}
+
+		.comp-pill {
+			background: rgba(0, 0, 0, 0.2);
+			border: 1px solid rgba(255, 255, 255, 0.15);
+			border-radius: 0.85rem;
+			padding: 0.75rem 1.25rem;
+			display: flex;
+			flex-direction: column;
+			gap: 0.25rem;
+			min-width: 110px;
+		}
+
+		.comp-pill-label {
+			font-size: 0.75rem;
+			color: rgba(255, 255, 255, 0.6);
+			text-transform: uppercase;
+			letter-spacing: 0.05em;
+			font-weight: 800;
+		}
+
+		.comp-pill-value {
+			font-size: 1.5rem;
+			font-weight: 900;
+			color: #fff;
+		}
+
+		/* Page title */
+		.stats-title {
+			font-size: 1.75rem;
+			font-weight: 900;
+			color: #fff;
+			margin-bottom: 1.5rem;
+		}
+
+		/* Stats card */
+		.stats-card {
+			background: rgba(255, 255, 255, 0.05);
+			backdrop-filter: blur(10px);
+			border: 1px solid rgba(255, 255, 255, 0.1);
+			border-radius: 1.5rem;
+			padding: 2rem;
+			margin-bottom: 1.5rem;
+		}
+
+		.stats-card h2 {
+			font-size: 1.5rem;
+			font-weight: 900;
+			color: #fff;
+			margin-bottom: 1rem;
+		}
+
+		/* Difficulty pill */
+		.difficulty-badge {
+			display: inline-flex;
+			align-items: center;
+			gap: 0.75rem;
+			padding: 0.75rem 1.25rem;
+			background: rgba(0, 0, 0, 0.2);
+			border: 1px solid rgba(255, 255, 255, 0.15);
+			border-radius: 1rem;
+			margin-bottom: 1.5rem;
+			flex-wrap: wrap;
+		}
+
+		.difficulty-badge span:first-child {
+			font-weight: 800;
+			color: #fff;
+		}
+
+		.difficulty-label {
+			padding: 0.4rem 1rem;
+			border-radius: 999px;
+			font-size: 0.85rem;
+			font-weight: 900;
+		}
+
+		/* Status badges in text */
+		.status-inline {
+			display: inline-block;
+			margin-left: 0.5rem;
+			padding: 0.25rem 0.75rem;
+			border-radius: 999px;
+			font-size: 0.8rem;
+			font-weight: 900;
+		}
+
+		/* Table */
+		.stats-table {
+			width: 100%;
+			border-collapse: collapse;
+			font-size: 0.95rem;
+		}
+
+		.stats-table th,
+		.stats-table td {
+			padding: 0.75rem 1rem;
+			text-align: left;
+			border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+		}
+
+		.stats-table th {
+			font-weight: 800;
+			color: rgba(255, 255, 255, 0.7);
+			text-transform: uppercase;
+			font-size: 0.85rem;
+			letter-spacing: 0.05em;
+		}
+
+		.stats-table td { color: #fff; }
+
+		.stats-table tbody tr:hover {
+			background: rgba(255, 255, 255, 0.03);
+		}
+
+		.overview-table td { text-align: right; }
+
+		/* Filter buttons */
+		.filter-controls {
+			display: flex;
+			align-items: center;
+			gap: 0.75rem;
+			margin-bottom: 1rem;
+			flex-wrap: wrap;
+		}
+
+		.filter-btn {
+			padding: 0.65rem 1.25rem;
+			border-radius: 999px;
+			border: 2px solid rgba(255, 255, 255, 0.2);
+			background: rgba(255, 255, 255, 0.05);
+			color: rgba(255, 255, 255, 0.85);
+			font-size: 0.9rem;
+			font-weight: 800;
+			cursor: pointer;
+			transition: all 0.2s;
+		}
+
+		.filter-btn:hover {
+			background: rgba(255, 255, 255, 0.1);
+			border-color: rgba(255, 255, 255, 0.4);
+		}
+
+		.filter-btn.active {
+			background: #5df4a2;
+			color: #0a1628;
+			border-color: #5df4a2;
+			box-shadow: 0 8px 16px rgba(93, 244, 162, 0.3);
+		}
+
+		.primary {
+			padding: 0.65rem 1.25rem;
+			background: #5df4a2;
+			color: #0a1628;
+			border: none;
+			border-radius: 999px;
+			font-weight: 900;
+			font-size: 0.9rem;
+			cursor: pointer;
+			transition: all 0.2s;
+		}
+
+		.primary:hover {
+			background: #4de392;
+			transform: translateY(-1px);
+		}
+
+		/* Table wrapper with scroll */
+		.table-scroll {
+			max-height: 70vh;
+			overflow-y: auto;
+			border-radius: 1rem;
+			border: 1px solid rgba(255, 255, 255, 0.08);
+		}
+
+		/* Responsive */
+		@media (max-width: 768px) {
+			.nav { padding: 1rem; }
+			.container { padding: 1.5rem 1rem; }
+			.comp-header { padding: 1.5rem; }
+			.comp-name { font-size: 1.6rem; }
+			.stats-card { padding: 1.5rem; }
+			.stats-card h2 { font-size: 1.3rem; }
+		}
+	</style>
+</head>
+
+<body>
+	{% set is_logged_in = session.get('account_id') %}
+	{% set viewer_id = session.get('competitor_id') %}
+	{% set is_admin = session.get('admin_ok', False) %}
+	{% set comp_slug = comp_slug if comp_slug is defined else session.get('active_comp_slug') %}
+	{% set show_comp_nav = (is_logged_in and viewer_id and comp_slug) %}
+
+	{% set view_from = request.args.get('view_from', '') %}
+	{% set is_climb_context = view_from in ('climber', 'overall') %}
+
+	<nav class="nav">
+		<a href="{% if is_logged_in or is_admin %}/my-comps{% else %}/{% endif %}"
+		   class="{% if nav_active == 'my_comps' %}active{% endif %}">Home</a>
+
+		{% if is_admin %}
+			<a href="/admin/comps" class="{% if nav_active == 'admin' %}active{% endif %}">Admin</a>
+		{% endif %}
+
+		{% if show_comp_nav %}
+			<a href="/comp/{{ comp_slug }}/competitor/{{ viewer_id }}/sections"
+			   class="{% if nav_active == 'sections' %}active{% endif %}">
+				Scoring
+			</a>
+
+			<a href="/competitor/{{ viewer_id }}/stats/my"
+			   class="{% if nav_active == 'my_stats' and not is_climb_context %}active{% endif %}">
+				My Stats
+			</a>
+
+			{% if is_climb_context %}
+				<a href="#" class="active disabled">Climb Stats</a>
+			{% endif %}
+
+			<a href="/competitor/{{ viewer_id }}/stats/overall"
+			   class="{% if nav_active == 'overall_stats' and not is_climb_context %}active{% endif %}">
+				Overall Stats
+			</a>
+		{% endif %}
+
+		<a href="/leaderboard{% if show_comp_nav %}?cid={{ viewer_id }}{% endif %}"
+		   class="{% if nav_active == 'leaderboard' %}active{% endif %}">
+			Leaderboard
+		</a>
+
+		{% if is_logged_in or is_admin %}
+			<a href="/logout">Log out</a>
+		{% else %}
+			<a href="/login{% if comp_slug %}?slug={{ comp_slug }}{% endif %}"
+			   class="{% if nav_active == 'login' %}active{% endif %}">
+				Log in
+			</a>
+		{% endif %}
+	</nav>
+
+	<main class="container">
+		{% if view_from in ('climber', 'overall') and competitor %}
+			{% if view_from == 'climber' %}
+				<a href="/competitor/{{ competitor.id }}/stats/climber" class="back-btn">← Back to Climber Stats</a>
+			{% elif view_from == 'overall' %}
+				<a href="/competitor/{{ competitor.id }}/stats/overall" class="back-btn">← Back to Overall Stats</a>
+			{% endif %}
+		{% endif %}
+
+		{% if competitor %}
+			<header class="comp-header">
+				<h1 class="comp-name">{{ competitor.name }}</h1>
+
+				<div class="comp-meta-row">
+					<div class="comp-pill">
+						<span class="comp-pill-label">Competitor</span>
+						<span class="comp-pill-value">{{ competitor.id }}</span>
+					</div>
+
+					{% if total_points is not none %}
+						<div class="comp-pill">
+							<span class="comp-pill-label">Points</span>
+							<span class="comp-pill-value">{{ total_points }}</span>
+						</div>
+					{% endif %}
+
+					{% if position is not none %}
+						<div class="comp-pill">
+							<span class="comp-pill-label">Position</span>
+							<span class="comp-pill-value">{{ position }}</span>
+						</div>
+					{% endif %}
+				</div>
+			</header>
+
+			<h2 class="stats-title">
+				{% if mode == "personal" %}
+					Climb #{{ climb_number }}
+				{% else %}
+					Global Stats · Climb #{{ climb_number }}
+				{% endif %}
+			</h2>
+		{% else %}
+			<h1 class="stats-title">Climb #{{ climb_number }} Stats</h1>
+		{% endif %}
+
+		{% if has_config and global_difficulty_key is defined and global_difficulty_label is defined %}
+			<div class="difficulty-badge">
+				<span>Difficulty:</span>
+				<span class="difficulty-label global-{{ global_difficulty_key }}">
+					{{ global_difficulty_label }}
+				</span>
+				{% if num_competitors == 0 %}
+					<span style="font-size: 0.85rem; color: rgba(255,255,255,0.6);">
+						No attempts logged yet
+					</span>
+				{% endif %}
+			</div>
+		{% endif %}
+
+		{% if not has_config %}
+			<section class="stats-card">
+				<p>This climb is not configured in any section.</p>
+			</section>
+		{% else %}
+
+			<section class="stats-card">
+				<h2>
+					{% if mode == "personal" and competitor and viewer_id and viewer_id == competitor.id %}
+						Your Result & Overview
+					{% elif view_from == "overall" %}
+						Overview
+					{% else %}
+						Result & Overview
+					{% endif %}
+				</h2>
+
+				{% if competitor and mode == "personal" %}
+					{% if personal_row %}
+						<p style="margin-bottom: 1rem; font-size: 1rem;">
+							<strong>{{ competitor.name }}:</strong>
+
+							{% if personal_row.topped %}
+								{% if personal_row.attempts == 1 %}
+									<span class="status-inline status-flashed">Flashed</span>
+								{% else %}
+									<span class="status-inline status-topped-late">Topped</span>
+								{% endif %}
+							{% else %}
+								<span class="status-inline status-not-topped">Not topped</span>
+							{% endif %}
+
+							<span style="margin-left: 0.5rem; color: rgba(255,255,255,0.8);">
+								{{ personal_row.attempts }} attempt{% if personal_row.attempts != 1 %}s{% endif %}
+							</span>
+						</p>
+					{% else %}
+						<p style="margin-bottom: 1rem; color: rgba(255,255,255,0.7);">
+							<strong>{{ competitor.name }} has not logged this climb yet.</strong>
+						</p>
+					{% endif %}
+				{% endif %}
+
+				<p style="margin-bottom: 1rem; color: rgba(255,255,255,0.7);">
+					<strong>Section:</strong>
+					{% if sections %}
+						{% for s in sections %}
+							{{ s.name }}{% if not loop.last %}, {% endif %}
+						{% endfor %}
+					{% else %}
+						Unknown
+					{% endif %}
+				</p>
+
+				<table class="stats-table overview-table">
+					<tbody>
+						<tr><th>Competitors who logged this climb</th><td>{{ num_competitors }}</td></tr>
+						<tr><th>Total attempts</th><td>{{ total_attempts }}</td></tr>
+						<tr><th>Tops</th><td>{{ tops }}</td></tr>
+						<tr><th>Flashes</th><td>{{ flashes }}</td></tr>
+						<tr>
+							<th>Top rate</th>
+							<td>
+								{% if num_competitors %}
+									{{ (top_rate * 100) | round(1) }}%
+								{% else %}
+									–
+								{% endif %}
+							</td>
+						</tr>
+						<tr>
+							<th>Flash rate</th>
+							<td>
+								{% if num_competitors %}
+									{{ (flash_rate * 100) | round(1) }}%
+								{% else %}
+									–
+								{% endif %}
+							</td>
+						</tr>
+						<tr>
+							<th>Avg attempts per competitor</th>
+							<td>
+								{% if num_competitors %}
+									{{ avg_attempts_per_comp | round(2) }}
+								{% else %}
+									–
+								{% endif %}
+							</td>
+						</tr>
+						<tr>
+							<th>Avg attempts (who topped)</th>
+							<td>
+								{% if tops %}
+									{{ avg_attempts_on_tops | round(2) }}
+								{% else %}
+									–
+								{% endif %}
+							</td>
+						</tr>
+					</tbody>
+				</table>
+			</section>
+
+			<section class="stats-card">
+				<h2>Top 5 Competitors</h2>
+
+				{% if per_competitor %}
+					{% set total_rows = per_competitor|length %}
+					{% set default_limit = 5 %}
+
+					<p style="margin-bottom: 0.75rem; font-size: 0.9rem; color: rgba(255,255,255,0.7);">
+						{{ total_rows }} competitor{% if total_rows != 1 %}s{% endif %} logged
+						{% if total_rows > default_limit %} · Showing top {{ default_limit }}{% endif %}
+					</p>
+
+					<div class="filter-controls">
+						<button id="btn-topped" class="filter-btn" type="button">Only Topped</button>
+						<button id="btn-flashed" class="filter-btn" type="button">Only Flashes</button>
+
+						{% if total_rows > default_limit %}
+							<button id="toggle-rows-btn" type="button" class="primary">
+								Show all ({{ total_rows }})
+							</button>
+						{% endif %}
+					</div>
+
+					<div class="table-scroll">
+						<table class="stats-table">
+							<thead>
+								<tr>
+									<th>Competitor</th>
+									<th>Attempts</th>
+									<th>Status</th>
+								</tr>
+							</thead>
+							<tbody id="per-comp-body">
+								{% for row in per_competitor %}
+									<tr
+										class="comp-row"
+										data-topped="{{ 1 if row.topped else 0 }}"
+										data-flash="{{ 1 if row.topped and row.attempts == 1 else 0 }}"
+									>
+										<td>{{ row.name }} (#{{ row.competitor_id }})</td>
+										<td>{{ row.attempts }}</td>
+										<td>
+											{% if row.topped %}
+												{% if row.attempts == 1 %}
+													Flashed
+												{% else %}
+													Topped
+												{% endif %}
+											{% else %}
+												Not topped
+											{% endif %}
+										</td>
+									</tr>
+								{% endfor %}
+							</tbody>
+						</table>
+					</div>
+
+				{% else %}
+					<p style="color: rgba(255,255,255,0.7);">
+						No competitors have logged attempts on this climb yet.
+					</p>
+				{% endif %}
+			</section>
+
+		{% endif %}
+	</main>
+
+	{% if per_competitor and per_competitor|length > 0 %}
+	<script>
+		(function () {
+			const defaultLimit = {{ default_limit | default(25) }};
+			const rows = Array.from(document.querySelectorAll(".comp-row"));
+			if (!rows.length) return;
+
+			const btnShowAll = document.getElementById("toggle-rows-btn");
+			const btnTopped = document.getElementById("btn-topped");
+			const btnFlashed = document.getElementById("btn-flashed");
+
+			let showingAll = false;
+			let filterMode = "none";
+
+			function rowMatchesFilter(row) {
+				const isTopped = row.dataset.topped === "1";
+				const isFlash = row.dataset.flash === "1";
+				if (filterMode === "flashed") return isFlash;
+				if (filterMode === "topped") return isTopped;
+				return true;
+			}
+
+			function applyState() {
+				let visibleCount = 0;
+
+				rows.forEach((row) => {
+					if (!rowMatchesFilter(row)) {
+						row.style.display = "none";
+						return;
+					}
+
+					if (!showingAll && visibleCount >= defaultLimit) {
+						row.style.display = "none";
+						return;
+					}
+
+					row.style.display = "";
+					visibleCount++;
+				});
+
+				if (btnShowAll) {
+					btnShowAll.textContent = showingAll
+						? "Show top " + defaultLimit
+						: "Show all (" + rows.length + ")";
+				}
+			}
+
+			if (btnTopped) {
+				btnTopped.addEventListener("click", () => {
+					filterMode = (filterMode === "topped") ? "none" : "topped";
+					btnTopped.classList.toggle("active", filterMode === "topped");
+					if (btnFlashed) btnFlashed.classList.remove("active");
+					showingAll = true;
+					applyState();
+				});
+			}
+
+			if (btnFlashed) {
+				btnFlashed.addEventListener("click", () => {
+					filterMode = (filterMode === "flashed") ? "none" : "flashed";
+					btnFlashed.classList.toggle("active", filterMode === "flashed");
+					if (btnTopped) btnTopped.classList.remove("active");
+					showingAll = true;
+					applyState();
+				});
+			}
+
+			if (btnShowAll) {
+				btnShowAll.addEventListener("click", () => {
+					showingAll = !showingAll;
+					applyState();
+				});
+			}
+
+			applyState();
+		})();
+	</script>
+	{% endif %}
+</body>
+</html>

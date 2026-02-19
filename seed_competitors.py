@@ -1,8 +1,8 @@
 # seed_competitors.py
-from app import app, db, Competitor
+from app import db, Competitor, run
 
 def main(num_competitors=500):
-    with app.app_context():
+    with run.app_context():
         existing = Competitor.query.count()
         print(f"Existing competitors: {existing}")
 

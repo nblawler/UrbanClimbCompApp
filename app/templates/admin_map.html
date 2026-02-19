@@ -1,0 +1,926 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"
+  />
+  <title>Admin · Scoring</title>
+  <link rel="stylesheet" href="/static/app.css" />
+  <style>
+    .admin-map-page {
+      max-width: 1100px;
+      margin: 32px auto;
+      padding: 0 16px 48px;
+      display: grid;
+      grid-template-columns: minmax(0, 2fr) minmax(0, 1.4fr);
+      gap: 24px;
+      align-items: flex-start;
+    }
+
+    .map-card,
+    .form-card {
+      background: var(--bg-elevated-soft, #151824);
+      border-radius: var(--radius-lg, 18px);
+      box-shadow: var(--shadow-soft, 0 18px 45px rgba(0, 0, 0, 0.55));
+      padding: 18px 18px 22px;
+    }
+
+    .map-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+      gap: 12px;
+    }
+
+    .map-header-left {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      min-width: 0;
+    }
+
+    .map-subtitle {
+      font-size: 12px;
+      color: var(--text-muted, #9aa3b5);
+      margin: 0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .map-wrapper {
+      position: relative;
+      width: 100%;
+      border-radius: 14px;
+      overflow: hidden;
+      border: 1px solid var(--border-subtle, rgba(255,255,255,0.05));
+      background: #000;
+    }
+
+    /* viewport/layer for pan+zoom */
+    .map-viewport {
+      position: relative;
+      width: 100%;
+      height: auto;
+      aspect-ratio: var(--map-ar, 4 / 3);
+      overflow: hidden;
+      background: #000;
+      cursor: grab;
+
+      /* IMPORTANT: prevent native gestures */
+      touch-action: none;
+      -webkit-user-select: none;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+      overscroll-behavior: none;
+    }
+    .map-viewport:active { cursor: grabbing; }
+
+    .map-layer {
+      position: absolute;
+      left: 0;
+      top: 0;
+      transform-origin: 0 0;
+      will-change: transform;
+    }
+
+    .gym-map {
+      display: block;
+      width: 100%;
+      height: auto;
+      pointer-events: none;
+      -webkit-user-drag: none;
+      user-select: none;
+    }
+
+    .map-dot {
+      position: absolute;
+      width: 16px;
+      height: 16px;
+      border-radius: 999px;
+      background: var(--accent, #5df29c);
+      box-shadow: 0 0 0 2px rgba(0,0,0,0.6);
+      transform: translate(-50%, -50%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      font-weight: 700;
+      color: #000;
+      pointer-events: none;
+    }
+
+    .map-dot--ghost {
+      background: transparent;
+      border: 2px dashed var(--accent, #5df29c);
+      color: var(--accent, #5df29c);
+    }
+
+    /* SVG overlay for section boundaries */
+    .map-overlay {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+    }
+
+    /* When drawing, show crosshair and keep the browser OUT */
+    .draw-mode .map-viewport {
+      cursor: crosshair;
+    }
+
+    .map-controls {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      justify-content: flex-end;
+      margin-top: 10px;
+      flex-wrap: wrap;
+    }
+
+    .tiny-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 8px 14px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,0.12);
+      background: rgba(0,0,0,0.35);
+      color: rgba(255,255,255,0.92);
+      font-weight: 800;
+      cursor: pointer;
+      font-size: 12px;
+      text-decoration: none;
+      user-select: none;
+    }
+    .tiny-btn:hover {
+      background: rgba(255,255,255,0.08);
+      border-color: rgba(255,255,255,0.22);
+    }
+    .tiny-btn--active {
+      background: rgba(93, 242, 156, 0.14);
+      border-color: rgba(93, 242, 156, 0.35);
+      color: rgba(255,255,255,0.95);
+    }
+    .tiny-btn:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+
+    .map-coords {
+      margin-top: 8px;
+      font-size: 12px;
+      color: var(--text-muted, #9aa3b5);
+      white-space: pre-wrap;
+    }
+
+    .form-card h2 {
+      margin-top: 0;
+      margin-bottom: 8px;
+      font-size: 18px;
+    }
+
+    .field { margin-bottom: 10px; }
+
+    .field label {
+      display: block;
+      font-size: 13px;
+      margin-bottom: 4px;
+      color: var(--text-muted, #9aa3b5);
+    }
+
+    .field input,
+    .field select {
+      width: 100%;
+      padding: 6px 10px;
+      border-radius: 999px;
+      border: 1px solid var(--border-subtle, rgba(255,255,255,0.05));
+      background: rgba(0,0,0,0.4);
+      color: var(--text, #f5f7fb);
+      font-size: 14px;
+    }
+
+    .field-row {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .pill-button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 8px 18px;
+      border-radius: 999px;
+      border: none;
+      background: var(--accent, #5df29c);
+      color: #000;
+      font-weight: 700;
+      cursor: pointer;
+      font-size: 14px;
+      margin-top: 6px;
+      text-decoration: none;
+      user-select: none;
+    }
+
+    .pill-button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .tiny-muted {
+      font-size: 11px;
+      color: var(--text-muted, #9aa3b5);
+      margin-top: 2px;
+    }
+
+    .section-list {
+      margin-top: 16px;
+      font-size: 13px;
+    }
+
+    .section-list li { margin-bottom: 4px; }
+
+    .alert {
+      padding: 12px 14px;
+      border-radius: 12px;
+      margin: 12px 0 0;
+      border: 1px solid rgba(255,255,255,0.08);
+      background: rgba(0,0,0,0.35);
+      color: var(--text, #f5f7fb);
+      font-size: 13px;
+      line-height: 1.35;
+      white-space: pre-wrap;
+    }
+
+    .alert-error {
+      border-color: rgba(255,0,0,0.25);
+      background: rgba(139, 30, 30, 0.25);
+    }
+
+    .alert-success {
+      border-color: rgba(93, 242, 156, 0.25);
+      background: rgba(93, 242, 156, 0.08);
+    }
+
+    .divider {
+      height: 1px;
+      width: 100%;
+      background: rgba(255,255,255,0.08);
+      margin: 14px 0;
+    }
+
+    @media (max-width: 800px) {
+      .admin-map-page { grid-template-columns: minmax(0, 1fr); }
+    }
+  </style>
+</head>
+<body>
+  <nav class="container top-nav">
+    <div class="nav-links">
+      <a class="back" href="/admin/comps{% if session.get('admin_comp_id') %}?comp_id={{ session.get('admin_comp_id') }}{% endif %}">
+        Admin Home
+      </a>
+
+      {% if session.get('admin_comp_id') %}
+        <a class="back" href="/admin/map?comp_id={{ session.get('admin_comp_id') }}">
+          Refresh map
+        </a>
+      {% endif %}
+
+      {% if session.get('competitor_id') or session.get('admin_ok') %}
+        <a class="back" href="/logout">Log out</a>
+      {% else %}
+        <a class="back" href="/admin">Admin login</a>
+      {% endif %}
+    </div>
+  </nav>
+
+  <main class="admin-map-page" id="pageRoot">
+    <section class="map-card">
+      <div class="map-header">
+        <div class="map-header-left">
+          <h1 class="page-title">
+            {% if gym_name %}
+              {{ gym_name }} Wall Map
+            {% elif comp_name %}
+              {{ comp_name }} · Wall Map
+            {% else %}
+              Wall Map
+            {% endif %}
+          </h1>
+
+          {% if comp_name %}
+            <p class="map-subtitle">Editing competition: {{ comp_name }}</p>
+          {% endif %}
+        </div>
+
+        <span class="page-tag">Admin · Tap map to place climbs</span>
+      </div>
+
+      {% if not gym_map_url %}
+        <div class="alert alert-error">
+          No map is configured for this competition’s gym yet.
+          Set gym.map_image_path (e.g. /static/maps/collingwood-map.png) and reload.
+        </div>
+      {% else %}
+        <div id="mapWrapper" class="map-wrapper">
+          <div id="mapViewport" class="map-viewport">
+            <div id="mapLayer" class="map-layer">
+              <img
+                id="mapImg"
+                class="gym-map"
+                src="{{ gym_map_url }}"
+                alt="Gym map"
+                draggable="false"
+              />
+
+              <svg id="mapOverlay" class="map-overlay"></svg>
+
+              {% for c in climbs %}
+                {% if c.x_percent is not none and c.y_percent is not none %}
+                  <div
+                    class="map-dot"
+                    style="left: {{ c.x_percent }}%; top: {{ c.y_percent }}%;"
+                    title="Climb {{ c.climb_number }} · {{ c.section.name if c.section else 'No section' }}"
+                  >
+                    {{ c.climb_number }}
+                  </div>
+                {% endif %}
+              {% endfor %}
+
+              <div id="ghostDot" class="map-dot map-dot--ghost" style="display:none;">+</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="map-controls">
+          <button type="button" class="tiny-btn" id="btnResetZoom">Reset zoom</button>
+          <button type="button" class="tiny-btn" id="btnDrawBoundary">Draw boundary</button>
+          <button type="button" class="tiny-btn" id="btnUndoBoundary">Undo</button>
+          <button type="button" class="tiny-btn" id="btnClearBoundary">Clear</button>
+          <button type="button" class="tiny-btn" id="btnSaveBoundary">Save boundary</button>
+        </div>
+
+        <div class="map-coords" id="coordsDisplay">Tap to add a climb. (Draw boundary OFF)</div>
+      {% endif %}
+    </section>
+
+    <section class="form-card">
+      <h2>Add climb from map</h2>
+      <p class="tiny-muted">
+        Tap map to set position (you’ll see a +), then fill details and press Save.
+      </p>
+
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+          {% for category, msg in messages %}
+            <div class="alert
+              {% if category in ['error','warning','danger'] %}alert-error{% endif %}
+              {% if category in ['success'] %}alert-success{% endif %}
+            ">
+              {{ msg }}
+            </div>
+          {% endfor %}
+        {% endif %}
+      {% endwith %}
+
+      <div class="divider"></div>
+
+      <h2 style="margin-top:0;">Section boundary</h2>
+      <p class="tiny-muted" style="margin-top:-2px;">
+        Boundaries require sections. If this dropdown is empty, create your first section by:
+        Add climb → type New section name → Save climb.
+      </p>
+
+      <div class="field">
+        <label for="boundary_section">Boundary section</label>
+        <select id="boundary_section">
+          <option value="">— Choose section —</option>
+          {% for s in sections %}
+            <option value="{{ s.id }}">{{ s.name }} (id {{ s.id }})</option>
+          {% endfor %}
+        </select>
+        <div class="tiny-muted" id="boundaryStatus"></div>
+
+        {% if sections|length == 0 %}
+          <div class="alert alert-error" style="margin-top:10px;">
+            No sections exist yet.
+            1) Tap map to place a climb position
+            2) Type a New section name (e.g. Slab Left)
+            3) Save the climb
+            Then you can draw boundaries for that section.
+          </div>
+        {% endif %}
+      </div>
+
+      <div class="divider"></div>
+
+      <form method="POST" action="/admin/map/add-climb">
+        <input type="hidden" name="comp_id" value="{{ session.get('admin_comp_id') }}">
+
+        <div class="field">
+          <label for="section_id">Existing section</label>
+          <select name="section_id" id="section_id">
+            <option value="">— Choose section —</option>
+            {% for s in sections %}
+              <option value="{{ s.id }}">{{ s.name }} (id {{ s.id }})</option>
+            {% endfor %}
+          </select>
+          <div class="tiny-muted">Or create a new section below.</div>
+        </div>
+
+        <div class="field">
+          <label for="new_section_name">New section name (optional)</label>
+          <input type="text" id="new_section_name" name="new_section_name" placeholder="e.g. Slab Left" />
+        </div>
+
+        <div class="field">
+          <label for="climb_number">Climb number</label>
+          <input type="number" id="climb_number" name="climb_number" min="1" step="1" required />
+        </div>
+
+        <div class="field">
+          <label for="colour">Colour / hold set (optional)</label>
+          <input type="text" id="colour" name="colour" placeholder="e.g. Green, Pink Volumes" />
+        </div>
+
+        <div class="field field-row">
+          <div>
+            <label for="base_points">Base points</label>
+            <input type="number" id="base_points" name="base_points" min="0" step="1" required />
+          </div>
+          <div>
+            <label for="penalty_per_attempt">Penalty / attempt</label>
+            <input type="number" id="penalty_per_attempt" name="penalty_per_attempt" min="0" step="1" required />
+          </div>
+          <div>
+            <label for="attempt_cap">Attempt cap</label>
+            <input type="number" id="attempt_cap" name="attempt_cap" min="1" step="1" value="5" required />
+          </div>
+        </div>
+
+        <input type="hidden" name="x_percent" id="x_percent" />
+        <input type="hidden" name="y_percent" id="y_percent" />
+
+        <button type="submit" class="pill-button" id="submitBtn" {% if not gym_map_url %}disabled{% endif %}>
+          Save climb at selected position
+        </button>
+
+        <div class="tiny-muted" id="clickHint">Button unlocks after you tap the map.</div>
+      </form>
+
+      <div class="section-list">
+        <strong>Existing sections:</strong>
+        <ul>
+          {% for s in sections %}
+            <li>{{ s.name }} (id {{ s.id }})</li>
+          {% endfor %}
+          {% if sections|length == 0 %}
+            <li><em>None yet</em></li>
+          {% endif %}
+        </ul>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    (function () {
+      const pageRoot = document.getElementById("pageRoot");
+
+      const viewport = document.getElementById("mapViewport");
+      const layer    = document.getElementById("mapLayer");
+      const img      = document.getElementById("mapImg");
+      const overlay  = document.getElementById("mapOverlay");
+      const ghostDot = document.getElementById("ghostDot");
+
+      const resetBtn = document.getElementById("btnResetZoom");
+      const btnDraw  = document.getElementById("btnDrawBoundary");
+      const btnUndo  = document.getElementById("btnUndoBoundary");
+      const btnClear = document.getElementById("btnClearBoundary");
+      const btnSave  = document.getElementById("btnSaveBoundary");
+
+      const boundarySelect = document.getElementById("boundary_section");
+      const boundaryStatus = document.getElementById("boundaryStatus");
+
+      const xInput = document.getElementById("x_percent");
+      const yInput = document.getElementById("y_percent");
+      const coordsDisplay = document.getElementById("coordsDisplay");
+      const submitBtn = document.getElementById("submitBtn");
+      const clickHint = document.getElementById("clickHint");
+
+      const compId = "{{ session.get('admin_comp_id') }}";
+
+      if (!viewport || !layer || !img) return;
+
+      function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
+      function sid() { return (boundarySelect && boundarySelect.value) ? boundarySelect.value : ""; }
+      function setStatus(msg) { if (boundaryStatus) boundaryStatus.textContent = msg || ""; }
+      function setCoords(msg) { if (coordsDisplay) coordsDisplay.textContent = msg || ""; }
+
+      // ---- Disable save until a map tap selects position
+      if (submitBtn) submitBtn.disabled = true;
+
+      // ---- Pan/zoom state ----
+      let scale = 1;
+      let minScale = 1;
+      const maxScale = 6;
+
+      let tx = 0, ty = 0;
+      let baseW = 1, baseH = 1;
+
+      // pointer tracking for tap vs drag
+      let activePointerId = null;
+      let downX = 0, downY = 0;
+      let downTx = 0, downTy = 0;
+      let moved = false;
+      const TAP_SLOP = 8; // px
+
+      // ---- Boundary state ----
+      const state = {
+        drawing: false,
+        boundaries: {}
+      };
+
+      function updateLayerSizeFromImage() {
+        const r = img.getBoundingClientRect();
+        baseW = Math.max(1, Math.round(r.width));
+        baseH = Math.max(1, Math.round(r.height));
+        layer.style.width = baseW + "px";
+        layer.style.height = baseH + "px";
+      }
+
+      function computeFitScale() {
+        const vr = viewport.getBoundingClientRect();
+        const fit = Math.min(vr.width / baseW, vr.height / baseH);
+        return Math.min(1, fit);
+      }
+
+      function applyTransform() {
+        layer.style.transform = `translate(${tx}px, ${ty}px) scale(${scale})`;
+      }
+
+      function clampPan() {
+        const vr = viewport.getBoundingClientRect();
+        const viewW = vr.width;
+        const viewH = vr.height;
+
+        const scaledW = baseW * scale;
+        const scaledH = baseH * scale;
+
+        const minTx = viewW - scaledW;
+        const minTy = viewH - scaledH;
+
+        if (scaledW <= viewW) tx = (viewW - scaledW) / 2;
+        else tx = clamp(tx, minTx, 0);
+
+        if (scaledH <= viewH) ty = (viewH - scaledH) / 2;
+        else ty = clamp(ty, minTy, 0);
+      }
+
+      function resetFit() {
+        updateLayerSizeFromImage();
+        minScale = computeFitScale();
+        scale = clamp(minScale, minScale, maxScale);
+
+        const vr = viewport.getBoundingClientRect();
+        tx = (vr.width - baseW * scale) / 2;
+        ty = (vr.height - baseH * scale) / 2;
+
+        clampPan();
+        applyTransform();
+        redrawBoundary();
+      }
+
+      function zoomBy(factor, clientX, clientY) {
+        const nextScale = clamp(scale * factor, minScale, maxScale);
+
+        const vr = viewport.getBoundingClientRect();
+        const cx = (clientX ?? (vr.left + vr.width/2)) - vr.left;
+        const cy = (clientY ?? (vr.top + vr.height/2)) - vr.top;
+
+        const scaleChange = nextScale / scale;
+        tx = cx - (cx - tx) * scaleChange;
+        ty = cy - (cy - ty) * scaleChange;
+
+        scale = nextScale;
+        clampPan();
+        applyTransform();
+        redrawBoundary();
+      }
+
+      function clientToImagePercent(clientX, clientY) {
+        const vr = viewport.getBoundingClientRect();
+        const xV = clientX - vr.left;
+        const yV = clientY - vr.top;
+
+        const xImg = (xV - tx) / scale;
+        const yImg = (yV - ty) / scale;
+
+        if (xImg < 0 || yImg < 0 || xImg > baseW || yImg > baseH) return null;
+
+        const xPercent = (xImg / baseW) * 100;
+        const yPercent = (yImg / baseH) * 100;
+
+        return {
+          x: Math.max(0, Math.min(100, xPercent)),
+          y: Math.max(0, Math.min(100, yPercent)),
+        };
+      }
+
+      function placeClimbAt(clientX, clientY) {
+        const pt = clientToImagePercent(clientX, clientY);
+        if (!pt) return;
+
+        xInput.value = pt.x.toFixed(4);
+        yInput.value = pt.y.toFixed(4);
+
+        if (ghostDot) {
+          ghostDot.style.left = pt.x + "%";
+          ghostDot.style.top  = pt.y + "%";
+          ghostDot.style.display = "flex";
+        }
+
+        if (submitBtn) submitBtn.disabled = false;
+        if (clickHint) clickHint.textContent = "Position set ✅ Now fill the form and Save.";
+
+        setCoords(`Climb position: ${pt.x.toFixed(2)}% / ${pt.y.toFixed(2)}% (Draw boundary OFF)`);
+      }
+
+      function addBoundaryPoint(clientX, clientY) {
+        const s = sid();
+        if (!s) {
+          setStatus("❌ Select a Boundary section first.");
+          return;
+        }
+        const pt = clientToImagePercent(clientX, clientY);
+        if (!pt) return;
+
+        if (!state.boundaries[s]) state.boundaries[s] = [];
+        state.boundaries[s].push({ x: pt.x, y: pt.y });
+
+        redrawBoundary();
+        setStatus(`${state.boundaries[s].length} point(s) in boundary.`);
+        setCoords(`Boundary point: ${pt.x.toFixed(2)}% / ${pt.y.toFixed(2)}% (Draw boundary ON)`);
+      }
+
+      // ---- Boundary render ----
+      function clearOverlay() {
+        if (!overlay) return;
+        while (overlay.firstChild) overlay.removeChild(overlay.firstChild);
+      }
+
+      function ensureOverlaySize() {
+        if (!overlay) return;
+        overlay.setAttribute("width", baseW);
+        overlay.setAttribute("height", baseH);
+        overlay.setAttribute("viewBox", `0 0 ${baseW} ${baseH}`);
+      }
+
+      function pctToPx(pt) {
+        return { x: (pt.x / 100) * baseW, y: (pt.y / 100) * baseH };
+      }
+
+      function redrawBoundary() {
+        if (!overlay) return;
+        ensureOverlaySize();
+        clearOverlay();
+
+        const s = sid();
+        if (!s) return;
+
+        const pts = state.boundaries[s] || [];
+        if (!pts.length) return;
+
+        const pxPts = pts.map(pctToPx);
+
+        // polygon/line path
+        const d = pxPts.map((p,i)=>`${i===0?"M":"L"} ${p.x} ${p.y}`).join(" ")
+                  + (pxPts.length >= 3 ? " Z" : "");
+
+        const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+        path.setAttribute("d", d);
+        path.setAttribute("fill", "rgba(93, 242, 156, 0.14)");
+        path.setAttribute("stroke", "rgba(93, 242, 156, 0.95)");
+        path.setAttribute("stroke-width", "2.5");
+        overlay.appendChild(path);
+
+        pxPts.forEach((p) => {
+          const c = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+          c.setAttribute("cx", p.x);
+          c.setAttribute("cy", p.y);
+          c.setAttribute("r", "4.5");
+          c.setAttribute("fill", "rgba(255,255,255,0.95)");
+          overlay.appendChild(c);
+        });
+      }
+
+      async function loadBoundaries() {
+        if (!compId || compId === "None") {
+          setStatus("No competition context in session.");
+          return;
+        }
+        setStatus("Loading boundaries…");
+
+        const res = await fetch(`/admin/api/comp/${compId}/section-boundaries`, { credentials: "same-origin" });
+        const data = await res.json();
+
+        if (!data.ok) {
+          setStatus(data.error || "Failed to load boundaries.");
+          return;
+        }
+
+        state.boundaries = data.boundaries || {};
+        setStatus("Boundaries loaded.");
+        redrawBoundary();
+      }
+
+      async function saveBoundary() {
+        const s = sid();
+        if (!s) { setStatus("Select a section first."); return; }
+
+        const pts = state.boundaries[s] || [];
+        if (pts.length > 0 && pts.length < 3) {
+          setStatus("Need at least 3 points to save a polygon (or Clear to remove).");
+          return;
+        }
+
+        setStatus("Saving boundary…");
+
+        const res = await fetch("/admin/map/save-boundary", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "same-origin",
+          body: JSON.stringify({
+            comp_id: String(compId),
+            section_id: String(s),
+            points: pts
+          })
+        });
+
+        const data = await res.json();
+        if (!data.ok) {
+          setStatus(data.error || "Save failed.");
+          return;
+        }
+
+        state.boundaries[s] = data.points || [];
+        redrawBoundary();
+        setStatus("Saved boundary ✅");
+      }
+
+      function undoBoundaryPoint() {
+        const s = sid();
+        if (!s) { setStatus("Select a section first."); return; }
+        const pts = state.boundaries[s] || [];
+        pts.pop();
+        state.boundaries[s] = pts;
+        redrawBoundary();
+        setStatus(`${pts.length} point(s) in boundary.`);
+      }
+
+      function clearBoundary() {
+        const s = sid();
+        if (!s) { setStatus("Select a section first."); return; }
+        state.boundaries[s] = [];
+        redrawBoundary();
+        setStatus("Cleared boundary (remember to Save).");
+      }
+
+      function setDrawMode(on) {
+        // Only allow if section is selected
+        if (on && !sid()) {
+          setStatus("❌ Select a Boundary section first.");
+          return;
+        }
+        state.drawing = !!on;
+
+        btnDraw?.classList.toggle("tiny-btn--active", state.drawing);
+        pageRoot?.classList.toggle("draw-mode", state.drawing);
+
+        if (state.drawing) {
+          setCoords("Tap to add boundary points. (Draw boundary ON)");
+          setStatus("Drawing ON: tap points on the map. Tap Draw boundary again to exit.");
+        } else {
+          setCoords("Tap to add a climb. (Draw boundary OFF)");
+          setStatus("");
+        }
+      }
+
+      // ---- IMPORTANT: capture pointer events and prevent native zoom/gesture
+      viewport.addEventListener("pointerdown", (e) => {
+        // always prevent native behaviour in map area
+        e.preventDefault();
+
+        activePointerId = e.pointerId;
+        downX = e.clientX;
+        downY = e.clientY;
+        downTx = tx;
+        downTy = ty;
+        moved = false;
+
+        viewport.setPointerCapture(e.pointerId);
+      }, { passive: false });
+
+      viewport.addEventListener("pointermove", (e) => {
+        if (activePointerId !== e.pointerId) return;
+        e.preventDefault();
+
+        const dx = e.clientX - downX;
+        const dy = e.clientY - downY;
+
+        if (Math.hypot(dx, dy) > TAP_SLOP) moved = true;
+
+        // only pan if NOT drawing
+        if (!state.drawing && moved) {
+          tx = downTx + dx;
+          ty = downTy + dy;
+          clampPan();
+          applyTransform();
+          redrawBoundary();
+        }
+      }, { passive: false });
+
+      viewport.addEventListener("pointerup", (e) => {
+        if (activePointerId !== e.pointerId) return;
+        e.preventDefault();
+
+        try { viewport.releasePointerCapture(e.pointerId); } catch (_) {}
+        activePointerId = null;
+
+        // If they didn't move much, treat as tap
+        const dx = e.clientX - downX;
+        const dy = e.clientY - downY;
+        const isTap = Math.hypot(dx, dy) <= TAP_SLOP;
+
+        updateLayerSizeFromImage();
+
+        if (isTap) {
+          if (state.drawing) addBoundaryPoint(e.clientX, e.clientY);
+          else placeClimbAt(e.clientX, e.clientY);
+        }
+      }, { passive: false });
+
+      viewport.addEventListener("pointercancel", (e) => {
+        if (activePointerId === e.pointerId) activePointerId = null;
+      }, { passive: false });
+
+      // Wheel zoom on desktop only (not on mobile)
+      viewport.addEventListener("wheel", (e) => {
+        e.preventDefault();
+        if (state.drawing) return;
+        const factor = e.deltaY < 0 ? 1.1 : 0.9;
+        zoomBy(factor, e.clientX, e.clientY);
+      }, { passive: false });
+
+      // stop dblclick zoom dead
+      viewport.addEventListener("dblclick", (e) => e.preventDefault(), { passive: false });
+
+      // Buttons
+      resetBtn?.addEventListener("click", resetFit);
+      btnDraw?.addEventListener("click", () => setDrawMode(!state.drawing));
+      btnUndo?.addEventListener("click", undoBoundaryPoint);
+      btnClear?.addEventListener("click", clearBoundary);
+      btnSave?.addEventListener("click", saveBoundary);
+
+      boundarySelect?.addEventListener("change", () => {
+        redrawBoundary();
+        const s = sid();
+        const pts = s ? (state.boundaries[s] || []) : [];
+        setStatus(s ? `${pts.length} point(s) in boundary.` : "");
+        if (state.drawing && !s) setDrawMode(false);
+      });
+
+      function init() {
+        if (img.naturalWidth && img.naturalHeight) {
+          viewport.style.setProperty("--map-ar", `${img.naturalWidth} / ${img.naturalHeight}`);
+        }
+        resetFit();
+        loadBoundaries().catch(() => setStatus("Failed to load boundaries."));
+
+        // If no sections exist, make boundary tool obviously disabled
+        const hasSections = !!(boundarySelect && boundarySelect.options && boundarySelect.options.length > 1);
+        if (!hasSections) {
+          btnDraw.disabled = true;
+          btnUndo.disabled = true;
+          btnClear.disabled = true;
+          btnSave.disabled = true;
+          setStatus("No sections yet. Create one by adding a climb with a New section name.");
+        } else {
+          btnDraw.disabled = false;
+        }
+
+        setDrawMode(false);
+      }
+
+      if (img.complete) init();
+      else img.addEventListener("load", init, { once: true });
+    })();
+  </script>
+</body>
+</html>
