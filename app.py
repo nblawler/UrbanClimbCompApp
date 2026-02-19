@@ -1796,7 +1796,7 @@ def competitor_redirect(competitor_id):
 
     Notes:
     - This route should never render a template.
-    - It’s safe for shared links / old emails / old QR codes.
+    - It's safe for shared links / old emails / old QR codes.
     """
     comp = Competitor.query.get_or_404(competitor_id)
 

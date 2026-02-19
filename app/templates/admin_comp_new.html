@@ -1,0 +1,10 @@
+<label>
+    Gym
+    <select name="gym_id" required>
+      <option value="">Select gym…</option>
+      {% for g in gyms %}
+        <option value="{{ g.id }}">{{ g.name }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  

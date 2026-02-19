@@ -1,0 +1,282 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<title>Admin · Competitions · Urban Climb Comp</title>
+		<link rel="stylesheet" href="/static/app.css" />
+	</head>
+	<body>
+		<nav class="container top-nav">
+			<div class="nav-links">
+				<a
+					class="back {% if nav_active == 'my_comps' %}active{% endif %}"
+					href="/my-comps"
+				>
+					Home
+				</a>
+
+				{% if session.get('admin_ok') %}
+					<a
+						class="back {% if nav_active == 'admin' %}active{% endif %}"
+						href="/admin/comps"
+					>
+						Admin
+					</a>
+				{% endif %}
+
+				{% if session.get('competitor_id') or session.get('admin_ok') %}
+					<a class="back" href="/logout">Log out</a>
+				{% else %}
+					<a class="back {% if nav_active == 'login' %}active{% endif %}"
+					   href="/login{% if comp_slug %}?slug={{ comp_slug }}{% endif %}">
+						Log in
+					</a>
+				{% endif %}
+
+			</div>
+		</nav>
+
+		<main class="container">
+			<header class="page-header">
+				<h1 class="page-title">Competition Management</h1>
+				<p class="page-subtitle">
+					Create and manage all competitions in this app. The
+					<strong>active</strong> competition is the one used by the public site right now.
+				</p>
+			</header>
+
+			{% if error %}
+				<div class="alert alert-error">
+					{{ error }}
+				</div>
+			{% endif %}
+
+			{% if message %}
+				<div class="alert alert-success">
+					{{ message }}
+				</div>
+			{% endif %}
+
+			<section class="card" style="margin-bottom: 24px;">
+				<header class="section-header">
+					<h2 class="section-title">Create a new competition</h2>
+					<p class="section-subtitle">
+						Define the basic details. You can configure sections, climbs and maps afterwards.
+					</p>
+				</header>
+
+				<form method="post" class="form-grid">
+					<input type="hidden" name="action" value="create_comp" />
+
+					<div class="form-row">
+						<label class="form-label" for="name">Competition name</label>
+						<input
+							type="text"
+							id="name"
+							name="name"
+							class="form-input"
+							required
+							placeholder="e.g. UC Collingwood Boulder Bash"
+						/>
+					</div>
+
+					<div class="form-row">
+						<label class="form-label" for="gym_id">
+							Gym
+							<span class="form-label-hint">
+								This links the competition to a gym (and its wall map).
+							</span>
+						</label>
+
+						<select id="gym_id" name="gym_id" class="form-input" required>
+							<option value="">Select a gym…</option>
+							{% for g in gyms %}
+								<option value="{{ g.id }}">{{ g.name }}</option>
+							{% endfor %}
+						</select>
+
+						{% if not gyms %}
+							<p class="form-help" style="margin-top: 8px;">
+								No gyms found in the database yet.
+							</p>
+						{% endif %}
+					</div>
+
+					<div class="form-row">
+						<label class="form-label" for="slug">
+							URL slug (optional)
+							<span class="form-label-hint">
+								Leave blank to auto-generate from the name.
+							</span>
+						</label>
+						<input
+							type="text"
+							id="slug"
+							name="slug"
+							class="form-input"
+							placeholder="e.g. uc-collingwood-boulder-bash"
+						/>
+					</div>
+
+					<div class="form-row form-row-inline">
+						<div class="form-field">
+							<label class="form-label" for="start_date">Start date</label>
+							<input
+								type="date"
+								id="start_date"
+								name="start_date"
+								class="form-input"
+							/>
+						</div>
+
+						<div class="form-field">
+							<label class="form-label" for="start_time">Start time</label>
+							<input
+								type="time"
+								id="start_time"
+								name="start_time"
+								class="form-input"
+							/>
+						</div>
+					</div>
+
+					<div class="form-row form-row-inline">
+						<div class="form-field">
+							<label class="form-label" for="end_date">End date (optional)</label>
+							<input
+								type="date"
+								id="end_date"
+								name="end_date"
+								class="form-input"
+							/>
+						</div>
+
+						<div class="form-field">
+							<label class="form-label" for="end_time">End time (optional)</label>
+							<input
+								type="time"
+								id="end_time"
+								name="end_time"
+								class="form-input"
+							/>
+						</div>
+					</div>
+
+					<div class="form-row">
+						<label class="form-checkbox">
+							<input type="checkbox" name="is_active" value="1" />
+							<span>Set this as the active competition</span>
+						</label>
+					</div>
+
+					<div class="form-row">
+						<button type="submit" class="btn-primary">
+							Create competition
+						</button>
+					</div>
+				</form>
+			</section>
+
+			<section class="card">
+				<header class="section-header">
+					<h2 class="section-title">All competitions</h2>
+					<p class="section-subtitle">
+						Use <strong>Manage</strong> to switch your admin tools (sections, climbs, map) to that competition.
+					</p>
+				</header>
+
+				{% if competitions %}
+					<div class="table-wrapper">
+						<table class="data-table">
+							<thead>
+								<tr>
+									<th>ID</th>
+									<th>Name</th>
+									<th>Gym</th>
+									<th>Slug</th>
+									<th>Status</th>
+									<th>Dates</th>
+									<th style="text-align: right;">Actions</th>
+								</tr>
+							</thead>
+							<tbody>
+								{% for comp in competitions %}
+									<tr>
+										<td>#{{ comp.id }}</td>
+										<td>
+											<strong>{{ comp.name }}</strong>
+										</td>
+
+										<td>
+											{{ (comp.gym.name if comp.gym else comp.gym_name) or "—" }}
+										</td>
+
+										<td><code>{{ comp.slug }}</code></td>
+
+										<td>
+											{% if comp.is_active %}
+												<span class="pill pill-success">Active</span>
+											{% else %}
+												<span class="pill pill-muted">Inactive</span>
+											{% endif %}
+										</td>
+
+										<td>
+											{% if comp.start_at %}
+												{{ comp.start_at.strftime("%d %b %Y %H:%M") }}
+											{% else %}
+												—
+											{% endif %}
+											{% if comp.end_at %}
+												&mdash;
+												{{ comp.end_at.strftime("%d %b %Y %H:%M") }}
+											{% endif %}
+										</td>
+
+										<td style="text-align: right;">
+											<a
+												href="/admin/comp/{{ comp.id }}/configure"
+												class="btn-ghost"
+												style="margin-right: 6px;"
+												title="Switch admin tools to this competition"
+											>
+												Manage
+											</a>
+
+											<form method="post" style="display: inline-block; margin-right: 6px;">
+												<input type="hidden" name="action" value="set_active" />
+												<input type="hidden" name="competition_id" value="{{ comp.id }}" />
+												<button
+													type="submit"
+													class="btn-ghost"
+													{% if comp.is_active %}disabled{% endif %}
+												>
+													Set active
+												</button>
+											</form>
+
+											<form method="post" style="display: inline-block;">
+												<input type="hidden" name="action" value="archive" />
+												<input type="hidden" name="competition_id" value="{{ comp.id }}" />
+												<button
+													type="submit"
+													class="btn-ghost-danger"
+													{% if not comp.is_active %}disabled{% endif %}
+												>
+													Archive
+												</button>
+											</form>
+										</td>
+									</tr>
+								{% endfor %}
+							</tbody>
+						</table>
+					</div>
+				{% else %}
+					<p>No competitions configured yet. Create your first competition above.</p>
+				{% endif %}
+			</section>
+		</main>
+	</body>
+</html>

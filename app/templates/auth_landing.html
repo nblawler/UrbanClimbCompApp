@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="en">
+<head>
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<title>Welcome · Comp Circuit</title>
+
+	<style>
+		* { margin: 0; padding: 0; box-sizing: border-box; }
+
+		body {
+			font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+			background: linear-gradient(135deg, #0a1628 0%, #1a2942 100%);
+			min-height: 100vh;
+			display: flex;
+			flex-direction: column;
+			color: #fff;
+		}
+
+		/* Top nav */
+		.nav {
+			padding: 1.25rem 2rem;
+			display: flex;
+			gap: 1.5rem;
+			align-items: center;
+			flex-wrap: wrap;
+		}
+
+		.nav a {
+			color: rgba(255, 255, 255, 0.7);
+			text-decoration: none;
+			font-size: 0.95rem;
+			transition: color 0.2s;
+		}
+
+		.nav a.active {
+			color: #5df4a2;
+			font-weight: 700;
+		}
+
+		.nav a:hover { color: #fff; }
+
+		/* Main container */
+		.container {
+			flex: 1;
+			display: flex;
+			flex-direction: column;
+			align-items: center;
+			padding: 2rem;
+			max-width: 1200px;
+			margin: 0 auto;
+			width: 100%;
+		}
+
+		/* Hero / header */
+		.hero {
+			text-align: center;
+			margin: 2.5rem 0 2.75rem;
+			max-width: 760px;
+		}
+
+		.hero h1 {
+			font-size: 3.25rem;
+			font-weight: 900;
+			margin-bottom: 0.85rem;
+			background: linear-gradient(135deg, #fff 0%, #5df4a2 100%);
+			-webkit-background-clip: text;
+			-webkit-text-fill-color: transparent;
+			background-clip: text;
+			letter-spacing: -0.02em;
+		}
+
+		.hero p {
+			font-size: 1.15rem;
+			color: rgba(255, 255, 255, 0.75);
+			line-height: 1.6;
+			margin: 0.35rem 0;
+		}
+
+		.hero .hint {
+			font-size: 0.95rem;
+			color: rgba(255, 255, 255, 0.65);
+			margin-top: 0.75rem;
+		}
+
+		/* Grid of cards */
+		.pill-grid {
+			width: 100%;
+			display: grid;
+			grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+			gap: 1.5rem;
+			max-width: 980px;
+		}
+
+		/* Glass card */
+		.comp-card {
+			background: rgba(255, 255, 255, 0.05);
+			backdrop-filter: blur(10px);
+			border: 1px solid rgba(255, 255, 255, 0.1);
+			border-radius: 1.5rem;
+			padding: 2rem;
+			transition: all 0.3s ease;
+			color: inherit;
+			text-decoration: none;
+			display: block;
+		}
+
+		.comp-card:hover {
+			transform: translateY(-4px);
+			border-color: rgba(93, 244, 162, 0.3);
+			box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+		}
+
+		.comp-title {
+			font-size: 1.6rem;
+			font-weight: 850;
+			margin-bottom: 0.35rem;
+		}
+
+		.comp-subtitle {
+			color: rgba(255, 255, 255, 0.7);
+			font-size: 0.95rem;
+			margin-bottom: 1.1rem;
+		}
+
+		.desc {
+			color: rgba(255,255,255,0.7);
+			line-height: 1.6;
+			margin: 0.9rem 0 1.25rem;
+			font-size: 0.95rem;
+		}
+
+		/* CTA button */
+		.btn {
+			display: inline-block;
+			width: 100%;
+			padding: 1rem 1.25rem;
+			background: #5df4a2;
+			color: #0a1628;
+			text-decoration: none;
+			border-radius: 0.85rem;
+			font-weight: 900;
+			font-size: 1rem;
+			text-align: center;
+			transition: all 0.2s;
+			border: none;
+			cursor: pointer;
+		}
+
+		.btn:hover { background: #4de392; transform: scale(1.02); }
+
+		/* secondary button */
+		.btn.secondary {
+			background: rgba(255, 255, 255, 0.08);
+			color: rgba(255, 255, 255, 0.9);
+		}
+
+		.btn.secondary:hover {
+			background: rgba(255, 255, 255, 0.12);
+			transform: scale(1.02);
+		}
+
+		@media (max-width: 768px) {
+			.nav { padding: 1rem; }
+			.container { padding: 1.25rem; }
+			.hero h1 { font-size: 2.4rem; }
+			.hero p { font-size: 1.05rem; }
+		}
+	</style>
+</head>
+
+<body>
+	{% set viewer_id = session.get('competitor_id') %}
+	{% set is_admin = session.get('admin_ok', False) %}
+
+	<nav class="nav">
+		{# HOME LOGIC: logged-in users/admins go /my-comps; public users go / #}
+		<a class="active" href="{% if viewer_id or is_admin %}/my-comps{% else %}/{% endif %}">Home</a>
+
+		{% if is_admin %}
+			<a href="/admin/comps">Admin</a>
+		{% endif %}
+
+		{% if viewer_id or is_admin %}
+			<a href="/logout">Log out</a>
+		{% else %}
+			<a href="/login">Log in</a>
+		{% endif %}
+	</nav>
+
+	<main class="container">
+		<header class="hero">
+			<h1>Comp Circuit</h1>
+			<p>Track your scores and compete with climbers.</p>
+			<p class="hint">Sign up once, then use your email to join and score future competitions.</p>
+		</header>
+
+		<section class="pill-grid">
+			<div class="comp-card">
+				<h2 class="comp-title">New here?</h2>
+				<div class="comp-subtitle">Create your account to join competitions</div>
+
+				<p class="desc">
+					Sign up once with your name and email, then reuse it for every event.
+				</p>
+
+				<a href="/signup" class="btn">Sign up</a>
+			</div>
+
+			<div class="comp-card">
+				<h2 class="comp-title">Welcome back</h2>
+				<div class="comp-subtitle">Continue where you left off</div>
+
+				<p class="desc">
+					Already registered? We’ll email you a one-time 6-digit code.
+				</p>
+
+				<a href="/login" class="btn secondary">Log in</a>
+			</div>
+		</section>
+	</main>
+</body>
+</html>

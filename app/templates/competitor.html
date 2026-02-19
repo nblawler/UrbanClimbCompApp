@@ -1,0 +1,1477 @@
+<!doctype html>
+<html lang="en">
+<head>
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<title>Competitor {{ competitor.id }} · Urban Climb Comp</title>
+	<link rel="stylesheet" href="/static/app.css" />
+
+	<style>
+		* { margin: 0; padding: 0; box-sizing: border-box; }
+
+		body {
+			font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+			background: linear-gradient(135deg, #0a1628 0%, #1a2942 100%);
+			min-height: 100vh;
+			display: flex;
+			flex-direction: column;
+			color: #fff;
+		}
+
+		/* Top nav */
+		.nav {
+			padding: 1.25rem 2rem;
+			display: flex;
+			gap: 1.5rem;
+			align-items: center;
+			flex-wrap: wrap;
+		}
+
+		.nav a {
+			color: rgba(255, 255, 255, 0.7);
+			text-decoration: none;
+			font-size: 0.95rem;
+			transition: color 0.2s;
+			font-weight: 600;
+		}
+
+		.nav a.active {
+			color: #5df4a2;
+			font-weight: 700;
+		}
+
+		.nav a:hover { color: #fff; }
+
+		/* Container */
+		.container {
+			flex: 1;
+			max-width: 1200px;
+			margin: 0 auto;
+			padding: 2rem;
+			width: 100%;
+		}
+
+		/* Competitor header */
+		.comp-header {
+			background: rgba(255, 255, 255, 0.05);
+			backdrop-filter: blur(10px);
+			border: 1px solid rgba(255, 255, 255, 0.1);
+			border-radius: 1.5rem;
+			padding: 2rem;
+			margin-bottom: 2rem;
+		}
+
+		.comp-name {
+			font-size: 2rem;
+			font-weight: 900;
+			margin-bottom: 1.25rem;
+			background: linear-gradient(135deg, #fff 0%, #5df4a2 100%);
+			-webkit-background-clip: text;
+			-webkit-text-fill-color: transparent;
+			background-clip: text;
+			letter-spacing: -0.02em;
+		}
+
+		.comp-meta-row {
+			display: flex;
+			gap: 1rem;
+			flex-wrap: wrap;
+		}
+
+		.comp-pill {
+			background: rgba(0, 0, 0, 0.2);
+			border: 1px solid rgba(255, 255, 255, 0.15);
+			border-radius: 0.85rem;
+			padding: 0.75rem 1.25rem;
+			display: flex;
+			flex-direction: column;
+			gap: 0.25rem;
+			min-width: 110px;
+		}
+
+		.comp-pill-label {
+			font-size: 0.75rem;
+			color: rgba(255, 255, 255, 0.6);
+			text-transform: uppercase;
+			letter-spacing: 0.05em;
+			font-weight: 700;
+		}
+
+		.comp-pill-value {
+			font-size: 1.5rem;
+			font-weight: 900;
+			color: #fff;
+		}
+
+		/* Section nav row */
+		.section-filter-row {
+			display: flex;
+			justify-content: space-between;
+			align-items: flex-start;
+			gap: 1.5rem;
+			margin-bottom: 2rem;
+			flex-wrap: wrap;
+		}
+
+		.section-filter-left {
+			display: flex;
+			flex-direction: column;
+			gap: 0.55rem;
+			min-width: 0;
+			flex: 1;
+		}
+
+		.section-filter-label {
+			font-size: 0.95rem;
+			color: rgba(255, 255, 255, 0.85);
+			font-weight: 800;
+		}
+
+		/* Compact section tabs (NAV, not FILTER) */
+		.section-tabs {
+			display: flex;
+			flex-wrap: wrap;
+			gap: 0.6rem;
+			margin-top: 0.25rem;
+		}
+
+		.section-tab {
+			display: inline-flex;
+			align-items: center;
+			gap: 0.6rem;
+			padding: 0.55rem 0.85rem;
+			border-radius: 999px;
+			border: 1px solid rgba(255, 255, 255, 0.16);
+			background: rgba(255, 255, 255, 0.05);
+			color: rgba(255, 255, 255, 0.92);
+			text-decoration: none;
+			font-weight: 850;
+			max-width: 100%;
+			transition: transform 0.15s, background 0.15s, border-color 0.15s;
+		}
+
+		.section-tab:hover {
+			transform: translateY(-1px);
+			background: rgba(255, 255, 255, 0.08);
+			border-color: rgba(255, 255, 255, 0.26);
+		}
+
+		.section-tab.is-active {
+			background: rgba(93, 244, 162, 0.16);
+			border-color: rgba(93, 244, 162, 0.55);
+			color: #ffffff;
+		}
+
+		.section-tab-name {
+			overflow: hidden;
+			text-overflow: ellipsis;
+			white-space: nowrap;
+			max-width: 20ch;
+			line-height: 1.1;
+		}
+
+		.section-tab-badge {
+			font-size: 0.8rem;
+			font-weight: 900;
+			padding: 0.2rem 0.55rem;
+			border-radius: 999px;
+			border: 1px solid rgba(255, 255, 255, 0.18);
+			background: rgba(0, 0, 0, 0.25);
+			color: rgba(255, 255, 255, 0.9);
+			white-space: nowrap;
+		}
+
+		.section-tab.is-active .section-tab-badge {
+			border-color: rgba(93, 244, 162, 0.6);
+		}
+
+		/* Back to map button */
+		.back-to-map-btn {
+			padding: 0.65rem 1.25rem;
+			background: rgba(255, 255, 255, 0.08);
+			border: 1px solid rgba(255, 255, 255, 0.15);
+			border-radius: 999px;
+			color: #fff;
+			text-decoration: none;
+			font-size: 0.9rem;
+			font-weight: 650;
+			transition: all 0.2s;
+			white-space: nowrap;
+			align-self: flex-start;
+		}
+
+		.back-to-map-btn:hover {
+			background: rgba(255, 255, 255, 0.12);
+			transform: translateY(-1px);
+		}
+
+		/* Map card */
+		.map-card {
+			background: rgba(255, 255, 255, 0.05);
+			backdrop-filter: blur(10px);
+			border: 1px solid rgba(255, 255, 255, 0.1);
+			border-radius: 1.5rem;
+			padding: 2rem;
+			margin-bottom: 2rem;
+		}
+
+		.section-header {
+			margin-bottom: 1.5rem;
+		}
+
+		.section-title {
+			font-size: 1.75rem;
+			font-weight: 900;
+			color: #fff;
+		}
+
+		/* Map wrapper */
+		.map-wrapper {
+			position: relative;
+			width: 100%;
+			border-radius: 1rem;
+			overflow: hidden;
+			border: 1px solid rgba(255, 255, 255, 0.1);
+			background: #000;
+			margin-bottom: 2rem;
+		}
+
+		/* Stable viewport + mobile-safe min height */
+		.map-viewport {
+			position: relative;
+			width: 100%;
+			height: auto;
+			aspect-ratio: var(--map-ar, 4 / 3);
+			overflow: hidden;
+			background: #000;
+			touch-action: pan-y;
+
+			/* Mobile reliability */
+			min-height: 240px;
+			max-height: 70vh;
+		}
+
+		/* Absolute layer like competitor_sections */
+		.map-layer {
+			position: absolute;
+			left: 0;
+			top: 0;
+			transform-origin: 0 0;
+			will-change: transform;
+		}
+
+		.gym-map {
+			display: block;
+			width: 100%;
+			height: auto;
+			max-width: 100%;
+			user-select: none;
+			-webkit-user-drag: none;
+			pointer-events: none;
+		}
+
+		/* Dots */
+		#sectionMapWrapper {
+			--dot-base: 28px;
+			--dot-inv-scale: 1;
+		}
+
+		.map-dot {
+			position: absolute;
+			transform: translate(-50%, -50%) scale(var(--dot-inv-scale));
+			transform-origin: center;
+			min-width: var(--dot-base);
+			min-height: var(--dot-base);
+			padding: 0 6px;
+			border-radius: 999px;
+			background: #5df4a2;
+			box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.6);
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			font-size: 0.75rem;
+			font-weight: 800;
+			border: none;
+			cursor: pointer;
+			transition: transform 0.2s, box-shadow 0.2s;
+		}
+
+		.map-dot:hover {
+			transform: translate(-50%, -50%) scale(calc(var(--dot-inv-scale) * 1.3));
+			box-shadow: 0 8px 20px rgba(0, 0, 0, 0.7);
+			z-index: 10;
+		}
+
+		/* Done state for map dots (topped/flashed only) */
+		.map-dot.is-done {
+			background: #22c55e;
+			color: #05060a;
+			box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.75);
+		}
+
+		/* Climbs section */
+		.climbs-section {
+			background: rgba(255, 255, 255, 0.05);
+			backdrop-filter: blur(10px);
+			border: 1px solid rgba(255, 255, 255, 0.1);
+			border-radius: 1.5rem;
+			padding: 2rem;
+		}
+
+		/* Climbs grid */
+		.grid {
+			display: grid;
+			grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+			gap: 1.25rem;
+		}
+
+		/* ========================================
+		   ENHANCED CLIMB CARD STYLES (UPDATED)
+		   ======================================== */
+
+		.climb-card {
+			position: relative;
+			background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+			color: #05060a;
+			border-radius: 1.25rem;
+			padding: 0;
+			overflow: hidden;
+			box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(0, 0, 0, 0.05);
+			transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+		}
+
+		.climb-card::before {
+			content: '';
+			position: absolute;
+			top: 0;
+			left: 0;
+			right: 0;
+			height: 4px;
+			background: linear-gradient(90deg, #5df4a2 0%, #3dd68c 50%, #5df4a2 100%);
+			opacity: 0.6;
+			transition: opacity 0.3s;
+		}
+
+		.climb-card:hover {
+			transform: translateY(-4px);
+			box-shadow: 0 12px 35px rgba(0, 0, 0, 0.2), 0 0 0 1px rgba(93, 244, 162, 0.3);
+		}
+
+		.climb-card:hover::before {
+			opacity: 1;
+		}
+
+		/* Highlight when scrolled to */
+		.climb-row-highlight {
+			outline: none;
+			box-shadow: 0 0 0 3px rgba(93, 244, 162, 0.6), 0 12px 35px rgba(93, 244, 162, 0.3);
+			transform: translateY(-4px);
+		}
+
+		.climb-row-highlight::before {
+			opacity: 1;
+			background: linear-gradient(90deg, #5df4a2 0%, #3dd68c 50%, #5df4a2 100%);
+			animation: shimmer 1.5s ease-in-out;
+		}
+
+		@keyframes shimmer {
+			0%, 100% { opacity: 1; }
+			50% { opacity: 0.7; }
+		}
+
+		/* Inner content wrapper */
+		.climb-card > * {
+			padding-left: 1.5rem;
+			padding-right: 1.5rem;
+		}
+
+		.climb-card .climb-header {
+			padding-top: 1.5rem;
+			padding-bottom: 0;
+		}
+
+		.climb-card .climb-actions {
+			padding-bottom: 1.5rem;
+		}
+
+		/* Climb header */
+		.climb-header {
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			gap: 0.75rem;
+			margin-bottom: 1rem;
+		}
+
+		.climb-title {
+			font-size: 1.25rem;
+			font-weight: 900;
+			color: #05060a;
+			letter-spacing: -0.02em;
+		}
+
+		.climb-colour-pill {
+			padding: 0.4rem 1rem;
+			border-radius: 999px;
+			font-size: 0.75rem;
+			font-weight: 800;
+			border: 2px solid rgba(0, 0, 0, 0.1);
+			white-space: nowrap;
+			text-transform: uppercase;
+			letter-spacing: 0.03em;
+			box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+		}
+
+		/* Climb info text */
+		.climb-card p {
+			margin: 0.5rem 0;
+			font-size: 0.9rem;
+			color: #374151;
+			background: rgba(0, 0, 0, 0.02);
+			padding: 0.65rem 1rem;
+			border-radius: 0.65rem;
+			margin-left: 1.5rem;
+			margin-right: 1.5rem;
+			font-weight: 600;
+		}
+
+		.climb-card p strong {
+			color: #05060a;
+			font-weight: 800;
+		}
+
+		.points-scored-value {
+			font-weight: 900;
+			color: #16a34a;
+			font-size: 1.05em;
+			text-shadow: 0 0 12px rgba(22, 163, 74, 0.3);
+		}
+
+		/* Climb actions */
+		.climb-actions {
+			margin-top: 1.25rem;
+			display: flex;
+			flex-direction: column;
+			gap: 1rem;
+			background: linear-gradient(180deg, rgba(0, 0, 0, 0.01) 0%, rgba(0, 0, 0, 0.03) 100%);
+			padding-top: 1.25rem;
+			margin-left: 0;
+			margin-right: 0;
+			border-top: 1px solid rgba(0, 0, 0, 0.06);
+		}
+
+		.climb-actions-row {
+			display: flex;
+			align-items: center;
+			gap: 0.65rem;
+			flex-wrap: wrap;
+		}
+
+		.attempts-row { 
+			margin-top: 0.25rem;
+			flex-direction: column;
+			align-items: flex-start;
+			gap: 0.75rem;
+		}
+
+		.attempts-label {
+			font-size: 0.7rem;
+			text-transform: uppercase;
+			letter-spacing: 0.08em;
+			color: #6b7280;
+			font-weight: 800;
+		}
+
+		.attempts-pill-row {
+			display: flex;
+			flex-wrap: wrap;
+			gap: 0.5rem;
+			width: 100%;
+		}
+
+		/* Action pills (neutral by default) */
+		.action-pill,
+		.attempt-pill,
+		.topped-toggle-btn,
+		.flash-btn {
+			border-radius: 0.75rem;
+			border: 2px solid rgba(5, 6, 10, 0.12);
+			background: linear-gradient(135deg, #ffffff 0%, #f9fafb 100%);
+			color: #374151;
+			font-size: 0.85rem;
+			padding: 0.65rem 1.25rem;
+			cursor: pointer;
+			display: inline-flex;
+			align-items: center;
+			justify-content: center;
+			font-weight: 800;
+			transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+			position: relative;
+			overflow: hidden;
+			letter-spacing: 0.02em;
+			text-transform: uppercase;
+			font-size: 0.75rem;
+		}
+
+		.action-pill::before,
+		.attempt-pill::before,
+		.topped-toggle-btn::before,
+		.flash-btn::before {
+			content: '';
+			position: absolute;
+			top: 50%;
+			left: 50%;
+			width: 0;
+			height: 0;
+			border-radius: 50%;
+			background: rgba(255, 255, 255, 0.5);
+			transform: translate(-50%, -50%);
+			transition: width 0.5s, height 0.5s;
+		}
+
+		.action-pill:hover::before,
+		.attempt-pill:hover::before,
+		.topped-toggle-btn:hover::before,
+		.flash-btn:hover::before {
+			width: 300px;
+			height: 300px;
+		}
+
+		.action-pill:hover,
+		.attempt-pill:hover,
+		.topped-toggle-btn:hover,
+		.flash-btn:hover {
+			background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%);
+			border-color: rgba(5, 6, 10, 0.25);
+			transform: translateY(-2px);
+			box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
+		}
+
+		.action-pill:disabled,
+		.attempt-pill:disabled,
+		.topped-toggle-btn:disabled,
+		.flash-btn:disabled {
+			opacity: 0.4;
+			cursor: not-allowed;
+			transform: none;
+		}
+
+		.action-pill:disabled:hover,
+		.attempt-pill:disabled:hover,
+		.topped-toggle-btn:disabled:hover,
+		.flash-btn:disabled:hover {
+			transform: none;
+			box-shadow: none;
+		}
+
+		/* Active state styles */
+		.flash-btn.is-active {
+			background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
+			border-color: #0ea5e9;
+			color: #ffffff;
+			box-shadow: 0 8px 20px rgba(14, 165, 233, 0.4), 0 0 20px rgba(14, 165, 233, 0.3);
+			transform: translateY(-2px);
+		}
+
+		.flash-btn.is-active:hover {
+			box-shadow: 0 12px 28px rgba(14, 165, 233, 0.5), 0 0 25px rgba(14, 165, 233, 0.4);
+		}
+
+		.topped-toggle-btn.is-active {
+			background: linear-gradient(135deg, #111827 0%, #1f2937 100%);
+			border-color: #111827;
+			color: #ffffff;
+			box-shadow: 0 8px 20px rgba(17, 24, 39, 0.35), 0 0 20px rgba(17, 24, 39, 0.2);
+			transform: translateY(-2px);
+		}
+
+		.topped-toggle-btn.is-active:hover {
+			box-shadow: 0 12px 28px rgba(17, 24, 39, 0.45), 0 0 25px rgba(17, 24, 39, 0.3);
+		}
+
+		.attempt-pill.is-active {
+			background: linear-gradient(135deg, #16a34a 0%, #15803d 100%);
+			border-color: #16a34a;
+			color: #ffffff;
+			box-shadow: 0 8px 20px rgba(22, 163, 74, 0.35), 0 0 20px rgba(22, 163, 74, 0.25);
+			transform: translateY(-2px);
+		}
+
+		.attempt-pill.is-active:hover {
+			box-shadow: 0 12px 28px rgba(22, 163, 74, 0.45), 0 0 25px rgba(22, 163, 74, 0.35);
+		}
+
+		/* Status message */
+		.status {
+			min-height: 1.2em;
+			font-size: 0.8rem;
+			color: #9ca3af;
+			margin-top: 0.75rem;
+			font-weight: 700;
+			letter-spacing: 0.02em;
+			padding: 0.5rem 0;
+		}
+
+		.status.ok {
+			color: #16a34a;
+			font-weight: 900;
+			text-shadow: 0 0 8px rgba(22, 163, 74, 0.2);
+		}
+
+		.status.err {
+			color: #dc2626;
+			font-weight: 900;
+			text-shadow: 0 0 8px rgba(220, 38, 38, 0.2);
+		}
+
+		/* Alert */
+		.alert {
+			padding: 1rem;
+			border-radius: 0.75rem;
+			background: rgba(251, 113, 133, 0.12);
+			border: 1px solid rgba(251, 113, 133, 0.3);
+			color: rgba(255, 255, 255, 0.9);
+		}
+
+		/* Responsive */
+		@media (max-width: 768px) {
+			.nav { padding: 1rem; }
+			.container { padding: 1.5rem 1rem; }
+			.comp-header { padding: 1.5rem; }
+			.comp-name { font-size: 1.6rem; }
+			.section-filter-row { flex-direction: column; align-items: flex-start; }
+			.map-card, .climbs-section { padding: 1.5rem; }
+			.section-title { font-size: 1.4rem; }
+			.grid { grid-template-columns: 1fr; }
+			.section-tab-name { max-width: 26ch; }
+
+			/* Updated responsive styles for climb cards */
+			.climb-card > * {
+				padding-left: 1.25rem;
+				padding-right: 1.25rem;
+			}
+
+			.climb-card .climb-header {
+				padding-top: 1.25rem;
+			}
+
+			.climb-card .climb-actions {
+				padding-bottom: 1.25rem;
+			}
+
+			.climb-title {
+				font-size: 1.1rem;
+			}
+		}
+
+		@media (max-width: 520px) {
+			.comp-meta-row { gap: 0.75rem; }
+			.comp-pill { flex: 1 1 calc(50% - 0.375rem); min-width: 0; }
+			.section-tab { width: 100%; justify-content: space-between; }
+			.section-tab-name { max-width: 100%; }
+		}
+	</style>
+</head>
+
+<body>
+	{% set is_logged_in = session.get('account_id') %}
+	{% set viewer_id = session.get('competitor_id') %}
+	{% set is_admin = session.get('admin_ok', False) %}
+	{% set comp_slug = comp_slug if comp_slug is defined else session.get('active_comp_slug') %}
+	{% set show_comp_nav = (is_logged_in and viewer_id and comp_slug) %}
+
+	<nav class="nav">
+		<a href="{% if is_logged_in or is_admin %}/my-comps{% else %}/{% endif %}"
+		   class="{% if nav_active == 'my_comps' %}active{% endif %}">
+			Home
+		</a>
+
+		{% if is_admin %}
+			<a href="/admin/comps" class="{% if nav_active == 'admin' %}active{% endif %}">Admin</a>
+		{% endif %}
+
+		{% if show_comp_nav %}
+			<a href="/comp/{{ comp_slug }}/competitor/{{ viewer_id }}/sections"
+			   class="{% if nav_active == 'sections' %}active{% endif %}">
+				Scoring
+			</a>
+
+			<a href="/competitor/{{ viewer_id }}/stats/my"
+			   class="{% if nav_active == 'my_stats' %}active{% endif %}">
+				My Stats
+			</a>
+
+			<a href="/competitor/{{ viewer_id }}/stats/overall"
+			   class="{% if nav_active == 'overall_stats' %}active{% endif %}">
+				Overall Stats
+			</a>
+		{% endif %}
+
+		<a href="/leaderboard{% if show_comp_nav %}?cid={{ viewer_id }}{% endif %}"
+		   class="{% if nav_active == 'leaderboard' %}active{% endif %}">
+			Leaderboard
+		</a>
+
+		{% if is_logged_in or is_admin %}
+			<a href="/logout">Log out</a>
+		{% else %}
+			<a href="/login{% if comp_slug %}?slug={{ comp_slug }}{% endif %}"
+			   class="{% if nav_active == 'login' %}active{% endif %}">
+				Log in
+			</a>
+		{% endif %}
+	</nav>
+
+	<main class="container">
+		<header class="comp-header">
+			<h1 class="comp-name">{{ competitor.name }}</h1>
+
+			<div class="comp-meta-row">
+				<div class="comp-pill">
+					<span class="comp-pill-label">Competitor</span>
+					<span class="comp-pill-value">{{ competitor.id }}</span>
+				</div>
+
+				<div class="comp-pill">
+					<span class="comp-pill-label">Points</span>
+					<span class="comp-pill-value" id="total-points">{{ total_points }}</span>
+				</div>
+
+				{% if position is defined and position is not none %}
+					<div class="comp-pill">
+						<span class="comp-pill-label">Position</span>
+						<span class="comp-pill-value" id="position-value">{{ position }}</span>
+					</div>
+				{% endif %}
+			</div>
+		</header>
+
+		{% if sections is defined and sections %}
+		<div class="section-filter-row">
+			<div class="section-filter-left">
+				<div class="section-filter-label">Jump to a section:</div>
+
+				<div class="section-tabs" id="sectionTabs">
+					{% for sec in sections %}
+						<a
+							href="/competitor/{{ competitor.id }}/section/{{ sec.slug }}"
+							class="section-tab {% if section is defined and section and section.id == sec.id %}is-active{% endif %}"
+							data-section-id="{{ sec.id }}"
+							aria-label="Go to section {{ sec.name }}"
+						>
+							<span class="section-tab-name">{{ sec.name }}</span>
+							<span class="section-tab-badge">
+								<span class="sec-done">—</span>/<span class="sec-total">—</span>
+							</span>
+						</a>
+					{% endfor %}
+				</div>
+			</div>
+
+			{% if comp_slug %}
+				<a class="back-to-map-btn" href="/comp/{{ comp_slug }}/competitor/{{ competitor.id }}/sections">Back to Gym Map</a>
+			{% else %}
+				<a class="back-to-map-btn" href="/competitor/{{ competitor.id }}/sections">Back to Gym Map</a>
+			{% endif %}
+		</div>
+		{% endif %}
+
+		{% if section_climbs is defined %}
+		<section class="map-card">
+			<header class="section-header">
+				<h2 class="section-title">{{ section.name }}</h2>
+			</header>
+
+			<div
+				class="map-wrapper"
+				id="sectionMapWrapper"
+				data-comp-slug="{{ comp_slug or '' }}"
+				data-section-id="{{ section.id if section is defined and section else '' }}"
+			>
+				{% if gym_map_url %}
+					<div class="map-viewport" id="sectionMapViewport">
+						<div class="map-layer" id="sectionMapLayer">
+							<img
+								class="gym-map"
+								id="sectionMapImage"
+								src="{{ gym_map_url }}"
+								alt="Gym map"
+								draggable="false"
+							/>
+
+							{% for sc in section_climbs %}
+								{% if sc.x_percent is not none and sc.y_percent is not none %}
+									{% set col_raw = sc.colour %}
+									{% if col_raw %}
+										{% set lc = col_raw|lower %}
+										{% if lc == "red" %}
+											{% set bg = "#b32121" %}
+										{% elif lc in ["white", "#fff", "#ffffff"] %}
+											{% set bg = "#ffffff" %}
+										{% else %}
+											{% set bg = col_raw %}
+										{% endif %}
+									{% else %}
+										{% set bg = "#5df29c" %}
+									{% endif %}
+
+									{% set text_color = "#000000" %}
+
+									<button
+										type="button"
+										class="map-dot map-dot-interactive"
+										style="left: {{ sc.x_percent }}%; top: {{ sc.y_percent }}%; background: {{ bg }}; color: {{ text_color }};"
+										data-climb="{{ sc.climb_number }}"
+										data-section-climb-id="{{ sc.id }}"
+										data-xp="{{ sc.x_percent }}"
+										data-yp="{{ sc.y_percent }}"
+										title="Climb {{ sc.climb_number }}{% if sc.colour %} · {{ sc.colour }}{% endif %}"
+									>
+										{{ sc.climb_number }}
+									</button>
+								{% endif %}
+							{% endfor %}
+						</div>
+					</div>
+				{% else %}
+					<div class="alert">No gym map found for this competition/gym.</div>
+				{% endif %}
+			</div>
+		</section>
+		{% endif %}
+
+		<section class="climbs-section">
+			<header class="section-header">
+				<h2 class="section-title">
+					{% if section %} {{ section.name }} {% else %} Climbs {% endif %}
+				</h2>
+			</header>
+
+			<div class="grid">
+				{% if section_climbs is defined %}
+					{% for sc in section_climbs %}
+						{% set n = sc.climb_number %}
+						{% set s = existing.get(sc.id) %}
+						{% set max_pts = sc.base_points if sc.base_points is not none else (max_points.get(n) if max_points is defined else None) %}
+						{% set col_raw = sc.colour if sc.colour else (colours.get(n) if colours is defined else None) %}
+
+						{% if col_raw %}
+							{% set lc = col_raw|lower %}
+							{% if lc == "red" %}
+								{% set col_bg = "#b32121" %}
+							{% elif lc in ["white", "#fff", "#ffffff"] %}
+								{% set col_bg = "#ffffff" %}
+							{% else %}
+								{% set col_bg = col_raw %}
+							{% endif %}
+						{% else %}
+							{% set col_bg = "#e5e7eb" %}
+						{% endif %}
+
+						{% if col_bg|lower in ["white", "#fff", "#ffffff", "#e5e7eb", "#facc15", "#fef9c3"] %}
+							{% set pill_text_color = "#05060a" %}
+						{% else %}
+							{% set pill_text_color = "#ffffff" %}
+						{% endif %}
+
+						{% set cap = sc.attempt_cap if sc.attempt_cap else 5 %}
+
+						{% if s %}
+							{% set sel_attempt = s.attempts if s.attempts else 1 %}
+						{% else %}
+							{% set sel_attempt = 1 %}
+						{% endif %}
+						{% if sel_attempt > cap %}
+							{% set sel_attempt = cap %}
+						{% endif %}
+
+						{% set is_topped = (s and s.topped) %}
+						{% set is_flashed = (s and s.flashed) %}
+
+						<div
+							class="climb-card climb-row"
+							id="climb-{{ n }}"
+							data-climb="{{ n }}"
+							data-climb-row="{{ n }}"
+							data-section-climb-id="{{ sc.id }}"
+							data-attempt-cap="{{ cap }}"
+							data-initial-attempt="{{ sel_attempt }}"
+							data-initial-topped="{{ '1' if is_topped else '0' }}"
+							data-initial-flashed="{{ '1' if is_flashed else '0' }}"
+						>
+							<div class="climb-header">
+								<span class="climb-title">Climb #{{ n }}</span>
+
+								{% if col_raw %}
+									<span class="climb-colour-pill" style="background: {{ col_bg }}; color: {{ pill_text_color }};">
+										{{ col_raw }}
+									</span>
+								{% endif %}
+							</div>
+
+							{% if max_pts is not none %}
+								<p>Max Points: <strong>{{ max_pts }}</strong></p>
+							{% endif %}
+
+							<p>
+								Points Scored:
+								<span class="points-scored-value">
+									{% if per_climb_points is defined %}
+										{{ per_climb_points.get(n, 0) }}
+									{% else %}
+										0
+									{% endif %}
+								</span>
+							</p>
+
+							<div class="climb-actions">
+								<div class="climb-actions-row">
+									<button
+										type="button"
+										class="flash-btn action-pill {% if is_flashed %}is-active{% endif %}"
+										{% if not can_edit %}disabled{% endif %}
+									>
+										Flash
+									</button>
+
+									<button
+										type="button"
+										class="topped-toggle-btn action-pill {% if is_topped and not is_flashed %}is-active{% endif %}"
+										{% if not can_edit %}disabled{% endif %}
+									>
+										Topped
+									</button>
+								</div>
+
+								<div class="climb-actions-row attempts-row">
+									<span class="attempts-label">Attempts</span>
+									<div class="attempts-pill-row" data-selected-attempt="{{ sel_attempt }}">
+										{% for i in range(1, cap + 1) %}
+											<button
+												type="button"
+												class="attempt-pill {% if i == sel_attempt %}is-active{% endif %}"
+												data-attempt="{{ i }}"
+												{% if not can_edit %}disabled{% endif %}
+											>
+												{{ i }}
+											</button>
+										{% endfor %}
+									</div>
+								</div>
+
+								<div class="status" aria-live="polite"></div>
+							</div>
+						</div>
+					{% endfor %}
+				{% else %}
+					<div class="alert">No climbs found for this section.</div>
+				{% endif %}
+			</div>
+		</section>
+	</main>
+
+	<script>
+	(function () {
+		// ===== Section boundary zoom (mobile-safe) =====
+		const wrapper  = document.getElementById("sectionMapWrapper");
+		const viewport = document.getElementById("sectionMapViewport");
+		const layer    = document.getElementById("sectionMapLayer");
+		const img      = document.getElementById("sectionMapImage");
+		if (!wrapper || !viewport || !layer || !img) return;
+
+		const compSlug  = (wrapper.dataset.compSlug || "").trim();
+		const sectionId = String(wrapper.dataset.sectionId || "").trim();
+
+		let boundariesCache = null;
+		let baseW = 1, baseH = 1;
+		let lastAppliedKey = "";
+
+		function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
+		function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+		async function loadBoundariesOnce() {
+			if (boundariesCache) return boundariesCache;
+			if (!compSlug) return null;
+
+			try {
+				const res = await fetch(`/api/comp/${compSlug}/section-boundaries`, { credentials: "same-origin" });
+				const data = await res.json();
+				if (!data || !data.ok) return null;
+				boundariesCache = data.boundaries || {};
+				return boundariesCache;
+			} catch (_) {
+				return null;
+			}
+		}
+
+		// robust measurement: if offset sizes are 0, derive from viewport + natural size
+		function updateLayerSizeFromImage() {
+			let w = img.offsetWidth || img.clientWidth || 0;
+			let h = img.offsetHeight || img.clientHeight || 0;
+
+			if ((!w || !h) && img.naturalWidth && img.naturalHeight) {
+				const vr = viewport.getBoundingClientRect();
+				const vw = vr.width || 0;
+				if (vw > 0) {
+					w = vw;
+					h = vw * (img.naturalHeight / img.naturalWidth);
+				}
+			}
+
+			if (w > 0 && h > 0) {
+				baseW = Math.max(1, Math.round(w));
+				baseH = Math.max(1, Math.round(h));
+				layer.style.width  = baseW + "px";
+				layer.style.height = baseH + "px";
+				return true;
+			}
+			return false;
+		}
+
+		function pctToPx(pt) {
+			return { x: (pt.x / 100) * baseW, y: (pt.y / 100) * baseH };
+		}
+
+		function computeBoundsPxFromPercentPts(ptsPercent) {
+			const pxPts = (ptsPercent || []).map(pctToPx);
+			if (!pxPts.length) return null;
+
+			let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+			for (const p of pxPts) {
+				minX = Math.min(minX, p.x);
+				minY = Math.min(minY, p.y);
+				maxX = Math.max(maxX, p.x);
+				maxY = Math.max(maxY, p.y);
+			}
+			return { minX, minY, maxX, maxY };
+		}
+
+		function computeBoundsFromDots() {
+			const dots = Array.from(wrapper.querySelectorAll(".map-dot-interactive"));
+			const pts = [];
+			for (const d of dots) {
+				const xp = parseFloat(d.dataset.xp || "");
+				const yp = parseFloat(d.dataset.yp || "");
+				if (!Number.isFinite(xp) || !Number.isFinite(yp)) continue;
+				pts.push({ x: (xp / 100) * baseW, y: (yp / 100) * baseH });
+			}
+			if (!pts.length) return null;
+
+			let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+			for (const p of pts) {
+				minX = Math.min(minX, p.x);
+				minY = Math.min(minY, p.y);
+				maxX = Math.max(maxX, p.x);
+				maxY = Math.max(maxY, p.y);
+			}
+
+			const pad = 28;
+			return { minX: minX - pad, minY: minY - pad, maxX: maxX + pad, maxY: maxY + pad };
+		}
+
+		// Expand rect to match viewport aspect ratio
+		function expandRectToMatchAspect(rect, targetAspect) {
+			const w = Math.max(1, rect.maxX - rect.minX);
+			const h = Math.max(1, rect.maxY - rect.minY);
+			const rectAspect = w / h;
+
+			let minX = rect.minX, minY = rect.minY, maxX = rect.maxX, maxY = rect.maxY;
+
+			if (rectAspect > targetAspect) {
+				const newH = w / targetAspect;
+				const extra = (newH - h) / 2;
+				minY -= extra;
+				maxY += extra;
+			} else {
+				const newW = h * targetAspect;
+				const extra = (newW - w) / 2;
+				minX -= extra;
+				maxX += extra;
+			}
+			return { minX, minY, maxX, maxY };
+		}
+
+		// Clamp pan so we never reveal black background
+		function clampPan(tx, ty, scale) {
+			const vr = viewport.getBoundingClientRect();
+			const viewW = vr.width;
+			const viewH = vr.height;
+
+			const scaledW = baseW * scale;
+			const scaledH = baseH * scale;
+
+			const minTx = viewW - scaledW;
+			const minTy = viewH - scaledH;
+
+			if (scaledW <= viewW) tx = (viewW - scaledW) / 2;
+			else tx = clamp(tx, minTx, 0);
+
+			if (scaledH <= viewH) ty = (viewH - scaledH) / 2;
+			else ty = clamp(ty, minTy, 0);
+
+			return { tx, ty };
+		}
+
+		function fitRectToViewport(rect, paddingPx = 12) {
+			const vr = viewport.getBoundingClientRect();
+			const viewW = vr.width;
+			const viewH = vr.height;
+			if (!viewW || !viewH) return false;
+
+			const targetAspect = viewW / viewH;
+			const expanded = expandRectToMatchAspect(rect, targetAspect);
+
+			const rectW = Math.max(1, expanded.maxX - expanded.minX);
+			const rectH = Math.max(1, expanded.maxY - expanded.minY);
+
+			const availW = Math.max(1, viewW - paddingPx * 2);
+			const availH = Math.max(1, viewH - paddingPx * 2);
+
+			let scale = Math.min(availW / rectW, availH / rectH);
+			scale *= 1.04;
+
+			const cxImg = expanded.minX + rectW / 2;
+			const cyImg = expanded.minY + rectH / 2;
+
+			const cxView = viewW / 2;
+			const cyView = viewH / 2;
+
+			let tx = cxView - (cxImg * scale);
+			let ty = cyView - (cyImg * scale);
+
+			({ tx, ty } = clampPan(tx, ty, scale));
+
+			layer.style.transform = `translate(${tx}px, ${ty}px) scale(${scale})`;
+
+			const inv = clamp(1 / scale, 0.18, 1.25);
+			wrapper.style.setProperty("--dot-inv-scale", String(inv));
+			return true;
+		}
+
+		// wait for decode + layout (mobile Safari needs this sometimes)
+		async function ensureImageReady() {
+			if (!img.complete) {
+				await new Promise((resolve) => img.addEventListener("load", resolve, { once: true }));
+			}
+			if (img.decode) {
+				try { await img.decode(); } catch (_) {}
+			}
+			await new Promise(requestAnimationFrame);
+			await new Promise(requestAnimationFrame);
+		}
+
+		async function applySectionZoomSafe(reason = "") {
+			// avoid thrashing
+			const key = `${reason}|${viewport.clientWidth}x${viewport.clientHeight}|${img.currentSrc || img.src}`;
+			lastAppliedKey = key;
+
+			await ensureImageReady();
+
+			let ok = updateLayerSizeFromImage();
+			for (let i = 0; i < 6 && !ok; i++) {
+				await sleep(60);
+				ok = updateLayerSizeFromImage();
+			}
+			if (!ok) return;
+
+			if (img.naturalWidth && img.naturalHeight) {
+				viewport.style.setProperty("--map-ar", `${img.naturalWidth} / ${img.naturalHeight}`);
+			}
+
+			let bounds = null;
+			const boundaries = await loadBoundariesOnce();
+			if (boundaries && sectionId) {
+				const pts = boundaries[String(sectionId)] || [];
+				if (pts && pts.length >= 3) bounds = computeBoundsPxFromPercentPts(pts);
+			}
+			if (!bounds) bounds = computeBoundsFromDots();
+			if (!bounds) return;
+
+			const old = layer.style.transition;
+			layer.style.transition = "transform 260ms ease";
+			fitRectToViewport(bounds, 12);
+			setTimeout(() => { layer.style.transition = old || ""; }, 320);
+		}
+
+		applySectionZoomSafe("init");
+
+		let t = null;
+		window.addEventListener("resize", () => {
+			clearTimeout(t);
+			t = setTimeout(() => applySectionZoomSafe("resize"), 150);
+		});
+
+		window.addEventListener("orientationchange", () => {
+			clearTimeout(t);
+			t = setTimeout(() => applySectionZoomSafe("orientation"), 250);
+		});
+
+		window.addEventListener("pageshow", (e) => {
+			if (e.persisted) {
+				clearTimeout(t);
+				t = setTimeout(() => applySectionZoomSafe("pageshow"), 120);
+			}
+		});
+	})();
+	</script>
+
+	<script>
+		const viewerId = {{ viewer_id if viewer_id is not none else 'null' }};
+		const canEdit = {{ 'true' if can_edit else 'false' }};
+
+		const cards = document.querySelectorAll(".climb-card");
+
+		function showStatus(el, msg, ok = true) {
+			if (!el) return;
+			el.textContent = msg;
+			el.className = "status " + (ok ? "ok" : "err");
+			setTimeout(() => {
+				el.textContent = "";
+				el.className = "status";
+			}, 1500);
+		}
+
+		function getCurrentState(card) {
+			const attemptsContainer = card.querySelector(".attempts-pill-row");
+			const toppedToggle = card.querySelector(".topped-toggle-btn");
+			const flashBtn = card.querySelector(".flash-btn");
+
+			let attempts = 1;
+			if (attemptsContainer) {
+				const raw = attemptsContainer.dataset.selectedAttempt || "1";
+				const parsed = parseInt(raw, 10);
+				if (!isNaN(parsed) && parsed >= 1) attempts = parsed;
+			}
+
+			const topped = !!(toppedToggle && toppedToggle.classList.contains("is-active"));
+			const flashed = !!(flashBtn && flashBtn.classList.contains("is-active"));
+			return { attempts, topped, flashed };
+		}
+
+		function hydrateFromDataset(card) {
+			const attemptsContainer = card.querySelector(".attempts-pill-row");
+			const attemptButtons = attemptsContainer ? Array.from(attemptsContainer.querySelectorAll(".attempt-pill")) : [];
+
+			const initialAttempt = parseInt(card.dataset.initialAttempt || "1", 10);
+			const initialTopped = card.dataset.initialTopped === "1";
+			const initialFlashed = card.dataset.initialFlashed === "1";
+
+			if (attemptsContainer) {
+				const attempt = (!isNaN(initialAttempt) && initialAttempt >= 1) ? String(initialAttempt) : "1";
+				attemptsContainer.dataset.selectedAttempt = attempt;
+				attemptButtons.forEach((btn) => btn.classList.toggle("is-active", btn.dataset.attempt === attempt));
+			}
+
+			const flashBtn = card.querySelector(".flash-btn");
+			const toppedBtn = card.querySelector(".topped-toggle-btn");
+
+			if (flashBtn) flashBtn.classList.toggle("is-active", initialFlashed);
+			if (toppedBtn) toppedBtn.classList.toggle("is-active", initialTopped && !initialFlashed);
+		}
+
+		cards.forEach(hydrateFromDataset);
+
+		async function save(card, override) {
+			if (!canEdit || viewerId === null) {
+				showStatus(card.querySelector(".status"), "Not allowed", false);
+				return;
+			}
+
+			const climb = parseInt(card.dataset.climb, 10);
+			const sectionClimbId = parseInt(card.dataset.sectionClimbId, 10);
+			const status = card.querySelector(".status");
+
+			let { attempts, topped, flashed } = getCurrentState(card);
+
+			if (override && typeof override.attempts === "number") attempts = override.attempts;
+			if (override && typeof override.topped === "boolean") topped = override.topped;
+			if (override && typeof override.flashed === "boolean") flashed = override.flashed;
+
+			if (isNaN(attempts) || attempts < 1) attempts = 1;
+			if (attempts > 50) attempts = 50;
+
+			try {
+				const res = await fetch("/api/score", {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({
+						competitor_id: viewerId,
+						section_climb_id: isNaN(sectionClimbId) ? null : sectionClimbId,
+						climb_number: climb,
+						attempts,
+						topped,
+						flashed,
+					}),
+				});
+
+				if (!res.ok) {
+					const t = await res.text();
+					showStatus(status, "Error: " + t, false);
+					return;
+				}
+
+				const data = await res.json();
+				showStatus(status, "Saved");
+
+				const pointsSpan = card.querySelector(".points-scored-value");
+				if (pointsSpan && data && typeof data.points === "number") {
+					pointsSpan.textContent = data.points;
+				}
+
+				await refreshTotalPoints();
+				refreshPosition();
+				await refreshDoneDotsAndActiveTab();
+			} catch (e) {
+				showStatus(status, "Network error", false);
+			}
+		}
+
+		async function refreshTotalPoints() {
+			if (viewerId === null) return;
+			try {
+				const res = await fetch(`/api/score/${viewerId}`);
+				const rows = await res.json();
+				const totalEl = document.getElementById("total-points");
+				if (!totalEl) return;
+
+				let totalPoints = 0;
+				(rows || []).forEach((r) => { totalPoints += r.points || 0; });
+				totalEl.textContent = totalPoints;
+			} catch (e) {}
+		}
+
+		async function refreshPosition() {
+			if (viewerId === null) return;
+			try {
+				const res = await fetch("/api/leaderboard");
+				const data = await res.json();
+				if (!data.rows) return;
+
+				const posValue = document.getElementById("position-value");
+				if (!posValue) return;
+
+				for (const row of data.rows) {
+					if (row.competitor_id === viewerId) {
+						posValue.textContent = row.position;
+						break;
+					}
+				}
+			} catch (e) {}
+		}
+
+		if (canEdit) {
+			cards.forEach((card) => {
+				const flashBtn = card.querySelector(".flash-btn");
+				const toppedToggle = card.querySelector(".topped-toggle-btn");
+				const attemptsContainer = card.querySelector(".attempts-pill-row");
+				const attemptButtons = attemptsContainer ? Array.from(attemptsContainer.querySelectorAll(".attempt-pill")) : [];
+
+				if (flashBtn) {
+					flashBtn.addEventListener("click", async () => {
+						if (!attemptsContainer) return;
+
+						attemptsContainer.dataset.selectedAttempt = "1";
+						attemptButtons.forEach((btn) => {
+							btn.classList.toggle("is-active", btn.dataset.attempt === "1");
+						});
+
+						flashBtn.classList.add("is-active");
+						if (toppedToggle) toppedToggle.classList.remove("is-active");
+
+						await save(card, { attempts: 1, topped: true, flashed: true });
+					});
+				}
+
+				if (toppedToggle) {
+					toppedToggle.addEventListener("click", async () => {
+						const nowActive = !toppedToggle.classList.contains("is-active");
+						toppedToggle.classList.toggle("is-active", nowActive);
+
+						if (flashBtn && nowActive) flashBtn.classList.remove("is-active");
+
+						await save(card, { topped: nowActive, flashed: false });
+					});
+				}
+
+				attemptButtons.forEach((btn) => {
+					btn.addEventListener("click", async () => {
+						const attempt = btn.dataset.attempt;
+						attemptsContainer.dataset.selectedAttempt = attempt;
+						attemptButtons.forEach((b) => { b.classList.toggle("is-active", b === btn); });
+
+						if (flashBtn) flashBtn.classList.remove("is-active");
+
+						await save(card, { flashed: false });
+					});
+				});
+			});
+		}
+
+		document.addEventListener("click", function (event) {
+			const dot = event.target.closest(".map-dot-interactive");
+			if (!dot) return;
+
+			const climb = dot.dataset.climb;
+			const row = document.querySelector('.climb-row[data-climb-row="' + climb + '"]');
+			if (!row) return;
+
+			row.scrollIntoView({ behavior: "smooth", block: "center" });
+			row.classList.add("climb-row-highlight");
+			setTimeout(() => { row.classList.remove("climb-row-highlight"); }, 1500);
+		});
+
+		async function refreshDoneDotsAndActiveTab() {
+			const dots = Array.from(document.querySelectorAll(".map-dot-interactive"));
+			const activeTab = document.querySelector(".section-tab.is-active");
+			if (!dots.length && !activeTab) return;
+
+			const totalInThisSection = dots.length;
+
+			function setActiveTab(done, total) {
+				if (!activeTab) return;
+				activeTab.querySelectorAll(".sec-done").forEach(el => el.textContent = String(done));
+				activeTab.querySelectorAll(".sec-total").forEach(el => el.textContent = String(total));
+			}
+
+			try {
+				if (viewerId === null) return;
+
+				const res = await fetch(`/api/score/${viewerId}`);
+				if (!res.ok) return;
+				const rows = await res.json();
+
+				const doneBySectionClimbId = new Set();
+				const doneByClimbNumber = new Set();
+
+				(rows || []).forEach((r) => {
+					const isDone = !!(r && (r.topped || r.flashed));
+					if (!isDone) return;
+
+					if (r.section_climb_id !== undefined && r.section_climb_id !== null) {
+						doneBySectionClimbId.add(String(r.section_climb_id));
+					}
+					if (r.climb_number !== undefined && r.climb_number !== null) {
+						doneByClimbNumber.add(String(r.climb_number));
+					}
+				});
+
+				let doneCountThisSection = 0;
+				dots.forEach((d) => {
+					const sid = String(d.dataset.sectionClimbId || "");
+					const cn = String(d.dataset.climb || "");
+
+					const isDone = (sid && doneBySectionClimbId.has(sid)) || (cn && doneByClimbNumber.has(cn));
+					d.classList.toggle("is-done", isDone);
+					if (isDone) doneCountThisSection += 1;
+				});
+
+				setActiveTab(doneCountThisSection, totalInThisSection);
+			} catch (e) {}
+		}
+
+		refreshTotalPoints();
+		refreshPosition();
+		refreshDoneDotsAndActiveTab();
+	</script>
+</body>
+</html>
