@@ -60,7 +60,7 @@
       background: #000;
     }
 
-    /* viewport/layer for pan+zoom */
+    /* viewport/layer for pan (NO ZOOM) */
     .map-viewport {
       position: relative;
       width: 100%;
@@ -96,27 +96,33 @@
       user-select: none;
     }
 
+    /* Smaller dots */
     .map-dot {
       position: absolute;
-      width: 12px;
-      height: 12px;
+      width: 10px;
+      height: 10px;
       border-radius: 999px;
       background: var(--accent, #5df29c);
-      box-shadow: 0 0 0 2px rgba(0,0,0,0.6);
+      box-shadow: 0 0 0 1.5px rgba(0,0,0,0.6);
       transform: translate(-50%, -50%);
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 9px;
-      font-weight: 700;
+      font-size: 8px;
+      font-weight: 800;
       color: #000;
       pointer-events: none;
     }
 
     .map-dot--ghost {
+      width: 8px;
+      height: 8px;
       background: transparent;
-      border: 2px dashed var(--accent, #5df29c);
+      border: 1.5px dashed var(--accent, #5df29c);
       color: var(--accent, #5df29c);
+      box-shadow: none;
+      font-size: 8px;
+      font-weight: 900;
     }
 
     /* SVG overlay for section boundaries */
@@ -129,7 +135,7 @@
       pointer-events: none;
     }
 
-    /* When drawing, show crosshair and keep the browser OUT */
+    /* When drawing, show crosshair */
     .draw-mode .map-viewport {
       cursor: crosshair;
     }
@@ -360,7 +366,7 @@
         </div>
 
         <div class="map-controls">
-          <button type="button" class="tiny-btn" id="btnResetZoom">Reset zoom</button>
+          <!-- Reset zoom removed: zoom is disabled -->
           <button type="button" class="tiny-btn" id="btnDrawBoundary">Draw boundary</button>
           <button type="button" class="tiny-btn" id="btnUndoBoundary">Undo</button>
           <button type="button" class="tiny-btn" id="btnClearBoundary">Clear</button>
@@ -499,7 +505,6 @@
       const overlay  = document.getElementById("mapOverlay");
       const ghostDot = document.getElementById("ghostDot");
 
-      const resetBtn = document.getElementById("btnResetZoom");
       const btnDraw  = document.getElementById("btnDrawBoundary");
       const btnUndo  = document.getElementById("btnUndoBoundary");
       const btnClear = document.getElementById("btnClearBoundary");
@@ -526,10 +531,10 @@
       // ---- Disable save until a map tap selects position
       if (submitBtn) submitBtn.disabled = true;
 
-      // ---- Pan/zoom state ----
-      let scale = 1;
-      let minScale = 1;
-      const maxScale = 6;
+      // ---- Pan (NO ZOOM) state ----
+      let scale = 1;                 // locked
+      const minScale = 1;
+      const maxScale = 1;            // locked
 
       let tx = 0, ty = 0;
       let baseW = 1, baseH = 1;
@@ -555,14 +560,9 @@
         layer.style.height = baseH + "px";
       }
 
-      function computeFitScale() {
-        const vr = viewport.getBoundingClientRect();
-        const fit = Math.min(vr.width / baseW, vr.height / baseH);
-        return Math.min(1, fit);
-      }
-
       function applyTransform() {
-        layer.style.transform = `translate(${tx}px, ${ty}px) scale(${scale})`;
+        // translate only; scale is always 1
+        layer.style.transform = `translate(${tx}px, ${ty}px)`;
       }
 
       function clampPan() {
@@ -570,8 +570,8 @@
         const viewW = vr.width;
         const viewH = vr.height;
 
-        const scaledW = baseW * scale;
-        const scaledH = baseH * scale;
+        const scaledW = baseW * scale; // == baseW
+        const scaledH = baseH * scale; // == baseH
 
         const minTx = viewW - scaledW;
         const minTy = viewH - scaledH;
@@ -584,31 +584,13 @@
       }
 
       function resetFit() {
+        // With zoom disabled, "fit" just centers the image.
         updateLayerSizeFromImage();
-        minScale = computeFitScale();
-        scale = clamp(minScale, minScale, maxScale);
 
         const vr = viewport.getBoundingClientRect();
-        tx = (vr.width - baseW * scale) / 2;
-        ty = (vr.height - baseH * scale) / 2;
+        tx = (vr.width - baseW) / 2;
+        ty = (vr.height - baseH) / 2;
 
-        clampPan();
-        applyTransform();
-        redrawBoundary();
-      }
-
-      function zoomBy(factor, clientX, clientY) {
-        const nextScale = clamp(scale * factor, minScale, maxScale);
-
-        const vr = viewport.getBoundingClientRect();
-        const cx = (clientX ?? (vr.left + vr.width/2)) - vr.left;
-        const cy = (clientY ?? (vr.top + vr.height/2)) - vr.top;
-
-        const scaleChange = nextScale / scale;
-        tx = cx - (cx - tx) * scaleChange;
-        ty = cy - (cy - ty) * scaleChange;
-
-        scale = nextScale;
         clampPan();
         applyTransform();
         redrawBoundary();
@@ -619,7 +601,7 @@
         const xV = clientX - vr.left;
         const yV = clientY - vr.top;
 
-        const xImg = (xV - tx) / scale;
+        const xImg = (xV - tx) / scale; // scale == 1
         const yImg = (yV - ty) / scale;
 
         if (xImg < 0 || yImg < 0 || xImg > baseW || yImg > baseH) return null;
@@ -699,7 +681,6 @@
 
         const pxPts = pts.map(pctToPx);
 
-        // polygon/line path
         const d = pxPts.map((p,i)=>`${i===0?"M":"L"} ${p.x} ${p.y}`).join(" ")
                   + (pxPts.length >= 3 ? " Z" : "");
 
@@ -793,7 +774,6 @@
       }
 
       function setDrawMode(on) {
-        // Only allow if section is selected
         if (on && !sid()) {
           setStatus("❌ Select a Boundary section first.");
           return;
@@ -812,9 +792,8 @@
         }
       }
 
-      // ---- IMPORTANT: capture pointer events and prevent native zoom/gesture
+      // ---- Pointer events: tap to place, drag to pan (NO ZOOM) ----
       viewport.addEventListener("pointerdown", (e) => {
-        // always prevent native behaviour in map area
         e.preventDefault();
 
         activePointerId = e.pointerId;
@@ -853,7 +832,6 @@
         try { viewport.releasePointerCapture(e.pointerId); } catch (_) {}
         activePointerId = null;
 
-        // If they didn't move much, treat as tap
         const dx = e.clientX - downX;
         const dy = e.clientY - downY;
         const isTap = Math.hypot(dx, dy) <= TAP_SLOP;
@@ -870,19 +848,15 @@
         if (activePointerId === e.pointerId) activePointerId = null;
       }, { passive: false });
 
-      // Wheel zoom on desktop only (not on mobile)
+      // Kill wheel zoom (and prevent page scroll while cursor is over map)
       viewport.addEventListener("wheel", (e) => {
         e.preventDefault();
-        if (state.drawing) return;
-        const factor = e.deltaY < 0 ? 1.1 : 0.9;
-        zoomBy(factor, e.clientX, e.clientY);
       }, { passive: false });
 
       // stop dblclick zoom dead
       viewport.addEventListener("dblclick", (e) => e.preventDefault(), { passive: false });
 
       // Buttons
-      resetBtn?.addEventListener("click", resetFit);
       btnDraw?.addEventListener("click", () => setDrawMode(!state.drawing));
       btnUndo?.addEventListener("click", undoBoundaryPoint);
       btnClear?.addEventListener("click", clearBoundary);
@@ -903,7 +877,6 @@
         resetFit();
         loadBoundaries().catch(() => setStatus("Failed to load boundaries."));
 
-        // If no sections exist, make boundary tool obviously disabled
         const hasSections = !!(boundarySelect && boundarySelect.options && boundarySelect.options.length > 1);
         if (!hasSections) {
           btnDraw.disabled = true;
