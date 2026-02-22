@@ -60,7 +60,7 @@
       background: #000;
     }
 
-    /* viewport/layer for pan (NO ZOOM) */
+    /* Map viewport (NO zoom/pan) */
     .map-viewport {
       position: relative;
       width: 100%;
@@ -68,16 +68,16 @@
       aspect-ratio: var(--map-ar, 4 / 3);
       overflow: hidden;
       background: #000;
-      cursor: grab;
 
-      /* IMPORTANT: prevent native gestures */
+      /* prevent browser gestures */
       touch-action: none;
       -webkit-user-select: none;
       user-select: none;
       -webkit-tap-highlight-color: transparent;
       overscroll-behavior: none;
+
+      cursor: crosshair;
     }
-    .map-viewport:active { cursor: grabbing; }
 
     .map-layer {
       position: absolute;
@@ -96,33 +96,44 @@
       user-select: none;
     }
 
-    /* Smaller dots */
-    .map-dot {
+    /* ===== DOTS: match competitor_sections marker sizing (small) ===== */
+    #mapWrapperAdmin {
+      --marker-base: 7px;  /* desktop dot size */
+      --marker-min: 4px;   /* unused here (no zoom), kept for parity */
+    }
+
+    /* Make selector specific so app.css can’t stomp it */
+    #mapWrapperAdmin .map-dot {
       position: absolute;
-      width: 8px;
-      height: 8px;
-      border-radius: 999px;
-      background: var(--accent, #5df29c);
-      box-shadow: 0 0 0 1.5px rgba(0,0,0,0.6);
       transform: translate(-50%, -50%);
+      border-radius: 999px;
+      pointer-events: none;
+
+      width: var(--marker-base);
+      height: var(--marker-base);
+
+      background: var(--accent, #5df29c);
+      box-shadow:
+        0 0 0 1.5px rgba(0,0,0,0.65),
+        0 3px 10px rgba(0, 0, 0, 0.45);
+
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 7px;
-      font-weight: 800;
+
+      font-size: 8px;
+      font-weight: 900;
       color: #000;
-      pointer-events: none;
+      line-height: 1;
     }
 
-    .map-dot--ghost {
-      width: 7px;
-      height: 7px;
+    #mapWrapperAdmin .map-dot--ghost {
+      width: var(--marker-base);
+      height: var(--marker-base);
       background: transparent;
       border: 1.5px dashed var(--accent, #5df29c);
       color: var(--accent, #5df29c);
       box-shadow: none;
-      font-size: 7px;
-      font-weight: 900;
     }
 
     /* SVG overlay for section boundaries */
@@ -284,6 +295,13 @@
     @media (max-width: 800px) {
       .admin-map-page { grid-template-columns: minmax(0, 1fr); }
     }
+
+    @media (max-width: 768px) {
+      #mapWrapperAdmin { --marker-base: 6px; --marker-min: 3px; }
+    }
+    @media (max-width: 520px) {
+      #mapWrapperAdmin { --marker-base: 5px; --marker-min: 2.5px; }
+    }
   </style>
 </head>
 <body>
@@ -335,7 +353,7 @@
           Set gym.map_image_path (e.g. /static/maps/collingwood-map.png) and reload.
         </div>
       {% else %}
-        <div id="mapWrapper" class="map-wrapper">
+        <div id="mapWrapperAdmin" class="map-wrapper">
           <div id="mapViewport" class="map-viewport">
             <div id="mapLayer" class="map-layer">
               <img
@@ -366,7 +384,6 @@
         </div>
 
         <div class="map-controls">
-          <!-- Reset zoom removed: zoom is disabled -->
           <button type="button" class="tiny-btn" id="btnDrawBoundary">Draw boundary</button>
           <button type="button" class="tiny-btn" id="btnUndoBoundary">Undo</button>
           <button type="button" class="tiny-btn" id="btnClearBoundary">Clear</button>
@@ -523,75 +540,62 @@
 
       if (!viewport || !layer || !img) return;
 
-      function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
       function sid() { return (boundarySelect && boundarySelect.value) ? boundarySelect.value : ""; }
       function setStatus(msg) { if (boundaryStatus) boundaryStatus.textContent = msg || ""; }
       function setCoords(msg) { if (coordsDisplay) coordsDisplay.textContent = msg || ""; }
 
-      // ---- Disable save until a map tap selects position
+      // Disable save until a map tap selects position
       if (submitBtn) submitBtn.disabled = true;
 
-      // ---- Pan (NO ZOOM) state ----
-      let scale = 1;                 // locked
-      const minScale = 1;
-      const maxScale = 1;            // locked
-
+      // Fixed transform state (no zoom/pan)
+      let scale = 1;
       let tx = 0, ty = 0;
       let baseW = 1, baseH = 1;
 
-      // pointer tracking for tap vs drag
+      // Tap tracking
       let activePointerId = null;
       let downX = 0, downY = 0;
-      let downTx = 0, downTy = 0;
       let moved = false;
-      const TAP_SLOP = 8; // px
+      const TAP_SLOP = 8;
 
-      // ---- Boundary state ----
+      // Boundary state
       const state = {
         drawing: false,
         boundaries: {}
       };
 
       function updateLayerSizeFromImage() {
-        const r = img.getBoundingClientRect();
-        baseW = Math.max(1, Math.round(r.width));
-        baseH = Math.max(1, Math.round(r.height));
+        const w = img.offsetWidth || img.clientWidth || 0;
+        const h = img.offsetHeight || img.clientHeight || 0;
+
+        if (w > 0 && h > 0) {
+          baseW = Math.max(1, Math.round(w));
+          baseH = Math.max(1, Math.round(h));
+        } else {
+          const r = img.getBoundingClientRect();
+          baseW = Math.max(1, Math.round(r.width));
+          baseH = Math.max(1, Math.round(r.height));
+        }
+
         layer.style.width = baseW + "px";
         layer.style.height = baseH + "px";
       }
 
       function applyTransform() {
-        // translate only; scale is always 1
-        layer.style.transform = `translate(${tx}px, ${ty}px)`;
+        layer.style.transform = `translate(${tx}px, ${ty}px) scale(${scale})`;
       }
 
-      function clampPan() {
-        const vr = viewport.getBoundingClientRect();
-        const viewW = vr.width;
-        const viewH = vr.height;
-
-        const scaledW = baseW * scale; // == baseW
-        const scaledH = baseH * scale; // == baseH
-
-        const minTx = viewW - scaledW;
-        const minTy = viewH - scaledH;
-
-        if (scaledW <= viewW) tx = (viewW - scaledW) / 2;
-        else tx = clamp(tx, minTx, 0);
-
-        if (scaledH <= viewH) ty = (viewH - scaledH) / 2;
-        else ty = clamp(ty, minTy, 0);
-      }
-
-      function resetFit() {
-        // With zoom disabled, "fit" just centers the image.
+      function fitToViewport() {
         updateLayerSizeFromImage();
-
         const vr = viewport.getBoundingClientRect();
-        tx = (vr.width - baseW) / 2;
-        ty = (vr.height - baseH) / 2;
 
-        clampPan();
+        // Because the image is width:100% inside the viewport, scale stays 1.
+        scale = 1;
+
+        tx = (vr.width - baseW * scale) / 2;
+        ty = (vr.height - baseH * scale) / 2;
+
+        // If it fits exactly, tx/ty will be ~0. Keep it anyway for safety.
         applyTransform();
         redrawBoundary();
       }
@@ -601,7 +605,7 @@
         const xV = clientX - vr.left;
         const yV = clientY - vr.top;
 
-        const xImg = (xV - tx) / scale; // scale == 1
+        const xImg = (xV - tx) / scale;
         const yImg = (yV - ty) / scale;
 
         if (xImg < 0 || yImg < 0 || xImg > baseW || yImg > baseH) return null;
@@ -792,37 +796,22 @@
         }
       }
 
-      // ---- Pointer events: tap to place, drag to pan (NO ZOOM) ----
+      // Pointer events (tap only; no drag pan)
       viewport.addEventListener("pointerdown", (e) => {
         e.preventDefault();
-
         activePointerId = e.pointerId;
         downX = e.clientX;
         downY = e.clientY;
-        downTx = tx;
-        downTy = ty;
         moved = false;
-
         viewport.setPointerCapture(e.pointerId);
       }, { passive: false });
 
       viewport.addEventListener("pointermove", (e) => {
         if (activePointerId !== e.pointerId) return;
         e.preventDefault();
-
         const dx = e.clientX - downX;
         const dy = e.clientY - downY;
-
         if (Math.hypot(dx, dy) > TAP_SLOP) moved = true;
-
-        // only pan if NOT drawing
-        if (!state.drawing && moved) {
-          tx = downTx + dx;
-          ty = downTy + dy;
-          clampPan();
-          applyTransform();
-          redrawBoundary();
-        }
       }, { passive: false });
 
       viewport.addEventListener("pointerup", (e) => {
@@ -848,12 +837,8 @@
         if (activePointerId === e.pointerId) activePointerId = null;
       }, { passive: false });
 
-      // Kill wheel zoom (and prevent page scroll while cursor is over map)
-      viewport.addEventListener("wheel", (e) => {
-        e.preventDefault();
-      }, { passive: false });
-
-      // stop dblclick zoom dead
+      // Kill wheel zoom / dblclick zoom
+      viewport.addEventListener("wheel", (e) => e.preventDefault(), { passive: false });
       viewport.addEventListener("dblclick", (e) => e.preventDefault(), { passive: false });
 
       // Buttons
@@ -874,7 +859,7 @@
         if (img.naturalWidth && img.naturalHeight) {
           viewport.style.setProperty("--map-ar", `${img.naturalWidth} / ${img.naturalHeight}`);
         }
-        resetFit();
+        fitToViewport();
         loadBoundaries().catch(() => setStatus("Failed to load boundaries."));
 
         const hasSections = !!(boundarySelect && boundarySelect.options && boundarySelect.options.length > 1);
@@ -893,6 +878,13 @@
 
       if (img.complete) init();
       else img.addEventListener("load", init, { once: true });
+
+      // Re-fit on resize (no zoom, just layout)
+      let resizeTimer = null;
+      window.addEventListener("resize", () => {
+        clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(() => fitToViewport(), 120);
+      });
     })();
   </script>
 </body>
