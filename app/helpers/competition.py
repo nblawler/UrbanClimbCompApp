@@ -1,8 +1,8 @@
 from flask import session
-from datetime import datetime
+from datetime import datetime, timezone
 from app.models import Competition
-
-# --- Pending join helpers ---
+import secrets
+import hashlib
 
 def set_pending_join(comp_slug: str, email: str, name: str, gender: str):
     session["pending_join"] = True
@@ -21,8 +21,6 @@ def clear_pending_join():
 def has_pending_join() -> bool:
     return bool(session.get("pending_join"))
 
-# --- Admin helpers ---
-
 def admin_can_manage_gym_id(gym_id: int) -> bool:
     if session.get("admin_is_super"):
         return True
@@ -35,15 +33,11 @@ def admin_can_manage_gym_id(gym_id: int) -> bool:
 
     return int(gym_id) in allowed_ids
 
-# --- Gym map helpers ---
-
 def gym_map_for(gym_name: str) -> str:
     name = (gym_name or "").lower()
     if "adelaide" in name:
         return "Adelaide_Gym_Map.png"
     return "Collingwood_Gym_Map.png"
-
-# --- Competition helpers ---
 
 def get_current_comp():
     """
@@ -66,4 +60,14 @@ def get_comp_or_404(slug: str) -> Competition:
     Look up a competition by slug.
     For now we allow any slug; later you can restrict to is_active=True.
     """
-    return Competition.query.filter_by(slug=slug).first_or_404()
+    comp = Competition.query.filter_by(slug=slug).first_or_404()
+    return comp
+
+def utcnow():
+    return datetime.now(timezone.utc)
+
+def make_token() -> str:
+    return secrets.token_urlsafe(32)
+
+def hash_token(token: str) -> str:
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()

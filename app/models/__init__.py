@@ -7,3 +7,5 @@ from .score import Score
 from .section import Section
 from .section_climb import SectionClimb
 from .login_code import LoginCode
+from .doubles_team import DoublesTeam
+from .doubles_invite import DoublesInvite

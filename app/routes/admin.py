@@ -3,6 +3,7 @@ from datetime import datetime
 import sys
 import os
 
+from app.config import ADMIN_PASSWORD
 from app.extensions import db
 from app.models import Competition, Competitor, Score, Section, SectionClimb, Gym
 from app.helpers.competition import get_current_comp
@@ -18,8 +19,6 @@ def admin_page():
     search_results = None
     search_query = ""
     is_admin = session.get("admin_ok", False)
-
-    ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "letmein123")
 
     def resolve_admin_current_comp():
         """
@@ -42,7 +41,7 @@ def admin_page():
         if not admin_can_manage_competition(current_comp):
             session.pop("admin_comp_id", None)
             current_comp = None
-            error = "You don't have access to manage that competition. Please choose a different competition."
+            error = "You don’t have access to manage that competition. Please choose a different competition."
 
     if request.method == "POST":
         action = request.form.get("action")
@@ -990,3 +989,4 @@ def admin_map_save_boundary():
     db.session.commit()
 
     return jsonify({"ok": True, "section_id": section.id, "points": points})
+

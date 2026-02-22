@@ -7,6 +7,7 @@ class GymAdmin(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
 
+    # Legacy for now (existing DB column). Keep it so old data loads.
     competitor_id = db.Column(
         db.Integer,
         db.ForeignKey("competitor.id"),
@@ -14,6 +15,7 @@ class GymAdmin(db.Model):
         index=True,
     )
 
+    # NEW: stable identity
     account_id = db.Column(
         db.Integer,
         db.ForeignKey("account.id"),

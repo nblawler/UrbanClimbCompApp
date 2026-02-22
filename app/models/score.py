@@ -14,6 +14,7 @@ class Score(db.Model):
         index=True,
     )
 
+    # Keep climb_number because your table has it NOT NULL and your stats/points use it.
     climb_number = db.Column(
         db.Integer,
         nullable=False,
@@ -23,6 +24,7 @@ class Score(db.Model):
     attempts = db.Column(db.Integer, nullable=False, default=0)
     topped = db.Column(db.Boolean, nullable=False, default=False)
 
+    # NEW: match DB column (NOT NULL, FK in DB is optional but we enforce linkage in code)
     section_climb_id = db.Column(
         db.Integer,
         db.ForeignKey("section_climb.id"),
@@ -30,25 +32,17 @@ class Score(db.Model):
         index=True,
     )
 
+    # NEW: match DB column
     flashed = db.Column(db.Boolean, nullable=False, default=False)
 
     updated_at = db.Column(
-        db.DateTime,
-        default=datetime.utcnow,
-        onupdate=datetime.utcnow,
+        db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
     )
 
     __table_args__ = (
-        UniqueConstraint(
-            "competitor_id",
-            "section_climb_id",
-            name="uq_competitor_section_climb",
-        ),
+        # match your DB constraint name + meaning
+        UniqueConstraint("competitor_id", "section_climb_id", name="uq_competitor_section_climb"),
     )
 
-    competitor = db.relationship(
-        "Competitor",
-        backref=db.backref("scores", lazy=True),
-    )
-
+    competitor = db.relationship("Competitor", backref=db.backref("scores", lazy=True))
     section_climb = db.relationship("SectionClimb")
