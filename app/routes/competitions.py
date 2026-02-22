@@ -7,10 +7,15 @@ import resend
 
 from app.extensions import db
 from app.models import Account, Competition, Competitor, Section, SectionClimb, Score, LoginCode, DoublesTeam, DoublesInvite
-from app.helpers.leaderboard import comp_is_live, comp_is_finished, admin_can_manage_competition, build_leaderboard, get_gym_map_url_for_competition, _parse_boundary_points
-from app.helpers.competition import get_comp_or_404, utcnow, make_token, hash_token
-from app.helpers.scoring import points_for, competitor_total_points
+from app.helpers.admin import admin_can_manage_competition
+from app.helpers.climb import parse_boundary_points
+from app.helpers.competition import get_comp_or_404, comp_is_live, comp_is_finished
+from app.helpers.date import utcnow
 from app.helpers.email import send_login_code_via_email
+from app.helpers.gym import get_gym_map_url_for_competition
+from app.helpers.leaderboard import build_leaderboard
+from app.helpers.scoring import points_for, competitor_total_points
+from app.helpers.url import make_token, hash_token
 from app.config import RESEND_API_KEY, RESEND_FROM_EMAIL
 
 competitions_bp = Blueprint("competitions", __name__)
@@ -1095,7 +1100,7 @@ def api_comp_section_boundaries(slug):
 
     out = {}
     for s in sections:
-        pts = _parse_boundary_points(s.boundary_points_json)
+        pts = parse_boundary_points(s.boundary_points_json)
         if pts:
             out[str(s.id)] = pts
 

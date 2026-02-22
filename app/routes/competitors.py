@@ -8,16 +8,14 @@ from app.models import (
     Competitor, Competition, Section,
     SectionClimb, Score
 )
-from app.helpers.scoring import competitor_total_points
-from app.helpers.leaderboard import build_leaderboard
-from app.helpers.leaderboard import (
+from app.helpers.admin import admin_can_manage_competition
+from app.helpers.competition import (
     comp_is_live,
     comp_is_finished,
 )
-from app.helpers.leaderboard import admin_can_manage_competition
-from app.helpers.leaderboard import get_gym_map_url_for_competition
-from app.helpers.scoring import points_for
-
+from app.helpers.gym import get_gym_map_url_for_competition
+from app.helpers.leaderboard import build_leaderboard
+from app.helpers.scoring import points_for, competitor_total_points
 
 competitors_bp = Blueprint("competitors", __name__)
 

@@ -2,10 +2,10 @@ from flask import Blueprint, request, session, jsonify, redirect, current_app, r
 
 from app.extensions import db
 from app.models import Competition, Competitor, Score, Section, SectionClimb
-from app.helpers.leaderboard import comp_is_finished, get_viewer_comp, comp_is_live, build_leaderboard
+from app.helpers.competition import comp_is_finished, get_viewer_comp, comp_is_live
+from app.helpers.leaderboard import build_leaderboard, normalize_leaderboard_category
 from app.helpers.leaderboard_cache import invalidate_leaderboard_cache
-from app.helpers.scoring import points_for, normalize_leaderboard_category
-
+from app.helpers.scoring import points_for
 
 scores_bp = Blueprint("scores", __name__)
 

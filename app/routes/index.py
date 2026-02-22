@@ -19,7 +19,7 @@ def index():
 
 @index_bp.app_context_processor
 def inject_nav_context():
-    from app.helpers.leaderboard import get_viewer_comp, comp_is_live
+    from app.helpers.competition import get_viewer_comp, comp_is_live
     from flask import request, session
 
     path = (request.path or "")

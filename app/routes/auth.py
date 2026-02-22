@@ -5,11 +5,11 @@ import secrets
 
 from app.extensions import db
 from app.models import Account, Competition, Competitor, LoginCode
-from app.helpers.email import send_login_code_via_email, normalize_email, is_admin_email
-from app.helpers.scoring import get_or_create_account_for_email, establish_gym_admin_session_for_email
-from app.helpers.leaderboard_cache import invalidate_leaderboard_cache
+from app.helpers.account import get_or_create_account_for_email
+from app.helpers.admin import establish_gym_admin_session_for_email
 from app.helpers.competition import get_current_comp
-
+from app.helpers.email import send_login_code_via_email, normalize_email, is_admin_email
+from app.helpers.leaderboard_cache import invalidate_leaderboard_cache
 
 auth_bp = Blueprint("auth", __name__)
 

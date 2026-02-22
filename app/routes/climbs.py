@@ -1,9 +1,9 @@
 from flask import Blueprint, request, session, flash, redirect, render_template
 
 from app.models import Competitor, Score, Section, SectionClimb
-from app.helpers.leaderboard import get_viewer_comp, comp_is_live, build_leaderboard
+from app.helpers.leaderboard import build_leaderboard
 from app.helpers.scoring import points_for, competitor_total_points
-from app.helpers.competition import get_current_comp
+from app.helpers.competition import get_current_comp, get_viewer_comp, comp_is_live
 
 
 climbs_bp = Blueprint("climbs", __name__)

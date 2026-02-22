@@ -6,9 +6,12 @@ import os
 from app.config import ADMIN_PASSWORD
 from app.extensions import db
 from app.models import Competition, Competitor, Score, Section, SectionClimb, Gym
+from app.helpers.admin import admin_can_manage_competition, admin_is_super
+from app.helpers.climb import parse_boundary_points, boundary_to_json
 from app.helpers.competition import get_current_comp
+from app.helpers.gym import get_session_admin_gym_ids
 from app.helpers.leaderboard_cache import invalidate_leaderboard_cache
-from app.helpers.leaderboard import admin_can_manage_competition, admin_is_super, _parse_boundary_points, _boundary_to_json, get_session_admin_gym_ids, slugify
+from app.helpers.url import slugify
 
 admin_bp = Blueprint("admin", __name__)
 
@@ -269,7 +272,7 @@ def admin_api_comp_section_boundaries(comp_id):
 
     out = {}
     for s in sections:
-        pts = _parse_boundary_points(s.boundary_points_json)
+        pts = parse_boundary_points(s.boundary_points_json)
         out[str(s.id)] = pts  # include empty list too (useful for UI)
 
     return jsonify({"ok": True, "boundaries": out})
@@ -979,13 +982,13 @@ def admin_map_save_boundary():
     if not section or section.competition_id != current_comp.id:
         return jsonify({"ok": False, "error": "Section not found in this comp"}), 404
 
-    points = _parse_boundary_points(points_raw)
+    points = parse_boundary_points(points_raw)
 
     # Require at least 3 points for a polygon, or allow empty to "clear"
     if points and len(points) < 3:
         return jsonify({"ok": False, "error": "Polygon needs at least 3 points"}), 400
 
-    section.boundary_points_json = _boundary_to_json(points) if points else None
+    section.boundary_points_json = boundary_to_json(points) if points else None
     db.session.commit()
 
     return jsonify({"ok": True, "section_id": section.id, "points": points})

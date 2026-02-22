@@ -11,6 +11,12 @@ ADMIN_EMAILS = {
     if e.strip()
 }
 
+def is_admin_email(email: str) -> bool:
+    """Return True if this email is configured as an admin."""
+    if not email:
+        return False
+    return email.strip().lower() in ADMIN_EMAILS
+
 def normalize_email(email: str) -> str:
     return (email or "").strip().lower()
 
@@ -81,9 +87,3 @@ def send_scoring_link_via_email(email: str, comp_name: str, scoring_url: str):
         print(f"[SCORING LINK] Sent scoring link to {email}", file=sys.stderr)
     except Exception as e:
         print(f"[SCORING LINK] Failed to send via Resend: {e}", file=sys.stderr)
-
-def is_admin_email(email: str) -> bool:
-    """Return True if this email is configured as an admin."""
-    if not email:
-        return False
-    return email.strip().lower() in ADMIN_EMAILS

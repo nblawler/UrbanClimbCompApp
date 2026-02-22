@@ -1,13 +1,10 @@
 import time
 
-# --- Leaderboard cache ---
-
 LEADERBOARD_CACHE_TTL = 10.0  # seconds
 
 # key: normalised category ("all", "male", "female", "inclusive")
 # value: (rows, category_label, timestamp)
 LEADERBOARD_CACHE: dict = {}
-
 
 def get_cached_leaderboard(key):
     """
