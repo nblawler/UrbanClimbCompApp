@@ -6,18 +6,11 @@ class LoginCode(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
 
-    competitor_id = db.Column(
-        db.Integer,
-        db.ForeignKey("competitor.id"),
-        nullable=False,
-    )
+    # Legacy column still exists in DB — keep it so old rows still load.
+    competitor_id = db.Column(db.Integer, db.ForeignKey("competitor.id"), nullable=False)
 
-    account_id = db.Column(
-        db.Integer,
-        db.ForeignKey("account.id"),
-        nullable=False,
-        index=True,
-    )
+    # NEW: real identity
+    account_id = db.Column(db.Integer, db.ForeignKey("account.id"), nullable=False, index=True)
 
     code = db.Column(db.String(6), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)

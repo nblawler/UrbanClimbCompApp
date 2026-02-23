@@ -1,199 +1,13 @@
-import re
-import json
 import time
-from functools import wraps
-from datetime import datetime
-from flask import session, flash, redirect, abort
-from app.models import Competition, Competitor, Gym, Score
+from typing import Optional
+
+from app.models import Competition, Competitor, Score, DoublesTeam
 from app.helpers.competition import get_current_comp
 from app.helpers.scoring import points_for
+from app.helpers.leaderboard_cache import LEADERBOARD_CACHE, LEADERBOARD_CACHE_TTL
 
-# --- In-memory leaderboard cache ---
-LEADERBOARD_CACHE = {}
-LEADERBOARD_CACHE_TTL = 60  # seconds
-
-
-# --- Viewer / competition helpers ---
-
-def get_viewer_comp():
-    """
-    Resolve a competition context for the current logged-in viewer.
-
-    Priority:
-    1) session["active_comp_slug"] if it exists and is valid
-    2) viewer's competitor.competition_id
-    """
-    slug = (session.get("active_comp_slug") or "").strip()
-    if slug:
-        comp = Competition.query.filter_by(slug=slug).first()
-        if comp:
-            return comp
-
-    viewer_id = session.get("competitor_id")
-    if viewer_id:
-        competitor = Competitor.query.get(viewer_id)
-        if competitor and competitor.competition_id:
-            comp = Competition.query.get(competitor.competition_id)
-            if comp and comp.slug:
-                session["active_comp_slug"] = comp.slug
-                return comp
-
-    return None
-
-
-# --- Gym / slug helpers ---
-
-def slugify(name: str) -> str:
-    """Create URL friendly string ("The Slab" -> "the-slab")"""
-    s = re.sub(r"[^a-zA-Z0-9]+", "-", name.strip().lower()).strip("-")
-    return s or "section"
-
-
-def _parse_boundary_points(raw) -> list[dict]:
-    """
-    Accepts list of dicts or JSON string, returns cleaned list with floats clamped 0..100.
-    """
-    if raw is None:
-        return []
-
-    if isinstance(raw, str):
-        raw = raw.strip()
-        if not raw:
-            return []
-        try:
-            raw = json.loads(raw)
-        except Exception:
-            return []
-
-    if not isinstance(raw, list):
-        return []
-
-    cleaned = []
-    for p in raw:
-        if not isinstance(p, dict):
-            continue
-        try:
-            x = float(p.get("x"))
-            y = float(p.get("y"))
-        except Exception:
-            continue
-        x = max(0.0, min(100.0, x))
-        y = max(0.0, min(100.0, y))
-        cleaned.append({"x": x, "y": y})
-    return cleaned
-
-
-def _boundary_to_json(points: list[dict]) -> str:
-    return json.dumps(points, separators=(",", ":"))
-
-
-def get_or_create_gym_by_name(name: str):
-    """Return existing Gym by slug or create a new one (does not commit)."""
-    clean = (name or "").strip()
-    if not clean:
-        return None
-
-    slug_val = slugify(clean)
-    gym = Gym.query.filter_by(slug=slug_val).first()
-    if gym:
-        return gym
-
-    gym = Gym(name=clean, slug=slug_val)
-    from app.extensions import db
-    db.session.add(gym)
-    return gym
-
-
-def get_gym_map_url_for_competition(comp):
-    if not comp or not comp.gym:
-        return None
-    return comp.gym.map_image_path
-
-
-# --- Admin / permissions helpers ---
-
-def get_session_admin_gym_ids():
-    raw = session.get("admin_gym_ids")
-    if not raw:
-        return set()
-    try:
-        return {int(x) for x in raw if x is not None}
-    except Exception:
-        return set()
-
-
-def admin_is_super():
-    return bool(session.get("admin_is_super"))
-
-
-def admin_can_manage_gym(gym) -> bool:
-    if not gym:
-        return False
-    if session.get("admin_is_super"):
-        return True
-    gym_ids = session.get("admin_gym_ids") or []
-    return gym.id in gym_ids
-
-
-def admin_can_manage_competition(comp) -> bool:
-    if comp is None:
-        return False
-    return admin_can_manage_gym(comp.gym)
-
-
-# --- Competition status helpers ---
-
-def comp_is_finished(comp) -> bool:
-    if not comp:
-        return True
-    if comp.end_at is None:
-        return False
-    return datetime.utcnow() >= comp.end_at
-
-
-def comp_is_live(comp) -> bool:
-    if not comp or not comp.is_active:
-        return False
-
-    now = datetime.utcnow()
-    if comp.start_at is None or comp.start_at > now:
-        return False
-    if comp.end_at is not None and comp.end_at < now:
-        return False
-    return True
-
-
-def deny_if_comp_finished(comp, redirect_to=None, message=None):
-    if comp_is_finished(comp):
-        flash(message or "That competition has finished — scoring and stats are locked.", "warning")
-        return redirect(redirect_to or "/my-comps")
-    return None
-
-
-def finished_guard(get_comp_func, redirect_builder=None, message=None):
-    """
-    Decorator that blocks route access if the resolved comp is finished.
-    """
-    def decorator(view):
-        @wraps(view)
-        def wrapped(*args, **kwargs):
-            comp = get_comp_func(*args, **kwargs)
-            if not comp:
-                abort(404)
-
-            if comp_is_finished(comp):
-                to = redirect_builder(comp, *args, **kwargs) if redirect_builder else "/my-comps"
-                flash(message or "That competition has finished — scoring and stats are locked.", "warning")
-                return redirect(to)
-
-            return view(*args, **kwargs)
-        return wrapped
-    return decorator
-
-
-# --- Leaderboard helpers ---
-
-def _normalise_category_key(category):
+def normalise_category_key(category):
+    """Normalise the category argument into a cache key."""
     if not category:
         return "all"
     norm = category.strip().lower()
@@ -203,14 +17,61 @@ def _normalise_category_key(category):
         return "female"
     return "inclusive"
 
+def normalize_leaderboard_category(raw: Optional[str]) -> Optional[str]:
+    if not raw:
+        return None
+    k = (raw or "").strip().lower()
+
+    if k in ("all", "overall", "singles", "none"):
+        return None
+    if k in ("m", "male", "men"):
+        return "male"
+    if k in ("f", "female", "women"):
+        return "female"
+    if k in ("i", "incl", "inclusive", "genderinclusive", "gender-inclusive", "gender_inclusive"):
+        return "inclusive"
+    if k in ("d", "double", "doubles", "team", "teams"):
+        return "doubles"
+
+    # unknown category -> treat like "all" (don’t accidentally return doubles)
+    return None
 
 def build_leaderboard(category=None, competition_id=None, slug=None):
     """
-    Build leaderboard rows, optionally filtered by gender category.
-    Returns (rows, category_label)
+    Build leaderboard rows.
+
+    Modes:
+    - Singles (default): All / Male / Female / Gender Inclusive
+      Returns rows shaped like:
+        {
+          "competitor_id", "name", "gender",
+          "tops", "attempts_on_tops",
+          "total_points", "last_update",
+          "position"
+        }
+
+    - Doubles (category == "doubles"):
+      Returns rows shaped like:
+        {
+          "team_id",
+          "a_id", "b_id",
+          "a_name", "b_name",
+          "name",              # "A + B"
+          "total_points",
+          "position"
+        }
+
+    Scoping:
+    - If competition_id is provided -> use that competition
+    - Else if slug is provided -> look up that competition by slug
+    - Else -> fall back to get_current_comp()
+
+    Cache is per (competition_id, category_key).
     """
-    # Resolve competition
+
+    # --- resolve competition scope ---
     current_comp = None
+
     if competition_id:
         current_comp = Competition.query.get(competition_id)
     elif slug:
@@ -221,9 +82,10 @@ def build_leaderboard(category=None, competition_id=None, slug=None):
     if not current_comp:
         return [], "No active competition"
 
-    # Cache lookup
-    cat_key = _normalise_category_key(category)
+    # --- cache lookup (scoped per competition + category) ---
+    cat_key = normalise_category_key(category)
     cache_key = (current_comp.id, cat_key)
+
     now = time.time()
     cached = LEADERBOARD_CACHE.get(cache_key)
     if cached:
@@ -231,28 +93,95 @@ def build_leaderboard(category=None, competition_id=None, slug=None):
         if now - ts <= LEADERBOARD_CACHE_TTL:
             return rows, category_label
 
-    # Base query
+    # --- detect doubles mode early ---
+    norm = (category or "").strip().lower()
+    is_doubles = norm.startswith("doub")  # matches "doubles"
+
+    if is_doubles:
+        # Build singles totals once (All) so doubles can sum partner points
+        singles_rows, _ = build_leaderboard(None, competition_id=current_comp.id)
+
+        points_by_id = {r["competitor_id"]: r["total_points"] for r in singles_rows}
+        name_by_id = {r["competitor_id"]: r["name"] for r in singles_rows}
+
+        teams = DoublesTeam.query.filter_by(competition_id=current_comp.id).all()
+        if not teams:
+            rows = []
+            category_label = "Doubles"
+            LEADERBOARD_CACHE[cache_key] = (rows, category_label, now)
+            return rows, category_label
+
+        rows = []
+        for t in teams:
+            a_id = t.competitor_a_id
+            b_id = t.competitor_b_id
+
+            a_name = name_by_id.get(a_id, f"#{a_id}")
+            b_name = name_by_id.get(b_id, f"#{b_id}")
+
+            total_points = points_by_id.get(a_id, 0) + points_by_id.get(b_id, 0)
+
+            rows.append(
+                {
+                    "team_id": t.id,
+                    "a_id": a_id,
+                    "b_id": b_id,
+                    "a_name": a_name,
+                    "b_name": b_name,
+                    "name": f"{a_name} + {b_name}",
+                    "total_points": total_points,
+                }
+            )
+
+        # Sort: points desc, then stable name tie-break
+        rows.sort(key=lambda r: (-r["total_points"], r["name"]))
+
+        # Assign positions with ties sharing the same place
+        pos = 0
+        prev_key = None
+        for row in rows:
+            k = (row["total_points"],)
+            if k != prev_key:
+                pos += 1
+            prev_key = k
+            row["position"] = pos
+
+        category_label = "Doubles"
+        LEADERBOARD_CACHE[cache_key] = (rows, category_label, now)
+        return rows, category_label
+
+    # --- singles mode (existing logic) ---
     q = Competitor.query.filter(Competitor.competition_id == current_comp.id)
     category_label = "All"
-    if category:
-        norm = category.strip().lower()
-        if norm.startswith("m"):
-            q = q.filter(Competitor.gender == "Male")
-            category_label = "Male"
-        elif norm.startswith("f"):
-            q = q.filter(Competitor.gender == "Female")
-            category_label = "Female"
-        else:
-            q = q.filter(Competitor.gender == "Inclusive")
-            category_label = "Gender Inclusive"
+
+    cat = normalize_leaderboard_category(category)
+    
+    if cat == "male":
+        q = q.filter(Competitor.gender == "Male")
+        category_label = "Male"
+    elif cat == "female":
+        q = q.filter(Competitor.gender == "Female")
+        category_label = "Female"
+    elif cat == "inclusive":
+        q = q.filter(Competitor.gender == "Inclusive")
+        category_label = "Gender Inclusive"
+    else:
+        category_label = "All"
 
     competitors = q.all()
     if not competitors:
-        LEADERBOARD_CACHE[cache_key] = ([], category_label, now)
-        return [], category_label
+        rows = []
+        LEADERBOARD_CACHE[cache_key] = (rows, category_label, now)
+        return rows, category_label
 
     competitor_ids = [c.id for c in competitors]
-    all_scores = Score.query.filter(Score.competitor_id.in_(competitor_ids)).all() if competitor_ids else []
+
+    all_scores = (
+        Score.query
+        .filter(Score.competitor_id.in_(competitor_ids))
+        .all()
+        if competitor_ids else []
+    )
 
     by_competitor = {}
     for s in all_scores:
@@ -261,23 +190,36 @@ def build_leaderboard(category=None, competition_id=None, slug=None):
     rows = []
     for c in competitors:
         scores = by_competitor.get(c.id, [])
+
         tops = sum(1 for s in scores if s.topped)
         attempts_on_tops = sum(s.attempts for s in scores if s.topped)
-        total_points = sum(points_for(s.climb_number, s.attempts, s.topped, current_comp.id) for s in scores)
-        last_update = max((s.updated_at for s in scores if s.updated_at is not None), default=None) if scores else None
-        rows.append({
-            "competitor_id": c.id,
-            "name": c.name,
-            "gender": c.gender,
-            "tops": tops,
-            "attempts_on_tops": attempts_on_tops,
-            "total_points": total_points,
-            "last_update": last_update
-        })
+
+        total_points = sum(
+            points_for(s.climb_number, s.attempts, s.topped, current_comp.id)
+            for s in scores
+        )
+
+        last_update = None
+        if scores:
+            last_update = max(
+                (s.updated_at for s in scores if s.updated_at is not None),
+                default=None
+            )
+
+        rows.append(
+            {
+                "competitor_id": c.id,
+                "name": c.name,
+                "gender": c.gender,
+                "tops": tops,
+                "attempts_on_tops": attempts_on_tops,
+                "total_points": total_points,
+                "last_update": last_update,
+            }
+        )
 
     rows.sort(key=lambda r: (-r["total_points"], -r["tops"], r["attempts_on_tops"]))
 
-    # assign positions
     pos = 0
     prev_key = None
     for row in rows:
@@ -289,3 +231,97 @@ def build_leaderboard(category=None, competition_id=None, slug=None):
 
     LEADERBOARD_CACHE[cache_key] = (rows, category_label, now)
     return rows, category_label
+
+def build_doubles_leaderboard(competition_id):
+    teams = DoublesTeam.query.filter_by(competition_id=competition_id).all()
+    if not teams:
+        return [], "Doubles"
+
+    # First get singles leaderboard rows so we know points
+    singles_rows, _ = build_leaderboard(None, competition_id=competition_id)
+
+    points_by_id = {r["competitor_id"]: r["total_points"] for r in singles_rows}
+
+    rows = []
+    for team in teams:
+        a = Competitor.query.get(team.competitor_a_id)
+        b = Competitor.query.get(team.competitor_b_id)
+
+        total_points = (
+            points_by_id.get(team.competitor_a_id, 0)
+            + points_by_id.get(team.competitor_b_id, 0)
+        )
+
+        rows.append({
+            "team_id": team.id,
+            "name": f"{a.name} + {b.name}",
+            "total_points": total_points,
+        })
+
+    # sort descending by total points
+    rows.sort(key=lambda r: -r["total_points"])
+
+    # assign positions
+    pos = 0
+    prev_pts = None
+    for row in rows:
+        if row["total_points"] != prev_pts:
+            pos += 1
+        prev_pts = row["total_points"]
+        row["position"] = pos
+
+    return rows, "Doubles"
+
+def build_doubles_rows(singles_rows, competition_id: int):
+    """
+    Build doubles leaderboard rows from:
+    - singles_rows: output from build_leaderboard(...) (already category-filtered)
+    - competition_id: current competition scope
+
+    Filtering rule:
+    - If the leaderboard is category-filtered (Male/Female/Inclusive), singles_rows will only include those competitors.
+      We only include doubles teams where BOTH partners are in singles_rows.
+    """
+
+    # competitor_id -> total_points + name lookup (from the already-scoped singles leaderboard)
+    totals_by_id = {r["competitor_id"]: r["total_points"] for r in singles_rows}
+    name_by_id = {r["competitor_id"]: r["name"] for r in singles_rows}
+
+    teams = DoublesTeam.query.filter_by(competition_id=competition_id).all()
+
+    doubles_rows = []
+    for t in teams:
+        a_id = t.competitor_a_id
+        b_id = t.competitor_b_id
+
+        # Only include teams where BOTH partners are in the current singles_rows scope
+        # (so category leaderboards behave sensibly)
+        if a_id not in totals_by_id or b_id not in totals_by_id:
+            continue
+
+        a_pts = totals_by_id.get(a_id, 0)
+        b_pts = totals_by_id.get(b_id, 0)
+
+        doubles_rows.append({
+            "team_id": t.id,
+            "a_id": a_id,
+            "b_id": b_id,
+            "a_name": name_by_id.get(a_id, f"#{a_id}"),
+            "b_name": name_by_id.get(b_id, f"#{b_id}"),
+            "total_points": a_pts + b_pts,
+        })
+
+    # sort by total desc
+    doubles_rows.sort(key=lambda r: (-r["total_points"], r["a_name"], r["b_name"]))
+
+    # assign positions with ties sharing the same place
+    pos = 0
+    prev = None
+    for r in doubles_rows:
+        k = (r["total_points"],)
+        if k != prev:
+            pos += 1
+        prev = k
+        r["position"] = pos
+
+    return doubles_rows

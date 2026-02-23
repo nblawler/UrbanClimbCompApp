@@ -15,3 +15,4 @@ class Config:
 
 RESEND_API_KEY = os.getenv("RESEND_API_KEY", None)
 RESEND_FROM_EMAIL = os.getenv("RESEND_FROM_EMAIL", None)
+ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "letmein123")

@@ -415,6 +415,10 @@
 			   href="/leaderboard?cid={{ viewer_id }}">Leaderboard</a>
 		{% endif %}
 
+		{% if comp_slug %}
+  		<a class="back {% if nav_active == 'doubles' %}active{% endif %}" href="/comp/{{ comp_slug }}/doubles">Doubles</a>
+		{% endif %}
+
 		{% if is_logged_in or is_admin %}
 			<a href="/logout">Log out</a>
 		{% else %}

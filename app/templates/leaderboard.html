@@ -17,7 +17,6 @@
 			color: #fff;
 		}
 
-		/* Top nav */
 		.nav {
 			padding: 1.25rem 2rem;
 			display: flex;
@@ -34,14 +33,9 @@
 			font-weight: 600;
 		}
 
-		.nav a.active {
-			color: #5df4a2;
-			font-weight: 700;
-		}
-
+		.nav a.active { color: #5df4a2; font-weight: 800; }
 		.nav a:hover { color: #fff; }
 
-		/* Container */
 		.container {
 			flex: 1;
 			max-width: 1200px;
@@ -50,10 +44,7 @@
 			width: 100%;
 		}
 
-		/* Header */
-		.page-header {
-			margin-bottom: 2rem;
-		}
+		.page-header { margin-bottom: 2rem; }
 
 		.page-title {
 			font-size: 2.5rem;
@@ -72,12 +63,8 @@
 			margin-bottom: 1.5rem;
 		}
 
-		.page-subtitle span {
-			color: #5df4a2;
-			font-weight: 700;
-		}
+		.page-subtitle span { color: #5df4a2; font-weight: 800; }
 
-		/* Category tabs */
 		.category-tabs {
 			display: flex;
 			gap: 0.75rem;
@@ -92,7 +79,7 @@
 			color: rgba(255, 255, 255, 0.85);
 			text-decoration: none;
 			font-size: 0.95rem;
-			font-weight: 700;
+			font-weight: 800;
 			transition: all 0.2s;
 			display: inline-block;
 		}
@@ -111,7 +98,6 @@
 			box-shadow: 0 10px 20px rgba(93, 244, 162, 0.3);
 		}
 
-		/* Leaderboard table */
 		.leaderboard-wrapper {
 			background: rgba(255, 255, 255, 0.05);
 			backdrop-filter: blur(10px);
@@ -127,7 +113,7 @@
 
 		.leaderboard thead th {
 			text-align: left;
-			font-weight: 700;
+			font-weight: 800;
 			padding: 1.25rem 1.5rem;
 			border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 			color: rgba(255, 255, 255, 0.7);
@@ -144,79 +130,37 @@
 			font-size: 1rem;
 		}
 
-		.leaderboard tbody tr {
-			transition: background 0.15s;
-		}
+		.leaderboard tbody tr { transition: background 0.15s; }
+		.leaderboard tbody tr:hover { background: rgba(255, 255, 255, 0.05); }
 
-		.leaderboard tbody tr:hover {
-			background: rgba(255, 255, 255, 0.05);
-		}
+		#leaderboard-body tr:nth-child(1) { background: rgba(255, 215, 0, 0.08); border-left: 4px solid #FFD700; }
+		#leaderboard-body tr:nth-child(2) { background: rgba(192, 192, 192, 0.08); border-left: 4px solid #C0C0C0; }
+		#leaderboard-body tr:nth-child(3) { background: rgba(205, 127, 50, 0.08); border-left: 4px solid #CD7F32; }
 
-		/* Top 3 highlighting */
-		.leaderboard tbody tr:nth-child(1) {
-			background: rgba(255, 215, 0, 0.08);
-			border-left: 4px solid #FFD700;
-		}
+		.leaderboard tbody td:first-child { font-weight: 950; font-size: 1.1rem; }
 
-		.leaderboard tbody tr:nth-child(1):hover {
-			background: rgba(255, 215, 0, 0.12);
-		}
+		.leaderboard.singles th:nth-child(3),
+		.leaderboard.singles td:nth-child(3),
+		.leaderboard.singles th:nth-child(4),
+		.leaderboard.singles td:nth-child(4),
+		.leaderboard.singles th:nth-child(5),
+		.leaderboard.singles td:nth-child(5) { text-align: center; }
 
-		.leaderboard tbody tr:nth-child(2) {
-			background: rgba(192, 192, 192, 0.08);
-			border-left: 4px solid #C0C0C0;
-		}
+		.leaderboard.doubles th:nth-child(3),
+		.leaderboard.doubles td:nth-child(3) { text-align: center; }
 
-		.leaderboard tbody tr:nth-child(2):hover {
-			background: rgba(192, 192, 192, 0.12);
-		}
-
-		.leaderboard tbody tr:nth-child(3) {
-			background: rgba(205, 127, 50, 0.08);
-			border-left: 4px solid #CD7F32;
-		}
-
-		.leaderboard tbody tr:nth-child(3):hover {
-			background: rgba(205, 127, 50, 0.12);
-		}
-
-		/* Position column */
-		.leaderboard tbody td:first-child {
-			font-weight: 900;
-			font-size: 1.1rem;
-		}
-
-		/* Center numeric columns */
-		.leaderboard th:nth-child(3),
-		.leaderboard td:nth-child(3),
-		.leaderboard th:nth-child(4),
-		.leaderboard td:nth-child(4),
-		.leaderboard th:nth-child(5),
-		.leaderboard td:nth-child(5) {
-			text-align: center;
-		}
-
-		/* Links */
 		.leaderboard a {
 			color: #5df4a2;
 			text-decoration: none;
-			font-weight: 600;
+			font-weight: 700;
 			transition: color 0.2s;
 		}
+		.leaderboard a:hover { color: #7fffa4; text-decoration: underline; }
 
-		.leaderboard a:hover {
-			color: #7fffa4;
-			text-decoration: underline;
-		}
-
-		/* Responsive */
 		@media (max-width: 768px) {
 			.nav { padding: 1rem; }
-
 			.container { padding: 1.5rem 1rem; }
-
 			.page-title { font-size: 2rem; }
-
 			.page-subtitle { font-size: 1rem; }
 
 			.leaderboard thead th,
@@ -225,20 +169,26 @@
 				font-size: 0.9rem;
 			}
 
-			/* Hide attempts column on mobile */
-			.leaderboard thead th:nth-child(4),
-			.leaderboard tbody td:nth-child(4) {
-				display: none;
-			}
+			.leaderboard.singles thead th:nth-child(4),
+			.leaderboard.singles tbody td:nth-child(4) { display: none; }
 		}
 	</style>
 </head>
+
 <body>
 	{% set is_logged_in = session.get('account_id') %}
 	{% set viewer_id = session.get('competitor_id') %}
 	{% set is_admin = session.get('admin_ok', False) %}
 	{% set comp_slug = comp_slug if comp_slug is defined else session.get('active_comp_slug') %}
-	{% set show_comp_nav = (is_logged_in and viewer_id and comp_slug) %}
+
+	{% set cid_q = (request.args.get('cid') or '').strip() %}
+	{% set cid_val = (cid_q if cid_q else (viewer_id if viewer_id else '')) %}
+
+	{% set qs = [] %}
+	{% if cid_val %}{% set _ = qs.append('cid=' ~ cid_val) %}{% endif %}
+	{% set qs_str = ('?' ~ (qs|join('&'))) if qs|length else '' %}
+
+	{% set show_comp_nav = (comp_slug and cid_val) %}
 
 	<nav class="nav">
 		<a href="{% if is_logged_in or is_admin %}/my-comps{% else %}/{% endif %}"
@@ -248,36 +198,30 @@
 			<a href="/admin/comps" class="{% if nav_active == 'admin' %}active{% endif %}">Admin</a>
 		{% endif %}
 
-		{# Only show comp-specific links if we have an active comp context #}
 		{% if show_comp_nav %}
-			<a href="/comp/{{ comp_slug }}/competitor/{{ viewer_id }}/sections"
-			   class="{% if nav_active == 'sections' %}active{% endif %}">
-				Scoring
-			</a>
+			<a href="/comp/{{ comp_slug }}/competitor/{{ cid_val }}/sections"
+			   class="{% if nav_active == 'sections' %}active{% endif %}">Scoring</a>
 
-			<a href="/competitor/{{ viewer_id }}/stats/my"
-			   class="{% if nav_active == 'my_stats' %}active{% endif %}">
-				My Stats
-			</a>
+			<a href="/competitor/{{ cid_val }}/stats/my"
+			   class="{% if nav_active == 'my_stats' %}active{% endif %}">My Stats</a>
 
-			<a href="/competitor/{{ viewer_id }}/stats/overall"
-			   class="{% if nav_active == 'overall_stats' %}active{% endif %}">
-				Overall Stats
-			</a>
+			<a href="/competitor/{{ cid_val }}/stats/overall"
+			   class="{% if nav_active == 'overall_stats' %}active{% endif %}">Overall Stats</a>
 		{% endif %}
 
-		<a href="/leaderboard{% if show_comp_nav %}?cid={{ viewer_id }}{% endif %}"
-		   class="{% if nav_active == 'leaderboard' %}active{% endif %}">
-			Leaderboard
-		</a>
+		<a href="/leaderboard{{ qs_str }}"
+		   class="{% if nav_active == 'leaderboard' %}active{% endif %}">Leaderboard</a>
+
+		{% if comp_slug %}
+			<a class="{% if nav_active == 'doubles' %}active{% endif %}"
+			   href="/comp/{{ comp_slug }}/doubles">Doubles</a>
+		{% endif %}
 
 		{% if is_logged_in or is_admin %}
 			<a href="/logout">Log out</a>
 		{% else %}
 			<a href="/login{% if comp_slug %}?slug={{ comp_slug }}{% endif %}"
-			   class="{% if nav_active == 'login' %}active{% endif %}">
-				Log in
-			</a>
+			   class="{% if nav_active == 'login' %}active{% endif %}">Log in</a>
 		{% endif %}
 	</nav>
 
@@ -285,134 +229,73 @@
 		<header class="page-header">
 			<h1 class="page-title">Leaderboard</h1>
 			<p class="page-subtitle">
-				Category: <span id="category-label">{{ category }}</span>
+				Category: <span>{{ category }}</span>
+				{% if comp and comp.name %}
+					&nbsp;·&nbsp;<span>{{ comp.name }}</span>
+				{% endif %}
 			</p>
 
 			<div class="category-tabs">
-				<a href="/leaderboard{% if show_comp_nav %}?cid={{ viewer_id }}{% endif %}"
-				   class="category-tab{% if category == 'All' %} active{% endif %}">
-					All
-				</a>
+				<a href="/leaderboard{{ qs_str }}"
+				   class="category-tab{% if category == 'All' %} active{% endif %}">All</a>
 
-				<a href="/leaderboard/male{% if show_comp_nav %}?cid={{ viewer_id }}{% endif %}"
-				   class="category-tab{% if category == 'Male' %} active{% endif %}">
-					Male
-				</a>
+				<a href="/leaderboard/male{{ qs_str }}"
+				   class="category-tab{% if category == 'Male' %} active{% endif %}">Male</a>
 
-				<a href="/leaderboard/female{% if show_comp_nav %}?cid={{ viewer_id }}{% endif %}"
-				   class="category-tab{% if category == 'Female' %} active{% endif %}">
-					Female
-				</a>
+				<a href="/leaderboard/female{{ qs_str }}"
+				   class="category-tab{% if category == 'Female' %} active{% endif %}">Female</a>
 
-				<a href="/leaderboard/inclusive{% if show_comp_nav %}?cid={{ viewer_id }}{% endif %}"
-				   class="category-tab{% if category == 'Gender Inclusive' %} active{% endif %}">
-					Inclusive
-				</a>
+				<a href="/leaderboard/inclusive{{ qs_str }}"
+				   class="category-tab{% if category == 'Gender Inclusive' %} active{% endif %}">Inclusive</a>
+
+				<a href="/leaderboard/doubles{{ qs_str }}"
+				   class="category-tab{% if category == 'Doubles' %} active{% endif %}">Doubles</a>
 			</div>
 		</header>
 
 		<div class="leaderboard-wrapper">
-			<table class="leaderboard">
+			<table class="leaderboard {% if category == 'Doubles' %}doubles{% else %}singles{% endif %}">
 				<thead>
-					<tr>
-						<th>Pos</th>
-						<th>Competitor</th>
-						<th>Tops</th>
-						<th>Attempts</th>
-						<th>Points</th>
-					</tr>
+					{% if category == 'Doubles' %}
+						<tr><th>Pos</th><th>Team</th><th>Points</th></tr>
+					{% else %}
+						<tr><th>Pos</th><th>Competitor</th><th>Tops</th><th>Attempts</th><th>Points</th></tr>
+					{% endif %}
 				</thead>
+
 				<tbody id="leaderboard-body">
-					{% for row in leaderboard %}
-						<tr>
-							<td>{{ row.position }}</td>
-							<td>
-								{% if current_competitor_id and row.competitor_id == current_competitor_id %}
-									<span>{{ row.name }}</span>
-								{% else %}
-									<a href="/competitor/{{ row.competitor_id }}/stats/climber">
-										{{ row.name }}
-									</a>
-								{% endif %}
-							</td>
-							<td>{{ row.tops }}</td>
-							<td>{{ row.attempts_on_tops }}</td>
-							<td>{{ row.total_points }}</td>
-						</tr>
-					{% endfor %}
+					{% if category == 'Doubles' %}
+						{% if leaderboard and leaderboard|length %}
+							{% for t in leaderboard %}
+								<tr><td>{{ t.position }}</td><td>{{ t.name }}</td><td>{{ t.total_points }}</td></tr>
+							{% endfor %}
+						{% else %}
+							<tr><td colspan="3" style="opacity:.75;">No doubles teams yet.</td></tr>
+						{% endif %}
+					{% else %}
+						{% if leaderboard and leaderboard|length %}
+							{% for row in leaderboard %}
+								<tr>
+									<td>{{ row.position }}</td>
+									<td>
+										{% if current_competitor_id and row.competitor_id == current_competitor_id %}
+											<span>{{ row.name }}</span>
+										{% else %}
+											<a href="/competitor/{{ row.competitor_id }}/stats/climber">{{ row.name }}</a>
+										{% endif %}
+									</td>
+									<td>{{ row.tops }}</td>
+									<td>{{ row.attempts_on_tops }}</td>
+									<td>{{ row.total_points }}</td>
+								</tr>
+							{% endfor %}
+						{% else %}
+							<tr><td colspan="5" style="opacity:.75;">No competitors yet.</td></tr>
+						{% endif %}
+					{% endif %}
 				</tbody>
 			</table>
 		</div>
 	</main>
-
-	<script>
-		const leaderboardBody = document.getElementById("leaderboard-body");
-		const viewerId = {{ current_competitor_id if current_competitor_id is not none else 'null' }};
-
-		function getCategoryFromPath() {
-			const parts = window.location.pathname.split("/").filter(Boolean);
-			if (parts.length >= 2 && parts[0] === "leaderboard") return parts[1];
-			return null;
-		}
-
-		async function refreshLeaderboard() {
-			if (!leaderboardBody) return;
-
-			const categoryFromPath = getCategoryFromPath();
-			let url = "/api/leaderboard";
-			if (categoryFromPath) url += "?category=" + encodeURIComponent(categoryFromPath);
-
-			try {
-				const res = await fetch(url, { cache: "no-store" });
-				if (!res.ok) return;
-
-				const data = await res.json();
-				const rows = data.rows || [];
-				const frag = document.createDocumentFragment();
-
-				rows.forEach((r) => {
-					const tr = document.createElement("tr");
-
-					const tdPos = document.createElement("td");
-					tdPos.textContent = r.position;
-					tr.appendChild(tdPos);
-
-					const tdName = document.createElement("td");
-					if (viewerId !== null && r.competitor_id === viewerId) {
-						tdName.textContent = r.name;
-					} else {
-						const a = document.createElement("a");
-						a.href = `/competitor/${r.competitor_id}/stats/climber`;
-						a.textContent = r.name;
-						tdName.appendChild(a);
-					}
-					tr.appendChild(tdName);
-
-					const tdTops = document.createElement("td");
-					tdTops.textContent = r.tops;
-					tr.appendChild(tdTops);
-
-					const tdAttempts = document.createElement("td");
-					tdAttempts.textContent = r.attempts_on_tops;
-					tr.appendChild(tdAttempts);
-
-					const tdPoints = document.createElement("td");
-					tdPoints.textContent = r.total_points;
-					tr.appendChild(tdPoints);
-
-					frag.appendChild(tr);
-				});
-
-				leaderboardBody.innerHTML = "";
-				leaderboardBody.appendChild(frag);
-
-				const catLabel = document.getElementById("category-label");
-				if (catLabel && data.category) catLabel.textContent = data.category;
-			} catch (e) {}
-		}
-
-		refreshLeaderboard();
-		setInterval(refreshLeaderboard, 5000);
-	</script>
 </body>
 </html>

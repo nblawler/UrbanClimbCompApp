@@ -1,15 +1,50 @@
-from flask import Blueprint, request, session, jsonify
+from flask import Blueprint, request, session, jsonify, redirect, current_app, render_template, flash
 
 from app.extensions import db
 from app.models import Competition, Competitor, Score, Section, SectionClimb
-from app.helpers.leaderboard import comp_is_finished, get_viewer_comp, comp_is_live, build_leaderboard, _parse_boundary_points
+from app.helpers.competition import comp_is_finished, get_viewer_comp, comp_is_live
+from app.helpers.leaderboard import build_leaderboard, normalize_leaderboard_category
 from app.helpers.leaderboard_cache import invalidate_leaderboard_cache
 from app.helpers.scoring import points_for
 
+scores_bp = Blueprint("scores", __name__)
 
-api_bp = Blueprint("api", __name__)
+@scores_bp.route("/my-scoring")
+def my_scoring_redirect():
+    """
+    Safe entry point for competitor scoring.
 
-@api_bp.route("/api/score", methods=["POST"])
+    Priority:
+    1) If the logged-in competitor is attached to a competition -> go there.
+    2) Else, if the session has an active_comp_slug -> send them to that comp's join page.
+    3) Else -> back to /my-comps to pick a competition.
+    """
+    viewer_id = session.get("competitor_id")
+    if not viewer_id:
+        return redirect("/")
+
+    competitor = Competitor.query.get(viewer_id)
+    if not competitor:
+        session.pop("competitor_id", None)
+        return redirect("/")
+
+    # 1) If competitor already belongs to a comp, go straight to scoring
+    if competitor.competition_id:
+        comp = Competition.query.get(competitor.competition_id)
+        if comp and comp.slug:
+            session["active_comp_slug"] = comp.slug
+            return redirect(f"/comp/{comp.slug}/competitor/{competitor.id}/sections")
+
+    # 2) No competition attached yet -> use selected comp from session if present
+    slug = (session.get("active_comp_slug") or "").strip()
+    if slug:
+        # If they have no comp, they must register for this comp first
+        return redirect(f"/comp/{slug}/join")
+
+    # 3) No context at all -> choose a comp
+    return redirect("/my-comps")
+
+@scores_bp.route("/api/score", methods=["POST"])
 def api_save_score():
     """
     Save/upsert a score.
@@ -82,7 +117,7 @@ def api_save_score():
     if (
         not viewer_id
         and not is_admin
-        and app.debug
+        and current_app.debug
         and request.remote_addr in ("127.0.0.1", "::1")
     ):
         is_admin = True
@@ -197,7 +232,7 @@ def api_save_score():
     )
 
 
-@api_bp.route("/api/score/<int:competitor_id>")
+@scores_bp.route("/api/score/<int:competitor_id>")
 def api_get_scores(competitor_id):
     """
     Return all scores for this competitor.
@@ -233,56 +268,85 @@ def api_get_scores(competitor_id):
 
     return jsonify(out)
 
-@api_bp.route("/api/leaderboard")
-def api_leaderboard():
-    """
-    JSON leaderboard for the currently selected comp context.
+@scores_bp.route("/leaderboard")
+def leaderboard_all():
+    cid_raw = (request.args.get("cid") or "").strip()
+    competitor = Competitor.query.get(int(cid_raw)) if cid_raw.isdigit() else None
 
-    Rules:
-    - If no comp selected or comp not live -> return empty rows with message.
-    """
-    category = request.args.get("category")
+    comp = get_viewer_comp()
+
+    if not comp:
+        flash("Pick a competition first to view the leaderboard.", "warning")
+        return redirect("/my-comps")
+
+    if not comp_is_live(comp):
+        session.pop("active_comp_slug", None)
+        flash("That competition isn’t live right now — leaderboard is unavailable.", "warning")
+        return redirect("/my-comps")
+
+    # IMPORTANT
+    cat = normalize_leaderboard_category(None)
+
+    rows, category_label = build_leaderboard(cat, competition_id=comp.id)
+
+    return render_template(
+        "leaderboard.html",
+        leaderboard=rows,
+        category=category_label,
+        current_competitor_id=session.get("competitor_id"),
+        nav_active="leaderboard",
+        comp=comp,
+        comp_slug=comp.slug,
+    )
+
+
+@scores_bp.route("/leaderboard/<category>")
+def leaderboard_by_category(category):
+    cid_raw = (request.args.get("cid") or "").strip()
+    competitor = Competitor.query.get(int(cid_raw)) if cid_raw.isdigit() else None
+
+    comp = get_viewer_comp()
+
+    if not comp:
+        flash("Pick a competition first to view the leaderboard.", "warning")
+        return redirect("/my-comps")
+
+    if not comp_is_live(comp):
+        session.pop("active_comp_slug", None)
+        flash("That competition isn’t live right now — leaderboard is unavailable.", "warning")
+        return redirect("/my-comps")
+
+    # CRITICAL FIX
+    cat = normalize_leaderboard_category(category)
+
+    rows, category_label = build_leaderboard(cat, competition_id=comp.id)
+
+    return render_template(
+        "leaderboard.html",
+        leaderboard=rows,
+        category=category_label,
+        current_competitor_id=session.get("competitor_id"),
+        nav_active="leaderboard",
+        comp=comp,
+        comp_slug=comp.slug,
+    )
+
+@scores_bp.route("/api/leaderboard")
+def api_leaderboard():
+    raw_category = request.args.get("category")
 
     comp = get_viewer_comp()
     if not comp:
         return jsonify({"category": "No competition selected", "rows": []})
 
     if not comp_is_live(comp):
-        # Clear stale session context so UI stops thinking a comp is active
         session.pop("active_comp_slug", None)
         return jsonify({"category": "Competition not live", "rows": []})
 
-    rows, category_label = build_leaderboard(category, competition_id=comp.id)
+    # CRITICAL FIX
+    cat = normalize_leaderboard_category(raw_category)
 
-    # JSON-safe datetime conversion
-    for r in rows:
-        if r.get("last_update") is not None:
-            r["last_update"] = r["last_update"].isoformat()
+    rows, category_label = build_leaderboard(cat, competition_id=comp.id)
 
     return jsonify({"category": category_label, "rows": rows})
 
-@api_bp.route("/api/comp/<slug>/section-boundaries")
-def api_comp_section_boundaries(slug):
-    """
-    Return boundaries for all sections in a competition.
-    Used by competitor_sections page to zoom to polygon bounds.
-    """
-    comp = Competition.query.filter_by(slug=slug).first_or_404()
-
-    # Only allow when comp is live (consistent with your UI rules)
-    if not comp_is_live(comp):
-        return jsonify({"ok": True, "boundaries": {}})
-
-    sections = (
-        Section.query
-        .filter(Section.competition_id == comp.id)
-        .all()
-    )
-
-    out = {}
-    for s in sections:
-        pts = _parse_boundary_points(s.boundary_points_json)
-        if pts:
-            out[str(s.id)] = pts
-
-    return jsonify({"ok": True, "boundaries": out})

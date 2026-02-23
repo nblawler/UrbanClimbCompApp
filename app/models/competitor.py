@@ -9,6 +9,8 @@ class Competitor(db.Model):
 
     name = db.Column(db.String(120), nullable=False)
     gender = db.Column(db.String(20), nullable=False, default="Inclusive")
+
+    # Keep for now (legacy) — but your logic should treat Account.email as source of truth.
     email = db.Column(db.String(255), nullable=True)
 
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
@@ -20,6 +22,7 @@ class Competitor(db.Model):
         index=True,
     )
 
+    # NEW: the stable user identity
     account_id = db.Column(
         db.Integer,
         db.ForeignKey("account.id"),
@@ -35,9 +38,6 @@ class Competitor(db.Model):
     )
 
     __table_args__ = (
-        UniqueConstraint(
-            "competition_id",
-            "account_id",
-            name="uq_competition_account",
-        ),
+        # NEW uniqueness: one competitor per comp per account
+        UniqueConstraint("competition_id", "account_id", name="uq_competition_account"),
     )

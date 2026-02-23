@@ -11,13 +11,22 @@ ADMIN_EMAILS = {
     if e.strip()
 }
 
+def is_admin_email(email: str) -> bool:
+    """Return True if this email is configured as an admin."""
+    if not email:
+        return False
+    return email.strip().lower() in ADMIN_EMAILS
+
 def normalize_email(email: str) -> str:
     return (email or "").strip().lower()
 
 def send_login_code_via_email(email: str, code: str):
     """
     Send the 6-digit login code via Resend in production.
+
+    - If RESEND_API_KEY is not set, just log to stderr (local dev).
     """
+    # Dev / fallback path
     if not RESEND_API_KEY:
         print(f"[LOGIN CODE - DEV ONLY] {email} -> {code}", file=sys.stderr)
         return
@@ -41,13 +50,14 @@ def send_login_code_via_email(email: str, code: str):
         resend.Emails.send(params)
         print(f"[LOGIN CODE] Sent login code to {email}", file=sys.stderr)
     except Exception as e:
+        # Don't crash the app if email fails; just log it.
         print(f"[LOGIN CODE] Failed to send via Resend: {e}", file=sys.stderr)
-
 
 def send_scoring_link_via_email(email: str, comp_name: str, scoring_url: str):
     """
-    Email the user a direct link to their scoring page for a competition.
+    Email the user a direct link to their scoring page for a comp.
     """
+    # Dev / fallback path
     if not RESEND_API_KEY:
         print(f"[SCORING LINK - DEV ONLY] {email} -> {scoring_url}", file=sys.stderr)
         return
@@ -77,9 +87,3 @@ def send_scoring_link_via_email(email: str, comp_name: str, scoring_url: str):
         print(f"[SCORING LINK] Sent scoring link to {email}", file=sys.stderr)
     except Exception as e:
         print(f"[SCORING LINK] Failed to send via Resend: {e}", file=sys.stderr)
-
-def is_admin_email(email: str) -> bool:
-    """Return True if this email is configured as an admin."""
-    if not email:
-        return False
-    return email.strip().lower() in ADMIN_EMAILS
