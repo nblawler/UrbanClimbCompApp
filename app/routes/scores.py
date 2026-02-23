@@ -1,4 +1,5 @@
-from flask import Blueprint, request, session, jsonify, redirect, current_app, render_template, flash
+from flask import Blueprint, request, session, jsonify, redirect, current_app, render_template, flash, make_response
+import time
 
 from app.extensions import db
 from app.models import Competition, Competitor, Score, Section, SectionClimb
@@ -337,16 +338,48 @@ def api_leaderboard():
 
     comp = get_viewer_comp()
     if not comp:
-        return jsonify({"category": "No competition selected", "rows": []})
+        resp = make_response(jsonify({"category": "No competition selected", "rows": [], "req_id": None}))
+        resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+        resp.headers["Pragma"] = "no-cache"
+        return resp
 
     if not comp_is_live(comp):
         session.pop("active_comp_slug", None)
-        return jsonify({"category": "Competition not live", "rows": []})
+        resp = make_response(jsonify({"category": "Competition not live", "rows": [], "req_id": None}))
+        resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+        resp.headers["Pragma"] = "no-cache"
+        return resp
 
-    # CRITICAL FIX
-    cat = normalize_leaderboard_category(raw_category)
+    # Normalize category safely (never allow random strings through)
+    try:
+        cat = normalize_leaderboard_category(raw_category)
+    except Exception:
+        cat = "all"
+
+    allowed = {"all", "male", "female", "inclusive", "doubles"}
+    if cat not in allowed:
+        cat = "all"
+
+    # Request id so UI can ignore stale responses
+    req_id = int(time.time() * 1000)
+
+    # Helpful debug while you fix this (remove later if you want)
+    try:
+        current_app.logger.info("LB API req_id=%s raw_category=%r normalized=%r comp_id=%s",
+                        req_id, raw_category, cat, comp.id)
+    except Exception:
+        pass
 
     rows, category_label = build_leaderboard(cat, competition_id=comp.id)
 
-    return jsonify({"category": category_label, "rows": rows})
+    resp = make_response(jsonify({
+        "category": category_label,
+        "rows": rows,
+        "req_id": req_id,
+        "cat_key": cat,  # include the normalized key for debugging
+    }))
 
+    # Prevent any caching surprises
+    resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+    resp.headers["Pragma"] = "no-cache"
+    return resp
