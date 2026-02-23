@@ -9,30 +9,73 @@
   <title>Admin · Scoring</title>
   <link rel="stylesheet" href="/static/app.css" />
   <style>
-    .admin-map-page {
-      max-width: 1100px;
-      margin: 32px auto;
-      padding: 0 16px 48px;
-      display: grid;
-      grid-template-columns: minmax(0, 2fr) minmax(0, 1.4fr);
-      gap: 24px;
-      align-items: flex-start;
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      background: linear-gradient(135deg, #0a1628 0%, #1a2942 100%);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      color: #fff;
     }
 
+    /* ── Nav ── */
+    .top-nav {
+      padding: 1.25rem 2rem;
+      display: flex;
+      gap: 1.5rem;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .top-nav .nav-links {
+      display: flex;
+      gap: 1.5rem;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .top-nav a {
+      color: rgba(255, 255, 255, 0.7);
+      text-decoration: none;
+      font-size: 0.95rem;
+      transition: color 0.2s;
+    }
+
+    .top-nav a:hover { color: #fff; }
+    .top-nav a.active { color: #5df4a2; font-weight: 700; }
+
+    /* ── Page layout ── */
+    .admin-map-page {
+      flex: 1;
+      display: grid;
+      grid-template-columns: minmax(0, 3.2fr) minmax(0, 1.1fr);
+      gap: 1.5rem;
+      align-items: flex-start;
+      max-width: 1550px;
+      margin: 0 auto;
+      width: 100%;
+      padding: 2rem 2rem 3rem;
+    }
+
+    /* ── Glass cards ── */
     .map-card,
     .form-card {
-      background: var(--bg-elevated-soft, #151824);
-      border-radius: var(--radius-lg, 18px);
-      box-shadow: var(--shadow-soft, 0 18px 45px rgba(0, 0, 0, 0.55));
-      padding: 18px 18px 22px;
+      background: rgba(255, 255, 255, 0.05);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 1.5rem;
+      padding: 1.75rem;
     }
 
+    /* ── Map header ── */
     .map-header {
       display: flex;
       justify-content: space-between;
-      align-items: center;
-      margin-bottom: 12px;
-      gap: 12px;
+      align-items: flex-start;
+      margin-bottom: 1rem;
+      gap: 1rem;
     }
 
     .map-header-left {
@@ -42,25 +85,49 @@
       min-width: 0;
     }
 
+    .page-title {
+      font-size: 1.6rem;
+      font-weight: 900;
+      background: linear-gradient(135deg, #fff 0%, #5df4a2 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      letter-spacing: -0.02em;
+    }
+
     .map-subtitle {
-      font-size: 12px;
-      color: var(--text-muted, #9aa3b5);
+      font-size: 0.85rem;
+      color: rgba(255, 255, 255, 0.55);
       margin: 0;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
     }
 
+    .page-tag {
+      font-size: 0.75rem;
+      font-weight: 800;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: #5df4a2;
+      background: rgba(93, 244, 162, 0.12);
+      border: 1px solid rgba(93, 244, 162, 0.25);
+      border-radius: 999px;
+      padding: 0.3rem 0.75rem;
+      white-space: nowrap;
+      align-self: flex-start;
+    }
+
+    /* ── Map wrapper ── */
     .map-wrapper {
       position: relative;
       width: 100%;
-      border-radius: 14px;
+      border-radius: 1rem;
       overflow: hidden;
-      border: 1px solid var(--border-subtle, rgba(255,255,255,0.05));
+      border: 1px solid rgba(255, 255, 255, 0.08);
       background: #000;
     }
 
-    /* Map viewport (NO zoom/pan) */
     .map-viewport {
       position: relative;
       width: 100%;
@@ -68,14 +135,11 @@
       aspect-ratio: var(--map-ar, 4 / 3);
       overflow: hidden;
       background: #000;
-
-      /* prevent browser gestures */
       touch-action: none;
       -webkit-user-select: none;
       user-select: none;
       -webkit-tap-highlight-color: transparent;
       overscroll-behavior: none;
-
       cursor: crosshair;
     }
 
@@ -96,47 +160,6 @@
       user-select: none;
     }
 
-    /* ===== DOTS: match competitor_sections marker sizing (small) ===== */
-    #mapWrapperAdmin {
-      --marker-base: 7px;  /* desktop dot size */
-      --marker-min: 4px;   /* unused here (no zoom), kept for parity */
-    }
-
-    /* Make selector specific so app.css can’t stomp it */
-    #mapWrapperAdmin .map-dot {
-      position: absolute;
-      transform: translate(-50%, -50%);
-      border-radius: 999px;
-      pointer-events: none;
-
-      width: var(--marker-base);
-      height: var(--marker-base);
-
-      background: var(--accent, #5df29c);
-      box-shadow:
-        0 0 0 1.5px rgba(0,0,0,0.65),
-        0 3px 10px rgba(0, 0, 0, 0.45);
-
-      display: flex;
-      align-items: center;
-      justify-content: center;
-
-      font-size: 8px;
-      font-weight: 900;
-      color: #000;
-      line-height: 1;
-    }
-
-    #mapWrapperAdmin .map-dot--ghost {
-      width: var(--marker-base);
-      height: var(--marker-base);
-      background: transparent;
-      border: 1.5px dashed var(--accent, #5df29c);
-      color: var(--accent, #5df29c);
-      box-shadow: none;
-    }
-
-    /* SVG overlay for section boundaries */
     .map-overlay {
       position: absolute;
       left: 0;
@@ -146,17 +169,15 @@
       pointer-events: none;
     }
 
-    /* When drawing, show crosshair */
-    .draw-mode .map-viewport {
-      cursor: crosshair;
-    }
+    .draw-mode .map-viewport { cursor: crosshair; }
 
+    /* ── Map controls ── */
     .map-controls {
       display: flex;
-      gap: 10px;
+      gap: 0.6rem;
       align-items: center;
       justify-content: flex-end;
-      margin-top: 10px;
+      margin-top: 0.85rem;
       flex-wrap: wrap;
     }
 
@@ -164,163 +185,315 @@
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      padding: 8px 14px;
+      padding: 0.45rem 1rem;
       border-radius: 999px;
-      border: 1px solid rgba(255,255,255,0.12);
-      background: rgba(0,0,0,0.35);
-      color: rgba(255,255,255,0.92);
-      font-weight: 800;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      background: rgba(255, 255, 255, 0.06);
+      color: rgba(255, 255, 255, 0.85);
+      font-weight: 700;
       cursor: pointer;
-      font-size: 12px;
+      font-size: 0.8rem;
       text-decoration: none;
       user-select: none;
+      transition: all 0.2s;
     }
+
     .tiny-btn:hover {
-      background: rgba(255,255,255,0.08);
-      border-color: rgba(255,255,255,0.22);
+      background: rgba(255, 255, 255, 0.12);
+      border-color: rgba(255, 255, 255, 0.22);
     }
+
     .tiny-btn--active {
-      background: rgba(93, 242, 156, 0.14);
-      border-color: rgba(93, 242, 156, 0.35);
-      color: rgba(255,255,255,0.95);
+      background: rgba(93, 244, 162, 0.16);
+      border-color: rgba(93, 244, 162, 0.4);
+      color: #5df4a2;
     }
+
     .tiny-btn:disabled {
-      opacity: 0.45;
+      opacity: 0.35;
       cursor: not-allowed;
     }
 
     .map-coords {
-      margin-top: 8px;
-      font-size: 12px;
-      color: var(--text-muted, #9aa3b5);
+      margin-top: 0.6rem;
+      font-size: 0.8rem;
+      color: rgba(255, 255, 255, 0.45);
       white-space: pre-wrap;
     }
 
+    /* ── Form card ── */
     .form-card h2 {
-      margin-top: 0;
-      margin-bottom: 8px;
-      font-size: 18px;
+      font-size: 1.2rem;
+      font-weight: 900;
+      margin-bottom: 0.4rem;
+      color: #fff;
     }
 
-    .field { margin-bottom: 10px; }
+    .field { margin-bottom: 0.75rem; }
 
     .field label {
       display: block;
-      font-size: 13px;
-      margin-bottom: 4px;
-      color: var(--text-muted, #9aa3b5);
+      font-size: 0.8rem;
+      font-weight: 700;
+      margin-bottom: 0.3rem;
+      color: rgba(255, 255, 255, 0.55);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
     }
 
     .field input,
     .field select {
       width: 100%;
-      padding: 6px 10px;
+      padding: 0.55rem 0.9rem;
       border-radius: 999px;
-      border: 1px solid var(--border-subtle, rgba(255,255,255,0.05));
-      background: rgba(0,0,0,0.4);
-      color: var(--text, #f5f7fb);
-      font-size: 14px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      background: rgba(0, 0, 0, 0.3);
+      color: #fff;
+      font-size: 0.9rem;
+      transition: border-color 0.2s;
+      outline: none;
     }
+
+    .field input:focus,
+    .field select:focus {
+      border-color: rgba(93, 244, 162, 0.4);
+    }
+
+    .field input::placeholder { color: rgba(255,255,255,0.3); }
 
     .field-row {
       display: grid;
       grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 8px;
+      gap: 0.5rem;
     }
 
     .pill-button {
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      padding: 8px 18px;
+      width: 100%;
+      padding: 0.85rem 1.25rem;
       border-radius: 999px;
       border: none;
-      background: var(--accent, #5df29c);
-      color: #000;
-      font-weight: 700;
+      background: #5df4a2;
+      color: #0a1628;
+      font-weight: 900;
       cursor: pointer;
-      font-size: 14px;
-      margin-top: 6px;
+      font-size: 0.95rem;
+      margin-top: 0.5rem;
       text-decoration: none;
       user-select: none;
+      transition: all 0.2s;
+    }
+
+    .pill-button:hover {
+      background: #4de392;
+      transform: scale(1.02);
     }
 
     .pill-button:disabled {
-      opacity: 0.6;
+      background: rgba(255,255,255,0.1);
+      color: rgba(255,255,255,0.45);
       cursor: not-allowed;
+      transform: none;
     }
 
     .tiny-muted {
-      font-size: 11px;
-      color: var(--text-muted, #9aa3b5);
-      margin-top: 2px;
+      font-size: 0.78rem;
+      color: rgba(255, 255, 255, 0.45);
+      margin-top: 0.25rem;
+      line-height: 1.4;
     }
 
+    /* ── Section list ── */
     .section-list {
-      margin-top: 16px;
-      font-size: 13px;
+      margin-top: 1rem;
+      font-size: 0.85rem;
     }
 
-    .section-list li { margin-bottom: 4px; }
+    .section-list strong {
+      color: rgba(255, 255, 255, 0.65);
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
 
+    .section-list ul {
+      list-style: none;
+      margin-top: 0.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.3rem;
+    }
+
+    /* ✅ UPDATED: make them clickable "pill links" */
+    .section-pill {
+      display: flex;
+    }
+
+    .section-pill a {
+      display: inline-flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.6rem;
+      width: 100%;
+      color: rgba(255,255,255,0.82);
+      padding: 0.45rem 0.85rem;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.07);
+      border-radius: 999px;
+      font-size: 0.82rem;
+      text-decoration: none;
+      transition: all 0.18s ease;
+    }
+
+    .section-pill a:hover {
+      background: rgba(255,255,255,0.08);
+      border-color: rgba(255,255,255,0.14);
+      transform: translateY(-1px);
+      color: #fff;
+    }
+
+    .section-pill a:focus {
+      outline: none;
+      box-shadow: 0 0 0 3px rgba(93, 244, 162, 0.22);
+      border-color: rgba(93, 244, 162, 0.35);
+    }
+
+    .section-pill .pill-id {
+      font-size: 0.75rem;
+      color: rgba(255,255,255,0.45);
+      font-weight: 700;
+    }
+
+    .section-pill .pill-arrow {
+      font-weight: 900;
+      color: rgba(93,244,162,0.95);
+      margin-left: auto;
+    }
+
+    .section-list li em { color: rgba(255,255,255,0.35); }
+
+    /* ── Alerts ── */
     .alert {
-      padding: 12px 14px;
-      border-radius: 12px;
-      margin: 12px 0 0;
-      border: 1px solid rgba(255,255,255,0.08);
-      background: rgba(0,0,0,0.35);
-      color: var(--text, #f5f7fb);
-      font-size: 13px;
-      line-height: 1.35;
+      padding: 0.85rem 1rem;
+      border-radius: 0.85rem;
+      margin: 0.75rem 0 0;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      background: rgba(0, 0, 0, 0.25);
+      color: rgba(255,255,255,0.85);
+      font-size: 0.85rem;
+      line-height: 1.45;
       white-space: pre-wrap;
     }
 
     .alert-error {
-      border-color: rgba(255,0,0,0.25);
-      background: rgba(139, 30, 30, 0.25);
+      border-color: rgba(255, 80, 80, 0.3);
+      background: rgba(139, 30, 30, 0.2);
+      color: rgba(255, 180, 180, 0.9);
     }
 
     .alert-success {
-      border-color: rgba(93, 242, 156, 0.25);
-      background: rgba(93, 242, 156, 0.08);
+      border-color: rgba(93, 244, 162, 0.3);
+      background: rgba(93, 244, 162, 0.08);
+      color: #5df4a2;
     }
 
+    /* ── Divider ── */
     .divider {
       height: 1px;
       width: 100%;
-      background: rgba(255,255,255,0.08);
-      margin: 14px 0;
+      background: rgba(255, 255, 255, 0.07);
+      margin: 1rem 0;
+    }
+
+    /* ─────────────────────────────────────────────
+       DOTS
+       - saved dots = tiny + use saved colour
+       - placer dot = BIG + high contrast
+       ───────────────────────────────────────────── */
+
+    #mapWrapperAdmin .map-dot {
+      width: 6px !important;
+      height: 6px !important;
+      min-width: 6px !important;
+      min-height: 6px !important;
+      border-radius: 999px !important;
+      box-shadow: 0 0 0 1px rgba(0,0,0,0.65) !important;
+      border-width: 1px !important;
+      padding: 0 !important;
+
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      font-size: 0 !important;
+      line-height: 1 !important;
+
+      background: var(--dot, #5df4a2) !important;
+      color: #000 !important;
+      pointer-events: none !important;
+      transform: translate(-50%, -50%) !important;
+    }
+
+    #mapWrapperAdmin .map-dot--placer {
+      width: 16px !important;
+      height: 16px !important;
+      min-width: 16px !important;
+      min-height: 16px !important;
+
+      background: #5df4a2 !important;
+      border: 2px solid rgba(255,255,255,0.95) !important;
+      box-shadow:
+        0 0 0 2px rgba(0,0,0,0.65),
+        0 0 18px rgba(93,244,162,0.6) !important;
+
+      z-index: 9999 !important;
+      opacity: 0.98 !important;
+      animation: placerPulse 0.9s ease-in-out infinite;
+    }
+
+    @keyframes placerPulse {
+      0% { transform: translate(-50%, -50%) scale(1); }
+      50% { transform: translate(-50%, -50%) scale(1.12); }
+      100% { transform: translate(-50%, -50%) scale(1); }
+    }
+
+    /* ── Laptop/desktop: sticky form ── */
+    @media (min-width: 900px) {
+      .map-card { padding: 2rem; }
+
+      .form-card {
+        position: sticky;
+        top: 1.25rem;
+        align-self: start;
+      }
     }
 
     @media (max-width: 800px) {
-      .admin-map-page { grid-template-columns: minmax(0, 1fr); }
-    }
-
-    @media (max-width: 768px) {
-      #mapWrapperAdmin { --marker-base: 6px; --marker-min: 3px; }
-    }
-    @media (max-width: 520px) {
-      #mapWrapperAdmin { --marker-base: 5px; --marker-min: 2.5px; }
+      .admin-map-page {
+        grid-template-columns: minmax(0, 1fr);
+        padding: 1.25rem 1.25rem 3rem;
+      }
     }
   </style>
 </head>
 <body>
-  <nav class="container top-nav">
+  <nav class="top-nav">
     <div class="nav-links">
-      <a class="back" href="/admin/comps{% if session.get('admin_comp_id') %}?comp_id={{ session.get('admin_comp_id') }}{% endif %}">
+      <a href="/admin/comps{% if session.get('admin_comp_id') %}?comp_id={{ session.get('admin_comp_id') }}{% endif %}">
         Admin Home
       </a>
 
       {% if session.get('admin_comp_id') %}
-        <a class="back" href="/admin/map?comp_id={{ session.get('admin_comp_id') }}">
+        <a href="/admin/map?comp_id={{ session.get('admin_comp_id') }}">
           Refresh map
         </a>
       {% endif %}
 
       {% if session.get('competitor_id') or session.get('admin_ok') %}
-        <a class="back" href="/logout">Log out</a>
+        <a href="/logout">Log out</a>
       {% else %}
-        <a class="back" href="/admin">Admin login</a>
+        <a href="/admin">Admin login</a>
       {% endif %}
     </div>
   </nav>
@@ -344,12 +517,12 @@
           {% endif %}
         </div>
 
-        <span class="page-tag">Admin · Tap map to place climbs</span>
+        <span class="page-tag">Tap map to place climbs</span>
       </div>
 
       {% if not gym_map_url %}
         <div class="alert alert-error">
-          No map is configured for this competition’s gym yet.
+          No map is configured for this competition's gym yet.
           Set gym.map_image_path (e.g. /static/maps/collingwood-map.png) and reload.
         </div>
       {% else %}
@@ -370,15 +543,21 @@
                 {% if c.x_percent is not none and c.y_percent is not none %}
                   <div
                     class="map-dot"
-                    style="left: {{ c.x_percent }}%; top: {{ c.y_percent }}%;"
-                    title="Climb {{ c.climb_number }} · {{ c.section.name if c.section else 'No section' }}"
+                    style="
+                      left: {{ c.x_percent }}%;
+                      top: {{ c.y_percent }}%;
+                      {% if c.colour %}
+                        --dot: {{ c.colour|e }};
+                      {% endif %}
+                    "
+                    title="Climb {{ c.climb_number }} · {{ c.section.name if c.section else 'No section' }}{% if c.colour %} · {{ c.colour }}{% endif %}"
                   >
                     {{ c.climb_number }}
                   </div>
                 {% endif %}
               {% endfor %}
 
-              <div id="ghostDot" class="map-dot map-dot--ghost" style="display:none;">+</div>
+              <div id="ghostDot" class="map-dot map-dot--placer" style="display:none;"></div>
             </div>
           </div>
         </div>
@@ -397,7 +576,7 @@
     <section class="form-card">
       <h2>Add climb from map</h2>
       <p class="tiny-muted">
-        Tap map to set position (you’ll see a +), then fill details and press Save.
+        Tap map to set position (you'll see a bright marker), then fill details and press Save.
       </p>
 
       {% with messages = get_flashed_messages(with_categories=true) %}
@@ -415,13 +594,13 @@
 
       <div class="divider"></div>
 
-      <h2 style="margin-top:0;">Section boundary</h2>
-      <p class="tiny-muted" style="margin-top:-2px;">
+      <h2>Section boundary</h2>
+      <p class="tiny-muted" style="margin-top: 0.25rem;">
         Boundaries require sections. If this dropdown is empty, create your first section by:
         Add climb → type New section name → Save climb.
       </p>
 
-      <div class="field">
+      <div class="field" style="margin-top: 0.75rem;">
         <label for="boundary_section">Boundary section</label>
         <select id="boundary_section">
           <option value="">— Choose section —</option>
@@ -432,7 +611,7 @@
         <div class="tiny-muted" id="boundaryStatus"></div>
 
         {% if sections|length == 0 %}
-          <div class="alert alert-error" style="margin-top:10px;">
+          <div class="alert alert-error" style="margin-top: 0.65rem;">
             No sections exist yet.
             1) Tap map to place a climb position
             2) Type a New section name (e.g. Slab Left)
@@ -455,11 +634,10 @@
               <option value="{{ s.id }}">{{ s.name }} (id {{ s.id }})</option>
             {% endfor %}
           </select>
-          <div class="tiny-muted">Or create a new section below.</div>
         </div>
 
         <div class="field">
-          <label for="new_section_name">New section name (optional)</label>
+          <label for="new_section_name">New section name</label>
           <input type="text" id="new_section_name" name="new_section_name" placeholder="e.g. Slab Left" />
         </div>
 
@@ -495,14 +673,19 @@
           Save climb at selected position
         </button>
 
-        <div class="tiny-muted" id="clickHint">Button unlocks after you tap the map.</div>
+        <div class="tiny-muted" id="clickHint" style="margin-top: 0.5rem; text-align: center;">Button unlocks after you tap the map.</div>
       </form>
 
       <div class="section-list">
-        <strong>Existing sections:</strong>
+        <strong>Existing sections</strong>
         <ul>
           {% for s in sections %}
-            <li>{{ s.name }} (id {{ s.id }})</li>
+            <li class="section-pill">
+              <a href="/admin/section/{{ s.id }}/edit" title="Edit section: {{ s.name }}">
+                <span>{{ s.name }}</span>
+                <span class="pill-arrow">→</span>
+              </a>
+            </li>
           {% endfor %}
           {% if sections|length == 0 %}
             <li><em>None yet</em></li>
@@ -544,25 +727,17 @@
       function setStatus(msg) { if (boundaryStatus) boundaryStatus.textContent = msg || ""; }
       function setCoords(msg) { if (coordsDisplay) coordsDisplay.textContent = msg || ""; }
 
-      // Disable save until a map tap selects position
       if (submitBtn) submitBtn.disabled = true;
 
-      // Fixed transform state (no zoom/pan)
       let scale = 1;
       let tx = 0, ty = 0;
       let baseW = 1, baseH = 1;
 
-      // Tap tracking
       let activePointerId = null;
       let downX = 0, downY = 0;
-      let moved = false;
       const TAP_SLOP = 8;
 
-      // Boundary state
-      const state = {
-        drawing: false,
-        boundaries: {}
-      };
+      const state = { drawing: false, boundaries: {} };
 
       function updateLayerSizeFromImage() {
         const w = img.offsetWidth || img.clientWidth || 0;
@@ -585,17 +760,33 @@
         layer.style.transform = `translate(${tx}px, ${ty}px) scale(${scale})`;
       }
 
+      function setViewportHeightToAspect() {
+        const vr = viewport.getBoundingClientRect();
+        const availableW = vr.width;
+
+        const natW = img.naturalWidth || 1;
+        const natH = img.naturalHeight || 1;
+
+        const desiredH = availableW * (natH / natW);
+
+        const maxH = Math.max(420, Math.floor(window.innerHeight * 0.75));
+        const finalH = Math.min(desiredH, maxH);
+
+        viewport.style.height = Math.round(finalH) + "px";
+      }
+
       function fitToViewport() {
         updateLayerSizeFromImage();
         const vr = viewport.getBoundingClientRect();
 
-        // Because the image is width:100% inside the viewport, scale stays 1.
-        scale = 1;
+        const scaleX = vr.width / baseW;
+        const scaleY = vr.height / baseH;
 
-        tx = (vr.width - baseW * scale) / 2;
+        scale = Math.min(scaleX, scaleY);
+
+        tx = (vr.width  - baseW * scale) / 2;
         ty = (vr.height - baseH * scale) / 2;
 
-        // If it fits exactly, tx/ty will be ~0. Keep it anyway for safety.
         applyTransform();
         redrawBoundary();
       }
@@ -610,12 +801,9 @@
 
         if (xImg < 0 || yImg < 0 || xImg > baseW || yImg > baseH) return null;
 
-        const xPercent = (xImg / baseW) * 100;
-        const yPercent = (yImg / baseH) * 100;
-
         return {
-          x: Math.max(0, Math.min(100, xPercent)),
-          y: Math.max(0, Math.min(100, yPercent)),
+          x: Math.max(0, Math.min(100, (xImg / baseW) * 100)),
+          y: Math.max(0, Math.min(100, (yImg / baseH) * 100)),
         };
       }
 
@@ -640,10 +828,8 @@
 
       function addBoundaryPoint(clientX, clientY) {
         const s = sid();
-        if (!s) {
-          setStatus("❌ Select a Boundary section first.");
-          return;
-        }
+        if (!s) { setStatus("❌ Select a Boundary section first."); return; }
+
         const pt = clientToImagePercent(clientX, clientY);
         if (!pt) return;
 
@@ -655,7 +841,6 @@
         setCoords(`Boundary point: ${pt.x.toFixed(2)}% / ${pt.y.toFixed(2)}% (Draw boundary ON)`);
       }
 
-      // ---- Boundary render ----
       function clearOverlay() {
         if (!overlay) return;
         while (overlay.firstChild) overlay.removeChild(overlay.firstChild);
@@ -686,12 +871,12 @@
         const pxPts = pts.map(pctToPx);
 
         const d = pxPts.map((p,i)=>`${i===0?"M":"L"} ${p.x} ${p.y}`).join(" ")
-                  + (pxPts.length >= 3 ? " Z" : "");
+          + (pxPts.length >= 3 ? " Z" : "");
 
         const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
         path.setAttribute("d", d);
-        path.setAttribute("fill", "rgba(93, 242, 156, 0.14)");
-        path.setAttribute("stroke", "rgba(93, 242, 156, 0.95)");
+        path.setAttribute("fill", "rgba(93, 244, 162, 0.14)");
+        path.setAttribute("stroke", "rgba(93, 244, 162, 0.95)");
         path.setAttribute("stroke-width", "2.5");
         overlay.appendChild(path);
 
@@ -706,19 +891,13 @@
       }
 
       async function loadBoundaries() {
-        if (!compId || compId === "None") {
-          setStatus("No competition context in session.");
-          return;
-        }
+        if (!compId || compId === "None") { setStatus("No competition context in session."); return; }
         setStatus("Loading boundaries…");
 
         const res = await fetch(`/admin/api/comp/${compId}/section-boundaries`, { credentials: "same-origin" });
         const data = await res.json();
 
-        if (!data.ok) {
-          setStatus(data.error || "Failed to load boundaries.");
-          return;
-        }
+        if (!data.ok) { setStatus(data.error || "Failed to load boundaries."); return; }
 
         state.boundaries = data.boundaries || {};
         setStatus("Boundaries loaded.");
@@ -749,10 +928,7 @@
         });
 
         const data = await res.json();
-        if (!data.ok) {
-          setStatus(data.error || "Save failed.");
-          return;
-        }
+        if (!data.ok) { setStatus(data.error || "Save failed."); return; }
 
         state.boundaries[s] = data.points || [];
         redrawBoundary();
@@ -778,14 +954,13 @@
       }
 
       function setDrawMode(on) {
-        if (on && !sid()) {
-          setStatus("❌ Select a Boundary section first.");
-          return;
-        }
+        if (on && !sid()) { setStatus("❌ Select a Boundary section first."); return; }
         state.drawing = !!on;
 
         btnDraw?.classList.toggle("tiny-btn--active", state.drawing);
         pageRoot?.classList.toggle("draw-mode", state.drawing);
+
+        if (ghostDot && state.drawing) ghostDot.style.display = "none";
 
         if (state.drawing) {
           setCoords("Tap to add boundary points. (Draw boundary ON)");
@@ -796,22 +971,12 @@
         }
       }
 
-      // Pointer events (tap only; no drag pan)
       viewport.addEventListener("pointerdown", (e) => {
         e.preventDefault();
         activePointerId = e.pointerId;
         downX = e.clientX;
         downY = e.clientY;
-        moved = false;
         viewport.setPointerCapture(e.pointerId);
-      }, { passive: false });
-
-      viewport.addEventListener("pointermove", (e) => {
-        if (activePointerId !== e.pointerId) return;
-        e.preventDefault();
-        const dx = e.clientX - downX;
-        const dy = e.clientY - downY;
-        if (Math.hypot(dx, dy) > TAP_SLOP) moved = true;
       }, { passive: false });
 
       viewport.addEventListener("pointerup", (e) => {
@@ -837,11 +1002,9 @@
         if (activePointerId === e.pointerId) activePointerId = null;
       }, { passive: false });
 
-      // Kill wheel zoom / dblclick zoom
       viewport.addEventListener("wheel", (e) => e.preventDefault(), { passive: false });
       viewport.addEventListener("dblclick", (e) => e.preventDefault(), { passive: false });
 
-      // Buttons
       btnDraw?.addEventListener("click", () => setDrawMode(!state.drawing));
       btnUndo?.addEventListener("click", undoBoundaryPoint);
       btnClear?.addEventListener("click", clearBoundary);
@@ -855,11 +1018,17 @@
         if (state.drawing && !s) setDrawMode(false);
       });
 
+      function relayout() {
+        if (img.naturalWidth && img.naturalHeight) setViewportHeightToAspect();
+        fitToViewport();
+      }
+
       function init() {
         if (img.naturalWidth && img.naturalHeight) {
           viewport.style.setProperty("--map-ar", `${img.naturalWidth} / ${img.naturalHeight}`);
         }
-        fitToViewport();
+
+        relayout();
         loadBoundaries().catch(() => setStatus("Failed to load boundaries."));
 
         const hasSections = !!(boundarySelect && boundarySelect.options && boundarySelect.options.length > 1);
@@ -879,11 +1048,10 @@
       if (img.complete) init();
       else img.addEventListener("load", init, { once: true });
 
-      // Re-fit on resize (no zoom, just layout)
       let resizeTimer = null;
       window.addEventListener("resize", () => {
         clearTimeout(resizeTimer);
-        resizeTimer = setTimeout(() => fitToViewport(), 120);
+        resizeTimer = setTimeout(() => relayout(), 120);
       });
     })();
   </script>

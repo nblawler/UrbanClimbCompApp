@@ -1,7 +1,7 @@
-from flask import Flask, render_template, request, redirect, jsonify, session, abort, flash, url_for
+from flask import Flask, render_template, request, redirect, jsonify, session, abort, flash, url_for, make_response
 from functools import wraps
 from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy import UniqueConstraint
+from sqlalchemy import UniqueConstraint, case, asc, desc
 from datetime import datetime, timedelta, timezone
 from urllib.parse import quote
 from typing import Optional
@@ -849,6 +849,28 @@ def _normalise_category_key(category):
     return "inclusive"
 
 
+def normalize_leaderboard_category(raw):
+    """
+    Single source of truth for category normalisation.
+    Always returns one of: "all", "male", "female", "inclusive", "doubles"
+    """
+    if not raw:
+        return "all"
+    v = str(raw).strip().lower()
+    if v in ("male", "m"):
+        return "male"
+    if v in ("female", "f"):
+        return "female"
+    if v in ("inclusive", "gender inclusive", "inc"):
+        return "inclusive"
+    if v.startswith("doub"):
+        return "doubles"
+    return "all"
+
+# Keep the private alias pointing at the same function so nothing else breaks
+_normalise_category_key = normalize_leaderboard_category
+
+
 def build_leaderboard(category=None, competition_id=None, slug=None):
     """
     Build leaderboard rows.
@@ -895,8 +917,8 @@ def build_leaderboard(category=None, competition_id=None, slug=None):
     if not current_comp:
         return [], "No active competition"
 
-    # --- cache lookup (scoped per competition + category) ---
-    cat_key = _normalise_category_key(category)
+    # --- normalise category ONCE, used for both cache key and all branching ---
+    cat_key = normalize_leaderboard_category(category)
     cache_key = (current_comp.id, cat_key)
 
     now = time.time()
@@ -906,16 +928,14 @@ def build_leaderboard(category=None, competition_id=None, slug=None):
         if now - ts <= LEADERBOARD_CACHE_TTL:
             return rows, category_label
 
-    # --- detect doubles mode early ---
-    norm = (category or "").strip().lower()
-    is_doubles = norm.startswith("doub")  # matches "doubles"
-
-    if is_doubles:
-        # Build singles totals once (All) so doubles can sum partner points
-        singles_rows, _ = build_leaderboard(None, competition_id=current_comp.id)
+    # --- doubles mode ---
+    if cat_key == "doubles":
+        # Fetch "all" singles to get points — call with cat_key="all" explicitly
+        # so the recursive call hits the "all" cache, not the "doubles" cache.
+        singles_rows, _ = build_leaderboard("all", competition_id=current_comp.id)
 
         points_by_id = {r["competitor_id"]: r["total_points"] for r in singles_rows}
-        name_by_id = {r["competitor_id"]: r["name"] for r in singles_rows}
+        name_by_id   = {r["competitor_id"]: r["name"]         for r in singles_rows}
 
         teams = DoublesTeam.query.filter_by(competition_id=current_comp.id).all()
         if not teams:
@@ -931,25 +951,20 @@ def build_leaderboard(category=None, competition_id=None, slug=None):
 
             a_name = name_by_id.get(a_id, f"#{a_id}")
             b_name = name_by_id.get(b_id, f"#{b_id}")
-
             total_points = points_by_id.get(a_id, 0) + points_by_id.get(b_id, 0)
 
-            rows.append(
-                {
-                    "team_id": t.id,
-                    "a_id": a_id,
-                    "b_id": b_id,
-                    "a_name": a_name,
-                    "b_name": b_name,
-                    "name": f"{a_name} + {b_name}",
-                    "total_points": total_points,
-                }
-            )
+            rows.append({
+                "team_id":      t.id,
+                "a_id":         a_id,
+                "b_id":         b_id,
+                "a_name":       a_name,
+                "b_name":       b_name,
+                "name":         f"{a_name} and {b_name}",
+                "total_points": total_points,
+            })
 
-        # Sort: points desc, then stable name tie-break
         rows.sort(key=lambda r: (-r["total_points"], r["name"]))
 
-        # Assign positions with ties sharing the same place
         pos = 0
         prev_key = None
         for row in rows:
@@ -963,19 +978,16 @@ def build_leaderboard(category=None, competition_id=None, slug=None):
         LEADERBOARD_CACHE[cache_key] = (rows, category_label, now)
         return rows, category_label
 
-    # --- singles mode (existing logic) ---
+    # --- singles mode ---
     q = Competitor.query.filter(Competitor.competition_id == current_comp.id)
-    category_label = "All"
 
-    cat = normalize_leaderboard_category(category)
-    
-    if cat == "male":
+    if cat_key == "male":
         q = q.filter(Competitor.gender == "Male")
         category_label = "Male"
-    elif cat == "female":
+    elif cat_key == "female":
         q = q.filter(Competitor.gender == "Female")
         category_label = "Female"
-    elif cat == "inclusive":
+    elif cat_key == "inclusive":
         q = q.filter(Competitor.gender == "Inclusive")
         category_label = "Gender Inclusive"
     else:
@@ -1004,10 +1016,9 @@ def build_leaderboard(category=None, competition_id=None, slug=None):
     for c in competitors:
         scores = by_competitor.get(c.id, [])
 
-        tops = sum(1 for s in scores if s.topped)
-        attempts_on_tops = sum(s.attempts for s in scores if s.topped)
-
-        total_points = sum(
+        tops              = sum(1 for s in scores if s.topped)
+        attempts_on_tops  = sum(s.attempts for s in scores if s.topped)
+        total_points      = sum(
             points_for(s.climb_number, s.attempts, s.topped, current_comp.id)
             for s in scores
         )
@@ -1016,20 +1027,18 @@ def build_leaderboard(category=None, competition_id=None, slug=None):
         if scores:
             last_update = max(
                 (s.updated_at for s in scores if s.updated_at is not None),
-                default=None
+                default=None,
             )
 
-        rows.append(
-            {
-                "competitor_id": c.id,
-                "name": c.name,
-                "gender": c.gender,
-                "tops": tops,
-                "attempts_on_tops": attempts_on_tops,
-                "total_points": total_points,
-                "last_update": last_update,
-            }
-        )
+        rows.append({
+            "competitor_id":   c.id,
+            "name":            c.name,
+            "gender":          c.gender,
+            "tops":            tops,
+            "attempts_on_tops": attempts_on_tops,
+            "total_points":    total_points,
+            "last_update":     last_update,
+        })
 
     rows.sort(key=lambda r: (-r["total_points"], -r["tops"], r["attempts_on_tops"]))
 
@@ -1047,60 +1056,19 @@ def build_leaderboard(category=None, competition_id=None, slug=None):
 
 
 def build_doubles_leaderboard(competition_id):
-    teams = DoublesTeam.query.filter_by(competition_id=competition_id).all()
-    if not teams:
-        return [], "Doubles"
-
-    # First get singles leaderboard rows so we know points
-    singles_rows, _ = build_leaderboard(None, competition_id=competition_id)
-
-    points_by_id = {r["competitor_id"]: r["total_points"] for r in singles_rows}
-
-    rows = []
-    for team in teams:
-        a = Competitor.query.get(team.competitor_a_id)
-        b = Competitor.query.get(team.competitor_b_id)
-
-        total_points = (
-            points_by_id.get(team.competitor_a_id, 0)
-            + points_by_id.get(team.competitor_b_id, 0)
-        )
-
-        rows.append({
-            "team_id": team.id,
-            "name": f"{a.name} + {b.name}",
-            "total_points": total_points,
-        })
-
-    # sort descending by total points
-    rows.sort(key=lambda r: -r["total_points"])
-
-    # assign positions
-    pos = 0
-    prev_pts = None
-    for row in rows:
-        if row["total_points"] != prev_pts:
-            pos += 1
-        prev_pts = row["total_points"]
-        row["position"] = pos
-
-    return rows, "Doubles"
+    """Convenience wrapper — delegates to build_leaderboard."""
+    return build_leaderboard("doubles", competition_id=competition_id)
 
 
 def build_doubles_rows(singles_rows, competition_id: int):
     """
-    Build doubles leaderboard rows from:
-    - singles_rows: output from build_leaderboard(...) (already category-filtered)
-    - competition_id: current competition scope
+    Build doubles leaderboard rows from already-scoped singles rows.
 
-    Filtering rule:
-    - If the leaderboard is category-filtered (Male/Female/Inclusive), singles_rows will only include those competitors.
-      We only include doubles teams where BOTH partners are in singles_rows.
+    Filtering rule: only include teams where BOTH partners appear in singles_rows
+    (so category-filtered leaderboards behave sensibly).
     """
-
-    # competitor_id -> total_points + name lookup (from the already-scoped singles leaderboard)
     totals_by_id = {r["competitor_id"]: r["total_points"] for r in singles_rows}
-    name_by_id = {r["competitor_id"]: r["name"] for r in singles_rows}
+    name_by_id   = {r["competitor_id"]: r["name"]         for r in singles_rows}
 
     teams = DoublesTeam.query.filter_by(competition_id=competition_id).all()
 
@@ -1109,27 +1077,20 @@ def build_doubles_rows(singles_rows, competition_id: int):
         a_id = t.competitor_a_id
         b_id = t.competitor_b_id
 
-        # Only include teams where BOTH partners are in the current singles_rows scope
-        # (so category leaderboards behave sensibly)
         if a_id not in totals_by_id or b_id not in totals_by_id:
             continue
 
-        a_pts = totals_by_id.get(a_id, 0)
-        b_pts = totals_by_id.get(b_id, 0)
-
         doubles_rows.append({
-            "team_id": t.id,
-            "a_id": a_id,
-            "b_id": b_id,
-            "a_name": name_by_id.get(a_id, f"#{a_id}"),
-            "b_name": name_by_id.get(b_id, f"#{b_id}"),
-            "total_points": a_pts + b_pts,
+            "team_id":      t.id,
+            "a_id":         a_id,
+            "b_id":         b_id,
+            "a_name":       name_by_id.get(a_id, f"#{a_id}"),
+            "b_name":       name_by_id.get(b_id, f"#{b_id}"),
+            "total_points": totals_by_id.get(a_id, 0) + totals_by_id.get(b_id, 0),
         })
 
-    # sort by total desc
     doubles_rows.sort(key=lambda r: (-r["total_points"], r["a_name"], r["b_name"]))
 
-    # assign positions with ties sharing the same place
     pos = 0
     prev = None
     for r in doubles_rows:
@@ -1140,8 +1101,6 @@ def build_doubles_rows(singles_rows, competition_id: int):
         r["position"] = pos
 
     return doubles_rows
-
-
 
 def init_db():
     """
@@ -3890,24 +3849,26 @@ def api_get_scores(competitor_id):
 
 # --- Leaderboard pages ---
 
-def normalize_leaderboard_category(raw: Optional[str]) -> Optional[str]:
+def normalize_leaderboard_category(raw):
+    """
+    Single source of truth for category normalisation.
+    Always returns one of: "all", "male", "female", "inclusive", "doubles"
+    """
     if not raw:
-        return None
-    k = (raw or "").strip().lower()
-
-    if k in ("all", "overall", "singles", "none"):
-        return None
-    if k in ("m", "male", "men"):
+        return "all"
+    v = str(raw).strip().lower()
+    if v in ("male", "m"):
         return "male"
-    if k in ("f", "female", "women"):
+    if v in ("female", "f"):
         return "female"
-    if k in ("i", "incl", "inclusive", "genderinclusive", "gender-inclusive", "gender_inclusive"):
+    if v in ("inclusive", "gender inclusive", "inc"):
         return "inclusive"
-    if k in ("d", "double", "doubles", "team", "teams"):
+    if v.startswith("doub"):
         return "doubles"
+    return "all"
 
-    # unknown category -> treat like "all" (don’t accidentally return doubles)
-    return None
+# Keep the private alias pointing at the same function so nothing else breaks
+_normalise_category_key = normalize_leaderboard_category
 
 @app.route("/leaderboard")
 def leaderboard_all():
@@ -3972,30 +3933,57 @@ def leaderboard_by_category(category):
         comp_slug=comp.slug,
     )
 
-
-
 @app.route("/api/leaderboard")
 def api_leaderboard():
     raw_category = request.args.get("category")
 
     comp = get_viewer_comp()
     if not comp:
-        return jsonify({"category": "No competition selected", "rows": []})
+        resp = make_response(jsonify({"category": "No competition selected", "rows": [], "req_id": None}))
+        resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+        resp.headers["Pragma"] = "no-cache"
+        return resp
 
     if not comp_is_live(comp):
         session.pop("active_comp_slug", None)
-        return jsonify({"category": "Competition not live", "rows": []})
+        resp = make_response(jsonify({"category": "Competition not live", "rows": [], "req_id": None}))
+        resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+        resp.headers["Pragma"] = "no-cache"
+        return resp
 
-    # CRITICAL FIX
-    cat = normalize_leaderboard_category(raw_category)
+    # Normalize category safely (never allow random strings through)
+    try:
+        cat = normalize_leaderboard_category(raw_category)
+    except Exception:
+        cat = "all"
+
+    allowed = {"all", "male", "female", "inclusive", "doubles"}
+    if cat not in allowed:
+        cat = "all"
+
+    # Request id so UI can ignore stale responses
+    req_id = int(time.time() * 1000)
+
+    # Helpful debug while you fix this (remove later if you want)
+    try:
+        app.logger.info("LB API req_id=%s raw_category=%r normalized=%r comp_id=%s",
+                        req_id, raw_category, cat, comp.id)
+    except Exception:
+        pass
 
     rows, category_label = build_leaderboard(cat, competition_id=comp.id)
 
-    return jsonify({"category": category_label, "rows": rows})
+    resp = make_response(jsonify({
+        "category": category_label,
+        "rows": rows,
+        "req_id": req_id,
+        "cat_key": cat,  # include the normalized key for debugging
+    }))
 
-
-
-
+    # Prevent any caching surprises
+    resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+    resp.headers["Pragma"] = "no-cache"
+    return resp
 
 
 # --- Admin (simple password-protected utility) ---
@@ -4309,8 +4297,8 @@ def edit_section(section_id):
     if not admin_can_manage_competition(current_comp):
         abort(403)
 
-    # Helper: delete scores safely (scoped to this comp/gym/section when possible)
-    def _delete_scores_for_climb_number(climb_number: int):
+    # Helper: score scoping (best-effort depending on schema)
+    def _score_query_for_climb_number(climb_number: int):
         q = Score.query.filter(Score.climb_number == climb_number)
 
         # Scope to competition if the column exists
@@ -4325,7 +4313,10 @@ def edit_section(section_id):
         if hasattr(Score, "section_id"):
             q = q.filter(Score.section_id == section.id)
 
-        q.delete(synchronize_session=False)
+        return q
+
+    def _delete_scores_for_climb_number(climb_number: int):
+        _score_query_for_climb_number(climb_number).delete(synchronize_session=False)
 
     def _delete_scores_for_climb_numbers(climb_numbers: list[int]):
         if not climb_numbers:
@@ -4359,63 +4350,79 @@ def edit_section(section_id):
                 invalidate_leaderboard_cache()
                 message = "Section name updated."
 
-        elif action == "add_climb":
-            climb_raw = request.form.get("climb_number", "").strip()
-            colour = request.form.get("colour", "").strip()
-
-            base_raw = request.form.get("base_points", "").strip()
-            penalty_raw = request.form.get("penalty_per_attempt", "").strip()
-            cap_raw = request.form.get("attempt_cap", "").strip()
-
-            # basic validation
-            if not climb_raw.isdigit():
-                error = "Please enter a valid climb number."
-            elif base_raw == "" or penalty_raw == "" or cap_raw == "":
-                error = "Please enter base points, penalty per attempt, and attempt cap."
-            elif not (
-                base_raw.lstrip("-").isdigit()
-                and penalty_raw.lstrip("-").isdigit()
-                and cap_raw.lstrip("-").isdigit()
-            ):
-                error = "Base points, penalty per attempt, and attempt cap must be whole numbers."
+        elif action == "update_climb":
+            climb_id_raw = (request.form.get("climb_id") or "").strip()
+            if not climb_id_raw.isdigit():
+                error = "Invalid climb selection."
             else:
-                climb_number = int(climb_raw)
-                base_points = int(base_raw)
-                penalty_per_attempt = int(penalty_raw)
-                attempt_cap = int(cap_raw)
+                sc = SectionClimb.query.get(int(climb_id_raw))
 
-                if climb_number <= 0:
-                    error = "Climb number must be positive."
-                elif base_points < 0 or penalty_per_attempt < 0 or attempt_cap <= 0:
-                    error = "Base points and penalty must be ≥ 0 and attempt cap must be > 0."
+                if not sc or sc.section_id != section.id:
+                    error = "Climb not found in this section."
                 else:
-                    # Uniqueness check should include gym_id (gym separation)
-                    existing = (
-                        SectionClimb.query
-                        .filter_by(
-                            section_id=section.id,
-                            climb_number=climb_number,
-                            gym_id=current_comp.gym_id,
-                        )
-                        .first()
-                    )
+                    # Extra safety: ensure you're not editing across gyms
+                    if current_comp.gym_id and getattr(sc, "gym_id", None) and sc.gym_id != current_comp.gym_id:
+                        abort(403)
 
-                    if existing:
-                        error = f"Climb {climb_number} is already in this section."
+                    climb_raw = (request.form.get("climb_number") or "").strip()
+                    colour = (request.form.get("colour") or "").strip()
+
+                    base_raw = (request.form.get("base_points") or "").strip()
+                    penalty_raw = (request.form.get("penalty_per_attempt") or "").strip()
+                    cap_raw = (request.form.get("attempt_cap") or "").strip()
+
+                    # validation
+                    if not climb_raw.isdigit():
+                        error = "Please enter a valid climb number."
+                    elif base_raw == "" or penalty_raw == "" or cap_raw == "":
+                        error = "Please enter base points, penalty per attempt, and attempt cap."
+                    elif not (
+                        base_raw.lstrip("-").isdigit()
+                        and penalty_raw.lstrip("-").isdigit()
+                        and cap_raw.lstrip("-").isdigit()
+                    ):
+                        error = "Base points, penalty per attempt, and attempt cap must be whole numbers."
                     else:
-                        sc = SectionClimb(
-                            section_id=section.id,
-                            gym_id=current_comp.gym_id,
-                            climb_number=climb_number,
-                            colour=colour or None,
-                            base_points=base_points,
-                            penalty_per_attempt=penalty_per_attempt,
-                            attempt_cap=attempt_cap,
-                        )
-                        db.session.add(sc)
-                        db.session.commit()
-                        invalidate_leaderboard_cache()
-                        message = f"Climb {climb_number} added to {section.name}."
+                        new_climb_number = int(climb_raw)
+                        new_base = int(base_raw)
+                        new_penalty = int(penalty_raw)
+                        new_cap = int(cap_raw)
+
+                        if new_climb_number <= 0:
+                            error = "Climb number must be positive."
+                        elif new_base < 0 or new_penalty < 0 or new_cap <= 0:
+                            error = "Base points and penalty must be ≥ 0 and attempt cap must be > 0."
+                        else:
+                            # If climb number is changing, enforce uniqueness and migrate scores
+                            if new_climb_number != sc.climb_number:
+                                dup = (
+                                    SectionClimb.query
+                                    .filter_by(
+                                        section_id=section.id,
+                                        gym_id=current_comp.gym_id,
+                                        climb_number=new_climb_number,
+                                    )
+                                    .first()
+                                )
+                                if dup:
+                                    error = f"Climb {new_climb_number} is already in this section."
+                                else:
+                                    # Update existing scores to new climb number (scoped)
+                                    _score_query_for_climb_number(sc.climb_number).update(
+                                        {Score.climb_number: new_climb_number},
+                                        synchronize_session=False
+                                    )
+                                    sc.climb_number = new_climb_number
+
+                            if not error:
+                                sc.colour = colour or None
+                                sc.base_points = new_base
+                                sc.penalty_per_attempt = new_penalty
+                                sc.attempt_cap = new_cap
+
+                                db.session.commit()
+                                invalidate_leaderboard_cache()
+                                message = f"Climb {sc.climb_number} updated."
 
         elif action == "delete_climb":
             climb_id_raw = request.form.get("climb_id", "").strip()
@@ -4488,7 +4495,6 @@ def edit_section(section_id):
         current_comp=current_comp,
         current_comp_id=current_comp.id,
     )
-
 
 @app.route("/admin/map")
 def admin_map():
@@ -4571,8 +4577,6 @@ def admin_map():
         current_comp_id=current_comp.id,  # template uses this for hidden input + links
     )
 
-
-
 @app.route("/admin/comps", methods=["GET", "POST"])
 def admin_competitions():
     """
@@ -4583,28 +4587,30 @@ def admin_competitions():
         - gym admin: can create only for gyms they manage
     - Set a competition as the single active comp
     - Archive (deactivate) a competition
+    - Pagination: 10 per page
+    - Ordering: closest to now first, upcoming before past, null start dates last
     """
     if not session.get("admin_ok"):
         return redirect("/admin")
-    
-    if admin_is_super():
+
+    is_super = admin_is_super()
+
+    # --- Gym list for Create form (respect admin permissions) ---
+    if is_super:
         gyms = Gym.query.order_by(Gym.name).all()
     else:
         allowed_gym_ids = get_session_admin_gym_ids()
-        if allowed_gym_ids:
-            gyms = (
-                Gym.query
-                .filter(Gym.id.in_(allowed_gym_ids))
-                .order_by(Gym.name)
-                .all()
-            )
-        else:
-            gyms = []
+        gyms = (
+            Gym.query.filter(Gym.id.in_(allowed_gym_ids)).order_by(Gym.name).all()
+            if allowed_gym_ids else []
+        )
 
     message = None
     error = None
-    is_super = admin_is_super()
-    
+
+    # Keep current page so after POST you land back where you were
+    page = request.args.get("page", 1, type=int)
+    per_page = 10
 
     if request.method == "POST":
         action = (request.form.get("action") or "").strip()
@@ -4653,7 +4659,6 @@ def admin_competitions():
                     gym_id = int(gym_id_raw)
 
                     if not is_super:
-                        # Gym admins can only create comps for their allowed gyms
                         allowed = get_session_admin_gym_ids()
                         if gym_id not in allowed:
                             error = "You are not allowed to create a competition for that gym."
@@ -4719,27 +4724,57 @@ def admin_competitions():
                     db.session.commit()
                     message = f"Competition '{comp.name}' has been archived (inactive)."
 
-    # Always show current list, but filter for gym admins
+        # Important: after POST, redirect back to the current page (so pagination feels sane)
+        return redirect(f"/admin/comps?page={page}")
+
+    # --- Always show current list, but filter for gym admins ---
     comps_query = Competition.query
-    if not admin_is_super():
+
+    if not is_super:
         allowed_gym_ids = get_session_admin_gym_ids()
         if allowed_gym_ids:
             comps_query = comps_query.filter(Competition.gym_id.in_(allowed_gym_ids))
         else:
             comps_query = comps_query.filter(False)  # no comps
 
-    comps = (
-        comps_query
-        .order_by(Competition.start_at.asc(), Competition.created_at.asc())
-        .all()
+    # --- Ordering: closest-to-now with upcoming first; NULL start dates last ---
+    # Notes:
+    # - start_at NULL last
+    # - upcoming first (start_at >= now)
+    # - upcoming ascending
+    # - past descending
+    now = datetime.utcnow()
+
+    start_is_null = case((Competition.start_at.is_(None), 1), else_=0)     # 0 first, 1 last
+    is_past = case((Competition.start_at < now, 1), else_=0)              # 0 upcoming first, 1 past later
+
+    upcoming_sort = case(
+        (Competition.start_at >= now, Competition.start_at),
+        else_=None
     )
+    past_sort = case(
+        (Competition.start_at < now, Competition.start_at),
+        else_=None
+    )
+
+    comps_query = comps_query.order_by(
+        start_is_null.asc(),
+        is_past.asc(),
+        asc(upcoming_sort),
+        desc(past_sort),
+        Competition.created_at.desc() if hasattr(Competition, "created_at") else Competition.id.desc(),
+    )
+
+    competitions_page = comps_query.paginate(page=page, per_page=per_page, error_out=False)
 
     return render_template(
         "admin_comps.html",
-        competitions=comps,
+        competitions=competitions_page.items,
+        competitions_page=competitions_page,
         message=message,
         gyms=gyms,
         error=error,
+        is_super=is_super,
     )
 
 

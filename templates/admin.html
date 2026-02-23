@@ -4,35 +4,250 @@
 		<meta charset="utf-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 		<title>Admin · Urban Climb Comp</title>
+
+		<!-- ✅ match admin_comps -->
 		<link rel="stylesheet" href="/static/app.css" />
+
+		<style>
+			* { margin: 0; padding: 0; box-sizing: border-box; }
+
+			body {
+				font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+				background: linear-gradient(135deg, #0a1628 0%, #1a2942 100%);
+				min-height: 100vh;
+				display: flex;
+				flex-direction: column;
+				color: #fff;
+				font-size: 16px;
+			}
+
+			/* ✅ EXACT same nav styling approach as admin_comps (transparent / no overlay) */
+			.top-nav {
+				padding: 1.25rem 2rem;
+				display: flex;
+				gap: 1.5rem;
+				align-items: center;
+				flex-wrap: wrap;
+			}
+
+			.top-nav .nav-links {
+				display: flex;
+				gap: 1.5rem;
+				align-items: center;
+				flex-wrap: wrap;
+			}
+
+			.top-nav a {
+				color: rgba(255, 255, 255, 0.7);
+				text-decoration: none;
+				font-size: 0.95rem;
+				transition: color 0.2s;
+			}
+
+			.top-nav a.active { color: #5df4a2; font-weight: 700; }
+			.top-nav a:hover { color: #fff; }
+
+			/* Main container */
+			.container {
+				flex: 1;
+				display: flex;
+				flex-direction: column;
+				align-items: center;
+				padding: 2rem;
+				max-width: 860px;
+				margin: 0 auto;
+				width: 100%;
+			}
+
+			/* Hero */
+			.hero {
+				text-align: center;
+				margin: 2rem 0 2rem;
+				width: 100%;
+			}
+
+			.hero h1 {
+				font-size: 2.75rem;
+				font-weight: 900;
+				background: linear-gradient(135deg, #fff 0%, #5df4a2 100%);
+				-webkit-background-clip: text;
+				-webkit-text-fill-color: transparent;
+				background-clip: text;
+				letter-spacing: -0.02em;
+				margin-bottom: 0.5rem;
+			}
+
+			/* Glass card */
+			.card {
+				background: rgba(255, 255, 255, 0.05);
+				backdrop-filter: blur(10px);
+				border: 1px solid rgba(255, 255, 255, 0.1);
+				border-radius: 1.5rem;
+				padding: 2rem;
+				width: 100%;
+				margin-bottom: 1.5rem;
+			}
+
+			.card h2 {
+				font-size: 1.3rem;
+				font-weight: 800;
+				margin-bottom: 0.75rem;
+			}
+
+			.muted {
+				color: rgba(255, 255, 255, 0.6);
+				font-size: 0.95rem;
+				line-height: 1.5;
+			}
+
+			/* Alerts */
+			.alert {
+				border-radius: 0.85rem;
+				padding: 0.85rem 1.1rem;
+				margin-bottom: 1.25rem;
+				font-size: 0.95rem;
+				width: 100%;
+			}
+
+			.alert--error {
+				background: rgba(139, 30, 30, 0.3);
+				border: 1px solid rgba(220, 80, 80, 0.4);
+				color: #f88;
+			}
+
+			.alert--ok {
+				background: rgba(93, 244, 162, 0.1);
+				border: 1px solid rgba(93, 244, 162, 0.3);
+				color: #5df4a2;
+			}
+
+			/* Form elements */
+			label {
+				display: block;
+				font-size: 0.875rem;
+				font-weight: 600;
+				color: rgba(255,255,255,0.65);
+				margin-top: 1rem;
+				margin-bottom: 0.35rem;
+				text-transform: uppercase;
+				letter-spacing: 0.04em;
+			}
+
+			input[type="text"],
+			input[type="number"],
+			input[type="password"],
+			select {
+				width: 100%;
+				background: rgba(255,255,255,0.07);
+				border: 1px solid rgba(255,255,255,0.15);
+				border-radius: 0.65rem;
+				padding: 0.7rem 0.9rem;
+				color: #fff;
+				font-size: 1rem;
+				outline: none;
+				transition: border-color 0.2s;
+			}
+
+			input::placeholder { color: rgba(255,255,255,0.3); }
+			input:focus, select:focus { border-color: rgba(93, 244, 162, 0.5); }
+			select option { background: #1a2942; }
+
+			/* Buttons */
+			.btn {
+				display: inline-block;
+				padding: 0.8rem 1.25rem;
+				background: #5df4a2;
+				color: #0a1628;
+				border: none;
+				border-radius: 0.85rem;
+				font-weight: 900;
+				font-size: 0.95rem;
+				cursor: pointer;
+				transition: all 0.2s;
+				text-decoration: none;
+				margin-top: 1rem;
+			}
+
+			.btn:hover { background: #4de392; transform: scale(1.02); }
+
+			.btn--danger {
+				background: rgba(139, 30, 30, 0.85);
+				color: #fff;
+			}
+
+			.btn--danger:hover { background: rgba(180, 40, 40, 0.9); }
+
+			/* Table */
+			.table-wrap { width: 100%; overflow-x: auto; margin-top: 1rem; }
+
+			table {
+				width: 100%;
+				border-collapse: collapse;
+				font-size: 0.9rem;
+			}
+
+			thead th {
+				text-align: left;
+				padding: 0.6rem 0.75rem;
+				color: rgba(255,255,255,0.45);
+				font-size: 0.75rem;
+				font-weight: 700;
+				text-transform: uppercase;
+				letter-spacing: 0.06em;
+				border-bottom: 1px solid rgba(255,255,255,0.08);
+			}
+
+			tbody td {
+				padding: 0.75rem 0.75rem;
+				border-bottom: 1px solid rgba(255,255,255,0.05);
+				color: rgba(255,255,255,0.85);
+			}
+
+			tbody tr:last-child td { border-bottom: none; }
+
+			hr {
+				border: none;
+				border-top: 1px solid rgba(255,255,255,0.08);
+				margin: 1.5rem 0;
+			}
+
+			@media (max-width: 600px) {
+				.top-nav { padding: 1rem; }
+				.container { padding: 1.25rem; }
+				.hero h1 { font-size: 2rem; }
+				.card { padding: 1.25rem; }
+			}
+		</style>
 	</head>
 	<body>
-		<nav class="container top-nav">
+		<!-- ✅ same structure as admin_comps -->
+		<nav class="top-nav">
 			<div class="nav-links">
-				<a class="back" href="/admin/comps">Admin Home</a>
+				<a class="active" href="/admin/comps">Admin</a>
+
 				{% if session.get('admin_ok') %}
-					<a class="back" href="/logout">Log out</a>
+					<a href="/logout">Log out</a>
 				{% else %}
-					<a class="back {% if nav_active == 'admin' %}active{% endif %}" href="/admin">Admin login</a>
+					<a class="{% if nav_active == 'admin' %}active{% endif %}" href="/admin">Admin login</a>
 				{% endif %}
 			</div>
 		</nav>
 
 		<main class="container">
-			<header class="header">
+			<header class="hero">
 				<h1>Admin</h1>
 			</header>
 
 			{% if error %}
-				<div class="error">{{ error }}</div>
+				<div class="alert alert--error">{{ error }}</div>
 			{% endif %}
 
 			{% if message %}
-				<div class="status ok">{{ message }}</div>
+				<div class="alert alert--ok">{{ message }}</div>
 			{% endif %}
 
 			{% if not is_admin %}
-				<section class="card">
+				<div class="card">
 					<h2>Admin login</h2>
 					<p class="muted">Enter the admin password to unlock controls.</p>
 
@@ -40,54 +255,33 @@
 						<label>Admin password</label>
 						<input type="password" name="password" required />
 
-						<button
-							type="submit"
-							name="action"
-							value="login"
-							class="primary"
-							style="margin-top:12px;"
-						>
+						<button type="submit" name="action" value="login" class="btn">
 							Unlock admin
 						</button>
 					</form>
-				</section>
+				</div>
 			{% else %}
 
-				{# Manage Competition context banner #}
-				<section class="card">
+				<div class="card">
 					<h2>Manage competition</h2>
 
 					{% if current_comp %}
-						<p class="muted" style="margin-top:6px;">
-							Currently editing:
-							<strong>{{ current_comp.name }}</strong>
-							{% if current_comp.gym %}
-								· {{ current_comp.gym.name }}
-							{% elif current_comp.gym_name %}
-								· {{ current_comp.gym_name }}
-							{% endif %}
-						</p>
-
 						<div style="margin-top:12px;">
-							<a href="/admin/comps" class="primary" style="display:inline-block; padding:8px 12px; font-size:13px;">
-								Switch competition
-							</a>
+							<a href="/admin/comps" class="btn">Switch competition</a>
 						</div>
 					{% else %}
 						<p class="muted" style="margin-top:6px;">
 							No competition selected. Choose one to manage.
 						</p>
 						<div style="margin-top:12px;">
-							<a href="/admin/comps" class="primary" style="display:inline-block; padding:8px 12px; font-size:13px;">
-								Choose a competition
-							</a>
+							<a href="/admin/comps" class="btn">Choose a competition</a>
 						</div>
 					{% endif %}
-				</section>
+				</div>
 
 				{% if current_comp %}
 
-					<section class="card">
+					<div class="card">
 						<h2>Create competitor</h2>
 
 						<form method="post">
@@ -101,41 +295,30 @@
 								<option>Female</option>
 							</select>
 
-							<button
-								type="submit"
-								name="action"
-								value="create_competitor"
-								class="primary"
-							>
+							<button type="submit" name="action" value="create_competitor" class="btn">
 								Create competitor
 							</button>
 						</form>
-					</section>
+					</div>
 
-					<section class="card">
+					<div class="card">
 						<h2>Delete competitor</h2>
 
 						<form method="post">
 							<label>Competitor number</label>
 							<input type="number" name="competitor_id" min="1" required />
 
-							<button
-								type="submit"
-								name="action"
-								value="delete_competitor"
-								class="primary"
-								style="background:#8b1e1e;"
-							>
+							<button type="submit" name="action" value="delete_competitor" class="btn btn--danger">
 								Delete competitor
 							</button>
 						</form>
-					</section>
+					</div>
 
-					<section class="card" id="search-card">
+					<div class="card" id="search-card">
 						<h2>Find competitor by name</h2>
 
 						<form method="post" action="/admin#search-card">
-							<label style="margin-top:10px;">Name (partial OK)</label>
+							<label>Name (partial OK)</label>
 							<input
 								type="text"
 								name="search_name"
@@ -144,125 +327,68 @@
 								required
 							/>
 
-							<button
-								type="submit"
-								name="action"
-								value="search_competitor"
-								class="primary"
-								style="margin-top:12px;"
-							>
+							<button type="submit" name="action" value="search_competitor" class="btn">
 								Search
 							</button>
 						</form>
 
 						{% if search_results is defined and search_results %}
-							<hr style="margin:16px 0; border-color:#262a30;" />
-							<table class="leaderboard">
-								<thead>
-									<tr>
-										<th>#</th>
-										<th>Name</th>
-										<th>Category</th>
-										<th>Registered</th>
-									</tr>
-								</thead>
-								<tbody>
-									{% for c in search_results %}
+							<hr />
+							<div class="table-wrap">
+								<table>
+									<thead>
 										<tr>
-											<td>{{ c.id }}</td>
-											<td>{{ c.name }}</td>
-											<td>{{ c.gender }}</td>
-											<td>
-												{% if c.created_at %}
-													{{ c.created_at.strftime("%Y-%m-%d %H:%M") }}
-												{% else %}
-													–
-												{% endif %}
-											</td>
+											<th>#</th>
+											<th>Name</th>
+											<th>Category</th>
+											<th>Registered</th>
 										</tr>
-									{% endfor %}
-								</tbody>
-							</table>
+									</thead>
+									<tbody>
+										{% for c in search_results %}
+											<tr>
+												<td>{{ c.id }}</td>
+												<td>{{ c.name }}</td>
+												<td>{{ c.gender }}</td>
+												<td>
+													{% if c.created_at %}
+														{{ c.created_at.strftime("%Y-%m-%d %H:%M") }}
+													{% else %}
+														–
+													{% endif %}
+												</td>
+											</tr>
+										{% endfor %}
+									</tbody>
+								</table>
+							</div>
 						{% elif search_results is defined and not search_results and search_query %}
 							<p class="muted" style="margin-top:12px;">
 								No competitors found matching "{{ search_query }}".
 							</p>
 						{% endif %}
-					</section>
+					</div>
 
-					<section class="card">
-						<h2>Create section</h2>
-
-						<form method="post">
-							<label>Section name</label>
-							<input type="text" name="section_name" required />
-
-							<button
-								type="submit"
-								name="action"
-								value="create_section"
-								class="primary"
-							>
-								Create section
-							</button>
-						</form>
-					</section>
-
-					<section class="card">
-						<h2>Existing sections</h2>
-
-						{% if sections %}
-							<ul class="section-list">
-								{% for section in sections %}
-									<li style="margin-bottom:8px;">
-										<strong>{{ section.name }}</strong>
-										·
-										{{ section.climbs|length }}
-										climb{% if section.climbs|length != 1 %}s{% endif %}
-
-										<a
-											href="/admin/section/{{ section.id }}/edit"
-											class="primary"
-											style="padding:4px 8px; font-size:12px; margin-left:12px;"
-										>
-											Edit climbs + scoring
-										</a>
-									</li>
-								{% endfor %}
-							</ul>
-						{% else %}
-							<p class="muted">No sections created yet.</p>
-						{% endif %}
-					</section>
-
-					<section class="card">
-						<h2>Wall map (place climbs on the map)</h2>
-						<p class="muted">
-							Open the map editor for this competition’s gym and click to place climbs.
-						</p>
-						<a href="/admin/map?comp_id={{ current_comp.id }}" class="primary">
-							Open map editor
-						</a>
-					</section>
+					<div class="card">
+						<h2>Wall map</h2>
+						<a href="/admin/map?comp_id={{ current_comp.id }}" class="btn">Open map editor</a>
+					</div>
 
 				{% else %}
 
-					<section class="card">
+					<div class="card">
 						<h2>Competition-scoped tools</h2>
 						<p class="muted">
 							To create competitors, sections, or edit the wall map, first choose a competition:
 							Admin Home → Comps → Manage.
 						</p>
-						<a href="/admin/comps" class="primary">
-							Choose a competition
-						</a>
-					</section>
+						<a href="/admin/comps" class="btn">Choose a competition</a>
+					</div>
 
 				{% endif %}
 
-				{# Super-admin only: Reset All #}
 				{% if session.get("admin_is_super") %}
-					<section class="card">
+					<div class="card">
 						<h2>Reset all competitors & scores</h2>
 						<p class="muted">
 							WARNING: This deletes ALL competitors, ALL scores, ALL sections, and ALL climbs.
@@ -270,24 +396,13 @@
 
 						<form method="post">
 							<label>Admin password</label>
-							<input
-								type="password"
-								name="password"
-								required
-								placeholder="Enter admin password"
-							/>
+							<input type="password" name="password" required placeholder="Enter admin password" />
 
-							<button
-								type="submit"
-								name="action"
-								value="reset_all"
-								class="primary"
-								style="background:#8b1e1e;"
-							>
+							<button type="submit" name="action" value="reset_all" class="btn btn--danger">
 								Reset all data
 							</button>
 						</form>
-					</section>
+					</div>
 				{% endif %}
 
 			{% endif %}

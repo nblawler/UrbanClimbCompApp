@@ -77,11 +77,15 @@
 			border: 2px solid rgba(255, 255, 255, 0.2);
 			background: rgba(255, 255, 255, 0.05);
 			color: rgba(255, 255, 255, 0.85);
-			text-decoration: none;
 			font-size: 0.95rem;
 			font-weight: 800;
 			transition: all 0.2s;
-			display: inline-block;
+			display: inline-flex;
+			align-items: center;
+			gap: 0.5rem;
+			cursor: pointer;
+			user-select: none;
+			-webkit-tap-highlight-color: transparent;
 		}
 
 		.category-tab:hover {
@@ -98,13 +102,35 @@
 			box-shadow: 0 10px 20px rgba(93, 244, 162, 0.3);
 		}
 
+		.category-tab:disabled {
+			opacity: 0.6;
+			cursor: not-allowed;
+			transform: none;
+		}
+
+		.loading-dot {
+			display: inline-block;
+			width: 8px;
+			height: 8px;
+			border-radius: 999px;
+			background: currentColor;
+			opacity: 0.85;
+			animation: pulse 1s infinite ease-in-out;
+		}
+		@keyframes pulse {
+			0%, 100% { transform: scale(0.85); opacity: 0.5; }
+			50% { transform: scale(1.05); opacity: 1; }
+		}
+
 		.leaderboard-wrapper {
 			background: rgba(255, 255, 255, 0.05);
 			backdrop-filter: blur(10px);
 			border: 1px solid rgba(255, 255, 255, 0.1);
 			border-radius: 1.5rem;
 			overflow: hidden;
+			transition: opacity .15s ease;
 		}
+		.leaderboard-wrapper.loading { opacity: 0.86; }
 
 		.leaderboard {
 			width: 100%;
@@ -229,73 +255,242 @@
 		<header class="page-header">
 			<h1 class="page-title">Leaderboard</h1>
 			<p class="page-subtitle">
-				Category: <span>{{ category }}</span>
-				{% if comp and comp.name %}
-					&nbsp;·&nbsp;<span>{{ comp.name }}</span>
-				{% endif %}
+				Category: <span id="category-label">All</span>
 			</p>
 
-			<div class="category-tabs">
-				<a href="/leaderboard{{ qs_str }}"
-				   class="category-tab{% if category == 'All' %} active{% endif %}">All</a>
-
-				<a href="/leaderboard/male{{ qs_str }}"
-				   class="category-tab{% if category == 'Male' %} active{% endif %}">Male</a>
-
-				<a href="/leaderboard/female{{ qs_str }}"
-				   class="category-tab{% if category == 'Female' %} active{% endif %}">Female</a>
-
-				<a href="/leaderboard/inclusive{{ qs_str }}"
-				   class="category-tab{% if category == 'Gender Inclusive' %} active{% endif %}">Inclusive</a>
-
-				<a href="/leaderboard/doubles{{ qs_str }}"
-				   class="category-tab{% if category == 'Doubles' %} active{% endif %}">Doubles</a>
+			<div class="category-tabs" id="category-tabs">
+				<button type="button" class="category-tab" data-cat="all">All</button>
+				<button type="button" class="category-tab" data-cat="male">Male</button>
+				<button type="button" class="category-tab" data-cat="female">Female</button>
+				<button type="button" class="category-tab" data-cat="inclusive">Inclusive</button>
+				<button type="button" class="category-tab" data-cat="doubles">Doubles</button>
 			</div>
 		</header>
 
-		<div class="leaderboard-wrapper">
-			<table class="leaderboard {% if category == 'Doubles' %}doubles{% else %}singles{% endif %}">
-				<thead>
-					{% if category == 'Doubles' %}
-						<tr><th>Pos</th><th>Team</th><th>Points</th></tr>
-					{% else %}
-						<tr><th>Pos</th><th>Competitor</th><th>Tops</th><th>Attempts</th><th>Points</th></tr>
-					{% endif %}
+		<div class="leaderboard-wrapper" id="lb-wrap">
+			<table class="leaderboard singles" id="leaderboard-table">
+				<thead id="leaderboard-head">
+					<tr><th>Pos</th><th>Competitor</th><th>Tops</th><th>Attempts</th><th>Points</th></tr>
 				</thead>
-
 				<tbody id="leaderboard-body">
-					{% if category == 'Doubles' %}
-						{% if leaderboard and leaderboard|length %}
-							{% for t in leaderboard %}
-								<tr><td>{{ t.position }}</td><td>{{ t.name }}</td><td>{{ t.total_points }}</td></tr>
-							{% endfor %}
-						{% else %}
-							<tr><td colspan="3" style="opacity:.75;">No doubles teams yet.</td></tr>
-						{% endif %}
-					{% else %}
-						{% if leaderboard and leaderboard|length %}
-							{% for row in leaderboard %}
-								<tr>
-									<td>{{ row.position }}</td>
-									<td>
-										{% if current_competitor_id and row.competitor_id == current_competitor_id %}
-											<span>{{ row.name }}</span>
-										{% else %}
-											<a href="/competitor/{{ row.competitor_id }}/stats/climber">{{ row.name }}</a>
-										{% endif %}
-									</td>
-									<td>{{ row.tops }}</td>
-									<td>{{ row.attempts_on_tops }}</td>
-									<td>{{ row.total_points }}</td>
-								</tr>
-							{% endfor %}
-						{% else %}
-							<tr><td colspan="5" style="opacity:.75;">No competitors yet.</td></tr>
-						{% endif %}
-					{% endif %}
+					<tr><td colspan="5" style="opacity:.75;">Loading…</td></tr>
 				</tbody>
 			</table>
 		</div>
 	</main>
+
+	<script>
+		(() => {
+			const CATEGORIES = [
+				{ key: "all",       label: "All",              isDoubles: false },
+				{ key: "male",      label: "Male",             isDoubles: false },
+				{ key: "female",    label: "Female",           isDoubles: false },
+				{ key: "inclusive", label: "Gender Inclusive", isDoubles: false },
+				{ key: "doubles",   label: "Doubles",          isDoubles: true  },
+			];
+
+			const allowed   = new Set(CATEGORIES.map(c => c.key));
+			const catByKey  = new Map(CATEGORIES.map(c => [c.key, c]));
+
+			const tabsEl  = document.getElementById("category-tabs");
+			const labelEl = document.getElementById("category-label");
+			const wrapEl  = document.getElementById("lb-wrap");
+			const tableEl = document.getElementById("leaderboard-table");
+			const headEl  = document.getElementById("leaderboard-head");
+			const bodyEl  = document.getElementById("leaderboard-body");
+
+			const CID = "{{ cid_val }}";
+
+			// Monotonic counter — every new load() call increments this.
+			// A fetch result is only applied if its token still equals latestToken
+			// when it resolves, guaranteeing only the most-recently-requested
+			// category ever reaches the DOM.
+			let latestToken = 0;
+			let aborter     = null;
+
+			// Track which key the UI is currently showing (drives tab highlight & header)
+			let currentKey  = "all";
+
+			function escapeHtml(val) {
+				return String(val ?? "")
+					.replaceAll("&", "&amp;")
+					.replaceAll("<", "&lt;")
+					.replaceAll(">", "&gt;")
+					.replaceAll('"', "&quot;")
+					.replaceAll("'", "&#039;");
+			}
+
+			// ── Tab & header state ──────────────────────────────────────────────
+			// Only called with the key that should be "current" right now.
+			// Never touches innerHTML of non-active tabs so labels never get clobbered.
+			function applyTabState(key, isLoading) {
+				const cat = catByKey.get(key) || catByKey.get("all");
+				labelEl.textContent = cat.label;
+
+				[...tabsEl.querySelectorAll(".category-tab")].forEach(btn => {
+					const isActive = btn.dataset.cat === key;
+					btn.classList.toggle("active", isActive);
+					btn.disabled = isLoading;
+
+					// Only rewrite the innerHTML of the active tab (to add/remove spinner)
+					if (isActive) {
+						const baseText = cat.label; // use the full label string, not dataset.cat
+						btn.innerHTML = isLoading
+							? `${escapeHtml(baseText)} <span class="loading-dot"></span>`
+							: escapeHtml(baseText);
+					}
+				});
+
+				// Swap table header & class between singles / doubles
+				if (cat.isDoubles) {
+					tableEl.classList.remove("singles");
+					tableEl.classList.add("doubles");
+					headEl.innerHTML = `<tr><th>Pos</th><th>Team</th><th>Points</th></tr>`;
+				} else {
+					tableEl.classList.remove("doubles");
+					tableEl.classList.add("singles");
+					headEl.innerHTML = `<tr><th>Pos</th><th>Competitor</th><th>Tops</th><th>Attempts</th><th>Points</th></tr>`;
+				}
+			}
+
+			function renderLoading(key) {
+				const cat = catByKey.get(key) || catByKey.get("all");
+				bodyEl.innerHTML = `<tr><td colspan="${cat.isDoubles ? 3 : 5}" style="opacity:.75;">Loading…</td></tr>`;
+			}
+
+			function renderRows(key, rows) {
+				const cat = catByKey.get(key) || catByKey.get("all");
+
+				if (!rows || !rows.length) {
+					bodyEl.innerHTML = `<tr><td colspan="${cat.isDoubles ? 3 : 5}" style="opacity:.75;">${
+						cat.isDoubles ? "No doubles teams yet." : "No competitors yet."
+					}</td></tr>`;
+					return;
+				}
+
+				if (cat.isDoubles) {
+					bodyEl.innerHTML = rows.map(r => `
+						<tr>
+							<td>${escapeHtml(r.position)}</td>
+							<td>${escapeHtml(r.name)}</td>
+							<td>${escapeHtml(r.total_points)}</td>
+						</tr>
+					`).join("");
+				} else {
+					bodyEl.innerHTML = rows.map(r => {
+						const link = r.competitor_id
+							? `<a href="/competitor/${encodeURIComponent(r.competitor_id)}/stats/climber">${escapeHtml(r.name)}</a>`
+							: escapeHtml(r.name);
+						return `
+							<tr>
+								<td>${escapeHtml(r.position)}</td>
+								<td>${link}</td>
+								<td>${escapeHtml(r.tops)}</td>
+								<td>${escapeHtml(r.attempts_on_tops)}</td>
+								<td>${escapeHtml(r.total_points)}</td>
+							</tr>
+						`;
+					}).join("");
+				}
+			}
+
+			function renderError(key, msg) {
+				const cat = catByKey.get(key) || catByKey.get("all");
+				bodyEl.innerHTML = `<tr><td colspan="${cat.isDoubles ? 3 : 5}" style="opacity:.75;">${escapeHtml(msg)}</td></tr>`;
+			}
+
+			function urlFor(key) {
+				const path = (key && key !== "all") ? `/leaderboard/${encodeURIComponent(key)}` : "/leaderboard";
+				const params = new URLSearchParams();
+				if (CID) params.set("cid", CID);
+				const qs = params.toString();
+				return qs ? `${path}?${qs}` : path;
+			}
+
+			function initialKeyFromPath() {
+				const parts = (location.pathname || "").split("/").filter(Boolean);
+				// Path is either /leaderboard or /leaderboard/<key>
+				const maybe = parts.length >= 2 ? parts[1] : "all";
+				return allowed.has(maybe) ? maybe : "all";
+			}
+
+			async function load(key, { push = true } = {}) {
+				const k = allowed.has(key) ? key : "all";
+
+				// Claim this load slot
+				const token = ++latestToken;
+
+				// Cancel any in-flight request
+				if (aborter) { aborter.abort(); aborter = null; }
+				aborter = new AbortController();
+
+				// Update UI to show loading state for the requested category
+				currentKey = k;
+				applyTabState(k, true);
+				renderLoading(k);
+				wrapEl.classList.add("loading");
+
+				if (push) history.pushState({ key: k }, "", urlFor(k));
+
+				const params = new URLSearchParams({ category: k });
+				if (CID) params.set("cid", CID);
+
+				try {
+					const resp = await fetch(`/api/leaderboard?${params}`, {
+						method: "GET",
+						cache: "no-store",
+						signal: aborter.signal,
+						headers: { "Accept": "application/json" },
+					});
+
+					// If a newer load() has started, discard this response entirely
+					if (token !== latestToken) return;
+
+					if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+					const data = await resp.json();
+
+					if (token !== latestToken) return;
+
+					// ── Category mismatch guard ───────────────────────────────────
+					// The server echoes back cat_key so we can detect if the response
+					// belongs to a different category (e.g. a very late reply arriving
+					// after the token check but before we close the aborter).
+					// This replaces the unreliable shape-detection heuristic.
+					if (data.cat_key && data.cat_key !== k) {
+						// Stale or mismatched response — silently discard
+						return;
+					}
+
+					renderRows(k, data.rows || []);
+
+				} catch (err) {
+					if (err.name === "AbortError") return;
+					if (token !== latestToken) return;
+					renderError(k, "Error loading leaderboard. Try again.");
+				} finally {
+					// Only update loading visuals if we are still the active request
+					if (token === latestToken) {
+						applyTabState(k, false);
+						wrapEl.classList.remove("loading");
+					}
+				}
+			}
+
+			// ── Event wiring ────────────────────────────────────────────────────
+			tabsEl.addEventListener("click", e => {
+				const btn = e.target.closest(".category-tab");
+				if (!btn || btn.disabled) return;
+				load(btn.dataset.cat, { push: true });
+			});
+
+			window.addEventListener("popstate", e => {
+				const key = (e.state && e.state.key) ? e.state.key : initialKeyFromPath();
+				load(key, { push: false });
+			});
+
+			// Initial load — no history push since we're already on this URL
+			load(initialKeyFromPath(), { push: false });
+		})();
+	</script>
 </body>
 </html>

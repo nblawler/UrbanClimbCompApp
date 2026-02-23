@@ -1,282 +1,653 @@
 <!doctype html>
 <html lang="en">
-	<head>
-		<meta charset="utf-8" />
-		<meta name="viewport" content="width=device-width, initial-scale=1" />
-		<title>Admin · Competitions · Urban Climb Comp</title>
-		<link rel="stylesheet" href="/static/app.css" />
-	</head>
-	<body>
-		<nav class="container top-nav">
-			<div class="nav-links">
-				<a
-					class="back {% if nav_active == 'my_comps' %}active{% endif %}"
-					href="/my-comps"
-				>
-					Home
-				</a>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Admin · Competitions · Urban Climb Comp</title>
+    <link rel="stylesheet" href="/static/app.css" />
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
 
-				{% if session.get('admin_ok') %}
-					<a
-						class="back {% if nav_active == 'admin' %}active{% endif %}"
-						href="/admin/comps"
-					>
-						Admin
-					</a>
-				{% endif %}
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+        background: linear-gradient(135deg, #0a1628 0%, #1a2942 100%);
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        color: #fff;
+        font-size: 16px;
+      }
 
-				{% if session.get('competitor_id') or session.get('admin_ok') %}
-					<a class="back" href="/logout">Log out</a>
-				{% else %}
-					<a class="back {% if nav_active == 'login' %}active{% endif %}"
-					   href="/login{% if comp_slug %}?slug={{ comp_slug }}{% endif %}">
-						Log in
-					</a>
-				{% endif %}
+      /* ── Nav ── */
+      .top-nav {
+        padding: 1.25rem 2rem;
+        display: flex;
+        gap: 1.5rem;
+        align-items: center;
+        flex-wrap: wrap;
+      }
 
-			</div>
-		</nav>
+      .top-nav .nav-links {
+        display: flex;
+        gap: 1.5rem;
+        align-items: center;
+        flex-wrap: wrap;
+      }
 
-		<main class="container">
-			<header class="page-header">
-				<h1 class="page-title">Competition Management</h1>
-				<p class="page-subtitle">
-					Create and manage all competitions in this app. The
-					<strong>active</strong> competition is the one used by the public site right now.
-				</p>
-			</header>
+      .top-nav a {
+        color: rgba(255, 255, 255, 0.7);
+        text-decoration: none;
+        font-size: 1rem; /* was 0.95rem */
+        transition: color 0.2s;
+      }
 
-			{% if error %}
-				<div class="alert alert-error">
-					{{ error }}
-				</div>
-			{% endif %}
+      .top-nav a:hover { color: #fff; }
+      .top-nav a.active { color: #5df4a2; font-weight: 700; }
 
-			{% if message %}
-				<div class="alert alert-success">
-					{{ message }}
-				</div>
-			{% endif %}
+      /* ── Main container ── */
+      .container {
+        flex: 1;
+        max-width: 1100px;
+        margin: 0 auto;
+        width: 100%;
+        padding: 2rem 2rem 3rem;
+      }
 
-			<section class="card" style="margin-bottom: 24px;">
-				<header class="section-header">
-					<h2 class="section-title">Create a new competition</h2>
-					<p class="section-subtitle">
-						Define the basic details. You can configure sections, climbs and maps afterwards.
-					</p>
-				</header>
+      /* ── Page header ── */
+      .page-header { margin: 1.5rem 0 2rem; }
 
-				<form method="post" class="form-grid">
-					<input type="hidden" name="action" value="create_comp" />
+      .page-title {
+        font-size: 2.75rem; /* was 2.5rem */
+        font-weight: 900;
+        background: linear-gradient(135deg, #fff 0%, #5df4a2 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        letter-spacing: -0.02em;
+        margin-bottom: 0.5rem;
+      }
 
-					<div class="form-row">
-						<label class="form-label" for="name">Competition name</label>
-						<input
-							type="text"
-							id="name"
-							name="name"
-							class="form-input"
-							required
-							placeholder="e.g. UC Collingwood Boulder Bash"
-						/>
-					</div>
+      .page-subtitle {
+        font-size: 1.05rem; /* was 1rem */
+        color: rgba(255, 255, 255, 0.6);
+        line-height: 1.6;
+      }
 
-					<div class="form-row">
-						<label class="form-label" for="gym_id">
-							Gym
-							<span class="form-label-hint">
-								This links the competition to a gym (and its wall map).
-							</span>
-						</label>
+      .page-subtitle strong { color: rgba(255, 255, 255, 0.85); }
 
-						<select id="gym_id" name="gym_id" class="form-input" required>
-							<option value="">Select a gym…</option>
-							{% for g in gyms %}
-								<option value="{{ g.id }}">{{ g.name }}</option>
-							{% endfor %}
-						</select>
+      /* ── Alerts ── */
+      .alert {
+        padding: 1rem 1.25rem; /* was 0.85rem 1rem */
+        border-radius: 0.85rem;
+        margin-bottom: 1.25rem;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        background: rgba(0, 0, 0, 0.25);
+        color: rgba(255, 255, 255, 0.85);
+        font-size: 1rem; /* was 0.9rem */
+        line-height: 1.5;
+      }
 
-						{% if not gyms %}
-							<p class="form-help" style="margin-top: 8px;">
-								No gyms found in the database yet.
-							</p>
-						{% endif %}
-					</div>
+      .alert-error {
+        border-color: rgba(255, 80, 80, 0.3);
+        background: rgba(139, 30, 30, 0.2);
+        color: rgba(255, 180, 180, 0.9);
+      }
 
-					<div class="form-row">
-						<label class="form-label" for="slug">
-							URL slug (optional)
-							<span class="form-label-hint">
-								Leave blank to auto-generate from the name.
-							</span>
-						</label>
-						<input
-							type="text"
-							id="slug"
-							name="slug"
-							class="form-input"
-							placeholder="e.g. uc-collingwood-boulder-bash"
-						/>
-					</div>
+      .alert-success {
+        border-color: rgba(93, 244, 162, 0.3);
+        background: rgba(93, 244, 162, 0.08);
+        color: #5df4a2;
+      }
 
-					<div class="form-row form-row-inline">
-						<div class="form-field">
-							<label class="form-label" for="start_date">Start date</label>
-							<input
-								type="date"
-								id="start_date"
-								name="start_date"
-								class="form-input"
-							/>
-						</div>
+      /* ── Glass cards ── */
+      .card {
+        background: rgba(255, 255, 255, 0.05);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 1.5rem;
+        padding: 2.25rem; /* was 1.75rem */
+        margin-bottom: 1.5rem;
+      }
 
-						<div class="form-field">
-							<label class="form-label" for="start_time">Start time</label>
-							<input
-								type="time"
-								id="start_time"
-								name="start_time"
-								class="form-input"
-							/>
-						</div>
-					</div>
+      /* ── Section header ── */
+      .section-header { margin-bottom: 1.4rem; } /* was 1.25rem */
 
-					<div class="form-row form-row-inline">
-						<div class="form-field">
-							<label class="form-label" for="end_date">End date (optional)</label>
-							<input
-								type="date"
-								id="end_date"
-								name="end_date"
-								class="form-input"
-							/>
-						</div>
+      .section-title {
+        font-size: 1.4rem; /* was 1.2rem */
+        font-weight: 900;
+        color: #fff;
+        margin-bottom: 0.3rem;
+      }
 
-						<div class="form-field">
-							<label class="form-label" for="end_time">End time (optional)</label>
-							<input
-								type="time"
-								id="end_time"
-								name="end_time"
-								class="form-input"
-							/>
-						</div>
-					</div>
+      .section-subtitle {
+        font-size: 0.95rem; /* was 0.85rem */
+        color: rgba(255, 255, 255, 0.5);
+        line-height: 1.5;
+      }
 
-					<div class="form-row">
-						<label class="form-checkbox">
-							<input type="checkbox" name="is_active" value="1" />
-							<span>Set this as the active competition</span>
-						</label>
-					</div>
+      .section-subtitle strong { color: rgba(255, 255, 255, 0.75); }
 
-					<div class="form-row">
-						<button type="submit" class="btn-primary">
-							Create competition
-						</button>
-					</div>
-				</form>
-			</section>
+      /* ── Form ── */
+      .form-grid { display: flex; flex-direction: column; gap: 1rem; } /* was 0.85rem */
+      .form-row { display: flex; flex-direction: column; gap: 0.4rem; }
+      .form-row-inline { flex-direction: row; gap: 0.75rem; }
+      .form-field { flex: 1; display: flex; flex-direction: column; gap: 0.4rem; }
 
-			<section class="card">
-				<header class="section-header">
-					<h2 class="section-title">All competitions</h2>
-					<p class="section-subtitle">
-						Use <strong>Manage</strong> to switch your admin tools (sections, climbs, map) to that competition.
-					</p>
-				</header>
+      .form-label {
+        font-size: 0.85rem; /* was 0.78rem */
+        font-weight: 700;
+        color: rgba(255, 255, 255, 0.6); /* was 0.55 — slightly brighter */
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        display: flex;
+        flex-direction: column;
+        gap: 0.15rem;
+      }
 
-				{% if competitions %}
-					<div class="table-wrapper">
-						<table class="data-table">
-							<thead>
-								<tr>
-									<th>ID</th>
-									<th>Name</th>
-									<th>Gym</th>
-									<th>Slug</th>
-									<th>Status</th>
-									<th>Dates</th>
-									<th style="text-align: right;">Actions</th>
-								</tr>
-							</thead>
-							<tbody>
-								{% for comp in competitions %}
-									<tr>
-										<td>#{{ comp.id }}</td>
-										<td>
-											<strong>{{ comp.name }}</strong>
-										</td>
+      .form-label-hint {
+        font-size: 0.82rem; /* was 0.75rem */
+        font-weight: 400;
+        color: rgba(255, 255, 255, 0.4);
+        text-transform: none;
+        letter-spacing: 0;
+      }
 
-										<td>
-											{{ (comp.gym.name if comp.gym else comp.gym_name) or "—" }}
-										</td>
+      .form-input {
+        width: 100%;
+        padding: 0.7rem 1.1rem; /* was 0.55rem 0.9rem */
+        border-radius: 999px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        background: rgba(0, 0, 0, 0.3);
+        color: #fff;
+        font-size: 1rem; /* was 0.9rem */
+        transition: border-color 0.2s;
+        outline: none;
+        font-family: inherit;
+      }
 
-										<td><code>{{ comp.slug }}</code></td>
+      .form-input:focus { border-color: rgba(93, 244, 162, 0.45); }
+      .form-input::placeholder { color: rgba(255,255,255,0.25); }
 
-										<td>
-											{% if comp.is_active %}
-												<span class="pill pill-success">Active</span>
-											{% else %}
-												<span class="pill pill-muted">Inactive</span>
-											{% endif %}
-										</td>
+      .form-help {
+        font-size: 0.9rem; /* was 0.8rem */
+        color: rgba(255, 255, 255, 0.45);
+      }
 
-										<td>
-											{% if comp.start_at %}
-												{{ comp.start_at.strftime("%d %b %Y %H:%M") }}
-											{% else %}
-												—
-											{% endif %}
-											{% if comp.end_at %}
-												&mdash;
-												{{ comp.end_at.strftime("%d %b %Y %H:%M") }}
-											{% endif %}
-										</td>
+      .form-checkbox {
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+        font-size: 1rem; /* was 0.9rem */
+        color: rgba(255, 255, 255, 0.75);
+        cursor: pointer;
+        user-select: none;
+      }
 
-										<td style="text-align: right;">
-											<a
-												href="/admin/comp/{{ comp.id }}/configure"
-												class="btn-ghost"
-												style="margin-right: 6px;"
-												title="Switch admin tools to this competition"
-											>
-												Manage
-											</a>
+      .form-checkbox input[type="checkbox"] {
+        width: 18px; /* was 16px */
+        height: 18px;
+        accent-color: #5df4a2;
+        cursor: pointer;
+      }
 
-											<form method="post" style="display: inline-block; margin-right: 6px;">
-												<input type="hidden" name="action" value="set_active" />
-												<input type="hidden" name="competition_id" value="{{ comp.id }}" />
-												<button
-													type="submit"
-													class="btn-ghost"
-													{% if comp.is_active %}disabled{% endif %}
-												>
-													Set active
-												</button>
-											</form>
+      /* ── Primary button ── */
+      .btn-primary {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0.85rem 2rem; /* was 0.75rem 1.75rem */
+        border-radius: 999px;
+        border: none;
+        background: #5df4a2;
+        color: #0a1628;
+        font-weight: 900;
+        cursor: pointer;
+        font-size: 1rem; /* was 0.95rem */
+        font-family: inherit;
+        transition: all 0.2s;
+        text-decoration: none;
+      }
 
-											<form method="post" style="display: inline-block;">
-												<input type="hidden" name="action" value="archive" />
-												<input type="hidden" name="competition_id" value="{{ comp.id }}" />
-												<button
-													type="submit"
-													class="btn-ghost-danger"
-													{% if not comp.is_active %}disabled{% endif %}
-												>
-													Archive
-												</button>
-											</form>
-										</td>
-									</tr>
-								{% endfor %}
-							</tbody>
-						</table>
-					</div>
-				{% else %}
-					<p>No competitions configured yet. Create your first competition above.</p>
-				{% endif %}
-			</section>
-		</main>
-	</body>
+      .btn-primary:hover { background: #4de392; transform: scale(1.02); }
+
+      /* ── Ghost buttons ── */
+      .btn-ghost {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0.45rem 1rem; /* was 0.35rem 0.85rem */
+        border-radius: 999px;
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        background: rgba(255, 255, 255, 0.06);
+        color: rgba(255, 255, 255, 0.8);
+        font-weight: 700;
+        cursor: pointer;
+        font-size: 0.9rem; /* was 0.8rem */
+        font-family: inherit;
+        transition: all 0.2s;
+        text-decoration: none;
+        white-space: nowrap;
+      }
+
+      .btn-ghost:hover {
+        background: rgba(255, 255, 255, 0.12);
+        border-color: rgba(255, 255, 255, 0.25);
+        color: #fff;
+      }
+
+      .btn-ghost:disabled { opacity: 0.3; cursor: not-allowed; transform: none; }
+
+      /* ── Table ── */
+      .table-wrapper {
+        overflow-x: auto;
+        border-radius: 1rem;
+        border: 1px solid rgba(255, 255, 255, 0.07);
+      }
+
+      .data-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 1rem; /* was 0.875rem — this is the big one */
+      }
+
+      .data-table thead { background: rgba(0, 0, 0, 0.25); }
+
+      .data-table th {
+        padding: 0.9rem 1.1rem; /* was 0.75rem 1rem */
+        text-align: left;
+        font-size: 0.8rem; /* was 0.72rem */
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: rgba(255, 255, 255, 0.5); /* was 0.45 — slightly brighter */
+        white-space: nowrap;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+      }
+
+      .data-table td {
+        padding: 1.1rem 1.1rem; /* was 0.85rem 1rem */
+        color: rgba(255, 255, 255, 0.85); /* was 0.8 — slightly brighter */
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        vertical-align: middle;
+      }
+
+      .data-table tbody tr:last-child td { border-bottom: none; }
+      .data-table tbody tr:hover td { background: rgba(255, 255, 255, 0.03); }
+      .data-table strong { color: #fff; }
+
+      .actions-cell {
+        display: flex;
+        gap: 0.5rem;
+        justify-content: flex-end;
+        align-items: center;
+        flex-wrap: wrap;
+      }
+
+      /* ── Live toggle ── */
+      .live-toggle {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.6rem;
+        padding: 0.45rem 1rem; /* was 0.35rem 0.85rem */
+        border-radius: 999px;
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        background: rgba(255, 255, 255, 0.06);
+        color: rgba(255, 255, 255, 0.85);
+        font-weight: 900;
+        cursor: pointer;
+        font-size: 0.875rem; /* was 0.78rem */
+        letter-spacing: 0.02em;
+        transition: all 0.2s;
+        user-select: none;
+        white-space: nowrap;
+      }
+
+      .live-toggle:hover {
+        background: rgba(255, 255, 255, 0.12);
+        border-color: rgba(255, 255, 255, 0.25);
+        color: #fff;
+      }
+
+      .live-toggle:active { transform: scale(0.99); }
+      .live-toggle:disabled { opacity: 0.35; cursor: not-allowed; transform: none; }
+
+      .live-switch {
+        width: 38px;
+        height: 20px;
+        border-radius: 999px;
+        position: relative;
+        background: rgba(255,255,255,0.12);
+        border: 1px solid rgba(255,255,255,0.16);
+        box-shadow: inset 0 0 0 1px rgba(0,0,0,0.25);
+        flex: 0 0 auto;
+      }
+
+      .live-knob {
+        position: absolute;
+        top: 50%;
+        left: 2px;
+        transform: translateY(-50%);
+        width: 16px;
+        height: 16px;
+        border-radius: 999px;
+        background: rgba(255,255,255,0.9);
+        box-shadow: 0 6px 14px rgba(0,0,0,0.45);
+        transition: left 0.18s ease, background 0.18s ease, box-shadow 0.18s ease;
+      }
+
+      .live-toggle.is-on {
+        border-color: rgba(93, 244, 162, 0.35);
+        background: rgba(93, 244, 162, 0.10);
+      }
+
+      .live-toggle.is-on .live-switch {
+        background: rgba(93, 244, 162, 0.35);
+        border-color: rgba(93, 244, 162, 0.45);
+      }
+
+      .live-toggle.is-on .live-knob {
+        left: 20px;
+        background: #5df4a2;
+        box-shadow: 0 8px 18px rgba(93, 244, 162, 0.18), 0 6px 14px rgba(0,0,0,0.45);
+      }
+
+      .live-label {
+        display: inline-flex;
+        align-items: baseline;
+        gap: 0.35rem;
+      }
+
+      .live-toggle:not(.is-on) .live-label b { color: #0a1628; }
+      .live-toggle:not(.is-on) .live-label span { color: rgba(10, 22, 40, 0.7); font-weight: 800; }
+      .live-toggle.is-on .live-label b { color: #fff; }
+      .live-toggle.is-on .live-label span { color: rgba(255,255,255,0.65); font-weight: 800; }
+
+      /* ── Pills ── */
+      .pill {
+        display: inline-block;
+        padding: 0.3rem 0.75rem; /* was 0.25rem 0.65rem */
+        border-radius: 999px;
+        font-size: 0.8rem; /* was 0.72rem */
+        font-weight: 800;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        border: 1px solid;
+        white-space: nowrap;
+      }
+
+      .pill-success {
+        background: rgba(93, 244, 162, 0.15);
+        color: #5df4a2;
+        border-color: rgba(93, 244, 162, 0.35);
+      }
+
+      .pill-muted {
+        background: rgba(255, 255, 255, 0.05);
+        color: rgba(255, 255, 255, 0.5);
+        border-color: rgba(255, 255, 255, 0.1);
+      }
+
+      /* ── Pagination ── */
+      .pager {
+        margin-top: 1.25rem;
+        display: flex;
+        gap: 0.6rem;
+        justify-content: flex-end;
+        align-items: center;
+        flex-wrap: wrap;
+      }
+
+      .pager .page-meta {
+        color: rgba(255,255,255,0.55);
+        font-weight: 900;
+        font-size: 0.95rem; /* was 0.85rem */
+        padding: 0 0.25rem;
+      }
+
+      .pager .page-num {
+        padding: 0.4rem 0.75rem; /* was 0.35rem 0.65rem */
+        border-radius: 999px;
+        border: 1px solid rgba(255,255,255,0.15);
+        background: rgba(255,255,255,0.06);
+        color: rgba(255,255,255,0.8);
+        text-decoration: none;
+        font-weight: 800;
+        font-size: 0.9rem; /* was 0.82rem */
+      }
+
+      .pager .page-num:hover {
+        background: rgba(255,255,255,0.12);
+        border-color: rgba(255,255,255,0.25);
+        color: #fff;
+      }
+
+      .pager .page-num.is-current {
+        background: rgba(93, 244, 162, 0.16);
+        border-color: rgba(93, 244, 162, 0.35);
+        color: #5df4a2;
+      }
+
+      @media (max-width: 768px) {
+        .top-nav { padding: 1rem; }
+        .container { padding: 1.25rem 1.25rem 3rem; }
+        .page-title { font-size: 2rem; }
+        .form-row-inline { flex-direction: column; }
+        .actions-cell { justify-content: flex-start; }
+        .pager { justify-content: flex-start; }
+      }
+    </style>
+  </head>
+
+  <body>
+    <nav class="top-nav">
+      <div class="nav-links">
+        <a class="{% if nav_active == 'my_comps' %}active{% endif %}" href="/my-comps">Home</a>
+
+        {% if session.get('admin_ok') %}
+          <a class="active" href="/admin/comps">Admin</a>
+        {% endif %}
+
+        {% if session.get('competitor_id') or session.get('admin_ok') %}
+          <a href="/logout">Log out</a>
+        {% else %}
+          <a class="{% if nav_active == 'login' %}active{% endif %}"
+             href="/login{% if comp_slug %}?slug={{ comp_slug }}{% endif %}">
+            Log in
+          </a>
+        {% endif %}
+      </div>
+    </nav>
+
+    <main class="container">
+      <header class="page-header">
+        <h1 class="page-title">Competition Management</h1>
+      </header>
+
+      {% if error %}
+        <div class="alert alert-error">{{ error }}</div>
+      {% endif %}
+
+      {% if message %}
+        <div class="alert alert-success">{{ message }}</div>
+      {% endif %}
+
+      <section class="card">
+        <header class="section-header">
+          <h2 class="section-title">Create a new competition</h2>
+        </header>
+
+        <form method="post" class="form-grid">
+          <input type="hidden" name="action" value="create_comp" />
+
+          <div class="form-row">
+            <label class="form-label" for="name">Competition name</label>
+            <input
+              type="text"
+              id="name"
+              name="name"
+              class="form-input"
+              required
+              placeholder="e.g. UC Collingwood Boulder Bash"
+            />
+          </div>
+
+          <div class="form-row">
+            <label class="form-label" for="gym_id">Gym</label>
+            <select id="gym_id" name="gym_id" class="form-input" required>
+              <option value="">Select a gym…</option>
+              {% for g in gyms %}
+                <option value="{{ g.id }}">{{ g.name }}</option>
+              {% endfor %}
+            </select>
+            {% if not gyms %}
+              <p class="form-help">No gyms available for your admin account.</p>
+            {% endif %}
+          </div>
+
+          <div class="form-row form-row-inline">
+            <div class="form-field">
+              <label class="form-label" for="start_date">Start date</label>
+              <input type="date" id="start_date" name="start_date" class="form-input" />
+            </div>
+            <div class="form-field">
+              <label class="form-label" for="start_time">Start time</label>
+              <input type="time" id="start_time" name="start_time" class="form-input" />
+            </div>
+          </div>
+
+          <div class="form-row form-row-inline">
+            <div class="form-field">
+              <label class="form-label" for="end_date">End date</label>
+              <input type="date" id="end_date" name="end_date" class="form-input" />
+            </div>
+            <div class="form-field">
+              <label class="form-label" for="end_time">End time</label>
+              <input type="time" id="end_time" name="end_time" class="form-input" />
+            </div>
+          </div>
+
+          <div class="form-row">
+            <button type="submit" class="btn-primary">Create competition</button>
+          </div>
+        </form>
+      </section>
+
+      <section class="card">
+        <header class="section-header">
+          <h2 class="section-title">All competitions</h2>
+        </header>
+
+        {% set current_page = (competitions_page.page if competitions_page is defined else 1) %}
+
+        {% if competitions %}
+          <div class="table-wrapper">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Name</th>
+                  <th>Gym</th>
+                  <th>Status</th>
+                  <th>Dates</th>
+                  <th style="text-align: right;">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for comp in competitions %}
+                  <tr>
+                    <td>#{{ comp.id }}</td>
+                    <td><strong>{{ comp.name }}</strong></td>
+                    <td>{{ (comp.gym.name if comp.gym else comp.gym_name) or "—" }}</td>
+                    <td>
+                      {% if comp.is_active %}
+                        <span class="pill pill-success">Live</span>
+                      {% else %}
+                        <span class="pill pill-muted">Not live</span>
+                      {% endif %}
+                    </td>
+                    <td>
+                      {% if comp.start_at %}
+                        {{ comp.start_at.strftime("%d %b %Y %H:%M") }}
+                      {% else %}
+                        —
+                      {% endif %}
+                      {% if comp.end_at %}
+                        &mdash; {{ comp.end_at.strftime("%d %b %Y %H:%M") }}
+                      {% endif %}
+                    </td>
+                    <td>
+                      <div class="actions-cell">
+                        <a
+                          href="/admin/comp/{{ comp.id }}/configure?page={{ current_page }}"
+                          class="btn-ghost"
+                          title="Switch admin tools to this competition"
+                        >
+                          Manage
+                        </a>
+
+                        {% if comp.is_active %}
+                          <form method="post" style="display: contents;">
+                            <input type="hidden" name="action" value="archive" />
+                            <input type="hidden" name="competition_id" value="{{ comp.id }}" />
+                            <button type="submit" class="live-toggle is-on" title="Click to set Not live">
+                              <span class="live-switch"><span class="live-knob"></span></span>
+                              <span class="live-label"><b>Live</b> <span>· click to turn off</span></span>
+                            </button>
+                          </form>
+                        {% else %}
+                          <form method="post" style="display: contents;">
+                            <input type="hidden" name="action" value="set_active" />
+                            <input type="hidden" name="competition_id" value="{{ comp.id }}" />
+                            <button type="submit" class="live-toggle" title="Click to set Live">
+                              <span class="live-switch"><span class="live-knob"></span></span>
+                              <span class="live-label"><b>Not live</b></span>
+                            </button>
+                          </form>
+                        {% endif %}
+                      </div>
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+
+          {% if competitions_page is defined and competitions_page.pages > 1 %}
+            <div class="pager">
+              {% if competitions_page.has_prev %}
+                <a class="btn-ghost" href="/admin/comps?page={{ competitions_page.prev_num }}">← Prev</a>
+              {% else %}
+                <button class="btn-ghost" disabled>← Prev</button>
+              {% endif %}
+
+              <span class="page-meta">Page {{ competitions_page.page }} / {{ competitions_page.pages }}</span>
+
+              {% set start = competitions_page.page - 2 %}
+              {% set end = competitions_page.page + 2 %}
+              {% if start < 1 %}{% set start = 1 %}{% endif %}
+              {% if end > competitions_page.pages %}{% set end = competitions_page.pages %}{% endif %}
+
+              {% for p in range(start, end + 1) %}
+                <a
+                  class="page-num {% if p == competitions_page.page %}is-current{% endif %}"
+                  href="/admin/comps?page={{ p }}"
+                >{{ p }}</a>
+              {% endfor %}
+
+              {% if competitions_page.has_next %}
+                <a class="btn-ghost" href="/admin/comps?page={{ competitions_page.next_num }}">Next →</a>
+              {% else %}
+                <button class="btn-ghost" disabled>Next →</button>
+              {% endif %}
+            </div>
+          {% endif %}
+
+        {% else %}
+          <p style="color: rgba(255,255,255,0.55); font-size: 1rem;">
+            No competitions configured yet. Create your first competition above.
+          </p>
+        {% endif %}
+      </section>
+    </main>
+  </body>
 </html>

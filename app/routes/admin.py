@@ -1,7 +1,7 @@
 from flask import Blueprint, render_template, request, session, jsonify, abort, redirect, flash
+from sqlalchemy import case, asc, desc
 from datetime import datetime
 import sys
-import os
 
 from app.config import ADMIN_PASSWORD
 from app.extensions import db
@@ -321,8 +321,8 @@ def edit_section(section_id):
     if not admin_can_manage_competition(current_comp):
         abort(403)
 
-    # Helper: delete scores safely (scoped to this comp/gym/section when possible)
-    def _delete_scores_for_climb_number(climb_number: int):
+    # Helper: score scoping (best-effort depending on schema)
+    def _score_query_for_climb_number(climb_number: int):
         q = Score.query.filter(Score.climb_number == climb_number)
 
         # Scope to competition if the column exists
@@ -337,7 +337,10 @@ def edit_section(section_id):
         if hasattr(Score, "section_id"):
             q = q.filter(Score.section_id == section.id)
 
-        q.delete(synchronize_session=False)
+        return q
+
+    def _delete_scores_for_climb_number(climb_number: int):
+        _score_query_for_climb_number(climb_number).delete(synchronize_session=False)
 
     def _delete_scores_for_climb_numbers(climb_numbers: list[int]):
         if not climb_numbers:
@@ -371,63 +374,79 @@ def edit_section(section_id):
                 invalidate_leaderboard_cache()
                 message = "Section name updated."
 
-        elif action == "add_climb":
-            climb_raw = request.form.get("climb_number", "").strip()
-            colour = request.form.get("colour", "").strip()
-
-            base_raw = request.form.get("base_points", "").strip()
-            penalty_raw = request.form.get("penalty_per_attempt", "").strip()
-            cap_raw = request.form.get("attempt_cap", "").strip()
-
-            # basic validation
-            if not climb_raw.isdigit():
-                error = "Please enter a valid climb number."
-            elif base_raw == "" or penalty_raw == "" or cap_raw == "":
-                error = "Please enter base points, penalty per attempt, and attempt cap."
-            elif not (
-                base_raw.lstrip("-").isdigit()
-                and penalty_raw.lstrip("-").isdigit()
-                and cap_raw.lstrip("-").isdigit()
-            ):
-                error = "Base points, penalty per attempt, and attempt cap must be whole numbers."
+        elif action == "update_climb":
+            climb_id_raw = (request.form.get("climb_id") or "").strip()
+            if not climb_id_raw.isdigit():
+                error = "Invalid climb selection."
             else:
-                climb_number = int(climb_raw)
-                base_points = int(base_raw)
-                penalty_per_attempt = int(penalty_raw)
-                attempt_cap = int(cap_raw)
+                sc = SectionClimb.query.get(int(climb_id_raw))
 
-                if climb_number <= 0:
-                    error = "Climb number must be positive."
-                elif base_points < 0 or penalty_per_attempt < 0 or attempt_cap <= 0:
-                    error = "Base points and penalty must be ≥ 0 and attempt cap must be > 0."
+                if not sc or sc.section_id != section.id:
+                    error = "Climb not found in this section."
                 else:
-                    # Uniqueness check should include gym_id (gym separation)
-                    existing = (
-                        SectionClimb.query
-                        .filter_by(
-                            section_id=section.id,
-                            climb_number=climb_number,
-                            gym_id=current_comp.gym_id,
-                        )
-                        .first()
-                    )
+                    # Extra safety: ensure you're not editing across gyms
+                    if current_comp.gym_id and getattr(sc, "gym_id", None) and sc.gym_id != current_comp.gym_id:
+                        abort(403)
 
-                    if existing:
-                        error = f"Climb {climb_number} is already in this section."
+                    climb_raw = (request.form.get("climb_number") or "").strip()
+                    colour = (request.form.get("colour") or "").strip()
+
+                    base_raw = (request.form.get("base_points") or "").strip()
+                    penalty_raw = (request.form.get("penalty_per_attempt") or "").strip()
+                    cap_raw = (request.form.get("attempt_cap") or "").strip()
+
+                    # validation
+                    if not climb_raw.isdigit():
+                        error = "Please enter a valid climb number."
+                    elif base_raw == "" or penalty_raw == "" or cap_raw == "":
+                        error = "Please enter base points, penalty per attempt, and attempt cap."
+                    elif not (
+                        base_raw.lstrip("-").isdigit()
+                        and penalty_raw.lstrip("-").isdigit()
+                        and cap_raw.lstrip("-").isdigit()
+                    ):
+                        error = "Base points, penalty per attempt, and attempt cap must be whole numbers."
                     else:
-                        sc = SectionClimb(
-                            section_id=section.id,
-                            gym_id=current_comp.gym_id,
-                            climb_number=climb_number,
-                            colour=colour or None,
-                            base_points=base_points,
-                            penalty_per_attempt=penalty_per_attempt,
-                            attempt_cap=attempt_cap,
-                        )
-                        db.session.add(sc)
-                        db.session.commit()
-                        invalidate_leaderboard_cache()
-                        message = f"Climb {climb_number} added to {section.name}."
+                        new_climb_number = int(climb_raw)
+                        new_base = int(base_raw)
+                        new_penalty = int(penalty_raw)
+                        new_cap = int(cap_raw)
+
+                        if new_climb_number <= 0:
+                            error = "Climb number must be positive."
+                        elif new_base < 0 or new_penalty < 0 or new_cap <= 0:
+                            error = "Base points and penalty must be ≥ 0 and attempt cap must be > 0."
+                        else:
+                            # If climb number is changing, enforce uniqueness and migrate scores
+                            if new_climb_number != sc.climb_number:
+                                dup = (
+                                    SectionClimb.query
+                                    .filter_by(
+                                        section_id=section.id,
+                                        gym_id=current_comp.gym_id,
+                                        climb_number=new_climb_number,
+                                    )
+                                    .first()
+                                )
+                                if dup:
+                                    error = f"Climb {new_climb_number} is already in this section."
+                                else:
+                                    # Update existing scores to new climb number (scoped)
+                                    _score_query_for_climb_number(sc.climb_number).update(
+                                        {Score.climb_number: new_climb_number},
+                                        synchronize_session=False
+                                    )
+                                    sc.climb_number = new_climb_number
+
+                            if not error:
+                                sc.colour = colour or None
+                                sc.base_points = new_base
+                                sc.penalty_per_attempt = new_penalty
+                                sc.attempt_cap = new_cap
+
+                                db.session.commit()
+                                invalidate_leaderboard_cache()
+                                message = f"Climb {sc.climb_number} updated."
 
         elif action == "delete_climb":
             climb_id_raw = request.form.get("climb_id", "").strip()
@@ -500,7 +519,6 @@ def edit_section(section_id):
         current_comp=current_comp,
         current_comp_id=current_comp.id,
     )
-
 
 @admin_bp.route("/admin/map")
 def admin_map():
@@ -595,28 +613,30 @@ def admin_competitions():
         - gym admin: can create only for gyms they manage
     - Set a competition as the single active comp
     - Archive (deactivate) a competition
+    - Pagination: 10 per page
+    - Ordering: closest to now first, upcoming before past, null start dates last
     """
     if not session.get("admin_ok"):
         return redirect("/admin")
-    
-    if admin_is_super():
+
+    is_super = admin_is_super()
+
+    # --- Gym list for Create form (respect admin permissions) ---
+    if is_super:
         gyms = Gym.query.order_by(Gym.name).all()
     else:
         allowed_gym_ids = get_session_admin_gym_ids()
-        if allowed_gym_ids:
-            gyms = (
-                Gym.query
-                .filter(Gym.id.in_(allowed_gym_ids))
-                .order_by(Gym.name)
-                .all()
-            )
-        else:
-            gyms = []
+        gyms = (
+            Gym.query.filter(Gym.id.in_(allowed_gym_ids)).order_by(Gym.name).all()
+            if allowed_gym_ids else []
+        )
 
     message = None
     error = None
-    is_super = admin_is_super()
-    
+
+    # Keep current page so after POST you land back where you were
+    page = request.args.get("page", 1, type=int)
+    per_page = 10
 
     if request.method == "POST":
         action = (request.form.get("action") or "").strip()
@@ -665,7 +685,6 @@ def admin_competitions():
                     gym_id = int(gym_id_raw)
 
                     if not is_super:
-                        # Gym admins can only create comps for their allowed gyms
                         allowed = get_session_admin_gym_ids()
                         if gym_id not in allowed:
                             error = "You are not allowed to create a competition for that gym."
@@ -731,29 +750,58 @@ def admin_competitions():
                     db.session.commit()
                     message = f"Competition '{comp.name}' has been archived (inactive)."
 
-    # Always show current list, but filter for gym admins
+        # Important: after POST, redirect back to the current page (so pagination feels sane)
+        return redirect(f"/admin/comps?page={page}")
+
+    # --- Always show current list, but filter for gym admins ---
     comps_query = Competition.query
-    if not admin_is_super():
+
+    if not is_super:
         allowed_gym_ids = get_session_admin_gym_ids()
         if allowed_gym_ids:
             comps_query = comps_query.filter(Competition.gym_id.in_(allowed_gym_ids))
         else:
             comps_query = comps_query.filter(False)  # no comps
 
-    comps = (
-        comps_query
-        .order_by(Competition.start_at.asc(), Competition.created_at.asc())
-        .all()
+    # --- Ordering: closest-to-now with upcoming first; NULL start dates last ---
+    # Notes:
+    # - start_at NULL last
+    # - upcoming first (start_at >= now)
+    # - upcoming ascending
+    # - past descending
+    now = datetime.utcnow()
+
+    start_is_null = case((Competition.start_at.is_(None), 1), else_=0)     # 0 first, 1 last
+    is_past = case((Competition.start_at < now, 1), else_=0)              # 0 upcoming first, 1 past later
+
+    upcoming_sort = case(
+        (Competition.start_at >= now, Competition.start_at),
+        else_=None
     )
+    past_sort = case(
+        (Competition.start_at < now, Competition.start_at),
+        else_=None
+    )
+
+    comps_query = comps_query.order_by(
+        start_is_null.asc(),
+        is_past.asc(),
+        asc(upcoming_sort),
+        desc(past_sort),
+        Competition.created_at.desc() if hasattr(Competition, "created_at") else Competition.id.desc(),
+    )
+
+    competitions_page = comps_query.paginate(page=page, per_page=per_page, error_out=False)
 
     return render_template(
         "admin_comps.html",
-        competitions=comps,
+        competitions=competitions_page.items,
+        competitions_page=competitions_page,
         message=message,
         gyms=gyms,
         error=error,
+        is_super=is_super,
     )
-
 
 @admin_bp.route("/admin/comp/<int:competition_id>/configure")
 def admin_configure_competition(competition_id):

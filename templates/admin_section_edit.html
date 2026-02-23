@@ -4,215 +4,462 @@
 		<meta charset="utf-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 		<title>Edit section · Urban Climb Comp</title>
-		<link rel="stylesheet" href="/static/app.css" />
+
+		<style>
+			* { margin: 0; padding: 0; box-sizing: border-box; }
+
+			body {
+				font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+				background: linear-gradient(135deg, #0a1628 0%, #1a2942 100%);
+				min-height: 100vh;
+				display: flex;
+				flex-direction: column;
+				color: #fff;
+			}
+
+			/* Nav */
+			.nav {
+				padding: 1.25rem 2rem;
+				display: flex;
+				gap: 1.25rem;
+				align-items: center;
+				flex-wrap: wrap;
+			}
+
+			.nav a {
+				color: rgba(255, 255, 255, 0.7);
+				text-decoration: none;
+				font-size: 0.95rem;
+				transition: color 0.2s;
+				font-weight: 700;
+			}
+
+			.nav a.active { color: #5df4a2; }
+			.nav a:hover { color: #fff; }
+
+			/* Main container */
+			.container {
+				flex: 1;
+				display: flex;
+				flex-direction: column;
+				align-items: center;
+				padding: 2rem;
+				max-width: 920px;
+				margin: 0 auto;
+				width: 100%;
+			}
+
+			/* Hero */
+			.hero {
+				text-align: center;
+				margin: 2rem 0 2rem;
+				width: 100%;
+			}
+
+			.hero h1 {
+				font-size: 2.75rem;
+				font-weight: 900;
+				background: linear-gradient(135deg, #fff 0%, #5df4a2 100%);
+				-webkit-background-clip: text;
+				-webkit-text-fill-color: transparent;
+				background-clip: text;
+				letter-spacing: -0.02em;
+				margin-bottom: 0.5rem;
+			}
+
+			/* Glass card */
+			.card {
+				background: rgba(255, 255, 255, 0.05);
+				backdrop-filter: blur(10px);
+				border: 1px solid rgba(255, 255, 255, 0.1);
+				border-radius: 1.5rem;
+				padding: 2rem;
+				width: 100%;
+				margin-bottom: 1.5rem;
+			}
+
+			.card h3 {
+				font-size: 1.05rem;
+				font-weight: 700;
+				margin-bottom: 0.5rem;
+				color: rgba(255,255,255,0.9);
+			}
+
+			.muted {
+				color: rgba(255, 255, 255, 0.6);
+				font-size: 0.95rem;
+				line-height: 1.5;
+			}
+
+			/* Alerts */
+			.alert {
+				border-radius: 0.85rem;
+				padding: 0.85rem 1.1rem;
+				margin-bottom: 1.25rem;
+				font-size: 0.95rem;
+				width: 100%;
+			}
+
+			.alert--error {
+				background: rgba(139, 30, 30, 0.3);
+				border: 1px solid rgba(220, 80, 80, 0.4);
+				color: #f88;
+			}
+
+			.alert--ok {
+				background: rgba(93, 244, 162, 0.1);
+				border: 1px solid rgba(93, 244, 162, 0.3);
+				color: #5df4a2;
+			}
+
+			/* Form elements */
+			label {
+				display: block;
+				font-size: 0.875rem;
+				font-weight: 600;
+				color: rgba(255,255,255,0.65);
+				margin-top: 1rem;
+				margin-bottom: 0.35rem;
+				text-transform: uppercase;
+				letter-spacing: 0.04em;
+			}
+
+			input[type="text"],
+			input[type="number"] {
+				width: 100%;
+				background: rgba(255,255,255,0.07);
+				border: 1px solid rgba(255,255,255,0.15);
+				border-radius: 0.65rem;
+				padding: 0.7rem 0.9rem;
+				color: #fff;
+				font-size: 1rem;
+				outline: none;
+				transition: border-color 0.2s;
+			}
+
+			input::placeholder { color: rgba(255,255,255,0.3); }
+
+			input:focus {
+				border-color: rgba(93, 244, 162, 0.5);
+			}
+
+			/* Buttons */
+			.btn {
+				display: inline-block;
+				padding: 0.8rem 1.25rem;
+				background: #5df4a2;
+				color: #0a1628;
+				border: none;
+				border-radius: 0.85rem;
+				font-weight: 900;
+				font-size: 0.95rem;
+				cursor: pointer;
+				transition: all 0.2s;
+				text-decoration: none;
+				white-space: nowrap;
+			}
+
+			.btn:hover { background: #4de392; transform: scale(1.02); }
+
+			.btn--danger {
+				background: rgba(220, 60, 60, 0.85);
+				color: #fff;
+			}
+
+			.btn--danger:hover { background: rgba(200, 40, 40, 0.9); }
+
+			.btn--ghost {
+				background: rgba(255,255,255,0.08);
+				color: rgba(255,255,255,0.9);
+				border: 1px solid rgba(255,255,255,0.12);
+			}
+
+			.btn--ghost:hover {
+				background: rgba(255,255,255,0.13);
+				border-color: rgba(255,255,255,0.2);
+				transform: translateY(-1px);
+			}
+
+			.btn--sm {
+				padding: 0.45rem 0.8rem;
+				font-size: 0.8rem;
+				border-radius: 0.55rem;
+			}
+
+			/* Divider */
+			hr {
+				border: none;
+				border-top: 1px solid rgba(255,255,255,0.08);
+				margin: 1.5rem 0;
+			}
+
+			/* Table */
+			.table-wrap { width: 100%; overflow-x: auto; }
+
+			table {
+				width: 100%;
+				min-width: 720px;
+				border-collapse: collapse;
+				font-size: 0.9rem;
+			}
+
+			thead th {
+				text-align: left;
+				padding: 0.6rem 0.75rem;
+				color: rgba(255,255,255,0.45);
+				font-size: 0.75rem;
+				font-weight: 700;
+				text-transform: uppercase;
+				letter-spacing: 0.06em;
+				border-bottom: 1px solid rgba(255,255,255,0.08);
+			}
+
+			tbody td {
+				padding: 0.75rem 0.75rem;
+				border-bottom: 1px solid rgba(255,255,255,0.05);
+				color: rgba(255,255,255,0.85);
+				vertical-align: middle;
+			}
+
+			tbody tr:last-child td { border-bottom: none; }
+
+			/* Inline edit UX */
+			.cell-display { display: inline; }
+			.cell-edit { display: none; }
+
+			tr.is-editing .cell-display { display: none; }
+			tr.is-editing .cell-edit { display: inline; }
+
+			.inline-input {
+				width: 100%;
+				min-width: 90px;
+				background: rgba(255,255,255,0.07);
+				border: 1px solid rgba(255,255,255,0.15);
+				border-radius: 0.55rem;
+				padding: 0.45rem 0.55rem;
+				color: #fff;
+				font-size: 0.9rem;
+				outline: none;
+			}
+
+			.inline-input:focus {
+				border-color: rgba(93, 244, 162, 0.5);
+			}
+
+			.row-actions {
+				display: flex;
+				gap: 0.5rem;
+				justify-content: flex-end;
+				align-items: center;
+				flex-wrap: wrap;
+			}
+
+			/* Only show save/cancel while editing */
+			.btn-save, .btn-cancel { display: none; }
+			tr.is-editing .btn-save,
+			tr.is-editing .btn-cancel { display: inline-block; }
+			tr.is-editing .btn-edit { display: none; }
+
+			@media (max-width: 600px) {
+				.nav { padding: 1rem; }
+				.container { padding: 1.25rem; }
+				.hero h1 { font-size: 2rem; }
+				.card { padding: 1.25rem; }
+			}
+		</style>
 	</head>
 	<body>
-		<nav class="container top-nav">
-			<a class="back" href="/admin/comps">Admin Home</a>
-			<div class="nav-links">
-				{% if viewer_id or is_admin %}
-					<a class="back" href="/logout">Log out</a>
-				{% else %}
-					{# If comp_slug isn't passed, fall back to current_comp.slug #}
-					{% set _slug = comp_slug if comp_slug is defined and comp_slug else (current_comp.slug if current_comp is defined and current_comp and current_comp.slug else None) %}
-					<a class="back {% if nav_active == 'login' %}active{% endif %}"
-					   href="/login{% if _slug %}?slug={{ _slug }}{% endif %}">
-						Log in
-					</a>
-				{% endif %}
-			</div>
+		<nav class="nav">
+			<a href="/admin/comps">Admin Home</a>
+
+			{% set _cid = (current_comp_id if current_comp_id is defined and current_comp_id else session.get('admin_comp_id')) %}
+			{% if _cid %}
+				<a href="/admin/map?comp_id={{ _cid }}">Back to Map</a>
+			{% else %}
+				<a href="/admin/map">Back to Map</a>
+			{% endif %}
+
+			{% if session.get("admin_ok") or session.get("competitor_id") %}
+				<a class="logout" href="/logout">Log out</a>
+			{% else %}
+				<a href="/admin">Admin login</a>
+			{% endif %}
 		</nav>
 
 		<main class="container">
-			<header class="header">
+			<header class="hero">
 				<h1>Edit section</h1>
 			</header>
 
 			{% if error %}
-				<div class="error">{{ error }}</div>
+				<div class="alert alert--error">{{ error }}</div>
 			{% endif %}
 
 			{% if message %}
-				<div class="status ok">{{ message }}</div>
+				<div class="alert alert--ok">{{ message }}</div>
 			{% endif %}
 
-			<section class="card">
-				<p class="muted" style="margin-top:0;">
-					Editing section <strong>{{ section.name }}</strong>
-					{% if section.start_climb and section.end_climb %}
-						· climbs {{ section.start_climb }}–{{ section.end_climb }}
-					{% endif %}
+			<div class="card">
+				<p class="muted">
+					Editing Section <strong style="color:#fff;">{{ section.name }}</strong>
 					{% if current_comp is defined and current_comp and current_comp.name %}
-						· comp: <strong>{{ current_comp.name }}</strong>
+						· Comp: <strong style="color:#fff;">{{ current_comp.name }}</strong>
 					{% endif %}
 				</p>
 
-				<form method="post">
-					{# Critical: preserve admin-selected competition across POSTs #}
+				<!-- SECTION NAME FORM -->
+				<form method="post" style="margin-top: 0.25rem;">
 					<input type="hidden" name="comp_id" value="{{ current_comp_id if current_comp_id is defined else '' }}">
+					<input type="hidden" name="action" value="save_section">
 
-					<label for="name" style="margin-top:10px;">Section name</label>
-					<input
-						type="text"
-						id="name"
-						name="name"
-						value="{{ section.name }}"
-						required
-					/>
+					<label for="name">Section name</label>
+					<input type="text" id="name" name="name" value="{{ section.name }}" required />
 
-					<button
-						type="submit"
-						name="action"
-						value="save_section"
-						class="primary"
-						style="margin-top:12px;"
-						formnovalidate
-					>
-						Save section name
-					</button>
-
-					<hr style="margin:16px 0; border-color:#262a30;" />
-
-					<h3>Add climb to this section</h3>
-					<p class="muted">
-						Enter a climb number, optional colour / grade, and the scoring configuration.
-						<br />
-						Each climb number can only exist once across all sections.
-					</p>
-
-					<label for="climb_number">Climb number</label>
-					<input
-						type="number"
-						id="climb_number"
-						name="climb_number"
-						min="1"
-						placeholder="e.g. 3"
-						required
-					/>
-
-					<label for="colour" style="margin-top:10px;">Colour / grade</label>
-					<input
-						type="text"
-						id="colour"
-						name="colour"
-						placeholder="e.g. Purple, Green, Yellow"
-					/>
-
-					<div style="display:flex; flex-wrap:wrap; gap:12px; margin-top:12px;">
-						<div style="flex:1; min-width:140px;">
-							<label for="base_points">Base points</label>
-							<input
-								type="number"
-								id="base_points"
-								name="base_points"
-								min="0"
-								required
-								placeholder="e.g. 1000"
-							/>
-						</div>
-
-						<div style="flex:1; min-width:140px;">
-							<label for="penalty_per_attempt">Penalty / attempt</label>
-							<input
-								type="number"
-								id="penalty_per_attempt"
-								name="penalty_per_attempt"
-								min="0"
-								required
-								placeholder="e.g. 10"
-							/>
-						</div>
-
-						<div style="flex:1; min-width:140px;">
-							<label for="attempt_cap">Attempt cap</label>
-							<input
-								type="number"
-								id="attempt_cap"
-								name="attempt_cap"
-								min="1"
-								required
-								placeholder="e.g. 5"
-							/>
-						</div>
+					<div style="margin-top:1rem;">
+						<button type="submit" class="btn">Save section name</button>
 					</div>
+				</form>
 
-					<button
-						type="submit"
-						name="action"
-						value="add_climb"
-						class="primary"
-						style="margin-top:12px;"
-					>
-						Add climb
-					</button>
+				<hr />
 
-					<hr style="margin:16px 0; border-color:#262a30;" />
+				<h3>Climbs in this section</h3>
 
-					<h3>Climbs in this section</h3>
+				{% if climbs %}
+					<div class="table-wrap" style="margin-top:0.75rem;">
+						<table>
+							<thead>
+								<tr>
+									<th>Climb #</th>
+									<th>Colour</th>
+									<th>Base</th>
+									<th>Penalty / att.</th>
+									<th>Attempt cap</th>
+									<th style="text-align:right;">Actions</th>
+								</tr>
+							</thead>
+							<tbody>
+								{% for c in climbs %}
+									<tr id="row-{{ c.id }}">
+										<form method="post">
+											<input type="hidden" name="comp_id" value="{{ current_comp_id if current_comp_id is defined else '' }}">
+											<input type="hidden" name="climb_id" value="{{ c.id }}">
 
-					{% if climbs %}
-						<div style="width:100%; overflow-x:auto;">
-							<table class="leaderboard" style="min-width:520px;">
-								<thead>
-									<tr>
-										<th>Climb #</th>
-										<th>Colour</th>
-										<th>Base</th>
-										<th>Penalty / att.</th>
-										<th>Attempt cap</th>
-										<th></th>
-									</tr>
-								</thead>
-								<tbody>
-									{% for c in climbs %}
-										<tr>
-											<td>{{ c.climb_number }}</td>
-											<td>{{ c.colour or "-" }}</td>
-											<td>{{ c.base_points if c.base_points is not none else "-" }}</td>
-											<td>{{ c.penalty_per_attempt if c.penalty_per_attempt is not none else "-" }}</td>
-											<td>{{ c.attempt_cap if c.attempt_cap is not none else "-" }}</td>
 											<td>
-												<button
-													type="submit"
-													name="action"
-													value="delete_climb"
-													class="primary"
-													style="background:#8b1e1e; padding:6px 10px; font-size:12px;"
-													onclick="this.form.climb_id.value='{{ c.id }}';"
-													formnovalidate
-												>
-													Remove
-												</button>
+												<span class="cell-display">{{ c.climb_number }}</span>
+												<span class="cell-edit">
+													<input class="inline-input" type="number" name="climb_number" min="1" required value="{{ c.climb_number }}">
+												</span>
 											</td>
-										</tr>
-									{% endfor %}
-								</tbody>
-							</table>
-						</div>
-						<input type="hidden" name="climb_id" value="">
-					{% else %}
-						<p class="muted">No climbs have been added yet.</p>
-					{% endif %}
 
-					<hr style="margin:16px 0; border-color:#262a30;" />
+											<td>
+												<span class="cell-display">{{ c.colour or "-" }}</span>
+												<span class="cell-edit">
+													<input class="inline-input" type="text" name="colour" value="{{ c.colour or '' }}" placeholder="e.g. Orange">
+												</span>
+											</td>
 
-					<h3>Danger zone</h3>
-					<p class="muted">
-						Delete this section and all its climbs. Scores are not deleted.
-					</p>
+											<td>
+												<span class="cell-display">{{ c.base_points if c.base_points is not none else "-" }}</span>
+												<span class="cell-edit">
+													<input class="inline-input" type="number" name="base_points" min="0" required value="{{ c.base_points if c.base_points is not none else 0 }}">
+												</span>
+											</td>
 
+											<td>
+												<span class="cell-display">{{ c.penalty_per_attempt if c.penalty_per_attempt is not none else "-" }}</span>
+												<span class="cell-edit">
+													<input class="inline-input" type="number" name="penalty_per_attempt" min="0" required value="{{ c.penalty_per_attempt if c.penalty_per_attempt is not none else 0 }}">
+												</span>
+											</td>
+
+											<td>
+												<span class="cell-display">{{ c.attempt_cap if c.attempt_cap is not none else "-" }}</span>
+												<span class="cell-edit">
+													<input class="inline-input" type="number" name="attempt_cap" min="1" required value="{{ c.attempt_cap if c.attempt_cap is not none else 5 }}">
+												</span>
+											</td>
+
+											<td style="text-align:right;">
+												<div class="row-actions">
+													<button type="button" class="btn btn--ghost btn--sm btn-edit" onclick="enterEdit('{{ c.id }}')">
+														Edit
+													</button>
+
+													<button type="submit" class="btn btn--sm btn-save" name="action" value="update_climb">
+														Save
+													</button>
+
+													<button type="button" class="btn btn--ghost btn--sm btn-cancel" onclick="cancelEdit('{{ c.id }}')">
+														Cancel
+													</button>
+
+													<button
+														type="submit"
+														name="action"
+														value="delete_climb"
+														class="btn btn--danger btn--sm"
+														onclick="return confirm('Remove climb #{{ c.climb_number }}?');"
+														formnovalidate
+													>
+														Remove
+													</button>
+												</div>
+											</td>
+										</form>
+									</tr>
+								{% endfor %}
+							</tbody>
+						</table>
+					</div>
+				{% else %}
+					<p class="muted" style="margin-top:0.75rem;">No climbs have been added yet.</p>
+				{% endif %}
+
+				<hr />
+
+				<form method="post">
+					<input type="hidden" name="comp_id" value="{{ current_comp_id if current_comp_id is defined else '' }}">
 					<button
 						type="submit"
 						name="action"
 						value="delete_section"
-						class="primary"
-						style="background:#8b1e1e;"
+						class="btn btn--danger"
 						formnovalidate
+						onclick="return confirm('Delete section &quot;{{ section.name }}&quot; and all its climbs?');"
 					>
 						Delete section
 					</button>
 				</form>
-			</section>
+			</div>
 		</main>
+
+		<script>
+			function enterEdit(id) {
+				const row = document.getElementById("row-" + id);
+				if (!row) return;
+
+				// Only one row editing at a time
+				document.querySelectorAll("tbody tr.is-editing").forEach((r) => {
+					if (r !== row) r.classList.remove("is-editing");
+				});
+
+				row.classList.add("is-editing");
+
+				const firstInput = row.querySelector(".cell-edit input");
+				if (firstInput) firstInput.focus();
+			}
+
+			function cancelEdit(id) {
+				const row = document.getElementById("row-" + id);
+				if (!row) return;
+
+				// Reset inputs to original values
+				row.querySelectorAll(".cell-edit input").forEach((inp) => {
+					inp.value = inp.defaultValue;
+				});
+
+				row.classList.remove("is-editing");
+			}
+		</script>
 	</body>
 </html>
