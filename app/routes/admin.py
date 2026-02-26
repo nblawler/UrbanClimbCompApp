@@ -1,6 +1,8 @@
 from flask import Blueprint, render_template, request, session, jsonify, abort, redirect, flash
 from sqlalchemy import case, asc, desc
-from datetime import datetime
+
+from datetime import timezone, datetime
+from zoneinfo import ZoneInfo
 import sys
 
 from app.config import ADMIN_PASSWORD
@@ -463,15 +465,33 @@ def edit_section(section_id):
                     if current_comp.gym_id and getattr(sc, "gym_id", None) and sc.gym_id != current_comp.gym_id:
                         abort(403)
 
-                    # Delete scores for this climb number, scoped to this comp/gym/section when possible
-                    _delete_scores_for_climb_number(sc.climb_number)
+                    # Capture number before deleting rows
+                    climb_number = sc.climb_number
 
-                    # Then delete the climb config itself
-                    db.session.delete(sc)
+                    # 1) Delete scores for this climb number (scoped as best we can)
+                    _delete_scores_for_climb_number(climb_number)
+
+                    # 2) Delete ANY section_climb rows in THIS COMP that still use this climb_number
+                   # Find all SectionClimb rows in this competition with this climb number
+                    climbs_to_delete = (
+                        db.session.query(SectionClimb.id)
+                        .join(Section, SectionClimb.section_id == Section.id)
+                        .filter(
+                            Section.competition_id == current_comp.id,
+                            SectionClimb.climb_number == climb_number,
+                        )
+                        .all()
+                    )
+
+                    ids = [c.id for c in climbs_to_delete]
+
+                    if ids:
+                        SectionClimb.query.filter(SectionClimb.id.in_(ids)).delete(synchronize_session=False)
+
                     db.session.commit()
                     invalidate_leaderboard_cache()
                     message = (
-                        f"Climb {sc.climb_number} removed from {section.name}, "
+                        f"Climb {climb_number} removed from {section.name}, "
                         "and all associated scores were deleted."
                     )
 
@@ -662,13 +682,18 @@ def admin_competitions():
                     # ensure uniqueness by timestamp suffix
                     slug_val = f"{slug_val}-{int(datetime.utcnow().timestamp())}"
 
+                MELB_TZ = ZoneInfo("Australia/Melbourne")
+
                 def parse_dt(date_str, time_str):
                     if not date_str:
                         return None
                     try:
                         if not time_str:
-                            return datetime.strptime(date_str, "%Y-%m-%d")
-                        return datetime.strptime(f"{date_str} {time_str}", "%Y-%m-%d %H:%M")
+                            time_str = "00:00"
+                        local_naive = datetime.strptime(f"{date_str} {time_str}", "%Y-%m-%d %H:%M")
+                        local_aware = local_naive.replace(tzinfo=MELB_TZ)
+                        utc_aware = local_aware.astimezone(timezone.utc)
+                        return utc_aware.replace(tzinfo=None)  # store naive UTC
                     except ValueError:
                         return None
 

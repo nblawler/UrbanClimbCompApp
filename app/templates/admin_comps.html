@@ -567,12 +567,12 @@
                     </td>
                     <td>
                       {% if comp.start_at %}
-                        {{ comp.start_at.strftime("%d %b %Y %H:%M") }}
+                        {{ comp.start_at|melb_dt("%d %b %Y %H:%M") }}
                       {% else %}
                         —
                       {% endif %}
                       {% if comp.end_at %}
-                        &mdash; {{ comp.end_at.strftime("%d %b %Y %H:%M") }}
+                        &mdash; {{ comp.end_at|melb_dt("%d %b %Y %H:%M") }}
                       {% endif %}
                     </td>
                     <td>

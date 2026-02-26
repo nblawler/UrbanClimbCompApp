@@ -314,11 +314,11 @@
 								{% if c.start_at or c.end_at %}
 									<div class="meta-line">
 										<div class="meta-label">Starts:</div>
-										<div class="meta-value">{{ c.start_at.strftime('%d %b %Y, %I:%M %p') if c.start_at else "TBC" }}</div>
+										<div class="meta-value">{{ c.start_at|melb_dt('%d %b %Y, %I:%M %p') if c.start_at else "TBC" }}</div>
 									</div>
 									<div class="meta-line">
 										<div class="meta-label">Ends:</div>
-										<div class="meta-value">{{ c.end_at.strftime('%d %b %Y, %I:%M %p') if c.end_at else "TBC" }}</div>
+										<div class="meta-value">{{ c.end_at|melb_dt('%d %b %Y, %I:%M %p') if c.end_at else "TBC" }}</div>
 									</div>
 								{% else %}
 									<div class="meta-line">
@@ -346,7 +346,7 @@
 								{% elif card.status == 'live' %}
 									This comp is live — registration is via QR code at the gym.
 								{% else %}
-									Opens {{ c.start_at.strftime('%d %b %Y, %I:%M %p') if c.start_at else "TBC" }}.
+									Opens {{ c.start_at|melb_dt('%d %b %Y, %I:%M %p') if c.start_at else "TBC" }}.
 								{% endif %}
 							</p>
 
