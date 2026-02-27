@@ -594,35 +594,6 @@
 
       <div class="divider"></div>
 
-      <h2>Section boundary</h2>
-      <p class="tiny-muted" style="margin-top: 0.25rem;">
-        Boundaries require sections. If this dropdown is empty, create your first section by:
-        Add climb → type New section name → Save climb.
-      </p>
-
-      <div class="field" style="margin-top: 0.75rem;">
-        <label for="boundary_section">Boundary section</label>
-        <select id="boundary_section">
-          <option value="">— Choose section —</option>
-          {% for s in sections %}
-            <option value="{{ s.id }}">{{ s.name }} (id {{ s.id }})</option>
-          {% endfor %}
-        </select>
-        <div class="tiny-muted" id="boundaryStatus"></div>
-
-        {% if sections|length == 0 %}
-          <div class="alert alert-error" style="margin-top: 0.65rem;">
-            No sections exist yet.
-            1) Tap map to place a climb position
-            2) Type a New section name (e.g. Slab Left)
-            3) Save the climb
-            Then you can draw boundaries for that section.
-          </div>
-        {% endif %}
-      </div>
-
-      <div class="divider"></div>
-
       <form method="POST" action="/admin/map/add-climb">
         <input type="hidden" name="comp_id" value="{{ session.get('admin_comp_id') }}">
 
@@ -675,6 +646,36 @@
 
         <div class="tiny-muted" id="clickHint" style="margin-top: 0.5rem; text-align: center;">Button unlocks after you tap the map.</div>
       </form>
+
+      <!-- ✅ MOVED: Section boundary block now lives under the Add Climb section -->
+      <div class="divider"></div>
+
+      <h2>Section boundary</h2>
+      <p class="tiny-muted" style="margin-top: 0.25rem;">
+        Boundaries require sections. If this dropdown is empty, create your first section by:
+        Add climb → type New section name → Save climb.
+      </p>
+
+      <div class="field" style="margin-top: 0.75rem;">
+        <label for="boundary_section">Boundary section</label>
+        <select id="boundary_section">
+          <option value="">— Choose section —</option>
+          {% for s in sections %}
+            <option value="{{ s.id }}">{{ s.name }} (id {{ s.id }})</option>
+          {% endfor %}
+        </select>
+        <div class="tiny-muted" id="boundaryStatus"></div>
+
+        {% if sections|length == 0 %}
+          <div class="alert alert-error" style="margin-top: 0.65rem;">
+            No sections exist yet.
+            1) Tap map to place a climb position
+            2) Type a New section name (e.g. Slab Left)
+            3) Save the climb
+            Then you can draw boundaries for that section.
+          </div>
+        {% endif %}
+      </div>
 
       <div class="section-list">
         <strong>Existing sections</strong>
