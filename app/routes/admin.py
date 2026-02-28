@@ -847,13 +847,6 @@ def admin_configure_competition(competition_id):
     # Persist admin editing context so /admin, /admin/map, etc. know which comp you're editing
     session["admin_comp_id"] = comp.id
 
-    # Make this the active competition (editing context)
-    all_comps = Competition.query.all()
-
-    for c in all_comps:
-        c.is_active = (c.id == comp.id)
-    db.session.commit()
-
     print(
         f"[ADMIN CONFIGURE] Now editing competition #{comp.id} – {comp.name}",
         file=sys.stderr,

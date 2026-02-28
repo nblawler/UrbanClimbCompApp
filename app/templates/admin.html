@@ -1,3 +1,4 @@
+<!-- admin.html  -->
 <!doctype html>
 <html lang="en">
 	<head>
@@ -5,7 +6,7 @@
 		<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 		<title>Admin · Urban Climb Comp</title>
 
-		<!-- ✅ match admin_comps -->
+		<!-- match admin_comps -->
 		<link rel="stylesheet" href="/static/app.css" />
 
 		<style>
@@ -220,10 +221,19 @@
 		</style>
 	</head>
 	<body>
-		<!-- ✅ same structure as admin_comps -->
 		<nav class="top-nav">
 			<div class="nav-links">
 				<a class="active" href="/admin/comps">Admin</a>
+
+				{% if session.get('admin_ok') and session.get('admin_comp_id') %}
+					<a
+						class="{% if nav_active == 'leaderboard' %}active{% endif %}"
+						href="/leaderboard/comp/{{ session.get('admin_comp_id') }}"
+						title="Leaderboard for the competition you're managing"
+					>
+						Leaderboard
+					</a>
+				{% endif %}
 
 				{% if session.get('admin_ok') %}
 					<a href="/logout">Log out</a>

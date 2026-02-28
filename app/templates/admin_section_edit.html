@@ -1,3 +1,4 @@
+<!-- admin_section_edit.html  -->
 <!doctype html>
 <html lang="en">
 	<head>
@@ -275,6 +276,7 @@
 			{% set _cid = (current_comp_id if current_comp_id is defined and current_comp_id else session.get('admin_comp_id')) %}
 			{% if _cid %}
 				<a href="/admin/map?comp_id={{ _cid }}">Back to Map</a>
+				<a href="/leaderboard/comp/{{ _cid }}">Leaderboard</a>
 			{% else %}
 				<a href="/admin/map">Back to Map</a>
 			{% endif %}

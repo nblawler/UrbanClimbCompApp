@@ -159,9 +159,9 @@
 		.leaderboard tbody tr { transition: background 0.15s; }
 		.leaderboard tbody tr:hover { background: rgba(255, 255, 255, 0.05); }
 
-		#leaderboard-body tr:nth-child(1) { background: rgba(255, 215, 0, 0.08); border-left: 4px solid #FFD700; }
-		#leaderboard-body tr:nth-child(2) { background: rgba(192, 192, 192, 0.08); border-left: 4px solid #C0C0C0; }
-		#leaderboard-body tr:nth-child(3) { background: rgba(205, 127, 50, 0.08); border-left: 4px solid #CD7F32; }
+		#leaderboard-body tr.lb-main:nth-of-type(1) { background: rgba(255, 215, 0, 0.08); border-left: 4px solid #FFD700; }
+		#leaderboard-body tr.lb-main:nth-of-type(2) { background: rgba(192, 192, 192, 0.08); border-left: 4px solid #C0C0C0; }
+		#leaderboard-body tr.lb-main:nth-of-type(3) { background: rgba(205, 127, 50, 0.08); border-left: 4px solid #CD7F32; }
 
 		.leaderboard tbody td:first-child { font-weight: 950; font-size: 1.1rem; }
 
@@ -175,13 +175,117 @@
 		.leaderboard.doubles th:nth-child(3),
 		.leaderboard.doubles td:nth-child(3) { text-align: center; }
 
-		.leaderboard a {
-			color: #5df4a2;
-			text-decoration: none;
-			font-weight: 700;
-			transition: color 0.2s;
+		.name-cell { padding: 0 !important; }
+
+		.expander {
+			width: 100%;
+			background: transparent;
+			border: 0;
+			color: inherit;
+			text-align: left;
+			padding: 1.25rem 1.5rem;
+			display: flex;
+			align-items: center;
+			gap: 0.75rem;
+			cursor: pointer;
+			font: inherit;
 		}
-		.leaderboard a:hover { color: #7fffa4; text-decoration: underline; }
+
+		.expander:focus-visible {
+			outline: 2px solid rgba(93, 244, 162, 0.85);
+			outline-offset: 2px;
+			border-radius: 0.75rem;
+		}
+
+		.chev {
+			display: inline-block;
+			transition: transform 160ms ease;
+			opacity: 0.9;
+			transform: translateY(-1px);
+		}
+		.expander.open .chev { transform: rotate(90deg) translateY(-1px); }
+
+		.nm { font-weight: 950; font-size: 1.05rem; }
+
+		.lb-details td {
+			padding: 0 !important;
+			border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+		}
+		.details-wrap {
+			padding: 0.75rem 1.5rem 1.25rem 3.5rem;
+			background: rgba(255, 255, 255, 0.02);
+			border-top: 1px solid rgba(255, 255, 255, 0.06);
+		}
+		.details-loading {
+			opacity: 0.75;
+			font-weight: 700;
+			padding: 0.4rem 0;
+		}
+		.details-table {
+			width: 100%;
+			border-collapse: collapse;
+			margin-top: 0.5rem;
+		}
+		.details-table th {
+			text-align: left;
+			font-weight: 800;
+			color: rgba(255, 255, 255, 0.65);
+			font-size: 0.85rem;
+			letter-spacing: 0.05em;
+			text-transform: uppercase;
+			padding: 0.5rem 0;
+			border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+		}
+		.details-table td {
+			padding: 0.6rem 0;
+			border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+			font-size: 0.95rem;
+			color: rgba(255, 255, 255, 0.92);
+		}
+		.details-table tr:last-child td { border-bottom: 0; }
+		.details-table th:nth-child(2),
+		.details-table td:nth-child(2),
+		.details-table th:nth-child(3),
+		.details-table td:nth-child(3) { text-align: right; }
+
+		.pagination {
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			gap: 0.75rem;
+			margin-top: 1.25rem;
+			flex-wrap: wrap;
+		}
+
+		.page-btn {
+			border-radius: 999px;
+			border: 2px solid rgba(255, 255, 255, 0.18);
+			background: rgba(255, 255, 255, 0.06);
+			color: rgba(255, 255, 255, 0.92);
+			font-weight: 900;
+			padding: 0.6rem 1rem;
+			cursor: pointer;
+			transition: transform 0.15s, background 0.15s, border-color 0.15s;
+			user-select: none;
+			-webkit-tap-highlight-color: transparent;
+		}
+
+		.page-btn:hover {
+			transform: translateY(-1px);
+			background: rgba(255, 255, 255, 0.10);
+			border-color: rgba(255, 255, 255, 0.32);
+		}
+
+		.page-btn:disabled {
+			opacity: 0.5;
+			cursor: not-allowed;
+			transform: none;
+		}
+
+		.page-info {
+			opacity: 0.85;
+			font-weight: 800;
+		}
 
 		@media (max-width: 768px) {
 			.nav { padding: 1rem; }
@@ -196,7 +300,10 @@
 			}
 
 			.leaderboard.singles thead th:nth-child(4),
-			.leaderboard.singles tbody td:nth-child(4) { display: none; }
+			.leaderboard.singles tbody tr.lb-main td:nth-child(4) { display: none; }
+
+			.details-wrap { padding: 0.65rem 0.75rem 1rem 1.5rem; }
+			.expander { padding: 1rem 0.75rem; }
 		}
 	</style>
 </head>
@@ -207,20 +314,36 @@
 	{% set is_admin = session.get('admin_ok', False) %}
 	{% set comp_slug = comp_slug if comp_slug is defined else session.get('active_comp_slug') %}
 
-	{% set cid_q = (request.args.get('cid') or '').strip() %}
-	{% set cid_val = (cid_q if cid_q else (viewer_id if viewer_id else '')) %}
+	{# ✅ ADMIN-ONLY MODE FLAG (prevents competitor nav leaking in) #}
+	{% set admin_flag = (request.args.get('admin') or '').strip() %}
+	{% set admin_only = (is_admin and admin_flag == '1') %}
 
+	{# cid from query, but DO NOT fall back to competitor_id in admin_only mode #}
+	{% set cid_q = (request.args.get('cid') or '').strip() %}
+	{% if admin_only %}
+		{% set cid_val = (cid_q if cid_q else '') %}
+	{% else %}
+		{% set cid_val = (cid_q if cid_q else (viewer_id if viewer_id else '')) %}
+	{% endif %}
+
+	{# querystring builder (preserve cid + admin) #}
 	{% set qs = [] %}
 	{% if cid_val %}{% set _ = qs.append('cid=' ~ cid_val) %}{% endif %}
+	{% if admin_only %}{% set _ = qs.append('admin=1') %}{% endif %}
 	{% set qs_str = ('?' ~ (qs|join('&'))) if qs|length else '' %}
 
-	{% set show_comp_nav = (comp_slug and cid_val) %}
+	{# Only show competitor-scoped nav when we truly have a competitor for this view #}
+	{% set show_comp_nav = (not admin_only) and (comp_slug and cid_val) %}
 
 	<nav class="nav">
-		<a href="{% if is_logged_in or is_admin %}/my-comps{% else %}/{% endif %}"
-		   class="{% if nav_active == 'my_comps' %}active{% endif %}">Home</a>
+		{# HOME: in admin_only mode keep them in admin-land #}
+		<a href="{% if admin_only %}/admin/comps{% elif is_logged_in or is_admin %}/my-comps{% else %}/{% endif %}"
+		   class="{% if nav_active == 'my_comps' %}active{% endif %}">
+			{% if admin_only %}Admin{% else %}Home{% endif %}
+		</a>
 
-		{% if is_admin %}
+		{# ✅ prevent duplicate Admin link in admin_only mode #}
+		{% if is_admin and (not admin_only) %}
 			<a href="/admin/comps" class="{% if nav_active == 'admin' %}active{% endif %}">Admin</a>
 		{% endif %}
 
@@ -238,7 +361,7 @@
 		<a href="/leaderboard{{ qs_str }}"
 		   class="{% if nav_active == 'leaderboard' %}active{% endif %}">Leaderboard</a>
 
-		{% if comp_slug %}
+		{% if (not admin_only) and comp_slug %}
 			<a class="{% if nav_active == 'doubles' %}active{% endif %}"
 			   href="/comp/{{ comp_slug }}/doubles">Doubles</a>
 		{% endif %}
@@ -256,6 +379,8 @@
 			<h1 class="page-title">Leaderboard</h1>
 			<p class="page-subtitle">
 				Category: <span id="category-label">All</span>
+				<span style="opacity:.55; font-weight:700;"> · </span>
+				<span style="opacity:.75;">Score = top 8 climbs</span>
 			</p>
 
 			<div class="category-tabs" id="category-tabs">
@@ -270,12 +395,30 @@
 		<div class="leaderboard-wrapper" id="lb-wrap">
 			<table class="leaderboard singles" id="leaderboard-table">
 				<thead id="leaderboard-head">
-					<tr><th>Pos</th><th>Competitor</th><th>Tops</th><th>Attempts</th><th>Points</th></tr>
+					<tr><th>Pos</th><th>Name</th><th>Tops</th><th>Attempts</th><th>Score</th></tr>
 				</thead>
 				<tbody id="leaderboard-body">
-					<tr><td colspan="5" style="opacity:.75;">Loading…</td></tr>
+					{% if leaderboard and leaderboard|length %}
+						{% for r in leaderboard %}
+							<tr class="lb-main">
+								<td>{{ r.position }}</td>
+								<td>{{ r.name }}</td>
+								<td style="text-align:center;">{{ r.tops }}</td>
+								<td style="text-align:center;">{{ r.attempts_on_tops }}</td>
+								<td style="text-align:center;">{{ r.total_points }}</td>
+							</tr>
+						{% endfor %}
+					{% else %}
+						<tr><td colspan="5" style="opacity:.75;">Loading…</td></tr>
+					{% endif %}
 				</tbody>
 			</table>
+		</div>
+
+		<div class="pagination" id="pagination" hidden>
+			<button type="button" class="page-btn" id="prevPage">Previous</button>
+			<div class="page-info" id="pageInfo">Page 1 of 1</div>
+			<button type="button" class="page-btn" id="nextPage">Next</button>
 		</div>
 	</main>
 
@@ -299,17 +442,21 @@
 			const headEl  = document.getElementById("leaderboard-head");
 			const bodyEl  = document.getElementById("leaderboard-body");
 
-			const CID = "{{ cid_val }}";
+			const pagerEl = document.getElementById("pagination");
+			const prevBtn = document.getElementById("prevPage");
+			const nextBtn = document.getElementById("nextPage");
+			const infoEl  = document.getElementById("pageInfo");
 
-			// Monotonic counter — every new load() call increments this.
-			// A fetch result is only applied if its token still equals latestToken
-			// when it resolves, guaranteeing only the most-recently-requested
-			// category ever reaches the DOM.
+			const CID = "{{ cid_val }}";
+			const ADMIN_ONLY = {{ 'true' if admin_only else 'false' }};
+			const PER_PAGE = {{ per_page if per_page is defined else 10 }};
+
 			let latestToken = 0;
 			let aborter     = null;
 
-			// Track which key the UI is currently showing (drives tab highlight & header)
-			let currentKey  = "all";
+			let currentKey = "all";
+			let currentPage = {{ page if page is defined else 1 }};
+			let currentTotalPages = {{ total_pages if total_pages is defined else 1 }};
 
 			function escapeHtml(val) {
 				return String(val ?? "")
@@ -320,9 +467,6 @@
 					.replaceAll("'", "&#039;");
 			}
 
-			// ── Tab & header state ──────────────────────────────────────────────
-			// Only called with the key that should be "current" right now.
-			// Never touches innerHTML of non-active tabs so labels never get clobbered.
 			function applyTabState(key, isLoading) {
 				const cat = catByKey.get(key) || catByKey.get("all");
 				labelEl.textContent = cat.label;
@@ -332,30 +476,53 @@
 					btn.classList.toggle("active", isActive);
 					btn.disabled = isLoading;
 
-					// Only rewrite the innerHTML of the active tab (to add/remove spinner)
 					if (isActive) {
-						const baseText = cat.label; // use the full label string, not dataset.cat
+						const baseText = cat.label;
 						btn.innerHTML = isLoading
 							? `${escapeHtml(baseText)} <span class="loading-dot"></span>`
 							: escapeHtml(baseText);
+					} else {
+						const original = catByKey.get(btn.dataset.cat)?.label || btn.dataset.cat;
+						btn.textContent = original;
 					}
 				});
 
-				// Swap table header & class between singles / doubles
 				if (cat.isDoubles) {
 					tableEl.classList.remove("singles");
 					tableEl.classList.add("doubles");
-					headEl.innerHTML = `<tr><th>Pos</th><th>Team</th><th>Points</th></tr>`;
+					headEl.innerHTML = `<tr><th>Pos</th><th>Team</th><th>Score</th></tr>`;
 				} else {
 					tableEl.classList.remove("doubles");
 					tableEl.classList.add("singles");
-					headEl.innerHTML = `<tr><th>Pos</th><th>Competitor</th><th>Tops</th><th>Attempts</th><th>Points</th></tr>`;
+					headEl.innerHTML = `<tr><th>Pos</th><th>Name</th><th>Tops</th><th>Attempts</th><th>Score</th></tr>`;
 				}
 			}
 
 			function renderLoading(key) {
 				const cat = catByKey.get(key) || catByKey.get("all");
 				bodyEl.innerHTML = `<tr><td colspan="${cat.isDoubles ? 3 : 5}" style="opacity:.75;">Loading…</td></tr>`;
+			}
+
+			function detailsRowHtml(cid) {
+				return `
+					<tr class="lb-details" data-cid="${cid}" hidden>
+						<td colspan="5">
+							<div class="details-wrap">
+								<div class="details-loading">Loading…</div>
+								<table class="details-table" hidden>
+									<thead>
+										<tr>
+											<th>Climb</th>
+											<th>Attempts</th>
+											<th>Score</th>
+										</tr>
+									</thead>
+									<tbody></tbody>
+								</table>
+							</div>
+						</td>
+					</tr>
+				`;
 			}
 
 			function renderRows(key, rows) {
@@ -370,28 +537,47 @@
 
 				if (cat.isDoubles) {
 					bodyEl.innerHTML = rows.map(r => `
-						<tr>
+						<tr class="lb-main">
 							<td>${escapeHtml(r.position)}</td>
 							<td>${escapeHtml(r.name)}</td>
 							<td>${escapeHtml(r.total_points)}</td>
 						</tr>
 					`).join("");
-				} else {
-					bodyEl.innerHTML = rows.map(r => {
-						const link = r.competitor_id
-							? `<a href="/competitor/${encodeURIComponent(r.competitor_id)}/stats/climber">${escapeHtml(r.name)}</a>`
-							: escapeHtml(r.name);
+					return;
+				}
+
+				bodyEl.innerHTML = rows.map(r => {
+					const cid = r.competitor_id;
+					const hasCid = !!cid;
+
+					if (!hasCid) {
 						return `
-							<tr>
+							<tr class="lb-main">
 								<td>${escapeHtml(r.position)}</td>
-								<td>${link}</td>
+								<td>${escapeHtml(r.name)}</td>
 								<td>${escapeHtml(r.tops)}</td>
 								<td>${escapeHtml(r.attempts_on_tops)}</td>
 								<td>${escapeHtml(r.total_points)}</td>
 							</tr>
 						`;
-					}).join("");
-				}
+					}
+
+					return `
+						<tr class="lb-main" data-cid="${escapeHtml(cid)}">
+							<td>${escapeHtml(r.position)}</td>
+							<td class="name-cell">
+								<button class="expander" type="button" data-cid="${escapeHtml(cid)}" aria-expanded="false">
+									<span class="chev" aria-hidden="true">▸</span>
+									<span class="nm">${escapeHtml(r.name)}</span>
+								</button>
+							</td>
+							<td>${escapeHtml(r.tops)}</td>
+							<td>${escapeHtml(r.attempts_on_tops)}</td>
+							<td>${escapeHtml(r.total_points)}</td>
+						</tr>
+						${detailsRowHtml(escapeHtml(cid))}
+					`;
+				}).join("");
 			}
 
 			function renderError(key, msg) {
@@ -399,41 +585,139 @@
 				bodyEl.innerHTML = `<tr><td colspan="${cat.isDoubles ? 3 : 5}" style="opacity:.75;">${escapeHtml(msg)}</td></tr>`;
 			}
 
-			function urlFor(key) {
+			function setPager(page, totalPages) {
+				currentPage = page || 1;
+				currentTotalPages = totalPages || 1;
+
+				const show = currentTotalPages > 1;
+				pagerEl.hidden = !show;
+				if (!show) return;
+
+				infoEl.textContent = `Page ${currentPage} of ${currentTotalPages}`;
+				prevBtn.disabled = currentPage <= 1;
+				nextBtn.disabled = currentPage >= currentTotalPages;
+			}
+
+			function urlFor(key, page) {
 				const path = (key && key !== "all") ? `/leaderboard/${encodeURIComponent(key)}` : "/leaderboard";
 				const params = new URLSearchParams();
 				if (CID) params.set("cid", CID);
+				if (ADMIN_ONLY) params.set("admin", "1");
+				if (page && page > 1) params.set("page", String(page));
 				const qs = params.toString();
 				return qs ? `${path}?${qs}` : path;
 			}
 
-			function initialKeyFromPath() {
+			function initialFromUrl() {
 				const parts = (location.pathname || "").split("/").filter(Boolean);
-				// Path is either /leaderboard or /leaderboard/<key>
 				const maybe = parts.length >= 2 ? parts[1] : "all";
-				return allowed.has(maybe) ? maybe : "all";
+				const key = allowed.has(maybe) ? maybe : "all";
+
+				const sp = new URLSearchParams(location.search);
+				const page = parseInt(sp.get("page") || "1", 10);
+				return { key, page: (isNaN(page) || page < 1) ? 1 : page };
 			}
 
-			async function load(key, { push = true } = {}) {
+			function closeAllDetails() {
+				document.querySelectorAll(".lb-details").forEach(r => r.hidden = true);
+				document.querySelectorAll(".expander").forEach(b => {
+					b.classList.remove("open");
+					b.setAttribute("aria-expanded", "false");
+				});
+			}
+
+			async function loadDetails(cid) {
+				const detailsRow = document.querySelector(`.lb-details[data-cid="${CSS.escape(String(cid))}"]`);
+				if (!detailsRow) return;
+				if (detailsRow.dataset.loaded === "1") return;
+
+				const loading = detailsRow.querySelector(".details-loading");
+				const table = detailsRow.querySelector(".details-table");
+				const tbody = detailsRow.querySelector("tbody");
+
+				loading.textContent = "Loading…";
+				loading.hidden = false;
+				table.hidden = true;
+				tbody.innerHTML = "";
+
+				try {
+					const resp = await fetch(`/api/leaderboard/details?competitor_id=${encodeURIComponent(cid)}`, {
+						method: "GET",
+						cache: "no-store",
+						headers: { "Accept": "application/json" },
+					});
+					if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+					const data = await resp.json();
+
+					if (!data.ok) {
+						loading.textContent = data.error || "Could not load details";
+						return;
+					}
+
+					const climbs = data.climbs || [];
+					if (!climbs.length) {
+						loading.textContent = "No climbs found";
+						return;
+					}
+
+					tbody.innerHTML = climbs.map(c => `
+						<tr>
+							<td>${escapeHtml(c.label)}</td>
+							<td>${escapeHtml(c.attempts)}</td>
+							<td>${escapeHtml(c.score)}</td>
+						</tr>
+					`).join("");
+
+					loading.hidden = true;
+					table.hidden = false;
+					detailsRow.dataset.loaded = "1";
+				} catch (e) {
+					loading.textContent = "Error loading details";
+				}
+			}
+
+			function toggleDetails(cid) {
+				const btn = document.querySelector(`.expander[data-cid="${CSS.escape(String(cid))}"]`);
+				const detailsRow = document.querySelector(`.lb-details[data-cid="${CSS.escape(String(cid))}"]`);
+				if (!btn || !detailsRow) return;
+
+				const isOpen = !detailsRow.hidden;
+
+				if (isOpen) {
+					detailsRow.hidden = true;
+					btn.classList.remove("open");
+					btn.setAttribute("aria-expanded", "false");
+					return;
+				}
+
+				closeAllDetails();
+				detailsRow.hidden = false;
+				btn.classList.add("open");
+				btn.setAttribute("aria-expanded", "true");
+
+				loadDetails(cid);
+			}
+
+			async function load(key, page, { push = true } = {}) {
 				const k = allowed.has(key) ? key : "all";
+				const p = (page && page > 0) ? page : 1;
 
-				// Claim this load slot
+				currentKey = k;
+
 				const token = ++latestToken;
-
-				// Cancel any in-flight request
 				if (aborter) { aborter.abort(); aborter = null; }
 				aborter = new AbortController();
 
-				// Update UI to show loading state for the requested category
-				currentKey = k;
 				applyTabState(k, true);
 				renderLoading(k);
+				setPager(p, 1);
 				wrapEl.classList.add("loading");
 
-				if (push) history.pushState({ key: k }, "", urlFor(k));
+				if (push) history.pushState({ key: k, page: p }, "", urlFor(k, p));
 
-				const params = new URLSearchParams({ category: k });
+				const params = new URLSearchParams({ category: k, page: String(p), per_page: String(PER_PAGE) });
 				if (CID) params.set("cid", CID);
+				if (ADMIN_ONLY) params.set("admin", "1");
 
 				try {
 					const resp = await fetch(`/api/leaderboard?${params}`, {
@@ -443,32 +727,24 @@
 						headers: { "Accept": "application/json" },
 					});
 
-					// If a newer load() has started, discard this response entirely
 					if (token !== latestToken) return;
-
 					if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-					const data = await resp.json();
 
+					const data = await resp.json();
 					if (token !== latestToken) return;
 
-					// ── Category mismatch guard ───────────────────────────────────
-					// The server echoes back cat_key so we can detect if the response
-					// belongs to a different category (e.g. a very late reply arriving
-					// after the token check but before we close the aborter).
-					// This replaces the unreliable shape-detection heuristic.
-					if (data.cat_key && data.cat_key !== k) {
-						// Stale or mismatched response — silently discard
-						return;
-					}
+					if (data.cat_key && data.cat_key !== k) return;
 
+					closeAllDetails();
 					renderRows(k, data.rows || []);
+					setPager(data.page || p, data.total_pages || 1);
 
 				} catch (err) {
 					if (err.name === "AbortError") return;
 					if (token !== latestToken) return;
 					renderError(k, "Error loading leaderboard. Try again.");
+					setPager(p, 1);
 				} finally {
-					// Only update loading visuals if we are still the active request
 					if (token === latestToken) {
 						applyTabState(k, false);
 						wrapEl.classList.remove("loading");
@@ -476,20 +752,41 @@
 				}
 			}
 
-			// ── Event wiring ────────────────────────────────────────────────────
 			tabsEl.addEventListener("click", e => {
 				const btn = e.target.closest(".category-tab");
 				if (!btn || btn.disabled) return;
-				load(btn.dataset.cat, { push: true });
+				load(btn.dataset.cat, 1, { push: true });
+			});
+
+			bodyEl.addEventListener("click", (e) => {
+				const btn = e.target.closest(".expander");
+				if (!btn) return;
+				if (tableEl.classList.contains("doubles")) return;
+
+				const cid = btn.dataset.cid;
+				if (!cid) return;
+				toggleDetails(cid);
+			});
+
+			prevBtn.addEventListener("click", () => {
+				if (currentPage <= 1) return;
+				load(currentKey, currentPage - 1, { push: true });
+			});
+
+			nextBtn.addEventListener("click", () => {
+				if (currentPage >= currentTotalPages) return;
+				load(currentKey, currentPage + 1, { push: true });
 			});
 
 			window.addEventListener("popstate", e => {
-				const key = (e.state && e.state.key) ? e.state.key : initialKeyFromPath();
-				load(key, { push: false });
+				const state = e.state || {};
+				const key = state.key || initialFromUrl().key;
+				const page = state.page || initialFromUrl().page;
+				load(key, page, { push: false });
 			});
 
-			// Initial load — no history push since we're already on this URL
-			load(initialKeyFromPath(), { push: false });
+			const init = initialFromUrl();
+			load(init.key, init.page, { push: false });
 		})();
 	</script>
 </body>

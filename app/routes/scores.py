@@ -1,14 +1,31 @@
-from flask import Blueprint, request, session, jsonify, redirect, current_app, render_template, flash, make_response
+from flask import (
+    Blueprint,
+    request,
+    session,
+    jsonify,
+    redirect,
+    current_app,
+    render_template,
+    flash,
+    make_response,
+)
 import time
 
 from app.extensions import db
 from app.models import Competition, Competitor, Score, Section, SectionClimb
 from app.helpers.competition import comp_is_finished, get_viewer_comp, comp_is_live
-from app.helpers.leaderboard import build_leaderboard, normalize_leaderboard_category
-from app.helpers.leaderboard_cache import invalidate_leaderboard_cache
+from app.helpers.leaderboard import (
+    build_leaderboard,
+    normalize_leaderboard_category,
+    get_top_climbs_for_competitor,
+)
 from app.helpers.scoring import points_for
+from app.helpers.leaderboard_cache import invalidate_leaderboard_cache
 
 scores_bp = Blueprint("scores", __name__)
+
+DEFAULT_LB_PER_PAGE = 10
+
 
 @scores_bp.route("/my-scoring")
 def my_scoring_redirect():
@@ -45,6 +62,7 @@ def my_scoring_redirect():
     # 3) No context at all -> choose a comp
     return redirect("/my-comps")
 
+
 @scores_bp.route("/api/score", methods=["POST"])
 def api_save_score():
     """
@@ -55,7 +73,8 @@ def api_save_score():
         "competitor_id": 123,
         "section_climb_id": 456,
         "attempts": 2,
-        "topped": true
+        "topped": true,
+        "flashed": false
       }
 
     Legacy payload (still supported):
@@ -70,7 +89,6 @@ def api_save_score():
     - DB uniqueness is (competitor_id, section_climb_id)
     - climb_number alone can be ambiguous if the same number exists in multiple sections
     """
-
     data = request.get_json(force=True, silent=True) or {}
 
     # ---- parse basics ----
@@ -79,12 +97,36 @@ def api_save_score():
     except (TypeError, ValueError):
         return "Invalid competitor_id", 400
 
-    # attempts + topped
+    if competitor_id <= 0:
+        return "Invalid competitor_id", 400
+
+    # attempts + topped + flashed (support explicit flashed from UI)
     try:
         attempts = int(data.get("attempts", 1))
     except (TypeError, ValueError):
         attempts = 1
+
     topped = bool(data.get("topped", False))
+
+    flashed_in = data.get("flashed", None)
+    flashed = bool(flashed_in) if flashed_in is not None else False
+
+    # ---- clamp attempts early (before we derive states) ----
+    if attempts < 1:
+        attempts = 1
+    elif attempts > 50:
+        attempts = 50
+
+    # ---- enforce state rules ----
+    # Flash implies topped, and flash only makes sense on attempt 1.
+    if flashed:
+        topped = True
+        attempts = 1
+
+    # Backwards compatibility: old clients never send flashed
+    # If they topped on attempt 1, treat it as a flash.
+    if not flashed and topped and attempts == 1:
+        flashed = True
 
     # payload may contain either section_climb_id or climb_number
     section_climb_id_raw = data.get("section_climb_id", None)
@@ -104,9 +146,6 @@ def api_save_score():
             climb_number = int(climb_number_raw)
         except (TypeError, ValueError):
             return "Invalid climb_number", 400
-
-    if competitor_id <= 0:
-        return "Invalid competitor_id", 400
 
     if section_climb_id is None and (climb_number is None or climb_number <= 0):
         return "Missing section_climb_id or climb_number", 400
@@ -157,10 +196,8 @@ def api_save_score():
 
     else:
         # Legacy lookup by climb_number scoped to THIS competition
-        # IMPORTANT: if duplicates exist across sections, this is ambiguous.
         matches = (
-            SectionClimb.query
-            .join(Section, Section.id == SectionClimb.section_id)
+            SectionClimb.query.join(Section, Section.id == SectionClimb.section_id)
             .filter(
                 SectionClimb.climb_number == climb_number,
                 Section.competition_id == current_comp.id,
@@ -172,8 +209,6 @@ def api_save_score():
             return "Unknown climb number for this competition", 400
 
         if len(matches) > 1:
-            # This is exactly the score-card bug scenario.
-            # Force clients/templates to use section_climb_id.
             return (
                 "Ambiguous climb_number in this competition. "
                 "Send section_climb_id instead.",
@@ -182,19 +217,9 @@ def api_save_score():
 
         sc = matches[0]
 
-    # ---- clamp attempts ----
-    if attempts < 1:
-        attempts = 1
-    elif attempts > 50:
-        attempts = 50
-
-    # flashed = topped on attempt 1
-    flashed = bool(topped and attempts == 1)
-
     # ---- upsert by (competitor_id, section_climb_id) ----
     score = (
-        Score.query
-        .filter_by(competitor_id=competitor_id, section_climb_id=sc.id)
+        Score.query.filter_by(competitor_id=competitor_id, section_climb_id=sc.id)
         .first()
     )
 
@@ -242,12 +267,10 @@ def api_get_scores(competitor_id):
     - Returns BOTH section_climb_id and climb_number so the UI can map correctly.
     - Points are scoped to the competitor's competition.
     """
-
     competitor = Competitor.query.get_or_404(competitor_id)
 
     scores = (
-        Score.query
-        .filter_by(competitor_id=competitor_id)
+        Score.query.filter_by(competitor_id=competitor_id)
         .order_by(Score.climb_number.asc(), Score.section_climb_id.asc())
         .all()
     )
@@ -269,10 +292,63 @@ def api_get_scores(competitor_id):
 
     return jsonify(out)
 
+
+@scores_bp.route("/api/leaderboard/details")
+def leaderboard_details_api():
+    comp = get_viewer_comp()
+
+    if not comp:
+        return (
+            jsonify(
+                {
+                    "ok": False,
+                    "error": "Pick a competition first to view the leaderboard.",
+                    "climbs": [],
+                }
+            ),
+            200,
+        )
+
+    if not comp_is_live(comp):
+        session.pop("active_comp_slug", None)
+        return (
+            jsonify(
+                {
+                    "ok": False,
+                    "error": "That competition isn’t live right now — leaderboard is unavailable.",
+                    "climbs": [],
+                }
+            ),
+            200,
+        )
+
+    competitor_id = request.args.get("competitor_id", type=int)
+    if not competitor_id:
+        return jsonify({"ok": False, "error": "Missing competitor_id", "climbs": []}), 400
+
+    climbs = get_top_climbs_for_competitor(
+        competition_id=comp.id, competitor_id=competitor_id, limit=8
+    )
+
+    return jsonify({"ok": True, "climbs": climbs}), 200
+
+
+def _paginate(rows, page, per_page):
+    page = page if isinstance(page, int) and page > 0 else 1
+    per_page = per_page if isinstance(per_page, int) and per_page > 0 else DEFAULT_LB_PER_PAGE
+    total = len(rows)
+    total_pages = max(1, (total + per_page - 1) // per_page)
+    if page > total_pages:
+        page = total_pages
+    start = (page - 1) * per_page
+    end = start + per_page
+    return rows[start:end], page, per_page, total, total_pages
+
+
 @scores_bp.route("/leaderboard")
 def leaderboard_all():
     cid_raw = (request.args.get("cid") or "").strip()
-    competitor = Competitor.query.get(int(cid_raw)) if cid_raw.isdigit() else None
+    competitor = Competitor.query.get(int(cid_raw)) if cid_raw.isdigit() else None  # noqa: F841
 
     comp = get_viewer_comp()
 
@@ -285,26 +361,33 @@ def leaderboard_all():
         flash("That competition isn’t live right now — leaderboard is unavailable.", "warning")
         return redirect("/my-comps")
 
-    # IMPORTANT
-    cat = normalize_leaderboard_category(None)
+    page = request.args.get("page", 1, type=int)
+    per_page = DEFAULT_LB_PER_PAGE
 
+    cat = normalize_leaderboard_category(None)
     rows, category_label = build_leaderboard(cat, competition_id=comp.id)
+
+    page_rows, page, per_page, total, total_pages = _paginate(rows, page, per_page)
 
     return render_template(
         "leaderboard.html",
-        leaderboard=rows,
+        leaderboard=page_rows,               # initial SSR fallback
         category=category_label,
         current_competitor_id=session.get("competitor_id"),
         nav_active="leaderboard",
         comp=comp,
         comp_slug=comp.slug,
+        page=page,
+        per_page=per_page,
+        total=total,
+        total_pages=total_pages,
     )
 
 
 @scores_bp.route("/leaderboard/<category>")
 def leaderboard_by_category(category):
     cid_raw = (request.args.get("cid") or "").strip()
-    competitor = Competitor.query.get(int(cid_raw)) if cid_raw.isdigit() else None
+    competitor = Competitor.query.get(int(cid_raw)) if cid_raw.isdigit() else None  # noqa: F841
 
     comp = get_viewer_comp()
 
@@ -317,35 +400,88 @@ def leaderboard_by_category(category):
         flash("That competition isn’t live right now — leaderboard is unavailable.", "warning")
         return redirect("/my-comps")
 
-    # CRITICAL FIX
-    cat = normalize_leaderboard_category(category)
+    page = request.args.get("page", 1, type=int)
+    per_page = DEFAULT_LB_PER_PAGE
 
+    cat = normalize_leaderboard_category(category)
     rows, category_label = build_leaderboard(cat, competition_id=comp.id)
+
+    page_rows, page, per_page, total, total_pages = _paginate(rows, page, per_page)
 
     return render_template(
         "leaderboard.html",
-        leaderboard=rows,
+        leaderboard=page_rows,               # initial SSR fallback
         category=category_label,
         current_competitor_id=session.get("competitor_id"),
         nav_active="leaderboard",
         comp=comp,
         comp_slug=comp.slug,
+        page=page,
+        per_page=per_page,
+        total=total,
+        total_pages=total_pages,
     )
+    
+@scores_bp.route("/leaderboard/comp/<int:comp_id>")
+def leaderboard_for_comp_id(comp_id):
+    """
+    Show leaderboard for a specific competition, without requiring the viewer
+    to be registered as a competitor.
+    - Admins can view even if not live.
+    - Non-admins only if the comp is live.
+    """
+    comp = Competition.query.get_or_404(comp_id)
+
+    is_admin = bool(session.get("admin_ok"))
+    if (not is_admin) and (not comp_is_live(comp)):
+        return render_template("leaderboard.html", comp=None, not_live=True)
+
+    # Pin comp context for leaderboard/api
+    session["active_comp_slug"] = comp.slug
+
+    # Keep admin=1 if it was provided (or force it for admins coming from manage)
+    admin_q = (request.args.get("admin") or "").strip()
+    if is_admin:
+        admin_q = "1"
+
+    if admin_q == "1":
+        return redirect("/leaderboard?admin=1")
+
+    return redirect("/leaderboard")
+
 
 @scores_bp.route("/api/leaderboard")
 def api_leaderboard():
     raw_category = request.args.get("category")
+    page = request.args.get("page", 1, type=int)
+    per_page = request.args.get("per_page", DEFAULT_LB_PER_PAGE, type=int)
 
     comp = get_viewer_comp()
     if not comp:
-        resp = make_response(jsonify({"category": "No competition selected", "rows": [], "req_id": None}))
+        resp = make_response(jsonify({
+            "category": "No competition selected",
+            "rows": [],
+            "req_id": None,
+            "page": 1,
+            "per_page": per_page,
+            "total": 0,
+            "total_pages": 1,
+        }))
         resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
         resp.headers["Pragma"] = "no-cache"
         return resp
 
     if not comp_is_live(comp):
         session.pop("active_comp_slug", None)
-        resp = make_response(jsonify({"category": "Competition not live", "rows": [], "req_id": None}))
+        resp = make_response(jsonify({
+            "category": "Competition not live",
+            "rows": [],
+            "req_id": None,
+            "page": 1,
+            "per_page": per_page,
+            "total": 0,
+            "total_pages": 1,
+        }))
         resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
         resp.headers["Pragma"] = "no-cache"
         return resp
@@ -360,26 +496,38 @@ def api_leaderboard():
     if cat not in allowed:
         cat = "all"
 
-    # Request id so UI can ignore stale responses
+    # clamp pagination
+    if not page or page < 1:
+        page = 1
+    if not per_page or per_page < 1:
+        per_page = DEFAULT_LB_PER_PAGE
+    if per_page > 50:
+        per_page = 50  # sanity cap
+
     req_id = int(time.time() * 1000)
 
-    # Helpful debug while you fix this (remove later if you want)
     try:
-        current_app.logger.info("LB API req_id=%s raw_category=%r normalized=%r comp_id=%s",
-                        req_id, raw_category, cat, comp.id)
+        current_app.logger.info(
+            "LB API req_id=%s raw_category=%r normalized=%r comp_id=%s page=%s per_page=%s",
+            req_id, raw_category, cat, comp.id, page, per_page
+        )
     except Exception:
         pass
 
     rows, category_label = build_leaderboard(cat, competition_id=comp.id)
+    page_rows, page, per_page, total, total_pages = _paginate(rows, page, per_page)
 
     resp = make_response(jsonify({
         "category": category_label,
-        "rows": rows,
+        "rows": page_rows,
         "req_id": req_id,
-        "cat_key": cat,  # include the normalized key for debugging
+        "cat_key": cat,
+        "page": page,
+        "per_page": per_page,
+        "total": total,
+        "total_pages": total_pages,
     }))
 
-    # Prevent any caching surprises
     resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
     resp.headers["Pragma"] = "no-cache"
     return resp

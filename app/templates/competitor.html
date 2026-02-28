@@ -326,7 +326,7 @@
 		}
 
 		/* ========================================
-		   ENHANCED CLIMB CARD STYLES (UPDATED)
+		   ENHANCED CLIMB CARD STYLES
 		   ======================================== */
 
 		.climb-card {
@@ -357,9 +357,7 @@
 			box-shadow: 0 12px 35px rgba(0, 0, 0, 0.2), 0 0 0 1px rgba(93, 244, 162, 0.3);
 		}
 
-		.climb-card:hover::before {
-			opacity: 1;
-		}
+		.climb-card:hover::before { opacity: 1; }
 
 		/* Highlight when scrolled to */
 		.climb-row-highlight {
@@ -467,7 +465,7 @@
 			flex-wrap: wrap;
 		}
 
-		.attempts-row { 
+		.attempts-row {
 			margin-top: 0.25rem;
 			flex-direction: column;
 			align-items: flex-start;
@@ -482,16 +480,18 @@
 			font-weight: 800;
 		}
 
-		.attempts-pill-row {
-			display: flex;
-			flex-wrap: wrap;
-			gap: 0.5rem;
+		/* Save row under attempts */
+		.save-row {
+			margin-top: 0.25rem;
+			justify-content: flex-start;
+		}
+
+		.save-row .save-btn {
 			width: 100%;
 		}
 
 		/* Action pills (neutral by default) */
 		.action-pill,
-		.attempt-pill,
 		.topped-toggle-btn,
 		.flash-btn {
 			border-radius: 0.75rem;
@@ -514,7 +514,6 @@
 		}
 
 		.action-pill::before,
-		.attempt-pill::before,
 		.topped-toggle-btn::before,
 		.flash-btn::before {
 			content: '';
@@ -530,7 +529,6 @@
 		}
 
 		.action-pill:hover::before,
-		.attempt-pill:hover::before,
 		.topped-toggle-btn:hover::before,
 		.flash-btn:hover::before {
 			width: 300px;
@@ -538,7 +536,6 @@
 		}
 
 		.action-pill:hover,
-		.attempt-pill:hover,
 		.topped-toggle-btn:hover,
 		.flash-btn:hover {
 			background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%);
@@ -548,7 +545,6 @@
 		}
 
 		.action-pill:disabled,
-		.attempt-pill:disabled,
 		.topped-toggle-btn:disabled,
 		.flash-btn:disabled {
 			opacity: 0.4;
@@ -557,7 +553,6 @@
 		}
 
 		.action-pill:disabled:hover,
-		.attempt-pill:disabled:hover,
 		.topped-toggle-btn:disabled:hover,
 		.flash-btn:disabled:hover {
 			transform: none;
@@ -573,10 +568,6 @@
 			transform: translateY(-2px);
 		}
 
-		.flash-btn.is-active:hover {
-			box-shadow: 0 12px 28px rgba(14, 165, 233, 0.5), 0 0 25px rgba(14, 165, 233, 0.4);
-		}
-
 		.topped-toggle-btn.is-active {
 			background: linear-gradient(135deg, #111827 0%, #1f2937 100%);
 			border-color: #111827;
@@ -585,29 +576,32 @@
 			transform: translateY(-2px);
 		}
 
-		.topped-toggle-btn.is-active:hover {
-			box-shadow: 0 12px 28px rgba(17, 24, 39, 0.45), 0 0 25px rgba(17, 24, 39, 0.3);
+		/* Attempts stepper (minus / value / plus) */
+		.attempts-stepper {
+			display: inline-flex;
+			align-items: center;
+			gap: 0.6rem;
+			padding: 0.55rem 0.75rem;
+			border-radius: 0.85rem;
+			border: 2px solid rgba(5, 6, 10, 0.12);
+			background: rgba(255, 255, 255, 0.75);
 		}
 
-		.attempt-pill.is-active {
-			background: linear-gradient(135deg, #16a34a 0%, #15803d 100%);
-			border-color: #16a34a;
-			color: #ffffff;
-			box-shadow: 0 8px 20px rgba(22, 163, 74, 0.35), 0 0 20px rgba(22, 163, 74, 0.25);
-			transform: translateY(-2px);
-		}
-
-		.attempt-pill.is-active:hover {
-			box-shadow: 0 12px 28px rgba(22, 163, 74, 0.45), 0 0 25px rgba(22, 163, 74, 0.35);
+		.attempt-value {
+			min-width: 2.2rem;
+			text-align: center;
+			font-weight: 900;
+			color: #05060a;
+			font-size: 0.95rem;
 		}
 
 		/* Status message */
 		.status {
 			min-height: 1.2em;
 			font-size: 0.8rem;
-			color: #9ca3af;
+			color: #6b7280;
 			margin-top: 0.75rem;
-			font-weight: 700;
+			font-weight: 800;
 			letter-spacing: 0.02em;
 			padding: 0.5rem 0;
 		}
@@ -622,6 +616,12 @@
 			color: #dc2626;
 			font-weight: 900;
 			text-shadow: 0 0 8px rgba(220, 38, 38, 0.2);
+		}
+
+		.status.dirty {
+			color: #b45309;
+			font-weight: 900;
+			text-shadow: 0 0 8px rgba(180, 83, 9, 0.15);
 		}
 
 		/* Alert */
@@ -645,23 +645,10 @@
 			.grid { grid-template-columns: 1fr; }
 			.section-tab-name { max-width: 26ch; }
 
-			/* Updated responsive styles for climb cards */
-			.climb-card > * {
-				padding-left: 1.25rem;
-				padding-right: 1.25rem;
-			}
-
-			.climb-card .climb-header {
-				padding-top: 1.25rem;
-			}
-
-			.climb-card .climb-actions {
-				padding-bottom: 1.25rem;
-			}
-
-			.climb-title {
-				font-size: 1.1rem;
-			}
+			.climb-card > * { padding-left: 1.25rem; padding-right: 1.25rem; }
+			.climb-card .climb-header { padding-top: 1.25rem; }
+			.climb-card .climb-actions { padding-bottom: 1.25rem; }
+			.climb-title { font-size: 1.1rem; }
 		}
 
 		@media (max-width: 520px) {
@@ -713,7 +700,7 @@
 		</a>
 
 		{% if comp_slug %}
-  		<a class="back {% if nav_active == 'doubles' %}active{% endif %}" href="/comp/{{ comp_slug }}/doubles">Doubles</a>
+			<a class="back {% if nav_active == 'doubles' %}active{% endif %}" href="/comp/{{ comp_slug }}/doubles">Doubles</a>
 		{% endif %}
 
 		{% if is_logged_in or is_admin %}
@@ -878,15 +865,14 @@
 							{% set pill_text_color = "#ffffff" %}
 						{% endif %}
 
-						{% set cap = sc.attempt_cap if sc.attempt_cap else 5 %}
-
+						{# Attempts default to 1; never below 1 #}
 						{% if s %}
-							{% set sel_attempt = s.attempts if s.attempts else 1 %}
+							{% set sel_attempt = s.attempts if s.attempts is not none else 1 %}
 						{% else %}
 							{% set sel_attempt = 1 %}
 						{% endif %}
-						{% if sel_attempt > cap %}
-							{% set sel_attempt = cap %}
+						{% if sel_attempt < 1 %}
+							{% set sel_attempt = 1 %}
 						{% endif %}
 
 						{% set is_topped = (s and s.topped) %}
@@ -898,7 +884,6 @@
 							data-climb="{{ n }}"
 							data-climb-row="{{ n }}"
 							data-section-climb-id="{{ sc.id }}"
-							data-attempt-cap="{{ cap }}"
 							data-initial-attempt="{{ sel_attempt }}"
 							data-initial-topped="{{ '1' if is_topped else '0' }}"
 							data-initial-flashed="{{ '1' if is_flashed else '0' }}"
@@ -928,6 +913,7 @@
 								</span>
 							</p>
 
+							<!-- ✅ ACTIONS: Save moved under attempts -->
 							<div class="climb-actions">
 								<div class="climb-actions-row">
 									<button
@@ -949,18 +935,22 @@
 
 								<div class="climb-actions-row attempts-row">
 									<span class="attempts-label">Attempts</span>
-									<div class="attempts-pill-row" data-selected-attempt="{{ sel_attempt }}">
-										{% for i in range(1, cap + 1) %}
-											<button
-												type="button"
-												class="attempt-pill {% if i == sel_attempt %}is-active{% endif %}"
-												data-attempt="{{ i }}"
-												{% if not can_edit %}disabled{% endif %}
-											>
-												{{ i }}
-											</button>
-										{% endfor %}
+
+									<div class="attempts-stepper" data-selected-attempt="{{ sel_attempt }}">
+										<button type="button" class="attempt-minus action-pill" {% if not can_edit %}disabled{% endif %}>−</button>
+										<span class="attempt-value">{{ sel_attempt }}</span>
+										<button type="button" class="attempt-plus action-pill" {% if not can_edit %}disabled{% endif %}>+</button>
 									</div>
+								</div>
+
+								<div class="climb-actions-row save-row">
+									<button
+										type="button"
+										class="save-btn action-pill"
+										{% if not can_edit %}disabled{% endif %}
+									>
+										Save
+									</button>
 								</div>
 
 								<div class="status" aria-live="polite"></div>
@@ -988,7 +978,6 @@
 
 		let boundariesCache = null;
 		let baseW = 1, baseH = 1;
-		let lastAppliedKey = "";
 
 		function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
 		function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
@@ -1008,7 +997,6 @@
 			}
 		}
 
-		// robust measurement: if offset sizes are 0, derive from viewport + natural size
 		function updateLayerSizeFromImage() {
 			let w = img.offsetWidth || img.clientWidth || 0;
 			let h = img.offsetHeight || img.clientHeight || 0;
@@ -1073,7 +1061,6 @@
 			return { minX: minX - pad, minY: minY - pad, maxX: maxX + pad, maxY: maxY + pad };
 		}
 
-		// Expand rect to match viewport aspect ratio
 		function expandRectToMatchAspect(rect, targetAspect) {
 			const w = Math.max(1, rect.maxX - rect.minX);
 			const h = Math.max(1, rect.maxY - rect.minY);
@@ -1095,7 +1082,6 @@
 			return { minX, minY, maxX, maxY };
 		}
 
-		// Clamp pan so we never reveal black background
 		function clampPan(tx, ty, scale) {
 			const vr = viewport.getBoundingClientRect();
 			const viewW = vr.width;
@@ -1152,7 +1138,6 @@
 			return true;
 		}
 
-		// wait for decode + layout (mobile Safari needs this sometimes)
 		async function ensureImageReady() {
 			if (!img.complete) {
 				await new Promise((resolve) => img.addEventListener("load", resolve, { once: true }));
@@ -1165,10 +1150,6 @@
 		}
 
 		async function applySectionZoomSafe(reason = "") {
-			// avoid thrashing
-			const key = `${reason}|${viewport.clientWidth}x${viewport.clientHeight}|${img.currentSrc || img.src}`;
-			lastAppliedKey = key;
-
 			await ensureImageReady();
 
 			let ok = updateLayerSizeFromImage();
@@ -1225,27 +1206,34 @@
 
 		const cards = document.querySelectorAll(".climb-card");
 
-		function showStatus(el, msg, ok = true) {
+		function showStatus(el, msg, mode = "") {
 			if (!el) return;
-			el.textContent = msg;
-			el.className = "status " + (ok ? "ok" : "err");
-			setTimeout(() => {
-				el.textContent = "";
-				el.className = "status";
-			}, 1500);
+			el.textContent = msg || "";
+			el.className = "status" + (mode ? (" " + mode) : "");
+		}
+
+		function markDirty(card) {
+			card.dataset.dirty = "1";
+			const status = card.querySelector(".status");
+			showStatus(status, "Unsaved", "dirty");
+		}
+
+		function clearDirty(card) {
+			card.dataset.dirty = "0";
 		}
 
 		function getCurrentState(card) {
-			const attemptsContainer = card.querySelector(".attempts-pill-row");
+			const stepper = card.querySelector(".attempts-stepper");
 			const toppedToggle = card.querySelector(".topped-toggle-btn");
 			const flashBtn = card.querySelector(".flash-btn");
 
 			let attempts = 1;
-			if (attemptsContainer) {
-				const raw = attemptsContainer.dataset.selectedAttempt || "1";
+			if (stepper) {
+				const raw = stepper.dataset.selectedAttempt ?? "1";
 				const parsed = parseInt(raw, 10);
-				if (!isNaN(parsed) && parsed >= 1) attempts = parsed;
+				if (!isNaN(parsed)) attempts = parsed;
 			}
+			if (attempts < 1) attempts = 1;
 
 			const topped = !!(toppedToggle && toppedToggle.classList.contains("is-active"));
 			const flashed = !!(flashBtn && flashBtn.classList.contains("is-active"));
@@ -1253,37 +1241,47 @@
 		}
 
 		function hydrateFromDataset(card) {
-			const attemptsContainer = card.querySelector(".attempts-pill-row");
-			const attemptButtons = attemptsContainer ? Array.from(attemptsContainer.querySelectorAll(".attempt-pill")) : [];
+			const stepper = card.querySelector(".attempts-stepper");
+			const valueEl = card.querySelector(".attempt-value");
 
-			const initialAttempt = parseInt(card.dataset.initialAttempt || "1", 10);
+			let initialAttempt = parseInt(card.dataset.initialAttempt || "1", 10);
+			if (isNaN(initialAttempt)) initialAttempt = 1;
+			if (initialAttempt < 1) initialAttempt = 1;
+
 			const initialTopped = card.dataset.initialTopped === "1";
 			const initialFlashed = card.dataset.initialFlashed === "1";
 
-			if (attemptsContainer) {
-				const attempt = (!isNaN(initialAttempt) && initialAttempt >= 1) ? String(initialAttempt) : "1";
-				attemptsContainer.dataset.selectedAttempt = attempt;
-				attemptButtons.forEach((btn) => btn.classList.toggle("is-active", btn.dataset.attempt === attempt));
-			}
+			if (stepper) stepper.dataset.selectedAttempt = String(initialAttempt);
+			if (valueEl) valueEl.textContent = String(initialAttempt);
 
 			const flashBtn = card.querySelector(".flash-btn");
 			const toppedBtn = card.querySelector(".topped-toggle-btn");
 
 			if (flashBtn) flashBtn.classList.toggle("is-active", initialFlashed);
 			if (toppedBtn) toppedBtn.classList.toggle("is-active", initialTopped && !initialFlashed);
+
+			clearDirty(card);
+			const status = card.querySelector(".status");
+			showStatus(status, "");
 		}
 
 		cards.forEach(hydrateFromDataset);
 
+		// Prevent double-saves while one is in-flight
+		function isSaving(card) { return card.dataset.saving === "1"; }
+		function setSaving(card, val) { card.dataset.saving = val ? "1" : "0"; }
+
 		async function save(card, override) {
 			if (!canEdit || viewerId === null) {
-				showStatus(card.querySelector(".status"), "Not allowed", false);
+				showStatus(card.querySelector(".status"), "Not allowed", "err");
 				return;
 			}
+			if (isSaving(card)) return;
 
 			const climb = parseInt(card.dataset.climb, 10);
 			const sectionClimbId = parseInt(card.dataset.sectionClimbId, 10);
 			const status = card.querySelector(".status");
+			const saveBtn = card.querySelector(".save-btn");
 
 			let { attempts, topped, flashed } = getCurrentState(card);
 
@@ -1295,6 +1293,10 @@
 			if (attempts > 50) attempts = 50;
 
 			try {
+				setSaving(card, true);
+				if (saveBtn) saveBtn.disabled = true;
+				showStatus(status, "Saving…");
+
 				const res = await fetch("/api/score", {
 					method: "POST",
 					headers: { "Content-Type": "application/json" },
@@ -1310,23 +1312,36 @@
 
 				if (!res.ok) {
 					const t = await res.text();
-					showStatus(status, "Error: " + t, false);
+					showStatus(status, "Error: " + t, "err");
 					return;
 				}
 
 				const data = await res.json();
-				showStatus(status, "Saved");
+				showStatus(status, "Saved", "ok");
+				clearDirty(card);
 
 				const pointsSpan = card.querySelector(".points-scored-value");
 				if (pointsSpan && data && typeof data.points === "number") {
 					pointsSpan.textContent = data.points;
 				}
 
-				await refreshTotalPoints();
-				refreshPosition();
-				await refreshDoneDotsAndActiveTab();
+				// ✅ Re-enable Save immediately (don’t wait for other fetches)
+				if (saveBtn) saveBtn.disabled = false;
+
+				// 🔥 Background refreshes (do not block UI)
+				Promise.allSettled([
+					refreshTotalPoints(),
+					refreshDoneDotsAndActiveTab(),
+				]).then(() => {
+					// position can be heavier; run after the others
+					refreshPosition();
+				}).catch(() => {});
 			} catch (e) {
-				showStatus(status, "Network error", false);
+				showStatus(status, "Network error", "err");
+			} finally {
+				setSaving(card, false);
+				// Safety net
+				if (saveBtn) saveBtn.disabled = false;
 			}
 		}
 
@@ -1367,47 +1382,82 @@
 			cards.forEach((card) => {
 				const flashBtn = card.querySelector(".flash-btn");
 				const toppedToggle = card.querySelector(".topped-toggle-btn");
-				const attemptsContainer = card.querySelector(".attempts-pill-row");
-				const attemptButtons = attemptsContainer ? Array.from(attemptsContainer.querySelectorAll(".attempt-pill")) : [];
+
+				const stepper = card.querySelector(".attempts-stepper");
+				const minusBtn = card.querySelector(".attempt-minus");
+				const plusBtn  = card.querySelector(".attempt-plus");
+				const valueEl  = card.querySelector(".attempt-value");
+
+				const saveBtn = card.querySelector(".save-btn");
+
+				function setAttempt(n) {
+					n = parseInt(n, 10);
+					if (isNaN(n)) n = 1;
+					if (n < 1) n = 1;
+
+					if (stepper) stepper.dataset.selectedAttempt = String(n);
+					if (valueEl) valueEl.textContent = String(n);
+					if (minusBtn) minusBtn.disabled = (n <= 1);
+
+					markDirty(card);
+				}
+
+				function getAttempt() {
+					if (!stepper) return 1;
+					const n = parseInt(stepper.dataset.selectedAttempt || "1", 10);
+					return isNaN(n) ? 1 : Math.max(1, n);
+				}
+
+				// initialize minus disabled state (but don't mark dirty)
+				(function initStepper() {
+					const n = getAttempt();
+					if (stepper) stepper.dataset.selectedAttempt = String(n);
+					if (valueEl) valueEl.textContent = String(n);
+					if (minusBtn) minusBtn.disabled = (n <= 1);
+				})();
+
+				if (minusBtn) {
+					minusBtn.addEventListener("click", () => {
+						setAttempt(getAttempt() - 1);
+						if (flashBtn) flashBtn.classList.remove("is-active");
+					});
+				}
+
+				if (plusBtn) {
+					plusBtn.addEventListener("click", () => {
+						setAttempt(getAttempt() + 1);
+						if (flashBtn) flashBtn.classList.remove("is-active");
+					});
+				}
 
 				if (flashBtn) {
-					flashBtn.addEventListener("click", async () => {
-						if (!attemptsContainer) return;
+					flashBtn.addEventListener("click", () => {
+						// UI only (manual save)
+						flashBtn.classList.toggle("is-active");
 
-						attemptsContainer.dataset.selectedAttempt = "1";
-						attemptButtons.forEach((btn) => {
-							btn.classList.toggle("is-active", btn.dataset.attempt === "1");
-						});
+						const nowFlashed = flashBtn.classList.contains("is-active");
+						if (toppedToggle) toppedToggle.classList.toggle("is-active", false);
 
-						flashBtn.classList.add("is-active");
-						if (toppedToggle) toppedToggle.classList.remove("is-active");
-
-						await save(card, { attempts: 1, topped: true, flashed: true });
+						// Flash implies topped+flashed; keep attempts at 1 (never 0)
+						if (nowFlashed) setAttempt(1);
+						else markDirty(card);
 					});
 				}
 
 				if (toppedToggle) {
-					toppedToggle.addEventListener("click", async () => {
+					toppedToggle.addEventListener("click", () => {
 						const nowActive = !toppedToggle.classList.contains("is-active");
 						toppedToggle.classList.toggle("is-active", nowActive);
-
 						if (flashBtn && nowActive) flashBtn.classList.remove("is-active");
-
-						await save(card, { topped: nowActive, flashed: false });
+						markDirty(card);
 					});
 				}
 
-				attemptButtons.forEach((btn) => {
-					btn.addEventListener("click", async () => {
-						const attempt = btn.dataset.attempt;
-						attemptsContainer.dataset.selectedAttempt = attempt;
-						attemptButtons.forEach((b) => { b.classList.toggle("is-active", b === btn); });
-
-						if (flashBtn) flashBtn.classList.remove("is-active");
-
-						await save(card, { flashed: false });
+				if (saveBtn) {
+					saveBtn.addEventListener("click", async () => {
+						await save(card);
 					});
-				});
+				}
 			});
 		}
 

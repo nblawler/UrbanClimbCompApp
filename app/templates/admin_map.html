@@ -1,3 +1,4 @@
+<!-- admin_map.html (FULL DROP-IN REPLACEMENT) -->
 <!doctype html>
 <html lang="en">
 <head>
@@ -326,7 +327,7 @@
       gap: 0.3rem;
     }
 
-    /* ✅ UPDATED: make them clickable "pill links" */
+    /* Make them clickable "pill links" */
     .section-pill {
       display: flex;
     }
@@ -488,6 +489,13 @@
         <a href="/admin/map?comp_id={{ session.get('admin_comp_id') }}">
           Refresh map
         </a>
+
+        <a
+          href="/leaderboard/comp/{{ session.get('admin_comp_id') }}"
+          title="Leaderboard for the competition you're managing"
+        >
+          Leaderboard
+        </a>
       {% endif %}
 
       {% if session.get('competitor_id') or session.get('admin_ok') %}
@@ -647,7 +655,7 @@
         <div class="tiny-muted" id="clickHint" style="margin-top: 0.5rem; text-align: center;">Button unlocks after you tap the map.</div>
       </form>
 
-      <!-- ✅ MOVED: Section boundary block now lives under the Add Climb section -->
+      <!-- Section boundary block now lives under the Add Climb section -->
       <div class="divider"></div>
 
       <h2>Section boundary</h2>
