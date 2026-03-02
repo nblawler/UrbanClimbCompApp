@@ -1,5 +1,5 @@
 from flask import Blueprint, render_template, redirect, session, flash, abort, request, url_for, jsonify
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from urllib.parse import quote
 import secrets
 import sys
@@ -17,6 +17,8 @@ from app.helpers.leaderboard import build_leaderboard
 from app.helpers.scoring import points_for, competitor_total_points
 from app.helpers.url import make_token, hash_token
 from app.config import RESEND_API_KEY, RESEND_FROM_EMAIL
+from app.helpers.time import melb_now, aware_utc_to_naive_utc, utc_naive_to_melb
+
 
 competitions_bp = Blueprint("competitions", __name__)
 
@@ -54,10 +56,10 @@ def my_competitions():
     viewer_id = session.get("competitor_id")
     competitor = Competitor.query.get(viewer_id) if viewer_id else None
 
-    now = datetime.utcnow()
+    now_utc_naive = aware_utc_to_naive_utc(melb_now().astimezone(timezone.utc))
 
     upcoming_q = Competition.query.filter(
-        (Competition.end_at == None) | (Competition.end_at >= now)
+        (Competition.end_at == None) | (Competition.end_at >= now_utc_naive)
     )
 
     competitions = (
@@ -81,7 +83,7 @@ def my_competitions():
 
         else:
             status = "scheduled"
-            opens_at = c.start_at
+            opens_at = utc_naive_to_melb(c.start_at)
             if opens_at:
                 status_label = (
                     "Comp currently not live – opens on "

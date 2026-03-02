@@ -19,4 +19,4 @@ with api.app_context():
     init_db()
 
 if __name__ == "__main__":
-    api.run(debug=True)
+    api.run(debug=True, port=5001)

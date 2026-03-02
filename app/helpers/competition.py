@@ -3,6 +3,7 @@ from functools import wraps
 
 from datetime import datetime
 from app.models import Competition, Competitor
+from app.helpers.time import melb_now, utc_naive_to_melb
 
 def get_current_comp():
     """
@@ -56,33 +57,57 @@ def get_viewer_comp():
     return None
 
 def comp_is_finished(comp) -> bool:
-    """True if comp has an end_at and it is in the past (UTC naive)."""
+    """
+    True if comp has an end_at and it is in the past,
+    using Melbourne local time semantics.
+    DB stores UTC-naive.
+    """
     if not comp:
         return True
     if comp.end_at is None:
         return False
-    return datetime.utcnow() >= comp.end_at
+
+    end_melb = utc_naive_to_melb(comp.end_at)  # aware Melbourne
+    return melb_now() >= end_melb
 
 def comp_is_live(comp) -> bool:
     """
-    True only when the comp is active AND has started AND has not ended.
-    If start_at is missing, we treat it as NOT live (prevents 'always live' comps).
-    If end_at is missing, we treat it as live from start_at onward (optional).
+    Determine whether a competition is currently live for competitors.
+
+    A competition is considered LIVE if:
+      1) It exists.
+      2) It has been published by admin (is_active == True).
+      3) If start_at is set, the current Melbourne time is >= start_at.
+      4) If end_at is set, the current Melbourne time is < end_at.
+
+    Notes:
+    - All comparisons are performed using Melbourne local time.
+    - Datetimes are stored in the DB as UTC-naive.
+    - UTC-naive values are converted to Melbourne time before comparison.
+    - After end_at is reached, the competition automatically stops being live
+      even if is_active remains True.
     """
-    if not comp or not comp.is_active:
+
+    if not comp:
         return False
 
-    now = datetime.utcnow()
-
-    # IMPORTANT: start time must exist, otherwise the comp is not considered live.
-    if comp.start_at is None:
+    # Admin publish gate:
+    # If the competition is not marked active, it is never live.
+    if hasattr(comp, "is_active") and not comp.is_active:
         return False
 
-    if comp.start_at > now:
+    now = melb_now()  # Current Melbourne time (aware)
+
+    # Convert stored UTC-naive datetimes to Melbourne-aware for comparison
+    start_melb = utc_naive_to_melb(comp.start_at) if comp.start_at else None
+    end_melb = utc_naive_to_melb(comp.end_at) if comp.end_at else None
+
+    # Not yet started
+    if start_melb and now < start_melb:
         return False
 
-    # If end_at missing, allow "open ended" comps once started
-    if comp.end_at is not None and comp.end_at < now:
+    # Finished (end time is exclusive)
+    if end_melb and now >= end_melb:
         return False
 
     return True
