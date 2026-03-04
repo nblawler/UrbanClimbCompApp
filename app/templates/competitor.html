@@ -11,20 +11,13 @@
 
 		/* ===========================
 		   MOBILE “BOTTOM FLICK” FIX
-		   - Avoid raw 100vh on mobile (address bar resizing causes jumps)
-		   - Use dvh/-webkit-fill-available fallbacks
-		   - Add safe bottom padding + stop rubber-band scroll
 		   =========================== */
 		:root {
 			--app-height: 100vh; /* fallback */
 			--safe-bottom: 16px;
 		}
-		@supports (height: 100dvh) {
-			:root { --app-height: 100dvh; }
-		}
-		@supports (height: -webkit-fill-available) {
-			:root { --app-height: -webkit-fill-available; }
-		}
+		@supports (height: 100dvh) { :root { --app-height: 100dvh; } }
+		@supports (height: -webkit-fill-available) { :root { --app-height: -webkit-fill-available; } }
 
 		html {
 			height: 100%;
@@ -34,14 +27,10 @@
 		body {
 			font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
 			background: linear-gradient(135deg, #0a1628 0%, #1a2942 100%);
-
-			/* replace min-height: 100vh */
 			min-height: var(--app-height);
-
 			display: flex;
 			flex-direction: column;
 			color: #fff;
-
 			overflow-x: hidden;
 			-webkit-overflow-scrolling: touch;
 			overscroll-behavior-y: none;
@@ -79,8 +68,6 @@
 			margin: 0 auto;
 			padding: 2rem;
 			width: 100%;
-
-			/* prevents “snap” at the end on iOS */
 			padding-bottom: calc(2rem + env(safe-area-inset-bottom, 0px) + var(--safe-bottom));
 		}
 
@@ -203,21 +190,6 @@
 			line-height: 1.1;
 		}
 
-		.section-tab-badge {
-			font-size: 0.8rem;
-			font-weight: 900;
-			padding: 0.2rem 0.55rem;
-			border-radius: 999px;
-			border: 1px solid rgba(255, 255, 255, 0.18);
-			background: rgba(0, 0, 0, 0.25);
-			color: rgba(255, 255, 255, 0.9);
-			white-space: nowrap;
-		}
-
-		.section-tab.is-active .section-tab-badge {
-			border-color: rgba(93, 244, 162, 0.6);
-		}
-
 		/* Back to map button */
 		.back-to-map-btn {
 			padding: 0.65rem 1.25rem;
@@ -248,45 +220,8 @@
 			margin-bottom: 2rem;
 		}
 
-		/* Section header row with expand button (outside map) */
-		.section-header {
-			margin-bottom: 1.5rem;
-		}
-		.section-header-row{
-			display:flex;
-			align-items:center;
-			justify-content:space-between;
-			gap:1rem;
-		}
-
-		.section-title {
-			font-size: 1.75rem;
-			font-weight: 900;
-			color: #fff;
-		}
-
-		/* Tiny expand button (NOT on the map) */
-		.map-expand-btn{
-			border: 1px solid rgba(255,255,255,0.18);
-			background: rgba(255,255,255,0.08);
-			color:#fff;
-			border-radius: 999px;
-			width: 42px;
-			height: 42px;
-			display:inline-flex;
-			align-items:center;
-			justify-content:center;
-			font-weight: 900;
-			cursor:pointer;
-			transition: transform 0.15s, background 0.15s, border-color 0.15s;
-			flex: 0 0 auto;
-		}
-		.map-expand-btn:hover{
-			transform: translateY(-1px);
-			background: rgba(255,255,255,0.12);
-			border-color: rgba(255,255,255,0.28);
-		}
-		.map-expand-btn:active{ transform: translateY(0); }
+		.section-header { margin-bottom: 1.5rem; }
+		.section-title { font-size: 1.75rem; font-weight: 900; color: #fff; }
 
 		/* Map wrapper */
 		.map-wrapper {
@@ -299,34 +234,6 @@
 			margin-bottom: 2rem;
 		}
 
-		/* ✅ Pseudo-fullscreen (phone-safe) */
-		body.map-expanded{
-			overflow:hidden;
-			touch-action:none;
-		}
-
-		#sectionMapWrapper.is-expanded{
-			position: fixed;
-			inset: 0;
-			z-index: 9999;
-			border-radius: 0;
-			border: none;
-			margin: 0;
-			background: #000;
-		}
-
-		#sectionMapWrapper.is-expanded .map-viewport{
-			height: 100%;
-			max-height: none;
-			aspect-ratio: auto;
-			min-height: 100%;
-		}
-
-		/* Optional: slightly larger dots in expanded mode */
-		#sectionMapWrapper.is-expanded{
-			--dot-base: 34px;
-		}
-
 		/* Stable viewport + mobile-safe min height */
 		.map-viewport {
 			position: relative;
@@ -335,19 +242,17 @@
 			aspect-ratio: var(--map-ar, 4 / 3);
 			overflow: hidden;
 			background: #000;
-			touch-action: pan-y;
+
+			/* ✅ allow custom pinch/zoom/pan */
+			touch-action: none;
 
 			/* Mobile reliability */
 			min-height: 240px;
-
-			/*  avoid vh jumps on mobile */
 			max-height: 70svh;
 		}
-		@supports (height: 70dvh) {
-			.map-viewport { max-height: 70dvh; }
-		}
+		@supports (height: 70dvh) { .map-viewport { max-height: 70dvh; } }
 
-		/* Absolute layer like competitor_sections */
+		/* Absolute layer */
 		.map-layer {
 			position: absolute;
 			left: 0;
@@ -366,7 +271,7 @@
 			pointer-events: none;
 		}
 
-		/* Dots */
+		/* Dots (shrink as zoom increases via --dot-inv-scale) */
 		#sectionMapWrapper {
 			--dot-base: 28px;
 			--dot-inv-scale: 1;
@@ -398,7 +303,6 @@
 			z-index: 10;
 		}
 
-		/* Done state for map dots (topped/flashed only) */
 		.map-dot.is-done {
 			background: #22c55e;
 			color: #05060a;
@@ -414,7 +318,6 @@
 			padding: 2rem;
 		}
 
-		/* Climbs grid */
 		.grid {
 			display: grid;
 			grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
@@ -424,7 +327,6 @@
 		/* ========================================
 		   ENHANCED CLIMB CARD STYLES
 		   ======================================== */
-
 		.climb-card {
 			position: relative;
 			background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
@@ -455,7 +357,6 @@
 
 		.climb-card:hover::before { opacity: 1; }
 
-		/* Highlight when scrolled to */
 		.climb-row-highlight {
 			outline: none;
 			box-shadow: 0 0 0 3px rgba(93, 244, 162, 0.6), 0 12px 35px rgba(93, 244, 162, 0.3);
@@ -473,22 +374,10 @@
 			50% { opacity: 0.7; }
 		}
 
-		/* Inner content wrapper */
-		.climb-card > * {
-			padding-left: 1.5rem;
-			padding-right: 1.5rem;
-		}
+		.climb-card > * { padding-left: 1.5rem; padding-right: 1.5rem; }
+		.climb-card .climb-header { padding-top: 1.5rem; padding-bottom: 0; }
+		.climb-card .climb-actions { padding-bottom: 1.5rem; }
 
-		.climb-card .climb-header {
-			padding-top: 1.5rem;
-			padding-bottom: 0;
-		}
-
-		.climb-card .climb-actions {
-			padding-bottom: 1.5rem;
-		}
-
-		/* Climb header */
 		.climb-header {
 			display: flex;
 			align-items: center;
@@ -516,7 +405,6 @@
 			box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 		}
 
-		/* Climb info text */
 		.climb-card p {
 			margin: 0.5rem 0;
 			font-size: 0.9rem;
@@ -529,10 +417,7 @@
 			font-weight: 600;
 		}
 
-		.climb-card p strong {
-			color: #05060a;
-			font-weight: 800;
-		}
+		.climb-card p strong { color: #05060a; font-weight: 800; }
 
 		.points-scored-value {
 			font-weight: 900;
@@ -541,7 +426,6 @@
 			text-shadow: 0 0 12px rgba(22, 163, 74, 0.3);
 		}
 
-		/* Climb actions */
 		.climb-actions {
 			margin-top: 1.25rem;
 			display: flex;
@@ -576,17 +460,9 @@
 			font-weight: 800;
 		}
 
-		/* Save row under attempts */
-		.save-row {
-			margin-top: 0.25rem;
-			justify-content: flex-start;
-		}
+		.save-row { margin-top: 0.25rem; justify-content: flex-start; }
+		.save-row .save-btn { width: 100%; }
 
-		.save-row .save-btn {
-			width: 100%;
-		}
-
-		/* Action pills (neutral by default) */
 		.action-pill,
 		.topped-toggle-btn,
 		.flash-btn {
@@ -594,7 +470,6 @@
 			border: 2px solid rgba(5, 6, 10, 0.12);
 			background: linear-gradient(135deg, #ffffff 0%, #f9fafb 100%);
 			color: #374151;
-			font-size: 0.85rem;
 			padding: 0.65rem 1.25rem;
 			cursor: pointer;
 			display: inline-flex;
@@ -609,53 +484,10 @@
 			font-size: 0.75rem;
 		}
 
-		.action-pill::before,
-		.topped-toggle-btn::before,
-		.flash-btn::before {
-			content: '';
-			position: absolute;
-			top: 50%;
-			left: 50%;
-			width: 0;
-			height: 0;
-			border-radius: 50%;
-			background: rgba(255, 255, 255, 0.5);
-			transform: translate(-50%, -50%);
-			transition: width 0.5s, height 0.5s;
-		}
-
-		.action-pill:hover::before,
-		.topped-toggle-btn:hover::before,
-		.flash-btn:hover::before {
-			width: 300px;
-			height: 300px;
-		}
-
-		.action-pill:hover,
-		.topped-toggle-btn:hover,
-		.flash-btn:hover {
-			background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%);
-			border-color: rgba(5, 6, 10, 0.25);
-			transform: translateY(-2px);
-			box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
-		}
-
 		.action-pill:disabled,
 		.topped-toggle-btn:disabled,
-		.flash-btn:disabled {
-			opacity: 0.4;
-			cursor: not-allowed;
-			transform: none;
-		}
+		.flash-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
 
-		.action-pill:disabled:hover,
-		.topped-toggle-btn:disabled:hover,
-		.flash-btn:disabled:hover {
-			transform: none;
-			box-shadow: none;
-		}
-
-		/* Active state styles */
 		.flash-btn.is-active {
 			background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
 			border-color: #0ea5e9;
@@ -672,7 +504,6 @@
 			transform: translateY(-2px);
 		}
 
-		/* Attempts stepper (minus / value / plus) */
 		.attempts-stepper {
 			display: inline-flex;
 			align-items: center;
@@ -691,7 +522,6 @@
 			font-size: 0.95rem;
 		}
 
-		/* Status message */
 		.status {
 			min-height: 1.2em;
 			font-size: 0.8rem;
@@ -702,25 +532,10 @@
 			padding: 0.5rem 0;
 		}
 
-		.status.ok {
-			color: #16a34a;
-			font-weight: 900;
-			text-shadow: 0 0 8px rgba(22, 163, 74, 0.2);
-		}
+		.status.ok { color: #16a34a; font-weight: 900; text-shadow: 0 0 8px rgba(22, 163, 74, 0.2); }
+		.status.err { color: #dc2626; font-weight: 900; text-shadow: 0 0 8px rgba(220, 38, 38, 0.2); }
+		.status.dirty { color: #b45309; font-weight: 900; text-shadow: 0 0 8px rgba(180, 83, 9, 0.15); }
 
-		.status.err {
-			color: #dc2626;
-			font-weight: 900;
-			text-shadow: 0 0 8px rgba(220, 38, 38, 0.2);
-		}
-
-		.status.dirty {
-			color: #b45309;
-			font-weight: 900;
-			text-shadow: 0 0 8px rgba(180, 83, 9, 0.15);
-		}
-
-		/* Alert */
 		.alert {
 			padding: 1rem;
 			border-radius: 0.75rem;
@@ -865,9 +680,8 @@
 
 		{% if section_climbs is defined %}
 		<section class="map-card">
-			<header class="section-header section-header-row">
+			<header class="section-header">
 				<h2 class="section-title">{{ section.name }}</h2>
-				<button type="button" class="map-expand-btn" id="mapExpandBtn" aria-label="Expand map">⤢</button>
 			</header>
 
 			<div
@@ -962,7 +776,6 @@
 							{% set pill_text_color = "#ffffff" %}
 						{% endif %}
 
-						{# Attempts default to 1; never below 1 #}
 						{% if s %}
 							{% set sel_attempt = s.attempts if s.attempts is not none else 1 %}
 						{% else %}
@@ -1010,7 +823,6 @@
 								</span>
 							</p>
 
-							<!-- ACTIONS: Save moved under attempts -->
 							<div class="climb-actions">
 								<div class="climb-actions-row">
 									<button
@@ -1063,72 +875,12 @@
 
 	<script>
 	(function () {
-		// ===== Section boundary zoom (mobile-safe) =====
+		// ===== Section boundary zoom + pinch/zoom/pan (dots shrink as you zoom in) =====
 		const wrapper  = document.getElementById("sectionMapWrapper");
 		const viewport = document.getElementById("sectionMapViewport");
 		const layer    = document.getElementById("sectionMapLayer");
 		const img      = document.getElementById("sectionMapImage");
 		if (!wrapper || !viewport || !layer || !img) return;
-
-		// ===== Pseudo-fullscreen expand (phone-safe) =====
-		const expandBtn = document.getElementById("mapExpandBtn");
-
-		function isExpanded() {
-			return wrapper.classList.contains("is-expanded");
-		}
-
-		function syncExpandUI() {
-			if (!expandBtn) return;
-			expandBtn.textContent = isExpanded() ? "⤡" : "⤢";
-			expandBtn.setAttribute("aria-label", isExpanded() ? "Collapse map" : "Expand map");
-		}
-
-		function toggleExpanded() {
-			wrapper.classList.toggle("is-expanded");
-			document.body.classList.toggle("map-expanded", isExpanded());
-			syncExpandUI();
-
-			setTimeout(() => applySectionZoomSafe("expandToggle"), 50);
-			setTimeout(() => applySectionZoomSafe("expandToggle2"), 180);
-		}
-
-		if (expandBtn) {
-			expandBtn.addEventListener("click", (e) => {
-				e.preventDefault();
-				toggleExpanded();
-			});
-		}
-
-		// Double-click toggles (ignore dots)
-		wrapper.addEventListener("dblclick", (e) => {
-			const onDot = e.target.closest(".map-dot-interactive");
-			if (onDot) return;
-			e.preventDefault();
-			toggleExpanded();
-		});
-
-		// Mobile: quick double-tap toggles (ignore dots)
-		let lastTap = 0;
-		wrapper.addEventListener("touchend", (e) => {
-			const onDot = e.target.closest(".map-dot-interactive");
-			if (onDot) return;
-
-			const now = Date.now();
-			const delta = now - lastTap;
-			lastTap = now;
-
-			if (delta > 0 && delta < 300) {
-				e.preventDefault();
-				toggleExpanded();
-			}
-		}, { passive: false });
-
-		// ESC closes on desktop
-		document.addEventListener("keydown", (e) => {
-			if (e.key === "Escape" && isExpanded()) toggleExpanded();
-		});
-
-		syncExpandUI();
 
 		const compSlug  = (wrapper.dataset.compSlug || "").trim();
 		const sectionId = String(wrapper.dataset.sectionId || "").trim();
@@ -1136,8 +888,52 @@
 		let boundariesCache = null;
 		let baseW = 1, baseH = 1;
 
+		let state = { scale: 1, tx: 0, ty: 0 };
+		const MIN_SCALE = 0.6;
+		const MAX_SCALE = 6.0;
+
 		function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
 		function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+		function applyTransform(withTransition = false) {
+			layer.style.transition = withTransition ? "transform 160ms ease" : "";
+			layer.style.transform = `translate(${state.tx}px, ${state.ty}px) scale(${state.scale})`;
+
+			// Dots shrink as you zoom in (inverse scale)
+			const inv = clamp(1 / state.scale, 0.12, 1.35);
+			wrapper.style.setProperty("--dot-inv-scale", String(inv));
+		}
+
+		function clampPan(tx, ty, scale) {
+			const vr = viewport.getBoundingClientRect();
+			const viewW = vr.width;
+			const viewH = vr.height;
+
+			const scaledW = baseW * scale;
+			const scaledH = baseH * scale;
+
+			const minTx = viewW - scaledW;
+			const minTy = viewH - scaledH;
+
+			if (scaledW <= viewW) tx = (viewW - scaledW) / 2;
+			else tx = clamp(tx, minTx, 0);
+
+			if (scaledH <= viewH) ty = (viewH - scaledH) / 2;
+			else ty = clamp(ty, minTy, 0);
+
+			return { tx, ty };
+		}
+
+		function setState(next, withTransition = false) {
+			state = { ...state, ...next };
+			state.scale = clamp(state.scale, MIN_SCALE, MAX_SCALE);
+
+			const c = clampPan(state.tx, state.ty, state.scale);
+			state.tx = c.tx;
+			state.ty = c.ty;
+
+			applyTransform(withTransition);
+		}
 
 		async function loadBoundariesOnce() {
 			if (boundariesCache) return boundariesCache;
@@ -1239,26 +1035,6 @@
 			return { minX, minY, maxX, maxY };
 		}
 
-		function clampPan(tx, ty, scale) {
-			const vr = viewport.getBoundingClientRect();
-			const viewW = vr.width;
-			const viewH = vr.height;
-
-			const scaledW = baseW * scale;
-			const scaledH = baseH * scale;
-
-			const minTx = viewW - scaledW;
-			const minTy = viewH - scaledH;
-
-			if (scaledW <= viewW) tx = (viewW - scaledW) / 2;
-			else tx = clamp(tx, minTx, 0);
-
-			if (scaledH <= viewH) ty = (viewH - scaledH) / 2;
-			else ty = clamp(ty, minTy, 0);
-
-			return { tx, ty };
-		}
-
 		function fitRectToViewport(rect, paddingPx = 12) {
 			const vr = viewport.getBoundingClientRect();
 			const viewW = vr.width;
@@ -1276,6 +1052,7 @@
 
 			let scale = Math.min(availW / rectW, availH / rectH);
 			scale *= 1.04;
+			scale = clamp(scale, MIN_SCALE, MAX_SCALE);
 
 			const cxImg = expanded.minX + rectW / 2;
 			const cyImg = expanded.minY + rectH / 2;
@@ -1286,12 +1063,8 @@
 			let tx = cxView - (cxImg * scale);
 			let ty = cyView - (cyImg * scale);
 
-			({ tx, ty } = clampPan(tx, ty, scale));
-
-			layer.style.transform = `translate(${tx}px, ${ty}px) scale(${scale})`;
-
-			const inv = clamp(1 / scale, 0.18, 1.25);
-			wrapper.style.setProperty("--dot-inv-scale", String(inv));
+			const c = clampPan(tx, ty, scale);
+			setState({ scale, tx: c.tx, ty: c.ty }, true);
 			return true;
 		}
 
@@ -1329,29 +1102,162 @@
 			if (!bounds) bounds = computeBoundsFromDots();
 			if (!bounds) return;
 
-			const old = layer.style.transition;
-			layer.style.transition = "transform 260ms ease";
 			fitRectToViewport(bounds, 12);
-			setTimeout(() => { layer.style.transition = old || ""; }, 320);
 		}
 
+		// -------- Pointer-based pan/pinch ----------
+		const pointers = new Map(); // pointerId -> {x,y}
+		let gesture = null; // {mode, startScale, startTx, startTy, startX, startY, startDist}
+
+		function isOnDot(target) {
+			return !!(target && target.closest && target.closest(".map-dot-interactive"));
+		}
+
+		function dist(a, b) {
+			const dx = a.x - b.x, dy = a.y - b.y;
+			return Math.hypot(dx, dy);
+		}
+
+		function mid(a, b) {
+			return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+		}
+
+		function zoomAboutClientPoint(targetScale, clientX, clientY) {
+			targetScale = clamp(targetScale, MIN_SCALE, MAX_SCALE);
+
+			const vr = viewport.getBoundingClientRect();
+			const px = clientX - vr.left;
+			const py = clientY - vr.top;
+
+			const layerX = (px - state.tx) / state.scale;
+			const layerY = (py - state.ty) / state.scale;
+
+			let tx = px - layerX * targetScale;
+			let ty = py - layerY * targetScale;
+
+			const c = clampPan(tx, ty, targetScale);
+			setState({ scale: targetScale, tx: c.tx, ty: c.ty }, false);
+		}
+
+		viewport.addEventListener("pointerdown", (e) => {
+			if (isOnDot(e.target)) return; // let dot click
+			viewport.setPointerCapture(e.pointerId);
+			pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+			if (pointers.size === 1) {
+				gesture = {
+					mode: "pan",
+					startScale: state.scale,
+					startTx: state.tx,
+					startTy: state.ty,
+					startX: e.clientX,
+					startY: e.clientY,
+				};
+			} else if (pointers.size === 2) {
+				const pts = Array.from(pointers.values());
+				gesture = {
+					mode: "pinch",
+					startScale: state.scale,
+					startTx: state.tx,
+					startTy: state.ty,
+					startDist: dist(pts[0], pts[1]),
+				};
+			}
+
+			e.preventDefault();
+		}, { passive: false });
+
+		viewport.addEventListener("pointermove", (e) => {
+			if (!pointers.has(e.pointerId) || !gesture) return;
+			pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+			if (gesture.mode === "pan" && pointers.size === 1) {
+				const dx = e.clientX - gesture.startX;
+				const dy = e.clientY - gesture.startY;
+				setState({ tx: gesture.startTx + dx, ty: gesture.startTy + dy }, false);
+			}
+
+			if (gesture.mode === "pinch" && pointers.size === 2) {
+				const pts = Array.from(pointers.values());
+				const a = pts[0], b = pts[1];
+				const m = mid(a, b);
+				const d = dist(a, b);
+
+				const factor = d / Math.max(10, gesture.startDist);
+				const targetScale = clamp(gesture.startScale * factor, MIN_SCALE, MAX_SCALE);
+
+				// Use gesture baseline to avoid jitter accumulation
+				state.scale = gesture.startScale;
+				state.tx = gesture.startTx;
+				state.ty = gesture.startTy;
+
+				zoomAboutClientPoint(targetScale, m.x, m.y);
+			}
+
+			e.preventDefault();
+		}, { passive: false });
+
+		function endPointer(e) {
+			if (pointers.has(e.pointerId)) pointers.delete(e.pointerId);
+
+			if (pointers.size === 1) {
+				const remaining = Array.from(pointers.values())[0];
+				gesture = {
+					mode: "pan",
+					startScale: state.scale,
+					startTx: state.tx,
+					startTy: state.ty,
+					startX: remaining.x,
+					startY: remaining.y,
+				};
+			} else if (pointers.size === 0) {
+				gesture = null;
+			}
+		}
+
+		viewport.addEventListener("pointerup", endPointer, { passive: true });
+		viewport.addEventListener("pointercancel", endPointer, { passive: true });
+
+		// Desktop wheel/trackpad zoom
+		viewport.addEventListener("wheel", (e) => {
+			if (isOnDot(e.target)) return;
+			e.preventDefault();
+
+			const zoomIntensity = 0.0015;
+			const factor = Math.exp(-e.deltaY * zoomIntensity);
+			const next = state.scale * factor;
+
+			zoomAboutClientPoint(next, e.clientX, e.clientY);
+		}, { passive: false });
+
+		// Init fit
 		applySectionZoomSafe("init");
 
+		// Resize: keep current zoom/pan but clamp it
 		let t = null;
 		window.addEventListener("resize", () => {
 			clearTimeout(t);
-			t = setTimeout(() => applySectionZoomSafe("resize"), 150);
+			t = setTimeout(() => {
+				updateLayerSizeFromImage();
+				setState({ scale: state.scale, tx: state.tx, ty: state.ty }, false);
+			}, 150);
 		});
 
 		window.addEventListener("orientationchange", () => {
 			clearTimeout(t);
-			t = setTimeout(() => applySectionZoomSafe("orientation"), 250);
+			t = setTimeout(() => {
+				updateLayerSizeFromImage();
+				setState({ scale: state.scale, tx: state.tx, ty: state.ty }, false);
+			}, 250);
 		});
 
 		window.addEventListener("pageshow", (e) => {
 			if (e.persisted) {
 				clearTimeout(t);
-				t = setTimeout(() => applySectionZoomSafe("pageshow"), 120);
+				t = setTimeout(() => {
+					updateLayerSizeFromImage();
+					setState({ scale: state.scale, tx: state.tx, ty: state.ty }, false);
+				}, 120);
 			}
 		});
 	})();
@@ -1424,7 +1330,6 @@
 
 		cards.forEach(hydrateFromDataset);
 
-		// Prevent double-saves while one is in-flight
 		function isSaving(card) { return card.dataset.saving === "1"; }
 		function setSaving(card, val) { card.dataset.saving = val ? "1" : "0"; }
 
@@ -1482,22 +1387,18 @@
 					pointsSpan.textContent = data.points;
 				}
 
-				// ✅ Re-enable Save immediately (don’t wait for other fetches)
 				if (saveBtn) saveBtn.disabled = false;
 
-				// 🔥 Background refreshes (do not block UI)
 				Promise.allSettled([
 					refreshTotalPoints(),
 					refreshDoneDotsAndActiveTab(),
 				]).then(() => {
-					// position can be heavier; run after the others
 					refreshPosition();
 				}).catch(() => {});
 			} catch (e) {
 				showStatus(status, "Network error", "err");
 			} finally {
 				setSaving(card, false);
-				// Safety net
 				if (saveBtn) saveBtn.disabled = false;
 			}
 		}
@@ -1565,7 +1466,6 @@
 					return isNaN(n) ? 1 : Math.max(1, n);
 				}
 
-				// initialize minus disabled state (but don't mark dirty)
 				(function initStepper() {
 					const n = getAttempt();
 					if (stepper) stepper.dataset.selectedAttempt = String(n);
@@ -1589,13 +1489,11 @@
 
 				if (flashBtn) {
 					flashBtn.addEventListener("click", () => {
-						// UI only (manual save)
 						flashBtn.classList.toggle("is-active");
 
 						const nowFlashed = flashBtn.classList.contains("is-active");
 						if (toppedToggle) toppedToggle.classList.toggle("is-active", false);
 
-						// Flash implies topped+flashed; keep attempts at 1 (never 0)
 						if (nowFlashed) setAttempt(1);
 						else markDirty(card);
 					});
