@@ -8,13 +8,47 @@
 	<style>
 		* { margin: 0; padding: 0; box-sizing: border-box; }
 
+		/* ===========================
+		   ✅ MOBILE “BOTTOM FLICK” FIX
+		   - Avoid raw 100vh on mobile (address bar resizing causes jumps)
+		   - Use dvh/svh with fallbacks
+		   =========================== */
+		:root {
+			--app-height: 100vh; /* fallback */
+			--safe-bottom: 16px; /* extra breathing room at bottom */
+		}
+
+		/* Modern browsers: dynamic viewport height (fixes address bar resize jump) */
+		@supports (height: 100dvh) {
+			:root { --app-height: 100dvh; }
+		}
+
+		/* iOS Safari older fallback */
+		@supports (height: -webkit-fill-available) {
+			:root { --app-height: -webkit-fill-available; }
+		}
+
+		html {
+			height: 100%;
+			/* Prevent iOS “scroll bounce” from chaining weirdly */
+			overscroll-behavior-y: none;
+		}
+
 		body {
 			font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
 			background: linear-gradient(135deg, #0a1628 0%, #1a2942 100%);
-			min-height: 100vh;
+			/* ✅ replace min-height: 100vh */
+			min-height: var(--app-height);
 			display: flex;
 			flex-direction: column;
 			color: #fff;
+
+			overflow-x: hidden;
+			/* Helps iOS avoid janky scroll stop/start */
+			-webkit-overflow-scrolling: touch;
+			/* Prevent scroll-chaining rubber band weirdness */
+			overscroll-behavior-y: none;
+			touch-action: pan-y;
 		}
 
 		/* Top nav */
@@ -48,6 +82,9 @@
 			margin: 0 auto;
 			padding: 2rem;
 			width: 100%;
+
+			/* ✅ small bottom padding helps prevent “snap” when reaching end */
+			padding-bottom: calc(2rem + env(safe-area-inset-bottom, 0px) + var(--safe-bottom));
 		}
 
 		/* Competitor header card */
@@ -243,6 +280,8 @@
 			aspect-ratio: var(--map-ar, 4 / 3);
 			overflow: hidden;
 			background: #000;
+
+			/* ✅ keep scrolling stable while still allowing page scroll */
 			touch-action: pan-y;
 		}
 
@@ -263,17 +302,10 @@
 			pointer-events: none;
 		}
 
-		/* ===== MARKERS (fixed on-screen size relative to full-map state) =====
-		   Phone felt "less different" because your sizes are in px + clamp floors.
-		   So we:
-		     - keep your existing normalized scaling behaviour
-		     - add a marker min var (so we can lower it on mobile)
-		     - set smaller base sizes on mobile breakpoints
-		*/
 		#mapWrapperSections {
-			--marker-base: 7px;  /* desktop full-map dot size */
-			--marker-min: 4px;   /* minimum dot size during zoom */
-			--marker-scale: 1;   /* set by JS */
+			--marker-base: 7px;
+			--marker-min: 4px;
+			--marker-scale: 1;
 		}
 
 		.map-marker {
@@ -345,10 +377,9 @@
 			.section-card-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 		}
 
-		/* Compact on mobile */
 		@media (max-width: 768px) {
 			.nav { padding: 1rem; }
-			.container { padding: 1.5rem 1rem; }
+			.container { padding: 1.5rem 1rem; padding-bottom: calc(1.5rem + env(safe-area-inset-bottom, 0px) + var(--safe-bottom)); }
 			.comp-header { padding: 1.5rem; }
 			.comp-name { font-size: 1.6rem; }
 			.comp-pill { min-width: 90px; }
@@ -365,7 +396,6 @@
 			.section-stat-value { font-size: 0.92rem; }
 			.section-progress { margin-top: 0.45rem; height: 8px; }
 
-			/* ✅ more noticeable dot sizing on phones */
 			#mapWrapperSections { --marker-base: 6px; --marker-min: 3px; }
 		}
 
@@ -380,7 +410,6 @@
 			.section-card-meta { font-size: 0.72rem; }
 			.section-progress { height: 7px; margin-top: 0.4rem; }
 
-			/* ✅ even smaller base+min on very small screens */
 			#mapWrapperSections { --marker-base: 5px; --marker-min: 2.5px; }
 		}
 	</style>
@@ -600,7 +629,6 @@
 			function applyTransform() {
 				layer.style.transform = `translate(${tx}px, ${ty}px) scale(${scale})`;
 
-				// Marker scaling normalized relative to the "full map" scale (minScale)
 				if (wrapper) {
 					const normalized = Math.max(1, scale / (minScale || 1));
 					wrapper.style.setProperty("--marker-scale", String(normalized));
@@ -643,14 +671,12 @@
 
 				clampPan();
 
-				// ensure baseline marker size always returns to full-map size
 				if (wrapper) wrapper.style.setProperty("--marker-scale", "1");
 
 				if (animate) animateTo(applyTransform, 220);
 				else applyTransform();
 			}
 
-			// -------- Boundary zoom --------
 			const compSlug = "{{ comp_slug or '' }}";
 			let boundariesCache = null;
 
@@ -710,10 +736,7 @@
 				const availH = Math.max(1, viewH - paddingPx * 2);
 
 				let targetScale = Math.min(availW / rectW, availH / rectH);
-
-				// tiny bump-in so it feels closer to the boundary without cutting it off
 				targetScale *= 1.04;
-
 				targetScale = clamp(targetScale, minScale, maxScale);
 
 				const cxImg = rect.minX + rectW / 2;
