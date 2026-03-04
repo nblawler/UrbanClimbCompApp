@@ -18,13 +18,43 @@
 	<style>
 		* { margin: 0; padding: 0; box-sizing: border-box; }
 
+		/* ===========================
+		   ✅ MOBILE “BOTTOM FLICK” FIX
+		   - Avoid raw 100vh on mobile (address bar resizing causes jumps)
+		   - Use dvh/-webkit-fill-available fallbacks
+		   - Add safe bottom padding + stop rubber-band scroll
+		   =========================== */
+		:root {
+			--app-height: 100vh; /* fallback */
+			--safe-bottom: 16px;
+		}
+		@supports (height: 100dvh) {
+			:root { --app-height: 100dvh; }
+		}
+		@supports (height: -webkit-fill-available) {
+			:root { --app-height: -webkit-fill-available; }
+		}
+
+		html {
+			height: 100%;
+			overscroll-behavior-y: none;
+		}
+
 		body {
 			font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
 			background: linear-gradient(135deg, #0a1628 0%, #1a2942 100%);
-			min-height: 100vh;
+
+			/* ✅ replace min-height: 100vh */
+			min-height: var(--app-height);
+
 			display: flex;
 			flex-direction: column;
 			color: #fff;
+
+			overflow-x: hidden;
+			-webkit-overflow-scrolling: touch;
+			overscroll-behavior-y: none;
+			touch-action: pan-y;
 		}
 
 		/* Top nav */
@@ -64,6 +94,9 @@
 			margin: 0 auto;
 			padding: 2rem;
 			width: 100%;
+
+			/* ✅ prevents “snap” at the end on iOS */
+			padding-bottom: calc(2rem + env(safe-area-inset-bottom, 0px) + var(--safe-bottom));
 		}
 
 		/* Back button */
@@ -284,12 +317,19 @@
 			overflow-y: auto;
 			border-radius: 1rem;
 			border: 1px solid rgba(255, 255, 255, 0.08);
+
+			/* ✅ helps iOS scroll stability inside container */
+			-webkit-overflow-scrolling: touch;
+			overscroll-behavior: contain;
 		}
 
 		/* Responsive */
 		@media (max-width: 768px) {
 			.nav { padding: 1rem; }
-			.container { padding: 1.5rem 1rem; }
+			.container {
+				padding: 1.5rem 1rem;
+				padding-bottom: calc(1.5rem + env(safe-area-inset-bottom, 0px) + var(--safe-bottom));
+			}
 			.comp-header { padding: 1.5rem; }
 			.comp-name { font-size: 1.6rem; }
 			.stats-card { padding: 1.5rem; }
