@@ -276,8 +276,12 @@
 			color: rgba(255, 255, 255, 0.92);
 		}
 		.details-table tr:last-child td { border-bottom: 0; }
+
+		/* ✅ FIX: center the Attempts column values (and header) like the other columns */
 		.details-table th:nth-child(2),
-		.details-table td:nth-child(2),
+		.details-table td:nth-child(2) { text-align: center; }
+
+		/* keep Score right-aligned */
 		.details-table th:nth-child(3),
 		.details-table td:nth-child(3) { text-align: right; }
 
