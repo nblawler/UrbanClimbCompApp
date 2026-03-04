@@ -248,8 +248,15 @@
 			margin-bottom: 2rem;
 		}
 
+		/* Section header row with expand button (outside map) */
 		.section-header {
 			margin-bottom: 1.5rem;
+		}
+		.section-header-row{
+			display:flex;
+			align-items:center;
+			justify-content:space-between;
+			gap:1rem;
 		}
 
 		.section-title {
@@ -257,6 +264,29 @@
 			font-weight: 900;
 			color: #fff;
 		}
+
+		/* Tiny expand button (NOT on the map) */
+		.map-expand-btn{
+			border: 1px solid rgba(255,255,255,0.18);
+			background: rgba(255,255,255,0.08);
+			color:#fff;
+			border-radius: 999px;
+			width: 42px;
+			height: 42px;
+			display:inline-flex;
+			align-items:center;
+			justify-content:center;
+			font-weight: 900;
+			cursor:pointer;
+			transition: transform 0.15s, background 0.15s, border-color 0.15s;
+			flex: 0 0 auto;
+		}
+		.map-expand-btn:hover{
+			transform: translateY(-1px);
+			background: rgba(255,255,255,0.12);
+			border-color: rgba(255,255,255,0.28);
+		}
+		.map-expand-btn:active{ transform: translateY(0); }
 
 		/* Map wrapper */
 		.map-wrapper {
@@ -269,48 +299,31 @@
 			margin-bottom: 2rem;
 		}
 
-		/* ✅ Fullscreen button */
-		.map-fs-btn {
-			position: absolute;
-			top: 12px;
-			right: 12px;
-			z-index: 50;
-			border: 1px solid rgba(255, 255, 255, 0.22);
-			background: rgba(0, 0, 0, 0.45);
-			backdrop-filter: blur(10px);
-			color: #fff;
-			border-radius: 999px;
-			padding: 0.55rem 0.85rem;
-			font-weight: 900;
-			font-size: 0.8rem;
-			cursor: pointer;
-			display: inline-flex;
-			align-items: center;
-			gap: 0.5rem;
-			user-select: none;
-			transition: transform 0.15s, background 0.15s, border-color 0.15s;
+		/* ✅ Pseudo-fullscreen (phone-safe) */
+		body.map-expanded{
+			overflow:hidden;
+			touch-action:none;
 		}
-		.map-fs-btn:hover {
-			transform: translateY(-1px);
-			background: rgba(0, 0, 0, 0.6);
-			border-color: rgba(255, 255, 255, 0.35);
-		}
-		.map-fs-btn:active { transform: translateY(0px); }
 
-		/* When fullscreen */
-		.map-wrapper:fullscreen {
+		#sectionMapWrapper.is-expanded{
+			position: fixed;
+			inset: 0;
+			z-index: 9999;
 			border-radius: 0;
 			border: none;
+			margin: 0;
 			background: #000;
 		}
-		.map-wrapper:fullscreen .map-viewport {
-			max-height: none;
+
+		#sectionMapWrapper.is-expanded .map-viewport{
 			height: 100%;
+			max-height: none;
 			aspect-ratio: auto;
 			min-height: 100%;
 		}
-		/* Optional: slightly larger dots in fullscreen */
-		.map-wrapper:fullscreen {
+
+		/* Optional: slightly larger dots in expanded mode */
+		#sectionMapWrapper.is-expanded{
 			--dot-base: 34px;
 		}
 
@@ -852,8 +865,9 @@
 
 		{% if section_climbs is defined %}
 		<section class="map-card">
-			<header class="section-header">
+			<header class="section-header section-header-row">
 				<h2 class="section-title">{{ section.name }}</h2>
+				<button type="button" class="map-expand-btn" id="mapExpandBtn" aria-label="Expand map">⤢</button>
 			</header>
 
 			<div
@@ -862,11 +876,6 @@
 				data-comp-slug="{{ comp_slug or '' }}"
 				data-section-id="{{ section.id if section is defined and section else '' }}"
 			>
-				<!-- ✅ Fullscreen button -->
-				<button type="button" class="map-fs-btn" id="mapFullscreenBtn" aria-label="Toggle fullscreen">
-					⛶ Fullscreen
-				</button>
-
 				{% if gym_map_url %}
 					<div class="map-viewport" id="sectionMapViewport">
 						<div class="map-layer" id="sectionMapLayer">
@@ -1061,73 +1070,65 @@
 		const img      = document.getElementById("sectionMapImage");
 		if (!wrapper || !viewport || !layer || !img) return;
 
-		// ===== Fullscreen toggle (double-click + button) =====
-		const fsBtn = document.getElementById("mapFullscreenBtn");
+		// ===== Pseudo-fullscreen expand (phone-safe) =====
+		const expandBtn = document.getElementById("mapExpandBtn");
 
-		function isFullscreen() {
-			return document.fullscreenElement === wrapper;
+		function isExpanded() {
+			return wrapper.classList.contains("is-expanded");
 		}
 
-		async function enterFullscreen() {
-			if (!wrapper.requestFullscreen) return;
-			try { await wrapper.requestFullscreen({ navigationUI: "hide" }); } catch (_) {}
+		function syncExpandUI() {
+			if (!expandBtn) return;
+			expandBtn.textContent = isExpanded() ? "⤡" : "⤢";
+			expandBtn.setAttribute("aria-label", isExpanded() ? "Collapse map" : "Expand map");
 		}
 
-		async function exitFullscreen() {
-			if (!document.exitFullscreen) return;
-			try { await document.exitFullscreen(); } catch (_) {}
+		function toggleExpanded() {
+			wrapper.classList.toggle("is-expanded");
+			document.body.classList.toggle("map-expanded", isExpanded());
+			syncExpandUI();
+
+			setTimeout(() => applySectionZoomSafe("expandToggle"), 50);
+			setTimeout(() => applySectionZoomSafe("expandToggle2"), 180);
 		}
 
-		async function toggleFullscreen() {
-			if (isFullscreen()) await exitFullscreen();
-			else await enterFullscreen();
-		}
-
-		if (fsBtn) {
-			fsBtn.addEventListener("click", (e) => {
+		if (expandBtn) {
+			expandBtn.addEventListener("click", (e) => {
 				e.preventDefault();
-				toggleFullscreen();
+				toggleExpanded();
 			});
 		}
 
-		// Double-click on the map toggles fullscreen (ignore double-clicking a dot/button)
+		// Double-click toggles (ignore dots)
 		wrapper.addEventListener("dblclick", (e) => {
 			const onDot = e.target.closest(".map-dot-interactive");
-			const onBtn = e.target.closest(".map-fs-btn");
-			if (onDot || onBtn) return;
+			if (onDot) return;
 			e.preventDefault();
-			toggleFullscreen();
+			toggleExpanded();
 		});
 
-		// Mobile: treat quick double-tap as fullscreen toggle
+		// Mobile: quick double-tap toggles (ignore dots)
 		let lastTap = 0;
 		wrapper.addEventListener("touchend", (e) => {
+			const onDot = e.target.closest(".map-dot-interactive");
+			if (onDot) return;
+
 			const now = Date.now();
 			const delta = now - lastTap;
 			lastTap = now;
 
-			const onDot = e.target.closest(".map-dot-interactive");
-			const onBtn = e.target.closest(".map-fs-btn");
-			if (onDot || onBtn) return;
-
 			if (delta > 0 && delta < 300) {
 				e.preventDefault();
-				toggleFullscreen();
+				toggleExpanded();
 			}
 		}, { passive: false });
 
-		function syncFsUI() {
-			if (!fsBtn) return;
-			fsBtn.textContent = isFullscreen() ? "⤢ Exit fullscreen" : "⛶ Fullscreen";
-		}
-
-		document.addEventListener("fullscreenchange", () => {
-			syncFsUI();
-			setTimeout(() => applySectionZoomSafe("fullscreenchange"), 50);
-			setTimeout(() => applySectionZoomSafe("fullscreenchange2"), 180);
+		// ESC closes on desktop
+		document.addEventListener("keydown", (e) => {
+			if (e.key === "Escape" && isExpanded()) toggleExpanded();
 		});
 
-		syncFsUI();
+		syncExpandUI();
 
 		const compSlug  = (wrapper.dataset.compSlug || "").trim();
 		const sectionId = String(wrapper.dataset.sectionId || "").trim();
