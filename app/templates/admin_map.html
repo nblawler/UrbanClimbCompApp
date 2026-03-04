@@ -1,4 +1,4 @@
-<!-- admin_map.html (FULL DROP-IN REPLACEMENT) -->
+<!-- admin_map.html -->
 <!doctype html>
 <html lang="en">
 <head>
@@ -262,9 +262,10 @@
 
     .field input::placeholder { color: rgba(255,255,255,0.3); }
 
+    /* UPDATED: single column row now */
     .field-row {
       display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
+      grid-template-columns: minmax(0, 1fr);
       gap: 0.5rem;
     }
 
@@ -632,16 +633,8 @@
 
         <div class="field field-row">
           <div>
-            <label for="base_points">Base points</label>
+            <label for="base_points">Points</label>
             <input type="number" id="base_points" name="base_points" min="0" step="1" required />
-          </div>
-          <div>
-            <label for="penalty_per_attempt">Penalty / attempt</label>
-            <input type="number" id="penalty_per_attempt" name="penalty_per_attempt" min="0" step="1" required />
-          </div>
-          <div>
-            <label for="attempt_cap">Attempt cap</label>
-            <input type="number" id="attempt_cap" name="attempt_cap" min="1" step="1" value="5" required />
           </div>
         </div>
 

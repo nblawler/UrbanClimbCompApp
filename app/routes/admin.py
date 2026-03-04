@@ -896,8 +896,6 @@ def admin_map_add_climb():
     colour = (request.form.get("colour") or "").strip()
 
     base_raw = (request.form.get("base_points") or "").strip()
-    penalty_raw = (request.form.get("penalty_per_attempt") or "").strip()
-    cap_raw = (request.form.get("attempt_cap") or "").strip()
 
     x_raw = (request.form.get("x_percent") or "").strip()
     y_raw = (request.form.get("y_percent") or "").strip()
@@ -938,28 +936,27 @@ def admin_map_add_climb():
         db.session.rollback()
         return back(current_comp.id)
 
-    if base_raw == "" or penalty_raw == "" or cap_raw == "":
-        flash("Base points, penalty, and attempt cap are required.", "warning")
+    if base_raw == "":
+        flash("Base points are required.", "warning")
         db.session.rollback()
         return back(current_comp.id)
 
-    if not (base_raw.lstrip("-").isdigit() and penalty_raw.lstrip("-").isdigit() and cap_raw.lstrip("-").isdigit()):
-        flash("Base points, penalty, and attempt cap must be whole numbers.", "warning")
+    # allow negative check via int conversion; but require whole number
+    if not base_raw.lstrip("-").isdigit():
+        flash("Base points must be a whole number.", "warning")
         db.session.rollback()
         return back(current_comp.id)
 
     climb_number = int(climb_raw)
     base_points = int(base_raw)
-    penalty_per_attempt = int(penalty_raw)
-    attempt_cap = int(cap_raw)
 
     if climb_number <= 0:
         flash("Climb number must be positive.", "warning")
         db.session.rollback()
         return back(current_comp.id)
 
-    if base_points < 0 or penalty_per_attempt < 0 or attempt_cap <= 0:
-        flash("Base points/penalty must be ≥ 0 and attempt cap must be > 0.", "warning")
+    if base_points < 0:
+        flash("Base points must be ≥ 0.", "warning")
         db.session.rollback()
         return back(current_comp.id)
 
@@ -993,8 +990,7 @@ def admin_map_add_climb():
         climb_number=climb_number,
         colour=colour or None,
         base_points=base_points,
-        penalty_per_attempt=penalty_per_attempt,
-        attempt_cap=attempt_cap,
+        # penalty_per_attempt and attempt_cap removed (no longer used)
         x_percent=x_percent,
         y_percent=y_percent,
     )
