@@ -888,9 +888,15 @@
 		let boundariesCache = null;
 		let baseW = 1, baseH = 1;
 
+		// --- Transform state ---
 		let state = { scale: 1, tx: 0, ty: 0 };
-		const MIN_SCALE = 0.6;
+
+		// ✅ MAX zoom-in
 		const MAX_SCALE = 6.0;
+
+		// ✅ MIN zoom-out becomes the fitted initial view (locked after init)
+		let MIN_SCALE = 1.0;         // temporary
+		let minScaleLocked = false;  // once true, never decreases
 
 		function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
 		function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
@@ -915,6 +921,7 @@
 			const minTx = viewW - scaledW;
 			const minTy = viewH - scaledH;
 
+			// If scaled content is smaller than viewport, center it
 			if (scaledW <= viewW) tx = (viewW - scaledW) / 2;
 			else tx = clamp(tx, minTx, 0);
 
@@ -933,6 +940,11 @@
 			state.ty = c.ty;
 
 			applyTransform(withTransition);
+		}
+
+		function lockMinScaleToCurrent() {
+			MIN_SCALE = Math.max(0.01, state.scale);
+			minScaleLocked = true;
 		}
 
 		async function loadBoundariesOnce() {
@@ -1052,7 +1064,7 @@
 
 			let scale = Math.min(availW / rectW, availH / rectH);
 			scale *= 1.04;
-			scale = clamp(scale, MIN_SCALE, MAX_SCALE);
+			scale = clamp(scale, 0.01, MAX_SCALE); // don't clamp to MIN_SCALE yet
 
 			const cxImg = expanded.minX + rectW / 2;
 			const cyImg = expanded.minY + rectH / 2;
@@ -1064,7 +1076,11 @@
 			let ty = cyView - (cyImg * scale);
 
 			const c = clampPan(tx, ty, scale);
-			setState({ scale, tx: c.tx, ty: c.ty }, true);
+
+			// Set state directly, then lock MIN_SCALE to this fitted view
+			state = { scale, tx: c.tx, ty: c.ty };
+			applyTransform(true);
+			lockMinScaleToCurrent();
 			return true;
 		}
 
@@ -1100,7 +1116,13 @@
 				if (pts && pts.length >= 3) bounds = computeBoundsPxFromPercentPts(pts);
 			}
 			if (!bounds) bounds = computeBoundsFromDots();
-			if (!bounds) return;
+
+			if (!bounds) {
+				state = { scale: 1, tx: 0, ty: 0 };
+				applyTransform(true);
+				lockMinScaleToCurrent();
+				return;
+			}
 
 			fitRectToViewport(bounds, 12);
 		}
@@ -1230,16 +1252,17 @@
 			zoomAboutClientPoint(next, e.clientX, e.clientY);
 		}, { passive: false });
 
-		// Init fit
+		// Init fit (locks MIN_SCALE to the initial fitted view)
 		applySectionZoomSafe("init");
 
-		// Resize: keep current zoom/pan but clamp it
+		// Resize/orientation: keep current zoom/pan but clamp it
 		let t = null;
 		window.addEventListener("resize", () => {
 			clearTimeout(t);
 			t = setTimeout(() => {
 				updateLayerSizeFromImage();
 				setState({ scale: state.scale, tx: state.tx, ty: state.ty }, false);
+				if (!minScaleLocked) lockMinScaleToCurrent();
 			}, 150);
 		});
 
@@ -1248,6 +1271,7 @@
 			t = setTimeout(() => {
 				updateLayerSizeFromImage();
 				setState({ scale: state.scale, tx: state.tx, ty: state.ty }, false);
+				if (!minScaleLocked) lockMinScaleToCurrent();
 			}, 250);
 		});
 
@@ -1257,6 +1281,7 @@
 				t = setTimeout(() => {
 					updateLayerSizeFromImage();
 					setState({ scale: state.scale, tx: state.tx, ty: state.ty }, false);
+					if (!minScaleLocked) lockMinScaleToCurrent();
 				}, 120);
 			}
 		});
