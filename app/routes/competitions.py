@@ -609,18 +609,24 @@ def comp_competitor_stats(slug, competitor_id, mode="my"):
     - "my"       personal stats
     - "overall"  overall stats
     - "climber"  spectator-ish view of a competitor (still blocked if not live)
+
+    Global difficulty rules:
+    - If tops >= N (N=3): use avg attempts on TOPS only (Option C)
+      * hard   if avg_attempts_tops >= 6
+      * medium if avg_attempts_tops >= 3
+      * easy   otherwise (<=2.xx)
+    - If tops < N: fallback to base_points ranking across the comp:
+      bottom third = easy, middle third = medium, top third = hard
     """
     current_comp = get_comp_or_404(slug)
 
     # Block anything not live (scheduled or finished)
     if not comp_is_live(current_comp):
-        # If it’s finished, be explicit
         if comp_is_finished(current_comp):
             flash("That competition has finished — stats are locked.", "warning")
         else:
             flash("That competition isn’t live yet — stats aren’t available.", "warning")
 
-        # prevent stale nav context hanging around
         session.pop("active_comp_slug", None)
         return redirect("/my-comps")
 
@@ -670,27 +676,66 @@ def comp_competitor_stats(slug, competitor_id, mode="my"):
         .all()
     )
 
-    # Build global stats per climb
+    # Build global stats per climb (TOPS ONLY) + attempts for tops
     global_by_climb = {}
     for s in all_scores:
         info = global_by_climb.setdefault(
             s.climb_number,
-            {
-                "attempts_total": 0,
-                "tops": 0,
-                "flashes": 0,
-                "competitors": set(),
-                "top_attempts_total": 0,  # attempts summed ONLY for topped ascents
-            },
+            {"tops": 0, "top_attempts_total": 0},
         )
-        info["attempts_total"] += (s.attempts or 0)
-        info["competitors"].add(s.competitor_id)
-
         if s.topped:
             info["tops"] += 1
             info["top_attempts_total"] += (s.attempts or 0)
-            if s.attempts == 1:
-                info["flashes"] += 1
+
+    # ---- Base points ranking fallback (for low sample tops) ----
+    # Build: climb_number -> base_points for this competition
+    all_climbs_in_comp = (
+        db.session.query(SectionClimb)
+        .join(Section, SectionClimb.section_id == Section.id)
+        .filter(Section.competition_id == current_comp.id)
+        .all()
+    )
+
+    base_points_by_climb = {}
+    base_points_list = []
+    for sc in all_climbs_in_comp:
+        bp = sc.base_points
+        if bp is None:
+            continue
+        base_points_by_climb[sc.climb_number] = bp
+        base_points_list.append(bp)
+
+    # Sort base points to compute thirds
+    base_points_list.sort()
+    n_bp = len(base_points_list)
+
+    def base_points_fallback_difficulty(climb_number: int) -> str:
+        """
+        Fallback difficulty based on where this climb's base_points sits
+        among all climbs in the competition.
+
+        bottom 50% -> easy
+        next 25%   -> medium
+        top 25%    -> hard
+        """
+        if n_bp <= 0:
+            return "medium"  # no base points configured anywhere
+
+        bp = base_points_by_climb.get(climb_number)
+        if bp is None:
+            return "medium"  # this climb has no base points; choose neutral
+
+        # Rank position (0..n_bp-1). Using first index for ties is fine.
+        idx = base_points_list.index(bp)
+
+        cut_easy = 0.50 * n_bp
+        cut_med  = 0.75 * n_bp
+
+        if idx < cut_easy:
+            return "easy"
+        elif idx < cut_med:
+            return "medium"
+        return "hard"
 
     # Leaderboard position
     rows, _ = build_leaderboard(None, competition_id=current_comp.id)
@@ -703,6 +748,11 @@ def comp_competitor_stats(slug, competitor_id, mode="my"):
     section_stats = []
     personal_heatmap_sections = []
     global_heatmap_sections = []
+
+    # Attempts-based difficulty thresholds
+    MIN_TOPS_FOR_DIFFICULTY = 3  # your N
+    HARD_AVG_ATTEMPTS = 6
+    MED_AVG_ATTEMPTS = 3
 
     for sec in sections:
         climbs = (
@@ -739,38 +789,39 @@ def comp_competitor_stats(slug, competitor_id, mode="my"):
 
             personal_cells.append({"climb_number": sc.climb_number, "status": status})
 
-            # Global (attempts-aware difficulty)
+            # Global difficulty
             g = global_by_climb.get(sc.climb_number)
-            if not g or len(g["competitors"]) == 0:
-                g_status = "no-data"
+            if not g or g["tops"] <= 0:
+                # no tops recorded -> low sample -> use base points ranking
+                g_status = base_points_fallback_difficulty(sc.climb_number)
             else:
-                total_comp = len(g["competitors"])
                 tops = g["tops"]
 
-                top_rate = (tops / total_comp) if total_comp > 0 else 0.0
-                avg_attempts_tops = (g["top_attempts_total"] / tops) if tops > 0 else None
-
-                # ---- Difficulty rules ----
-                # 1) Low top rate => hard, regardless of attempts.
-                if top_rate < 0.4:
-                    g_status = "hard"
+                if tops < MIN_TOPS_FOR_DIFFICULTY:
+                    # low sample -> use base points ranking
+                    g_status = base_points_fallback_difficulty(sc.climb_number)
                 else:
-                    # 2) If people ARE topping but it takes lots of attempts on average => hard
-                    if avg_attempts_tops is not None and avg_attempts_tops >= 6:
+                    avg_attempts_tops = g["top_attempts_total"] / tops
+
+                    if avg_attempts_tops >= HARD_AVG_ATTEMPTS:
                         g_status = "hard"
-                    # 3) High top rate AND quick tops => easy
-                    elif top_rate >= 0.8 and avg_attempts_tops is not None and avg_attempts_tops <= 2:
-                        g_status = "easy"
-                    # 4) Everything else => medium
-                    else:
+                    elif avg_attempts_tops >= MED_AVG_ATTEMPTS:
                         g_status = "medium"
+                    else:
+                        g_status = "easy"
 
             global_cells.append({"climb_number": sc.climb_number, "status": g_status})
 
         efficiency = (sec_tops / sec_attempts) if sec_attempts > 0 else 0.0
 
         section_stats.append(
-            {"section": sec, "tops": sec_tops, "attempts": sec_attempts, "efficiency": efficiency, "points": sec_points}
+            {
+                "section": sec,
+                "tops": sec_tops,
+                "attempts": sec_attempts,
+                "efficiency": efficiency,
+                "points": sec_points,
+            }
         )
 
         personal_heatmap_sections.append({"section": sec, "climbs": personal_cells})
@@ -799,6 +850,7 @@ def comp_competitor_stats(slug, competitor_id, mode="my"):
         comp=current_comp,
         comp_slug=slug,
     )
+    
 @competitions_bp.route("/comp/<slug>/competitor/<int:competitor_id>/section/<section_slug>")
 def comp_competitor_section_climbs(slug, competitor_id, section_slug):
     """
