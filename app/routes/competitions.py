@@ -670,16 +670,25 @@ def comp_competitor_stats(slug, competitor_id, mode="my"):
         .all()
     )
 
+    # Build global stats per climb
     global_by_climb = {}
     for s in all_scores:
         info = global_by_climb.setdefault(
             s.climb_number,
-            {"attempts_total": 0, "tops": 0, "flashes": 0, "competitors": set()},
+            {
+                "attempts_total": 0,
+                "tops": 0,
+                "flashes": 0,
+                "competitors": set(),
+                "top_attempts_total": 0,  # attempts summed ONLY for topped ascents
+            },
         )
-        info["attempts_total"] += s.attempts
+        info["attempts_total"] += (s.attempts or 0)
         info["competitors"].add(s.competitor_id)
+
         if s.topped:
             info["tops"] += 1
+            info["top_attempts_total"] += (s.attempts or 0)
             if s.attempts == 1:
                 info["flashes"] += 1
 
@@ -730,21 +739,31 @@ def comp_competitor_stats(slug, competitor_id, mode="my"):
 
             personal_cells.append({"climb_number": sc.climb_number, "status": status})
 
-            # Global
+            # Global (attempts-aware difficulty)
             g = global_by_climb.get(sc.climb_number)
             if not g or len(g["competitors"]) == 0:
                 g_status = "no-data"
             else:
                 total_comp = len(g["competitors"])
                 tops = g["tops"]
-                top_rate = tops / total_comp if total_comp > 0 else 0.0
 
-                if top_rate >= 0.8:
-                    g_status = "easy"
-                elif top_rate >= 0.4:
-                    g_status = "medium"
-                else:
+                top_rate = (tops / total_comp) if total_comp > 0 else 0.0
+                avg_attempts_tops = (g["top_attempts_total"] / tops) if tops > 0 else None
+
+                # ---- Difficulty rules ----
+                # 1) Low top rate => hard, regardless of attempts.
+                if top_rate < 0.4:
                     g_status = "hard"
+                else:
+                    # 2) If people ARE topping but it takes lots of attempts on average => hard
+                    if avg_attempts_tops is not None and avg_attempts_tops >= 6:
+                        g_status = "hard"
+                    # 3) High top rate AND quick tops => easy
+                    elif top_rate >= 0.8 and avg_attempts_tops is not None and avg_attempts_tops <= 2:
+                        g_status = "easy"
+                    # 4) Everything else => medium
+                    else:
+                        g_status = "medium"
 
             global_cells.append({"climb_number": sc.climb_number, "status": g_status})
 
@@ -780,7 +799,6 @@ def comp_competitor_stats(slug, competitor_id, mode="my"):
         comp=current_comp,
         comp_slug=slug,
     )
-
 @competitions_bp.route("/comp/<slug>/competitor/<int:competitor_id>/section/<section_slug>")
 def comp_competitor_section_climbs(slug, competitor_id, section_slug):
     """
