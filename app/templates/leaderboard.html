@@ -8,13 +8,43 @@
 	<style>
 		* { margin: 0; padding: 0; box-sizing: border-box; }
 
+		/* ===========================
+		   ✅ MOBILE “BOTTOM FLICK” FIX
+		   - Avoid raw 100vh on mobile (address bar resizing causes jumps)
+		   - Use dvh/-webkit-fill-available fallbacks
+		   - Add safe bottom padding + stop rubber-band scroll
+		   =========================== */
+		:root{
+			--app-height: 100vh;
+			--safe-bottom: 16px;
+		}
+		@supports (height: 100dvh) {
+			:root{ --app-height: 100dvh; }
+		}
+		@supports (height: -webkit-fill-available) {
+			:root{ --app-height: -webkit-fill-available; }
+		}
+
+		html{
+			height: 100%;
+			overscroll-behavior-y: none;
+		}
+
 		body {
 			font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
 			background: linear-gradient(135deg, #0a1628 0%, #1a2942 100%);
-			min-height: 100vh;
+
+			/* ✅ replace min-height: 100vh */
+			min-height: var(--app-height);
+
 			display: flex;
 			flex-direction: column;
 			color: #fff;
+
+			overflow-x: hidden;
+			-webkit-overflow-scrolling: touch;
+			overscroll-behavior-y: none;
+			touch-action: pan-y;
 		}
 
 		.nav {
@@ -42,6 +72,9 @@
 			margin: 0 auto;
 			padding: 2rem;
 			width: 100%;
+
+			/* ✅ give iOS some breathing room */
+			padding-bottom: calc(2rem + env(safe-area-inset-bottom, 0px) + var(--safe-bottom));
 		}
 
 		.page-header { margin-bottom: 2rem; }
@@ -289,7 +322,10 @@
 
 		@media (max-width: 768px) {
 			.nav { padding: 1rem; }
-			.container { padding: 1.5rem 1rem; }
+			.container {
+				padding: 1.5rem 1rem;
+				padding-bottom: calc(1.5rem + env(safe-area-inset-bottom, 0px) + var(--safe-bottom));
+			}
 			.page-title { font-size: 2rem; }
 			.page-subtitle { font-size: 1rem; }
 
@@ -780,8 +816,9 @@
 
 			window.addEventListener("popstate", e => {
 				const state = e.state || {};
-				const key = state.key || initialFromUrl().key;
-				const page = state.page || initialFromUrl().page;
+				const init = initialFromUrl();
+				const key = state.key || init.key;
+				const page = state.page || init.page;
 				load(key, page, { push: false });
 			});
 
