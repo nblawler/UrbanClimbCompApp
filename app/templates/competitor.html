@@ -875,7 +875,7 @@
 
 	<script>
 	(function () {
-		// ===== Section boundary zoom + pinch/zoom/pan (dots shrink as you zoom in) =====
+		// ===== Section boundary zoom + pinch/zoom/pan (dots shrink as you zoom in) + DOUBLE-TAP RESET =====
 		const wrapper  = document.getElementById("sectionMapWrapper");
 		const viewport = document.getElementById("sectionMapViewport");
 		const layer    = document.getElementById("sectionMapLayer");
@@ -890,6 +890,9 @@
 
 		// --- Transform state ---
 		let state = { scale: 1, tx: 0, ty: 0 };
+
+		// ✅ Save the fitted "home" view so double-tap can reset to it
+		let homeState = null;
 
 		// ✅ MAX zoom-in
 		const MAX_SCALE = 6.0;
@@ -945,6 +948,15 @@
 		function lockMinScaleToCurrent() {
 			MIN_SCALE = Math.max(0.01, state.scale);
 			minScaleLocked = true;
+		}
+
+		function setHomeFromCurrent() {
+			homeState = { scale: state.scale, tx: state.tx, ty: state.ty };
+		}
+
+		function resetToHome() {
+			if (!homeState) return;
+			setState({ scale: homeState.scale, tx: homeState.tx, ty: homeState.ty }, true);
 		}
 
 		async function loadBoundariesOnce() {
@@ -1077,10 +1089,11 @@
 
 			const c = clampPan(tx, ty, scale);
 
-			// Set state directly, then lock MIN_SCALE to this fitted view
+			// Set state directly, then lock MIN_SCALE to this fitted view, and store as "home"
 			state = { scale, tx: c.tx, ty: c.ty };
 			applyTransform(true);
 			lockMinScaleToCurrent();
+			setHomeFromCurrent();
 			return true;
 		}
 
@@ -1121,6 +1134,7 @@
 				state = { scale: 1, tx: 0, ty: 0 };
 				applyTransform(true);
 				lockMinScaleToCurrent();
+				setHomeFromCurrent();
 				return;
 			}
 
@@ -1252,38 +1266,68 @@
 			zoomAboutClientPoint(next, e.clientX, e.clientY);
 		}, { passive: false });
 
-		// Init fit (locks MIN_SCALE to the initial fitted view)
+		// ✅ Desktop double-click reset (nice bonus)
+		viewport.addEventListener("dblclick", (e) => {
+			if (isOnDot(e.target)) return;
+			e.preventDefault();
+			resetToHome();
+		});
+
+		// ✅ Mobile double-tap reset (works even with touch-action:none)
+		let lastTapAt = 0;
+		let lastTapX = 0;
+		let lastTapY = 0;
+		const DOUBLE_TAP_MS = 320;
+		const DOUBLE_TAP_PX = 24;
+
+		viewport.addEventListener("pointerup", (e) => {
+			// Only treat touch as "double click on phone"
+			if (e.pointerType !== "touch") return;
+			if (isOnDot(e.target)) return;
+
+			const now = Date.now();
+			const dx = e.clientX - lastTapX;
+			const dy = e.clientY - lastTapY;
+			const moved = Math.hypot(dx, dy);
+
+			if ((now - lastTapAt) <= DOUBLE_TAP_MS && moved <= DOUBLE_TAP_PX) {
+				// second tap -> reset
+				lastTapAt = 0;
+				resetToHome();
+				// prevent ghost click / browser zoom heuristics
+				e.preventDefault();
+				return;
+			}
+
+			lastTapAt = now;
+			lastTapX = e.clientX;
+			lastTapY = e.clientY;
+		}, { passive: false });
+
+		// Init fit (locks MIN_SCALE + stores home view)
 		applySectionZoomSafe("init");
 
-		// Resize/orientation: keep current zoom/pan but clamp it
+		// Resize/orientation: keep current zoom/pan but clamp it (home stays the initial fitted view)
 		let t = null;
-		window.addEventListener("resize", () => {
+		function handleResizeReclamp(delay) {
 			clearTimeout(t);
 			t = setTimeout(() => {
 				updateLayerSizeFromImage();
 				setState({ scale: state.scale, tx: state.tx, ty: state.ty }, false);
-				if (!minScaleLocked) lockMinScaleToCurrent();
-			}, 150);
-		});
 
-		window.addEventListener("orientationchange", () => {
-			clearTimeout(t);
-			t = setTimeout(() => {
-				updateLayerSizeFromImage();
-				setState({ scale: state.scale, tx: state.tx, ty: state.ty }, false);
-				if (!minScaleLocked) lockMinScaleToCurrent();
-			}, 250);
-		});
+				// If for some reason MIN_SCALE wasn't locked yet, lock now (and also set home)
+				if (!minScaleLocked) {
+					lockMinScaleToCurrent();
+					setHomeFromCurrent();
+				}
+			}, delay);
+		}
+
+		window.addEventListener("resize", () => handleResizeReclamp(150));
+		window.addEventListener("orientationchange", () => handleResizeReclamp(250));
 
 		window.addEventListener("pageshow", (e) => {
-			if (e.persisted) {
-				clearTimeout(t);
-				t = setTimeout(() => {
-					updateLayerSizeFromImage();
-					setState({ scale: state.scale, tx: state.tx, ty: state.ty }, false);
-					if (!minScaleLocked) lockMinScaleToCurrent();
-				}, 120);
-			}
+			if (e.persisted) handleResizeReclamp(120);
 		});
 	})();
 	</script>
