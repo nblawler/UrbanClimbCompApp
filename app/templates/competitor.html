@@ -11,9 +11,6 @@
 
 		/* ===========================
 		   MOBILE “BOTTOM FLICK” FIX
-		   - Avoid raw 100vh on mobile (address bar resizing causes jumps)
-		   - Use dvh/-webkit-fill-available fallbacks
-		   - Add safe bottom padding + stop rubber-band scroll
 		   =========================== */
 		:root {
 			--app-height: 100vh; /* fallback */
@@ -35,7 +32,6 @@
 			font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
 			background: linear-gradient(135deg, #0a1628 0%, #1a2942 100%);
 
-			/* replace min-height: 100vh */
 			min-height: var(--app-height);
 
 			display: flex;
@@ -80,7 +76,6 @@
 			padding: 2rem;
 			width: 100%;
 
-			/* prevents “snap” at the end on iOS */
 			padding-bottom: calc(2rem + env(safe-area-inset-bottom, 0px) + var(--safe-bottom));
 		}
 
@@ -160,7 +155,6 @@
 			font-weight: 800;
 		}
 
-		/* Compact section tabs (NAV, not FILTER) */
 		.section-tabs {
 			display: flex;
 			flex-wrap: wrap;
@@ -218,7 +212,6 @@
 			border-color: rgba(93, 244, 162, 0.6);
 		}
 
-		/* Back to map button */
 		.back-to-map-btn {
 			padding: 0.65rem 1.25rem;
 			background: rgba(255, 255, 255, 0.08);
@@ -248,9 +241,7 @@
 			margin-bottom: 2rem;
 		}
 
-		.section-header {
-			margin-bottom: 1.5rem;
-		}
+		.section-header { margin-bottom: 1.5rem; }
 
 		.section-title {
 			font-size: 1.75rem;
@@ -269,7 +260,6 @@
 			margin-bottom: 2rem;
 		}
 
-		/* Stable viewport + mobile-safe min height */
 		.map-viewport {
 			position: relative;
 			width: 100%;
@@ -277,19 +267,14 @@
 			aspect-ratio: var(--map-ar, 4 / 3);
 			overflow: hidden;
 			background: #000;
-			touch-action: pan-y;
-
-			/* Mobile reliability */
+			touch-action: none; /* IMPORTANT: allow pan/zoom gestures */
 			min-height: 240px;
-
-			/*  avoid vh jumps on mobile */
 			max-height: 70svh;
 		}
 		@supports (height: 70dvh) {
 			.map-viewport { max-height: 70dvh; }
 		}
 
-		/* Absolute layer like competitor_sections */
 		.map-layer {
 			position: absolute;
 			left: 0;
@@ -308,15 +293,40 @@
 			pointer-events: none;
 		}
 
-		/* Dots */
+		/* Zoom UI */
+		.map-zoom-ui {
+			position: absolute;
+			right: 12px;
+			top: 12px;
+			display: flex;
+			flex-direction: column;
+			gap: 8px;
+			z-index: 50;
+		}
+
+		.zoom-btn {
+			width: 40px;
+			height: 40px;
+			border-radius: 12px;
+			border: 1px solid rgba(255,255,255,0.2);
+			background: rgba(0,0,0,0.35);
+			color: #fff;
+			font-weight: 900;
+			cursor: pointer;
+			backdrop-filter: blur(8px);
+		}
+
+		.zoom-btn:hover { background: rgba(0,0,0,0.5); }
+
+		/* Dots (scale WITH zoom; no inverse scaling) */
 		#sectionMapWrapper {
 			--dot-base: 28px;
-			--dot-inv-scale: 1;
+			--dot-hover: 1.15;
 		}
 
 		.map-dot {
 			position: absolute;
-			transform: translate(-50%, -50%) scale(var(--dot-inv-scale));
+			transform: translate(-50%, -50%);
 			transform-origin: center;
 			min-width: var(--dot-base);
 			min-height: var(--dot-base);
@@ -331,16 +341,15 @@
 			font-weight: 800;
 			border: none;
 			cursor: pointer;
-			transition: transform 0.2s, box-shadow 0.2s;
+			transition: transform 0.15s, box-shadow 0.15s;
 		}
 
 		.map-dot:hover {
-			transform: translate(-50%, -50%) scale(calc(var(--dot-inv-scale) * 1.3));
+			transform: translate(-50%, -50%) scale(var(--dot-hover));
 			box-shadow: 0 8px 20px rgba(0, 0, 0, 0.7);
 			z-index: 10;
 		}
 
-		/* Done state for map dots (topped/flashed only) */
 		.map-dot.is-done {
 			background: #22c55e;
 			color: #05060a;
@@ -356,7 +365,6 @@
 			padding: 2rem;
 		}
 
-		/* Climbs grid */
 		.grid {
 			display: grid;
 			grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
@@ -397,7 +405,6 @@
 
 		.climb-card:hover::before { opacity: 1; }
 
-		/* Highlight when scrolled to */
 		.climb-row-highlight {
 			outline: none;
 			box-shadow: 0 0 0 3px rgba(93, 244, 162, 0.6), 0 12px 35px rgba(93, 244, 162, 0.3);
@@ -415,7 +422,6 @@
 			50% { opacity: 0.7; }
 		}
 
-		/* Inner content wrapper */
 		.climb-card > * {
 			padding-left: 1.5rem;
 			padding-right: 1.5rem;
@@ -430,7 +436,6 @@
 			padding-bottom: 1.5rem;
 		}
 
-		/* Climb header */
 		.climb-header {
 			display: flex;
 			align-items: center;
@@ -458,7 +463,6 @@
 			box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 		}
 
-		/* Climb info text */
 		.climb-card p {
 			margin: 0.5rem 0;
 			font-size: 0.9rem;
@@ -483,7 +487,6 @@
 			text-shadow: 0 0 12px rgba(22, 163, 74, 0.3);
 		}
 
-		/* Climb actions */
 		.climb-actions {
 			margin-top: 1.25rem;
 			display: flex;
@@ -518,17 +521,13 @@
 			font-weight: 800;
 		}
 
-		/* Save row under attempts */
 		.save-row {
 			margin-top: 0.25rem;
 			justify-content: flex-start;
 		}
 
-		.save-row .save-btn {
-			width: 100%;
-		}
+		.save-row .save-btn { width: 100%; }
 
-		/* Action pills (neutral by default) */
 		.action-pill,
 		.topped-toggle-btn,
 		.flash-btn {
@@ -536,7 +535,6 @@
 			border: 2px solid rgba(5, 6, 10, 0.12);
 			background: linear-gradient(135deg, #ffffff 0%, #f9fafb 100%);
 			color: #374151;
-			font-size: 0.85rem;
 			padding: 0.65rem 1.25rem;
 			cursor: pointer;
 			display: inline-flex;
@@ -590,14 +588,6 @@
 			transform: none;
 		}
 
-		.action-pill:disabled:hover,
-		.topped-toggle-btn:disabled:hover,
-		.flash-btn:disabled:hover {
-			transform: none;
-			box-shadow: none;
-		}
-
-		/* Active state styles */
 		.flash-btn.is-active {
 			background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
 			border-color: #0ea5e9;
@@ -614,7 +604,6 @@
 			transform: translateY(-2px);
 		}
 
-		/* Attempts stepper (minus / value / plus) */
 		.attempts-stepper {
 			display: inline-flex;
 			align-items: center;
@@ -633,7 +622,6 @@
 			font-size: 0.95rem;
 		}
 
-		/* Status message */
 		.status {
 			min-height: 1.2em;
 			font-size: 0.8rem;
@@ -662,7 +650,6 @@
 			text-shadow: 0 0 8px rgba(180, 83, 9, 0.15);
 		}
 
-		/* Alert */
 		.alert {
 			padding: 1rem;
 			border-radius: 0.75rem;
@@ -671,7 +658,6 @@
 			color: rgba(255, 255, 255, 0.9);
 		}
 
-		/* Responsive */
 		@media (max-width: 768px) {
 			.nav { padding: 1rem; }
 			.container {
@@ -817,6 +803,13 @@
 				data-comp-slug="{{ comp_slug or '' }}"
 				data-section-id="{{ section.id if section is defined and section else '' }}"
 			>
+				<!-- Zoom controls -->
+				<div class="map-zoom-ui" aria-label="Map zoom controls">
+					<button type="button" class="zoom-btn" data-zoom="in" aria-label="Zoom in">+</button>
+					<button type="button" class="zoom-btn" data-zoom="out" aria-label="Zoom out">−</button>
+					<button type="button" class="zoom-btn" data-zoom="reset" aria-label="Reset zoom">↺</button>
+				</div>
+
 				{% if gym_map_url %}
 					<div class="map-viewport" id="sectionMapViewport">
 						<div class="map-layer" id="sectionMapLayer">
@@ -903,7 +896,6 @@
 							{% set pill_text_color = "#ffffff" %}
 						{% endif %}
 
-						{# Attempts default to 1; never below 1 #}
 						{% if s %}
 							{% set sel_attempt = s.attempts if s.attempts is not none else 1 %}
 						{% else %}
@@ -951,7 +943,6 @@
 								</span>
 							</p>
 
-							<!-- ACTIONS: Save moved under attempts -->
 							<div class="climb-actions">
 								<div class="climb-actions-row">
 									<button
@@ -1002,9 +993,9 @@
 		</section>
 	</main>
 
+	<!-- MAP: section boundary fit + user zoom/pan (dots scale with zoom) -->
 	<script>
 	(function () {
-		// ===== Section boundary zoom (mobile-safe) =====
 		const wrapper  = document.getElementById("sectionMapWrapper");
 		const viewport = document.getElementById("sectionMapViewport");
 		const layer    = document.getElementById("sectionMapLayer");
@@ -1017,13 +1008,28 @@
 		let boundariesCache = null;
 		let baseW = 1, baseH = 1;
 
+		const state = {
+			scale: 1,
+			tx: 0,
+			ty: 0,
+			minScale: 1,
+			maxScale: 6,
+			isDragging: false,
+			dragStartX: 0,
+			dragStartY: 0,
+			dragStartTx: 0,
+			dragStartTy: 0,
+			pointers: new Map(),
+			lastPinchDist: null,
+			lastPinchMid: null,
+		};
+
 		function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
 		function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
 		async function loadBoundariesOnce() {
 			if (boundariesCache) return boundariesCache;
 			if (!compSlug) return null;
-
 			try {
 				const res = await fetch(`/api/comp/${compSlug}/section-boundaries`, { credentials: "same-origin" });
 				const data = await res.json();
@@ -1140,6 +1146,28 @@
 			return { tx, ty };
 		}
 
+		function applyTransform() {
+			const p = clampPan(state.tx, state.ty, state.scale);
+			state.tx = p.tx; state.ty = p.ty;
+			layer.style.transform = `translate(${state.tx}px, ${state.ty}px) scale(${state.scale})`;
+		}
+
+		function zoomAt(vx, vy, newScale) {
+			newScale = clamp(newScale, state.minScale, state.maxScale);
+
+			const oldScale = state.scale;
+			if (Math.abs(newScale - oldScale) < 1e-6) return;
+
+			const ix = (vx - state.tx) / oldScale;
+			const iy = (vy - state.ty) / oldScale;
+
+			state.scale = newScale;
+			state.tx = vx - ix * newScale;
+			state.ty = vy - iy * newScale;
+
+			applyTransform();
+		}
+
 		function fitRectToViewport(rect, paddingPx = 12) {
 			const vr = viewport.getBoundingClientRect();
 			const viewW = vr.width;
@@ -1158,21 +1186,19 @@
 			let scale = Math.min(availW / rectW, availH / rectH);
 			scale *= 1.04;
 
+			state.minScale = Math.max(0.5, scale);
+			state.scale = scale;
+
 			const cxImg = expanded.minX + rectW / 2;
 			const cyImg = expanded.minY + rectH / 2;
 
 			const cxView = viewW / 2;
 			const cyView = viewH / 2;
 
-			let tx = cxView - (cxImg * scale);
-			let ty = cyView - (cyImg * scale);
+			state.tx = cxView - (cxImg * scale);
+			state.ty = cyView - (cyImg * scale);
 
-			({ tx, ty } = clampPan(tx, ty, scale));
-
-			layer.style.transform = `translate(${tx}px, ${ty}px) scale(${scale})`;
-
-			const inv = clamp(1 / scale, 0.18, 1.25);
-			wrapper.style.setProperty("--dot-inv-scale", String(inv));
+			applyTransform();
 			return true;
 		}
 
@@ -1187,7 +1213,7 @@
 			await new Promise(requestAnimationFrame);
 		}
 
-		async function applySectionZoomSafe(reason = "") {
+		async function applySectionZoomSafe() {
 			await ensureImageReady();
 
 			let ok = updateLayerSizeFromImage();
@@ -1216,23 +1242,123 @@
 			setTimeout(() => { layer.style.transition = old || ""; }, 320);
 		}
 
-		applySectionZoomSafe("init");
+		// wheel/trackpad zoom
+		viewport.addEventListener("wheel", (e) => {
+			e.preventDefault();
+			const vr = viewport.getBoundingClientRect();
+			const vx = e.clientX - vr.left;
+			const vy = e.clientY - vr.top;
+			const zoomFactor = Math.exp(-e.deltaY * 0.0015);
+			zoomAt(vx, vy, state.scale * zoomFactor);
+		}, { passive: false });
+
+		// pointer pan + pinch
+		viewport.addEventListener("pointerdown", (e) => {
+			viewport.setPointerCapture(e.pointerId);
+			state.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+			if (state.pointers.size === 1) {
+				state.isDragging = true;
+				state.dragStartX = e.clientX;
+				state.dragStartY = e.clientY;
+				state.dragStartTx = state.tx;
+				state.dragStartTy = state.ty;
+			}
+
+			if (state.pointers.size === 2) {
+				const pts = Array.from(state.pointers.values());
+				const dx = pts[0].x - pts[1].x;
+				const dy = pts[0].y - pts[1].y;
+				state.lastPinchDist = Math.hypot(dx, dy);
+				state.lastPinchMid = { x: (pts[0].x + pts[1].x)/2, y: (pts[0].y + pts[1].y)/2 };
+				state.isDragging = false;
+			}
+		});
+
+		viewport.addEventListener("pointermove", (e) => {
+			if (!state.pointers.has(e.pointerId)) return;
+			state.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+			if (state.pointers.size === 1 && state.isDragging) {
+				const dx = e.clientX - state.dragStartX;
+				const dy = e.clientY - state.dragStartY;
+				state.tx = state.dragStartTx + dx;
+				state.ty = state.dragStartTy + dy;
+				applyTransform();
+				return;
+			}
+
+			if (state.pointers.size === 2) {
+				const pts = Array.from(state.pointers.values());
+				const dx = pts[0].x - pts[1].x;
+				const dy = pts[0].y - pts[1].y;
+				const dist = Math.hypot(dx, dy);
+
+				const mid = { x: (pts[0].x + pts[1].x)/2, y: (pts[0].y + pts[1].y)/2 };
+
+				if (state.lastPinchDist && state.lastPinchMid) {
+					const vr = viewport.getBoundingClientRect();
+					const vx = mid.x - vr.left;
+					const vy = mid.y - vr.top;
+
+					const factor = dist / state.lastPinchDist;
+					zoomAt(vx, vy, state.scale * factor);
+
+					const mdx = mid.x - state.lastPinchMid.x;
+					const mdy = mid.y - state.lastPinchMid.y;
+					state.tx += mdx;
+					state.ty += mdy;
+					applyTransform();
+				}
+
+				state.lastPinchDist = dist;
+				state.lastPinchMid = mid;
+			}
+		});
+
+		function endPointer(e) {
+			state.pointers.delete(e.pointerId);
+			if (state.pointers.size < 2) {
+				state.lastPinchDist = null;
+				state.lastPinchMid = null;
+			}
+			if (state.pointers.size === 0) state.isDragging = false;
+		}
+
+		viewport.addEventListener("pointerup", endPointer);
+		viewport.addEventListener("pointercancel", endPointer);
+
+		// zoom buttons
+		wrapper.querySelectorAll(".zoom-btn").forEach((btn) => {
+			btn.addEventListener("click", () => {
+				const what = btn.getAttribute("data-zoom");
+				const vr = viewport.getBoundingClientRect();
+				const vx = vr.width / 2;
+				const vy = vr.height / 2;
+
+				if (what === "in") zoomAt(vx, vy, state.scale * 1.25);
+				else if (what === "out") zoomAt(vx, vy, state.scale / 1.25);
+				else if (what === "reset") applySectionZoomSafe();
+			});
+		});
+
+		applySectionZoomSafe();
 
 		let t = null;
 		window.addEventListener("resize", () => {
 			clearTimeout(t);
-			t = setTimeout(() => applySectionZoomSafe("resize"), 150);
+			t = setTimeout(() => applySectionZoomSafe(), 150);
 		});
 
 		window.addEventListener("orientationchange", () => {
 			clearTimeout(t);
-			t = setTimeout(() => applySectionZoomSafe("orientation"), 250);
+			t = setTimeout(() => applySectionZoomSafe(), 250);
 		});
 
 		window.addEventListener("pageshow", (e) => {
 			if (e.persisted) {
 				clearTimeout(t);
-				t = setTimeout(() => applySectionZoomSafe("pageshow"), 120);
+				t = setTimeout(() => applySectionZoomSafe(), 120);
 			}
 		});
 	})();
@@ -1305,7 +1431,6 @@
 
 		cards.forEach(hydrateFromDataset);
 
-		// Prevent double-saves while one is in-flight
 		function isSaving(card) { return card.dataset.saving === "1"; }
 		function setSaving(card, val) { card.dataset.saving = val ? "1" : "0"; }
 
@@ -1363,22 +1488,18 @@
 					pointsSpan.textContent = data.points;
 				}
 
-				// ✅ Re-enable Save immediately (don’t wait for other fetches)
 				if (saveBtn) saveBtn.disabled = false;
 
-				// 🔥 Background refreshes (do not block UI)
 				Promise.allSettled([
 					refreshTotalPoints(),
 					refreshDoneDotsAndActiveTab(),
 				]).then(() => {
-					// position can be heavier; run after the others
 					refreshPosition();
 				}).catch(() => {});
 			} catch (e) {
 				showStatus(status, "Network error", "err");
 			} finally {
 				setSaving(card, false);
-				// Safety net
 				if (saveBtn) saveBtn.disabled = false;
 			}
 		}
@@ -1446,7 +1567,6 @@
 					return isNaN(n) ? 1 : Math.max(1, n);
 				}
 
-				// initialize minus disabled state (but don't mark dirty)
 				(function initStepper() {
 					const n = getAttempt();
 					if (stepper) stepper.dataset.selectedAttempt = String(n);
@@ -1470,13 +1590,11 @@
 
 				if (flashBtn) {
 					flashBtn.addEventListener("click", () => {
-						// UI only (manual save)
 						flashBtn.classList.toggle("is-active");
 
 						const nowFlashed = flashBtn.classList.contains("is-active");
 						if (toppedToggle) toppedToggle.classList.toggle("is-active", false);
 
-						// Flash implies topped+flashed; keep attempts at 1 (never 0)
 						if (nowFlashed) setAttempt(1);
 						else markDirty(card);
 					});
@@ -1502,6 +1620,10 @@
 		document.addEventListener("click", function (event) {
 			const dot = event.target.closest(".map-dot-interactive");
 			if (!dot) return;
+
+			// Optional: nudge zoom in a bit on dot tap (reduces overlap)
+			const plus = document.querySelector('#sectionMapWrapper .zoom-btn[data-zoom="in"]');
+			if (plus) { plus.click(); }
 
 			const climb = dot.dataset.climb;
 			const row = document.querySelector('.climb-row[data-climb-row="' + climb + '"]');
