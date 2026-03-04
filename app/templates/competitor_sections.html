@@ -18,35 +18,29 @@
 			--safe-bottom: 16px; /* extra breathing room at bottom */
 		}
 
-		/* Modern browsers: dynamic viewport height (fixes address bar resize jump) */
 		@supports (height: 100dvh) {
 			:root { --app-height: 100dvh; }
 		}
 
-		/* iOS Safari older fallback */
 		@supports (height: -webkit-fill-available) {
 			:root { --app-height: -webkit-fill-available; }
 		}
 
 		html {
 			height: 100%;
-			/* Prevent iOS “scroll bounce” from chaining weirdly */
 			overscroll-behavior-y: none;
 		}
 
 		body {
 			font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
 			background: linear-gradient(135deg, #0a1628 0%, #1a2942 100%);
-			/* ✅ replace min-height: 100vh */
 			min-height: var(--app-height);
 			display: flex;
 			flex-direction: column;
 			color: #fff;
 
 			overflow-x: hidden;
-			/* Helps iOS avoid janky scroll stop/start */
 			-webkit-overflow-scrolling: touch;
-			/* Prevent scroll-chaining rubber band weirdness */
 			overscroll-behavior-y: none;
 			touch-action: pan-y;
 		}
@@ -82,8 +76,6 @@
 			margin: 0 auto;
 			padding: 2rem;
 			width: 100%;
-
-			/* ✅ small bottom padding helps prevent “snap” when reaching end */
 			padding-bottom: calc(2rem + env(safe-area-inset-bottom, 0px) + var(--safe-bottom));
 		}
 
@@ -263,7 +255,7 @@
 			transition: width 0.25s ease;
 		}
 
-		/* Map wrapper (no black strips) */
+		/* Map wrapper */
 		.map-wrapper {
 			position: relative;
 			width: 100%;
@@ -280,8 +272,6 @@
 			aspect-ratio: var(--map-ar, 4 / 3);
 			overflow: hidden;
 			background: #000;
-
-			/* ✅ keep scrolling stable while still allowing page scroll */
 			touch-action: pan-y;
 		}
 
@@ -445,7 +435,7 @@
 		{% endif %}
 
 		{% if comp_slug %}
-  		<a class="back {% if nav_active == 'doubles' %}active{% endif %}" href="/comp/{{ comp_slug }}/doubles">Doubles</a>
+			<a class="back {% if nav_active == 'doubles' %}active{% endif %}" href="/comp/{{ comp_slug }}/doubles">Doubles</a>
 		{% endif %}
 
 		{% if is_logged_in or is_admin %}
@@ -584,221 +574,259 @@
 		</section>
 	</main>
 
+	<!-- ✅ FULL DROP-IN REPLACEMENT: competitor.html-style aspect-safe boundary zoom -->
 	<script>
-		(function () {
-			// -------- Auto-fit map to image + boundary-driven zoom (NO manual zoom/pan) --------
-			const wrapper  = document.getElementById("mapWrapperSections");
-			const viewport = document.getElementById("mapViewportSections");
-			const layer    = document.getElementById("mapLayerSections");
-			const img      = document.getElementById("mapImageSections");
-			if (!viewport || !layer || !img) return;
+	(function () {
+		const wrapper  = document.getElementById("mapWrapperSections");
+		const viewport = document.getElementById("mapViewportSections");
+		const layer    = document.getElementById("mapLayerSections");
+		const img      = document.getElementById("mapImageSections");
+		if (!wrapper || !viewport || !layer || !img) return;
 
-			let scale = 1;
-			let minScale = 1;
-			const maxScale = 6;
+		const compSlug = "{{ comp_slug or '' }}";
 
-			let tx = 0, ty = 0;
-			let baseW = 1, baseH = 1;
+		let boundariesCache = null;
+		let baseW = 1, baseH = 1;
 
-			function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
+		function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
+		function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
-			// measure base size from layout size, not getBoundingClientRect()
-			function updateLayerSizeFromImage() {
-				const w = img.offsetWidth || img.clientWidth || 0;
-				const h = img.offsetHeight || img.clientHeight || 0;
+		async function loadBoundariesOnce() {
+			if (boundariesCache) return boundariesCache;
+			if (!compSlug) return null;
 
-				if (w > 0 && h > 0) {
-					baseW = Math.max(1, Math.round(w));
-					baseH = Math.max(1, Math.round(h));
-				} else {
-					const cs = window.getComputedStyle(img);
-					baseW = Math.max(1, Math.round(parseFloat(cs.width) || baseW));
-					baseH = Math.max(1, Math.round(parseFloat(cs.height) || baseH));
+			try {
+				const res = await fetch(`/api/comp/${compSlug}/section-boundaries`, { credentials: "same-origin" });
+				const data = await res.json();
+				if (!data || !data.ok) return null;
+				boundariesCache = data.boundaries || {};
+				return boundariesCache;
+			} catch (_) {
+				return null;
+			}
+		}
+
+		async function ensureImageReady() {
+			if (!img.complete) {
+				await new Promise((resolve) => img.addEventListener("load", resolve, { once: true }));
+			}
+			if (img.decode) {
+				try { await img.decode(); } catch (_) {}
+			}
+			await new Promise(requestAnimationFrame);
+			await new Promise(requestAnimationFrame);
+		}
+
+		function updateLayerSizeFromImage() {
+			let w = img.offsetWidth || img.clientWidth || 0;
+			let h = img.offsetHeight || img.clientHeight || 0;
+
+			if ((!w || !h) && img.naturalWidth && img.naturalHeight) {
+				const vr = viewport.getBoundingClientRect();
+				const vw = vr.width || 0;
+				if (vw > 0) {
+					w = vw;
+					h = vw * (img.naturalHeight / img.naturalWidth);
 				}
+			}
 
+			if (w > 0 && h > 0) {
+				baseW = Math.max(1, Math.round(w));
+				baseH = Math.max(1, Math.round(h));
 				layer.style.width  = baseW + "px";
 				layer.style.height = baseH + "px";
+				return true;
+			}
+			return false;
+		}
+
+		function pctToPx(pt) {
+			return { x: (pt.x / 100) * baseW, y: (pt.y / 100) * baseH };
+		}
+
+		function computeBoundsPxFromPercentPts(ptsPercent) {
+			const pxPts = (ptsPercent || []).map(pctToPx);
+			if (!pxPts.length) return null;
+
+			let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+			for (const p of pxPts) {
+				minX = Math.min(minX, p.x);
+				minY = Math.min(minY, p.y);
+				maxX = Math.max(maxX, p.x);
+				maxY = Math.max(maxY, p.y);
+			}
+			return { minX, minY, maxX, maxY };
+		}
+
+		function unionBounds(a, b) {
+			if (!a) return b;
+			if (!b) return a;
+			return {
+				minX: Math.min(a.minX, b.minX),
+				minY: Math.min(a.minY, b.minY),
+				maxX: Math.max(a.maxX, b.maxX),
+				maxY: Math.max(a.maxY, b.maxY),
+			};
+		}
+
+		function expandRectToMatchAspect(rect, targetAspect) {
+			const w = Math.max(1, rect.maxX - rect.minX);
+			const h = Math.max(1, rect.maxY - rect.minY);
+			const rectAspect = w / h;
+
+			let minX = rect.minX, minY = rect.minY, maxX = rect.maxX, maxY = rect.maxY;
+
+			if (rectAspect > targetAspect) {
+				const newH = w / targetAspect;
+				const extra = (newH - h) / 2;
+				minY -= extra;
+				maxY += extra;
+			} else {
+				const newW = h * targetAspect;
+				const extra = (newW - w) / 2;
+				minX -= extra;
+				maxX += extra;
+			}
+			return { minX, minY, maxX, maxY };
+		}
+
+		function clampPan(tx, ty, scale) {
+			const vr = viewport.getBoundingClientRect();
+			const viewW = vr.width;
+			const viewH = vr.height;
+
+			const scaledW = baseW * scale;
+			const scaledH = baseH * scale;
+
+			const minTx = viewW - scaledW;
+			const minTy = viewH - scaledH;
+
+			if (scaledW <= viewW) tx = (viewW - scaledW) / 2;
+			else tx = clamp(tx, minTx, 0);
+
+			if (scaledH <= viewH) ty = (viewH - scaledH) / 2;
+			else ty = clamp(ty, minTy, 0);
+
+			return { tx, ty };
+		}
+
+		function resetFit() {
+			const vr = viewport.getBoundingClientRect();
+			const viewW = vr.width || 0;
+			const viewH = vr.height || 0;
+			if (!viewW || !viewH) return;
+
+			const scale = Math.min(viewW / baseW, viewH / baseH);
+			let tx = (viewW - baseW * scale) / 2;
+			let ty = (viewH - baseH * scale) / 2;
+
+			({ tx, ty } = clampPan(tx, ty, scale));
+			layer.style.transform = `translate(${tx}px, ${ty}px) scale(${scale})`;
+
+			wrapper.style.setProperty("--marker-scale", "1");
+		}
+
+		function fitRectToViewport(rect, paddingPx = 12) {
+			const vr = viewport.getBoundingClientRect();
+			const viewW = vr.width;
+			const viewH = vr.height;
+			if (!viewW || !viewH) return false;
+
+			const targetAspect = viewW / viewH;
+			const expanded = expandRectToMatchAspect(rect, targetAspect);
+
+			const rectW = Math.max(1, expanded.maxX - expanded.minX);
+			const rectH = Math.max(1, expanded.maxY - expanded.minY);
+
+			const availW = Math.max(1, viewW - paddingPx * 2);
+			const availH = Math.max(1, viewH - paddingPx * 2);
+
+			let scale = Math.min(availW / rectW, availH / rectH);
+			scale *= 1.04;
+
+			const cxImg = expanded.minX + rectW / 2;
+			const cyImg = expanded.minY + rectH / 2;
+
+			const cxView = viewW / 2;
+			const cyView = viewH / 2;
+
+			let tx = cxView - (cxImg * scale);
+			let ty = cyView - (cyImg * scale);
+
+			({ tx, ty } = clampPan(tx, ty, scale));
+
+			layer.style.transform = `translate(${tx}px, ${ty}px) scale(${scale})`;
+
+			const normalized = Math.max(1, scale);
+			wrapper.style.setProperty("--marker-scale", String(normalized));
+
+			return true;
+		}
+
+		function animateTransform(fn, ms = 260) {
+			const old = layer.style.transition;
+			layer.style.transition = `transform ${ms}ms ease`;
+			fn();
+			window.setTimeout(() => { layer.style.transition = old || ""; }, ms + 60);
+		}
+
+		async function applyZoomForSectionIds(sectionIds) {
+			await ensureImageReady();
+
+			let ok = updateLayerSizeFromImage();
+			for (let i = 0; i < 6 && !ok; i++) {
+				await sleep(60);
+				ok = updateLayerSizeFromImage();
+			}
+			if (!ok) return;
+
+			if (img.naturalWidth && img.naturalHeight) {
+				viewport.style.setProperty("--map-ar", `${img.naturalWidth} / ${img.naturalHeight}`);
 			}
 
-			function computeFitScale() {
-				const vr = viewport.getBoundingClientRect();
-				const fit = Math.min(vr.width / baseW, vr.height / baseH);
-				return Math.min(1, fit);
+			if (!sectionIds || !sectionIds.length) {
+				animateTransform(() => resetFit(), 220);
+				return;
 			}
 
-			function applyTransform() {
-				layer.style.transform = `translate(${tx}px, ${ty}px) scale(${scale})`;
+			const boundaries = await loadBoundariesOnce();
+			if (!boundaries) return;
 
-				if (wrapper) {
-					const normalized = Math.max(1, scale / (minScale || 1));
-					wrapper.style.setProperty("--marker-scale", String(normalized));
-				}
+			let union = null;
+			for (const sid of sectionIds) {
+				const pts = boundaries[String(sid)] || [];
+				if (!pts || pts.length < 3) continue;
+
+				const b = computeBoundsPxFromPercentPts(pts);
+				if (b) union = unionBounds(union, b);
 			}
+			if (!union) return;
 
-			function clampPan() {
-				const vr = viewport.getBoundingClientRect();
-				const viewW = vr.width;
-				const viewH = vr.height;
+			animateTransform(() => fitRectToViewport(union, 12), 280);
+		}
 
-				const scaledW = baseW * scale;
-				const scaledH = baseH * scale;
+		// expose for the filter script
+		window.__zoomToActiveSectionIds = (ids) => applyZoomForSectionIds(ids);
+		window.__resetSectionsMapFit = () => applyZoomForSectionIds([]);
 
-				const minTx = viewW - scaledW;
-				const minTy = viewH - scaledH;
-
-				if (scaledW <= viewW) tx = (viewW - scaledW) / 2;
-				else tx = clamp(tx, minTx, 0);
-
-				if (scaledH <= viewH) ty = (viewH - scaledH) / 2;
-				else ty = clamp(ty, minTy, 0);
+		(async function init() {
+			await ensureImageReady();
+			updateLayerSizeFromImage();
+			if (img.naturalWidth && img.naturalHeight) {
+				viewport.style.setProperty("--map-ar", `${img.naturalWidth} / ${img.naturalHeight}`);
 			}
-
-			function animateTo(fn, ms = 260) {
-				const old = layer.style.transition;
-				layer.style.transition = `transform ${ms}ms ease`;
-				fn();
-				window.setTimeout(() => { layer.style.transition = old || ""; }, ms + 40);
-			}
-
-			function resetFit(animate = false) {
-				updateLayerSizeFromImage();
-				minScale = computeFitScale();
-				scale = clamp(minScale, minScale, maxScale);
-
-				const vr = viewport.getBoundingClientRect();
-				tx = (vr.width - baseW * scale) / 2;
-				ty = (vr.height - baseH * scale) / 2;
-
-				clampPan();
-
-				if (wrapper) wrapper.style.setProperty("--marker-scale", "1");
-
-				if (animate) animateTo(applyTransform, 220);
-				else applyTransform();
-			}
-
-			const compSlug = "{{ comp_slug or '' }}";
-			let boundariesCache = null;
-
-			async function loadBoundariesOnce() {
-				if (boundariesCache) return boundariesCache;
-				if (!compSlug) return null;
-
-				try {
-					const res = await fetch(`/api/comp/${compSlug}/section-boundaries`, { credentials: "same-origin" });
-					const data = await res.json();
-					if (!data || !data.ok) return null;
-					boundariesCache = data.boundaries || {};
-					return boundariesCache;
-				} catch (_) {
-					return null;
-				}
-			}
-
-			function pctToPx(pt) {
-				return { x: (pt.x / 100) * baseW, y: (pt.y / 100) * baseH };
-			}
-
-			function computeBoundsPxFromPercentPts(ptsPercent) {
-				const pxPts = (ptsPercent || []).map(pctToPx);
-				if (!pxPts.length) return null;
-
-				let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-				for (const p of pxPts) {
-					minX = Math.min(minX, p.x);
-					minY = Math.min(minY, p.y);
-					maxX = Math.max(maxX, p.x);
-					maxY = Math.max(maxY, p.y);
-				}
-				return { minX, minY, maxX, maxY };
-			}
-
-			function unionBounds(a, b) {
-				if (!a) return b;
-				if (!b) return a;
-				return {
-					minX: Math.min(a.minX, b.minX),
-					minY: Math.min(a.minY, b.minY),
-					maxX: Math.max(a.maxX, b.maxX),
-					maxY: Math.max(a.maxY, b.maxY),
-				};
-			}
-
-			function fitRectToViewport(rect, paddingPx = 12) {
-				const vr = viewport.getBoundingClientRect();
-				const viewW = vr.width;
-				const viewH = vr.height;
-
-				const rectW = Math.max(1, rect.maxX - rect.minX);
-				const rectH = Math.max(1, rect.maxY - rect.minY);
-
-				const availW = Math.max(1, viewW - paddingPx * 2);
-				const availH = Math.max(1, viewH - paddingPx * 2);
-
-				let targetScale = Math.min(availW / rectW, availH / rectH);
-				targetScale *= 1.04;
-				targetScale = clamp(targetScale, minScale, maxScale);
-
-				const cxImg = rect.minX + rectW / 2;
-				const cyImg = rect.minY + rectH / 2;
-
-				const cxView = viewW / 2;
-				const cyView = viewH / 2;
-
-				tx = cxView - (cxImg * targetScale);
-				ty = cyView - (cyImg * targetScale);
-				scale = targetScale;
-
-				clampPan();
-				applyTransform();
-			}
-
-			async function zoomToActiveSectionIds(sectionIds) {
-				updateLayerSizeFromImage();
-				minScale = computeFitScale();
-
-				if (!sectionIds || !sectionIds.length) {
-					animateTo(() => resetFit(false), 220);
-					return;
-				}
-
-				const boundaries = await loadBoundariesOnce();
-				if (!boundaries) return;
-
-				let union = null;
-
-				for (const sid of sectionIds) {
-					const pts = boundaries[String(sid)] || [];
-					if (!pts || pts.length < 3) continue;
-
-					const b = computeBoundsPxFromPercentPts(pts);
-					if (b) union = unionBounds(union, b);
-				}
-
-				if (!union) return;
-
-				animateTo(() => fitRectToViewport(union, 12), 280);
-			}
-
-			window.__zoomToActiveSectionIds = zoomToActiveSectionIds;
-			window.__resetSectionsMapFit = () => animateTo(() => resetFit(false), 220);
-
-			function init() {
-				if (img.naturalWidth && img.naturalHeight) {
-					viewport.style.setProperty("--map-ar", `${img.naturalWidth} / ${img.naturalHeight}`);
-				}
-				resetFit(false);
-			}
-
-			if (img.complete) init();
-			else img.addEventListener("load", init, { once: true });
-
-			let resizeTimer = null;
-			window.addEventListener("resize", () => {
-				clearTimeout(resizeTimer);
-				resizeTimer = setTimeout(() => resetFit(false), 120);
-			});
+			resetFit();
 		})();
+
+		let t = null;
+		window.addEventListener("resize", () => {
+			clearTimeout(t);
+			t = setTimeout(() => {
+				updateLayerSizeFromImage();
+				resetFit();
+			}, 140);
+		});
+	})();
 	</script>
 
 	<script>
