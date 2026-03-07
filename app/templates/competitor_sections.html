@@ -7,30 +7,25 @@
 	<link rel="stylesheet" href="/static/app.css" />
 	<style>
 		* { margin: 0; padding: 0; box-sizing: border-box; }
-
-		/* ===========================
-		   ✅ MOBILE “BOTTOM FLICK” FIX
-		   - Avoid raw 100vh on mobile (address bar resizing causes jumps)
-		   - Use dvh/svh with fallbacks
-		   =========================== */
+	
 		:root {
-			--app-height: 100vh; /* fallback */
-			--safe-bottom: 16px; /* extra breathing room at bottom */
+			--app-height: 100vh;
+			--safe-bottom: 16px;
 		}
-
+	
 		@supports (height: 100dvh) {
 			:root { --app-height: 100dvh; }
 		}
-
+	
 		@supports (height: -webkit-fill-available) {
 			:root { --app-height: -webkit-fill-available; }
 		}
-
+	
 		html {
 			height: 100%;
 			overscroll-behavior-y: none;
 		}
-
+	
 		body {
 			font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
 			background: linear-gradient(135deg, #0a1628 0%, #1a2942 100%);
@@ -38,14 +33,12 @@
 			display: flex;
 			flex-direction: column;
 			color: #fff;
-
 			overflow-x: hidden;
 			-webkit-overflow-scrolling: touch;
 			overscroll-behavior-y: none;
 			touch-action: pan-y;
 		}
-
-		/* Top nav */
+	
 		.nav {
 			padding: 1.25rem 2rem;
 			display: flex;
@@ -53,7 +46,7 @@
 			align-items: center;
 			flex-wrap: wrap;
 		}
-
+	
 		.nav a {
 			color: rgba(255, 255, 255, 0.7);
 			text-decoration: none;
@@ -61,34 +54,37 @@
 			transition: color 0.2s;
 			font-weight: 600;
 		}
-
+	
 		.nav a.active {
 			color: #5df4a2;
 			font-weight: 700;
 		}
-
+	
 		.nav a:hover { color: #fff; }
-
-		/* Main container */
+	
 		.container {
 			flex: 1;
-			max-width: 1200px;
+			max-width: 1280px;
 			margin: 0 auto;
 			padding: 2rem;
 			width: 100%;
 			padding-bottom: calc(2rem + env(safe-area-inset-bottom, 0px) + var(--safe-bottom));
 		}
-
-		/* Competitor header card */
-		.comp-header {
+	
+		.comp-header,
+		.map-card,
+		.climb-browser-card {
 			background: rgba(255, 255, 255, 0.05);
 			backdrop-filter: blur(10px);
 			border: 1px solid rgba(255, 255, 255, 0.1);
 			border-radius: 1.5rem;
+		}
+	
+		.comp-header {
 			padding: 2rem;
 			margin-bottom: 2rem;
 		}
-
+	
 		.comp-name {
 			font-size: 2rem;
 			font-weight: 900;
@@ -99,13 +95,13 @@
 			background-clip: text;
 			letter-spacing: -0.02em;
 		}
-
+	
 		.comp-meta-row {
 			display: flex;
 			gap: 1rem;
 			flex-wrap: wrap;
 		}
-
+	
 		.comp-pill {
 			background: rgba(0, 0, 0, 0.2);
 			border: 1px solid rgba(255, 255, 255, 0.15);
@@ -116,7 +112,7 @@
 			gap: 0.25rem;
 			min-width: 110px;
 		}
-
+	
 		.comp-pill-label {
 			font-size: 0.75rem;
 			color: rgba(255, 255, 255, 0.6);
@@ -124,14 +120,13 @@
 			letter-spacing: 0.05em;
 			font-weight: 700;
 		}
-
+	
 		.comp-pill-value {
 			font-size: 1.5rem;
 			font-weight: 900;
 			color: #fff;
 		}
-
-		/* View-only note */
+	
 		.view-only-note {
 			background: rgba(251, 113, 133, 0.12);
 			border: 1px solid rgba(251, 113, 133, 0.3);
@@ -141,40 +136,50 @@
 			color: rgba(255, 255, 255, 0.9);
 		}
 		.view-only-note strong { color: #fff; }
-
-		/* Map card */
-		.map-card {
-			background: rgba(255, 255, 255, 0.05);
-			backdrop-filter: blur(10px);
-			border: 1px solid rgba(255, 255, 255, 0.1);
-			border-radius: 1.5rem;
+	
+		.map-card,
+		.climb-browser-card {
 			padding: 2rem;
 			margin-bottom: 2rem;
 		}
-
-		.section-header { margin-bottom: 1.5rem; }
+	
+		.section-header {
+			margin-bottom: 1.5rem;
+		}
+	
 		.section-title {
 			font-size: 1.75rem;
 			font-weight: 900;
 			color: #fff;
 		}
-
-		/* Section cards */
-		.section-filter-row { margin-bottom: 1.25rem; }
-
-		.section-filter-label {
+	
+		.section-subtitle,
+		.browser-subtitle {
+			margin-top: 0.45rem;
+			font-size: 0.92rem;
+			color: rgba(255,255,255,0.68);
+			line-height: 1.45;
+		}
+	
+		.section-filter-row,
+		.colour-filter-row {
+			margin-bottom: 1.25rem;
+		}
+	
+		.section-filter-label,
+		.colour-filter-label {
 			font-size: 0.95rem;
 			color: rgba(255, 255, 255, 0.85);
 			margin-bottom: 0.75rem;
 			font-weight: 700;
 		}
-
+	
 		.section-card-grid {
 			display: grid;
 			grid-template-columns: repeat(4, minmax(0, 1fr));
 			gap: 0.9rem;
 		}
-
+	
 		.section-card {
 			text-align: left;
 			border-radius: 1rem;
@@ -185,20 +190,20 @@
 			color: rgba(255, 255, 255, 0.92);
 			transition: transform 0.15s, background 0.15s, border-color 0.15s, box-shadow 0.15s;
 		}
-
+	
 		.section-card:hover {
 			transform: translateY(-1px);
 			background: rgba(255, 255, 255, 0.08);
 			border-color: rgba(255, 255, 255, 0.22);
 			box-shadow: 0 10px 20px rgba(0, 0, 0, 0.22);
 		}
-
+	
 		.section-card.is-active {
 			background: rgba(93, 244, 162, 0.15);
 			border-color: rgba(93, 244, 162, 0.55);
 			box-shadow: 0 14px 26px rgba(93, 244, 162, 0.12);
 		}
-
+	
 		.section-card-top {
 			display: flex;
 			align-items: baseline;
@@ -206,29 +211,30 @@
 			gap: 0.75rem;
 			margin-bottom: 0.55rem;
 		}
-
+	
 		.section-card-name {
 			font-weight: 900;
 			font-size: 1rem;
 			color: #fff;
 			line-height: 1.15;
 		}
-
+	
 		.section-card-meta {
 			font-size: 0.8rem;
 			color: rgba(255, 255, 255, 0.72);
 			font-weight: 700;
 			white-space: nowrap;
 		}
-
+	
 		.section-card-stats {
 			display: flex;
 			align-items: center;
 			justify-content: space-between;
 			gap: 0.75rem;
 		}
-
+	
 		.section-stat { display: flex; flex-direction: column; gap: 0.2rem; }
+	
 		.section-stat-label {
 			font-size: 0.7rem;
 			text-transform: uppercase;
@@ -236,8 +242,13 @@
 			color: rgba(255, 255, 255, 0.6);
 			font-weight: 800;
 		}
-		.section-stat-value { font-size: 1.05rem; font-weight: 900; color: #fff; }
-
+	
+		.section-stat-value {
+			font-size: 1.05rem;
+			font-weight: 900;
+			color: #fff;
+		}
+	
 		.section-progress {
 			margin-top: 0.65rem;
 			height: 10px;
@@ -246,7 +257,7 @@
 			overflow: hidden;
 			border: 1px solid rgba(255, 255, 255, 0.12);
 		}
-
+	
 		.section-progress > div {
 			height: 100%;
 			width: 0%;
@@ -254,8 +265,56 @@
 			border-radius: 999px;
 			transition: width 0.25s ease;
 		}
-
-		/* Map wrapper */
+	
+		.colour-card-grid {
+			display: flex;
+			flex-wrap: wrap;
+			gap: 0.7rem;
+		}
+	
+		.colour-card {
+			display: inline-flex;
+			align-items: center;
+			gap: 0.6rem;
+			padding: 0.7rem 0.95rem;
+			border-radius: 999px;
+			border: 1px solid rgba(255, 255, 255, 0.12);
+			background: rgba(255, 255, 255, 0.05);
+			color: rgba(255, 255, 255, 0.92);
+			cursor: pointer;
+			transition: transform 0.15s, background 0.15s, border-color 0.15s, box-shadow 0.15s;
+			font-weight: 700;
+			font-size: 0.9rem;
+		}
+	
+		.colour-card:hover {
+			transform: translateY(-1px);
+			background: rgba(255, 255, 255, 0.08);
+			border-color: rgba(255, 255, 255, 0.22);
+			box-shadow: 0 10px 20px rgba(0, 0, 0, 0.22);
+		}
+	
+		.colour-card.is-active {
+			background: rgba(93, 244, 162, 0.15);
+			border-color: rgba(93, 244, 162, 0.55);
+			box-shadow: 0 14px 26px rgba(93, 244, 162, 0.12);
+		}
+	
+		.colour-swatch {
+			width: 12px;
+			height: 12px;
+			border-radius: 999px;
+			flex: 0 0 12px;
+			box-shadow: 0 0 0 1px rgba(0,0,0,0.45);
+			background: var(--swatch, #ff4081);
+		}
+	
+		.colour-count {
+			font-size: 0.8rem;
+			color: rgba(255,255,255,0.68);
+			font-weight: 800;
+		}
+	
 		.map-wrapper {
 			position: relative;
 			width: 100%;
@@ -264,7 +323,7 @@
 			border: 1px solid rgba(255, 255, 255, 0.1);
 			background: #000;
 		}
-
+	
 		.map-viewport {
 			position: relative;
 			width: 100%;
@@ -274,7 +333,7 @@
 			background: #000;
 			touch-action: pan-y;
 		}
-
+	
 		.map-layer {
 			position: absolute;
 			left: 0;
@@ -282,7 +341,7 @@
 			transform-origin: 0 0;
 			will-change: transform;
 		}
-
+	
 		.gym-map-image {
 			display: block;
 			width: 100%;
@@ -291,23 +350,31 @@
 			-webkit-user-drag: none;
 			pointer-events: none;
 		}
-
+	
 		#mapWrapperSections {
 			--marker-base: 7px;
 			--marker-min: 4px;
 			--marker-scale: 1;
 		}
-
+	
 		.map-marker {
 			position: absolute;
 			transform: translate(-50%, -50%);
 			border-radius: 999px;
-			transition: transform 0.15s, box-shadow 0.15s;
+			transition: transform 0.15s, box-shadow 0.15s, opacity 0.15s, width 0.15s, height 0.15s;
 			cursor: pointer;
-			text-decoration: none;
 			pointer-events: auto;
+			padding: 0;
+			margin: 0;
+			appearance: none;
+			-webkit-appearance: none;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			line-height: 1;
+			overflow: visible;
 		}
-
+	
 		#mapWrapperSections .map-marker {
 			width: clamp(var(--marker-min), calc(var(--marker-base) / var(--marker-scale)), var(--marker-base));
 			height: clamp(var(--marker-min), calc(var(--marker-base) / var(--marker-scale)), var(--marker-base));
@@ -316,16 +383,22 @@
 				0 0 0 clamp(1px, calc(1.5px / var(--marker-scale)), 1.5px) rgba(0,0,0,0.65),
 				0 3px 10px rgba(0, 0, 0, 0.45);
 		}
-
+	
 		.map-marker:hover {
 			transform: translate(-50%, -50%) scale(1.08);
 			box-shadow: 0 6px 16px rgba(0, 0, 0, 0.6);
 			z-index: 10;
 		}
-
-		.map-marker.disabled { opacity: 0.4; cursor: default; }
-		.map-marker.disabled:hover { transform: translate(-50%, -50%); }
-
+	
+		.map-marker.disabled {
+			opacity: 0.4;
+			cursor: default;
+		}
+	
+		.map-marker.disabled:hover {
+			transform: translate(-50%, -50%);
+		}
+	
 		#mapWrapperSections .map-marker::after {
 			content: "";
 			position: absolute;
@@ -338,8 +411,34 @@
 			background: transparent;
 		}
 
-		/* Map missing state */
-		.map-missing {
+		/* ===== SHOW CLIMB NUMBERS ONLY WHEN A SECTION FILTER IS ACTIVE ===== */
+		#mapWrapperSections.show-marker-numbers .map-marker {
+			width: clamp(18px, calc(24px / var(--marker-scale)), 24px);
+			height: clamp(18px, calc(24px / var(--marker-scale)), 24px);
+			box-shadow:
+				0 0 0 clamp(1px, calc(1.5px / var(--marker-scale)), 1.5px) rgba(0,0,0,0.72),
+				0 6px 14px rgba(0, 0, 0, 0.5);
+			z-index: 2;
+		}
+
+		#mapWrapperSections.show-marker-numbers .map-marker::before {
+			content: attr(data-climb-number);
+			position: absolute;
+			left: 50%;
+			top: 50%;
+			transform: translate(-50%, -50%);
+			font-size: clamp(9px, calc(11px / var(--marker-scale)), 11px);
+			font-weight: 900;
+			color: #fff;
+			text-shadow:
+				0 1px 2px rgba(0,0,0,0.95),
+				0 0 3px rgba(0,0,0,0.9);
+			pointer-events: none;
+			white-space: nowrap;
+		}
+	
+		.map-missing,
+		.browser-empty {
 			padding: 2rem;
 			text-align: center;
 			background: rgba(255, 255, 255, 0.03);
@@ -347,13 +446,339 @@
 			border-radius: 1rem;
 			color: rgba(255, 255, 255, 0.7);
 		}
-		.map-missing strong {
+	
+		.map-missing strong,
+		.browser-empty strong {
 			display: block;
 			margin-bottom: 0.75rem;
 			color: #fff;
 			font-size: 1.1rem;
 		}
-
+	
+		.browser-header {
+			display: flex;
+			justify-content: space-between;
+			align-items: flex-start;
+			gap: 1rem;
+			margin-bottom: 1.25rem;
+		}
+	
+		.browser-title-wrap {
+			min-width: 0;
+		}
+	
+		.browser-title {
+			font-size: 1.55rem;
+			font-weight: 900;
+			color: #fff;
+			letter-spacing: -0.02em;
+		}
+	
+		.browser-summary {
+			display: inline-flex;
+			align-items: center;
+			justify-content: center;
+			padding: 0.55rem 0.95rem;
+			border-radius: 999px;
+			background: rgba(93, 244, 162, 0.12);
+			border: 1px solid rgba(93, 244, 162, 0.28);
+			color: #caffdf;
+			font-size: 0.82rem;
+			font-weight: 900;
+			white-space: nowrap;
+		}
+	
+		.climb-groups {
+			display: flex;
+			flex-direction: column;
+			gap: 1.15rem;
+		}
+	
+		.climb-group {
+			padding: 1.05rem 1.1rem 1.15rem;
+			border-radius: 1.15rem;
+			background: rgba(255,255,255,0.04);
+			border: 1px solid rgba(255,255,255,0.08);
+		}
+	
+		.climb-group-header {
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			gap: 0.75rem;
+			margin-bottom: 0.95rem;
+		}
+	
+		.climb-group-title {
+			font-size: 1.05rem;
+			font-weight: 900;
+			color: #fff;
+			line-height: 1.15;
+		}
+	
+		.climb-group-meta {
+			font-size: 0.8rem;
+			font-weight: 800;
+			color: rgba(255,255,255,0.6);
+			white-space: nowrap;
+		}
+	
+		.score-card-grid {
+			display: grid;
+			grid-template-columns: repeat(3, minmax(0, 1fr));
+			gap: 1rem;
+		}
+	
+		.score-card {
+			position: relative;
+			border-radius: 1.2rem;
+			overflow: hidden;
+			background: rgba(255,255,255,0.055);
+			border: 1px solid rgba(255,255,255,0.1);
+			box-shadow: 0 10px 20px rgba(0,0,0,0.18);
+			transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+		}
+	
+		.score-card:hover {
+			transform: translateY(-1px);
+			border-color: rgba(255,255,255,0.18);
+			box-shadow: 0 14px 24px rgba(0,0,0,0.24);
+		}
+	
+		.score-card.is-done {
+			border-color: rgba(93,244,162,0.55);
+			box-shadow:
+				0 0 0 1px rgba(93,244,162,0.25),
+				0 16px 26px rgba(0,0,0,0.24);
+		}
+	
+		.score-card-topbar {
+			height: 8px;
+			background: var(--card-colour, #ff4081);
+		}
+	
+		.score-card-body {
+			padding: 1rem;
+		}
+	
+		.score-card-header {
+			display: flex;
+			align-items: flex-start;
+			justify-content: space-between;
+			gap: 0.9rem;
+			margin-bottom: 0.9rem;
+		}
+	
+		.score-card-title-wrap {
+			min-width: 0;
+		}
+	
+		.score-card-title {
+			font-size: 1.15rem;
+			font-weight: 900;
+			line-height: 1.1;
+			color: #fff;
+			margin-bottom: 0.25rem;
+		}
+	
+		.score-card-subtitle {
+			font-size: 0.82rem;
+			color: rgba(255,255,255,0.68);
+			line-height: 1.35;
+		}
+	
+		.score-status-pill {
+			flex: 0 0 auto;
+			border-radius: 999px;
+			padding: 0.45rem 0.7rem;
+			font-size: 0.74rem;
+			font-weight: 900;
+			letter-spacing: 0.03em;
+			text-transform: uppercase;
+			border: 1px solid rgba(255,255,255,0.12);
+			background: rgba(255,255,255,0.06);
+			color: rgba(255,255,255,0.85);
+		}
+	
+		.score-status-pill.is-done {
+			background: rgba(93,244,162,0.14);
+			border-color: rgba(93,244,162,0.35);
+			color: #caffdf;
+		}
+	
+		.score-meta {
+			display: grid;
+			grid-template-columns: repeat(3, minmax(0, 1fr));
+			gap: 0.65rem;
+			margin-bottom: 1rem;
+		}
+	
+		.score-meta-item {
+			background: rgba(0,0,0,0.18);
+			border: 1px solid rgba(255,255,255,0.08);
+			border-radius: 0.95rem;
+			padding: 0.75rem 0.8rem;
+		}
+	
+		.score-meta-label {
+			font-size: 0.68rem;
+			text-transform: uppercase;
+			letter-spacing: 0.06em;
+			color: rgba(255,255,255,0.58);
+			font-weight: 800;
+			margin-bottom: 0.3rem;
+		}
+	
+		.score-meta-value {
+			font-size: 1rem;
+			font-weight: 900;
+			color: #fff;
+			line-height: 1.15;
+		}
+	
+		.score-controls {
+			display: flex;
+			flex-direction: column;
+			gap: 0.9rem;
+		}
+	
+		.score-control-block {
+			display: flex;
+			flex-direction: column;
+			gap: 0.55rem;
+		}
+	
+		.score-control-label {
+			font-size: 0.82rem;
+			font-weight: 800;
+			color: rgba(255,255,255,0.88);
+		}
+	
+		.topped-toggle-row {
+			display: grid;
+			grid-template-columns: repeat(2, minmax(0, 1fr));
+			gap: 0.6rem;
+		}
+	
+		.topped-btn,
+		.save-score-btn,
+		.attempt-minus,
+		.attempt-plus {
+			border: 1px solid rgba(255,255,255,0.12);
+			background: rgba(255,255,255,0.06);
+			color: #fff;
+			border-radius: 0.95rem;
+			font-weight: 800;
+			cursor: pointer;
+			transition: transform 0.12s ease, background 0.12s ease, border-color 0.12s ease, opacity 0.12s ease;
+		}
+	
+		.topped-btn:hover,
+		.save-score-btn:hover,
+		.attempt-minus:hover,
+		.attempt-plus:hover {
+			transform: translateY(-1px);
+			background: rgba(255,255,255,0.09);
+			border-color: rgba(255,255,255,0.2);
+		}
+	
+		.topped-btn {
+			padding: 0.8rem 0.9rem;
+			font-size: 0.9rem;
+		}
+	
+		.topped-btn.is-active {
+			background: rgba(93,244,162,0.16);
+			border-color: rgba(93,244,162,0.45);
+			color: #d8ffe9;
+		}
+	
+		.attempt-control {
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			gap: 0.6rem;
+		}
+	
+		.attempt-minus,
+		.attempt-plus {
+			width: 42px;
+			height: 42px;
+			font-size: 1.25rem;
+			font-weight: 900;
+			flex: 0 0 42px;
+		}
+	
+		.attempt-minus[disabled],
+		.attempt-plus[disabled] {
+			opacity: 0.45;
+			cursor: not-allowed;
+			transform: none;
+		}
+	
+		.attempt-value {
+			min-width: 52px;
+			height: 42px;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			text-align: center;
+			font-size: 1.15rem;
+			font-weight: 900;
+			color: #fff;
+			background: rgba(0,0,0,0.18);
+			border: 1px solid rgba(255,255,255,0.08);
+			border-radius: 0.95rem;
+			padding: 0 0.75rem;
+		}
+	
+		.score-footer {
+			display: flex;
+			flex-direction: column;
+			align-items: center;
+			justify-content: center;
+			gap: 0.45rem;
+			margin-top: 0.35rem;
+		}
+	
+		.score-save-state {
+			font-size: 0.78rem;
+			font-weight: 700;
+			color: rgba(255,255,255,0.62);
+			min-height: 1.1em;
+			text-align: center;
+			width: 100%;
+		}
+	
+		.score-save-state.is-success {
+			color: #9ff3c4;
+		}
+	
+		.score-save-state.is-error {
+			color: #ff9cab;
+		}
+	
+		.save-score-btn {
+			padding: 0.82rem 1rem;
+			font-size: 0.9rem;
+			min-width: 120px;
+			background: linear-gradient(135deg, rgba(93,244,162,0.18), rgba(93,244,162,0.1));
+			border-color: rgba(93,244,162,0.34);
+			color: #dffff0;
+			margin-top: 0;
+		}
+	
+		.save-score-btn[disabled] {
+			opacity: 0.6;
+			cursor: wait;
+			transform: none;
+		}
+	
+		.score-card-anchor {
+			position: absolute;
+			top: -90px;
+		}
+	
 		code {
 			background: rgba(0, 0, 0, 0.3);
 			padding: 0.25rem 0.5rem;
@@ -362,45 +787,166 @@
 			font-family: 'Courier New', monospace;
 			color: #5df4a2;
 		}
-
-		@media (max-width: 980px) {
-			.section-card-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+	
+		@media (max-width: 1100px) {
+			.section-card-grid {
+				grid-template-columns: repeat(3, minmax(0, 1fr));
+			}
+	
+			.score-card-grid {
+				grid-template-columns: repeat(2, minmax(0, 1fr));
+			}
 		}
-
+	
 		@media (max-width: 768px) {
 			.nav { padding: 1rem; }
-			.container { padding: 1.5rem 1rem; padding-bottom: calc(1.5rem + env(safe-area-inset-bottom, 0px) + var(--safe-bottom)); }
-			.comp-header { padding: 1.5rem; }
+	
+			.container {
+				padding: 1.5rem 1rem;
+				padding-bottom: calc(1.5rem + env(safe-area-inset-bottom, 0px) + var(--safe-bottom));
+			}
+	
+			.comp-header,
+			.map-card,
+			.climb-browser-card {
+				padding: 1.25rem;
+			}
+	
 			.comp-name { font-size: 1.6rem; }
 			.comp-pill { min-width: 90px; }
 			.comp-pill-value { font-size: 1.25rem; }
-			.map-card { padding: 1.25rem; }
 			.section-title { font-size: 1.35rem; }
-
-			.section-card-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.65rem; }
-			.section-card { padding: 0.65rem 0.75rem; border-radius: 0.9rem; }
-			.section-card-top { margin-bottom: 0.4rem; gap: 0.5rem; }
-			.section-card-name { font-size: 0.95rem; line-height: 1.1; }
+			.browser-title { font-size: 1.3rem; }
+	
+			.section-card-grid {
+				grid-template-columns: repeat(2, minmax(0, 1fr));
+				gap: 0.65rem;
+			}
+	
+			.section-card {
+				padding: 0.65rem 0.75rem;
+				border-radius: 0.9rem;
+			}
+	
+			.section-card-top {
+				margin-bottom: 0.4rem;
+				gap: 0.5rem;
+			}
+	
+			.section-card-name {
+				font-size: 0.95rem;
+				line-height: 1.1;
+			}
+	
 			.section-card-meta { font-size: 0.75rem; }
 			.section-stat-label { font-size: 0.62rem; }
 			.section-stat-value { font-size: 0.92rem; }
-			.section-progress { margin-top: 0.45rem; height: 8px; }
-
-			#mapWrapperSections { --marker-base: 6px; --marker-min: 3px; }
+			.section-progress {
+				margin-top: 0.45rem;
+				height: 8px;
+			}
+	
+			.colour-card-grid { gap: 0.55rem; }
+	
+			.colour-card {
+				padding: 0.6rem 0.8rem;
+				font-size: 0.85rem;
+			}
+	
+			.climb-group {
+				padding: 0.9rem 0.95rem 1rem;
+			}
+	
+			.score-card-grid {
+				grid-template-columns: 1fr;
+				gap: 0.8rem;
+			}
+	
+			.score-card-body {
+				padding: 0.9rem;
+			}
+	
+			.score-meta {
+				grid-template-columns: repeat(3, minmax(0, 1fr));
+				gap: 0.5rem;
+			}
+	
+			.score-meta-item {
+				padding: 0.65rem 0.7rem;
+			}
+	
+			.score-meta-label {
+				font-size: 0.62rem;
+			}
+	
+			.score-meta-value {
+				font-size: 0.9rem;
+			}
+	
+			#mapWrapperSections {
+				--marker-base: 6px;
+				--marker-min: 3px;
+			}
 		}
-
+	
 		@media (max-width: 520px) {
 			.comp-meta-row { gap: 0.75rem; }
-			.comp-pill { flex: 1 1 calc(50% - 0.375rem); min-width: 0; }
-
-			.section-card-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.55rem; }
+	
+			.comp-pill {
+				flex: 1 1 calc(50% - 0.375rem);
+				min-width: 0;
+			}
+	
+			.section-card-grid {
+				grid-template-columns: repeat(2, minmax(0, 1fr));
+				gap: 0.55rem;
+			}
+	
 			.section-card-stats { display: none; }
-			.section-card { padding: 0.6rem 0.7rem; }
+	
+			.section-card {
+				padding: 0.6rem 0.7rem;
+			}
+	
 			.section-card-name { font-size: 0.92rem; }
 			.section-card-meta { font-size: 0.72rem; }
-			.section-progress { height: 7px; margin-top: 0.4rem; }
-
-			#mapWrapperSections { --marker-base: 5px; --marker-min: 2.5px; }
+	
+			.section-progress {
+				height: 7px;
+				margin-top: 0.4rem;
+			}
+	
+			.browser-header {
+				flex-direction: column;
+				align-items: flex-start;
+			}
+	
+			.score-card-title {
+				font-size: 1.02rem;
+			}
+	
+			.score-card-subtitle {
+				font-size: 0.76rem;
+			}
+	
+			.score-meta {
+				grid-template-columns: 1fr 1fr 1fr;
+			}
+	
+			.score-footer {
+				flex-direction: column;
+				align-items: center;
+			}
+	
+			.save-score-btn {
+				width: 100%;
+				max-width: 240px;
+			}
+	
+			#mapWrapperSections {
+				--marker-base: 5px;
+				--marker-min: 2.5px;
+			}
 		}
 	</style>
 </head>
@@ -480,6 +1026,9 @@
 		<section class="map-card">
 			<header class="section-header">
 				<h2 class="section-title">{{ gym_name }} Map</h2>
+				<p class="section-subtitle">
+					Filter by section and/or colour. The list below the map will update automatically.
+				</p>
 			</header>
 
 			{% if sections %}
@@ -522,6 +1071,11 @@
 				</div>
 			{% endif %}
 
+			<div class="colour-filter-row">
+				<div class="colour-filter-label">Colours (tap to filter by colour):</div>
+				<div class="colour-card-grid" id="colourCardGrid"></div>
+			</div>
+
 			{% if gym_map_path %}
 				<div class="map-wrapper" id="mapWrapperSections">
 					<div class="map-viewport" id="mapViewportSections">
@@ -535,29 +1089,17 @@
 							{% for c in map_climbs %}
 								{% if c.x_percent is not none and c.y_percent is not none %}
 									{% set bg = c.colour or '#ff4081' %}
-									{% if can_edit %}
-										{% if comp_slug %}
-											<a class="map-marker"
-											   data-section-id="{{ c.section.id }}"
-											   data-climb-number="{{ c.climb_number }}"
-											   style="left: {{ c.x_percent }}%; top: {{ c.y_percent }}%; background: {{ bg }};"
-											   href="/comp/{{ comp_slug }}/competitor/{{ competitor.id }}/section/{{ c.section.slug }}#climb-{{ c.climb_number }}"
-											   title="Section {{ c.section.name }} · Climb #{{ c.climb_number }}"></a>
-										{% else %}
-											<a class="map-marker"
-											   data-section-id="{{ c.section.id }}"
-											   data-climb-number="{{ c.climb_number }}"
-											   style="left: {{ c.x_percent }}%; top: {{ c.y_percent }}%; background: {{ bg }};"
-											   href="/competitor/{{ competitor.id }}/section/{{ c.section.slug }}#climb-{{ c.climb_number }}"
-											   title="Section {{ c.section.name }} · Climb #{{ c.climb_number }}"></a>
-										{% endif %}
-									{% else %}
-										<div class="map-marker disabled"
-										     data-section-id="{{ c.section.id }}"
-										     data-climb-number="{{ c.climb_number }}"
-										     style="left: {{ c.x_percent }}%; top: {{ c.y_percent }}%; background: {{ bg }};"
-										     title="Section {{ c.section.name }} · Climb #{{ c.climb_number }}"></div>
-									{% endif %}
+									<button
+										type="button"
+										class="map-marker {% if not can_edit %}disabled{% endif %}"
+										data-section-id="{{ c.section.id }}"
+										data-climb-number="{{ c.climb_number }}"
+										data-colour="{{ (c.colour or 'unknown')|trim|lower }}"
+										data-colour-label="{{ c.colour or 'Unknown' }}"
+										data-target-id="score-card-{{ c.section.id }}-{{ c.climb_number }}"
+										style="left: {{ c.x_percent }}%; top: {{ c.y_percent }}%; background: {{ bg }};"
+										title="Section {{ c.section.name }} · Climb #{{ c.climb_number }}{% if c.colour %} · {{ c.colour }}{% endif %}">
+									</button>
 								{% endif %}
 							{% endfor %}
 						</div>
@@ -572,9 +1114,132 @@
 				</div>
 			{% endif %}
 		</section>
+
+		<section class="climb-browser-card">
+			<header class="browser-header">
+				<div class="browser-title-wrap">
+					<h2 class="browser-title">Filtered Climbs</h2>
+					<p class="browser-subtitle">
+						All matching climbs appear here as full score cards.
+					</p>
+				</div>
+				<div class="browser-summary" id="filteredClimbSummary">0 climbs shown</div>
+			</header>
+
+			{% if map_climbs %}
+				<div class="climb-groups" id="climbGroups">
+					{% for sec in sections %}
+						<div class="climb-group" data-section-group="{{ sec.id }}">
+							<div class="climb-group-header">
+								<div class="climb-group-title">{{ sec.name }}</div>
+								<div class="climb-group-meta">
+									<span class="group-visible-count">0</span> shown
+								</div>
+							</div>
+
+							<div class="score-card-grid">
+								{% for c in map_climbs %}
+									{% if c.section.id == sec.id and c.x_percent is not none and c.y_percent is not none %}
+										{% set bg = c.colour or '#ff4081' %}
+										{% set base_points = c.base_points if c.base_points is not none else 0 %}
+										{% set penalty = c.penalty_per_attempt if c.penalty_per_attempt is not none else 0 %}
+										{% set cap = c.attempt_cap if c.attempt_cap is not none else 10 %}
+										<div
+											class="score-card"
+											id="score-card-{{ c.section.id }}-{{ c.climb_number }}"
+											data-section-id="{{ c.section.id }}"
+											data-section-climb-id="{{ c.id }}"
+											data-climb-number="{{ c.climb_number }}"
+											data-colour="{{ (c.colour or 'unknown')|trim|lower }}"
+											data-colour-label="{{ c.colour or 'Unknown' }}"
+											data-base-points="{{ base_points }}"
+											data-penalty-per-attempt="{{ penalty }}"
+											data-attempt-cap="{{ cap }}"
+											style="--card-colour: {{ bg }};"
+										>
+											<div class="score-card-anchor" id="climb-{{ c.section.id }}-{{ c.climb_number }}"></div>
+											<div class="score-card-topbar"></div>
+
+											<div class="score-card-body">
+												<div class="score-card-header">
+													<div class="score-card-title-wrap">
+														<div class="score-card-title">
+															{{ sec.name }} · Climb {{ c.climb_number }}
+														</div>
+														<div class="score-card-subtitle">
+															{% if c.colour %}{{ c.colour }}{% else %}Unknown colour{% endif %}
+														</div>
+													</div>
+
+													<div class="score-status-pill" data-role="status-pill">Not topped</div>
+												</div>
+
+												<div class="score-meta">
+													<div class="score-meta-item">
+														<div class="score-meta-label">Max Points</div>
+														<div class="score-meta-value" data-role="base-points">{{ base_points }}</div>
+													</div>
+
+													<div class="score-meta-item">
+														<div class="score-meta-label">Current Points</div>
+														<div class="score-meta-value" data-role="current-points">0</div>
+													</div>
+
+													<div class="score-meta-item">
+														<div class="score-meta-label">Climb Colour</div>
+														<div class="score-meta-value">{{ c.colour or "Unknown" }}</div>
+													</div>
+												</div>
+
+												<div class="score-controls">
+													<div class="score-control-block">
+														<div class="score-control-label">Topped</div>
+														<div class="topped-toggle-row">
+															<button type="button" class="topped-btn" data-topped-value="true">Yes</button>
+															<button type="button" class="topped-btn is-active" data-topped-value="false">No</button>
+														</div>
+													</div>
+
+													<div class="score-control-block">
+														<div class="score-control-label">Attempts</div>
+														<div class="attempt-control">
+															<button type="button" class="attempt-minus">−</button>
+															<div class="attempt-value" data-role="attempt-value">1</div>
+															<button type="button" class="attempt-plus">+</button>
+														</div>
+													</div>
+												</div>
+
+												<div class="score-footer">
+													<div class="score-save-state" data-role="save-state"></div>
+													{% if can_edit %}
+														<button type="button" class="save-score-btn" data-role="save-btn">Save score</button>
+													{% else %}
+														<div class="score-save-state">Read only</div>
+													{% endif %}
+												</div>
+											</div>
+										</div>
+									{% endif %}
+								{% endfor %}
+							</div>
+						</div>
+					{% endfor %}
+				</div>
+
+				<div class="browser-empty" id="filteredClimbEmpty" style="display:none;">
+					<strong>No climbs match those filters</strong>
+					<div>Clear one of the active filters and the matching climbs will come back.</div>
+				</div>
+			{% else %}
+				<div class="browser-empty">
+					<strong>No climbs available</strong>
+					<div>Once climbs are added to the map, they’ll appear here grouped by section.</div>
+				</div>
+			{% endif %}
+		</section>
 	</main>
 
-	<!-- ✅ FULL DROP-IN REPLACEMENT: competitor.html-style aspect-safe boundary zoom -->
 	<script>
 	(function () {
 		const wrapper  = document.getElementById("mapWrapperSections");
@@ -805,7 +1470,6 @@
 			animateTransform(() => fitRectToViewport(union, 12), 280);
 		}
 
-		// expose for the filter script
 		window.__zoomToActiveSectionIds = (ids) => applyZoomForSectionIds(ids);
 		window.__resetSectionsMapFit = () => applyZoomForSectionIds([]);
 
@@ -830,129 +1494,493 @@
 	</script>
 
 	<script>
-		(function () {
-			// -------- Section cards filtering + progress counts + boundary zoom --------
-			const competitorId = {{ competitor.id }};
-			const cards = Array.from(document.querySelectorAll(".section-card"));
-			const markers = Array.from(document.querySelectorAll(".map-marker"));
+	(function () {
+		const competitorId = {{ competitor.id }};
+		const canEdit = {{ 'true' if can_edit else 'false' }};
 
-			if (!cards.length || !markers.length) return;
+		const mapWrapper = document.getElementById("mapWrapperSections");
+		const cards = Array.from(document.querySelectorAll(".section-card"));
+		const markers = Array.from(document.querySelectorAll(".map-marker"));
+		const colourCardGrid = document.getElementById("colourCardGrid");
+		const climbGroups = Array.from(document.querySelectorAll(".climb-group"));
+		const scoreCards = Array.from(document.querySelectorAll(".score-card"));
+		const emptyState = document.getElementById("filteredClimbEmpty");
+		const summary = document.getElementById("filteredClimbSummary");
+		const totalPointsEl = document.getElementById("total-points");
 
-			const totalsBySection = new Map();
-			const sectionByClimb = new Map();
+		if (!markers.length && !scoreCards.length) return;
 
-			markers.forEach((m) => {
-				const sid = m.dataset.sectionId;
-				const cn = m.dataset.climbNumber;
-				if (!sid) return;
+		const totalsBySection = new Map();
+		const colourMeta = new Map();
+		const scoreState = new Map();
 
-				totalsBySection.set(sid, (totalsBySection.get(sid) || 0) + 1);
-				if (cn) sectionByClimb.set(String(cn), sid);
-			});
+		function parseIntSafe(v, fallback = 0) {
+			const n = parseInt(v, 10);
+			return Number.isFinite(n) ? n : fallback;
+		}
 
-			function setCardProgress(card, done, total) {
-				const left = Math.max(0, total - done);
-				card.querySelectorAll(".sec-done").forEach(el => el.textContent = String(done));
-				card.querySelectorAll(".sec-total").forEach(el => el.textContent = String(total));
-				const leftEl = card.querySelector(".sec-left");
-				if (leftEl) leftEl.textContent = String(left);
+		function setCardProgress(card, done, total) {
+			const left = Math.max(0, total - done);
+			card.querySelectorAll(".sec-done").forEach(el => el.textContent = String(done));
+			card.querySelectorAll(".sec-total").forEach(el => el.textContent = String(total));
+			const leftEl = card.querySelector(".sec-left");
+			if (leftEl) leftEl.textContent = String(left);
 
-				const bar = card.querySelector(".sec-bar");
-				if (bar) {
-					const pct = total ? Math.round((done / total) * 100) : 0;
-					bar.style.width = pct + "%";
-				}
+			const bar = card.querySelector(".sec-bar");
+			if (bar) {
+				const pct = total ? Math.round((done / total) * 100) : 0;
+				bar.style.width = pct + "%";
 			}
+		}
+
+		function computePoints(basePoints, penaltyPerAttempt, attemptCap, topped, attempts) {
+			const base = parseIntSafe(basePoints, 0);
+			const penalty = parseIntSafe(penaltyPerAttempt, 0);
+			const cap = Math.max(1, parseIntSafe(attemptCap, 10));
+			const clampedAttempts = Math.max(1, Math.min(parseIntSafe(attempts, 1), cap));
+
+			if (!topped) return 0;
+
+			const penalties = Math.max(0, clampedAttempts - 1) * penalty;
+			return Math.max(0, base - penalties);
+		}
+
+		function getCardState(card) {
+			const climbNumber = String(card.dataset.climbNumber || "");
+			if (!scoreState.has(climbNumber)) {
+				scoreState.set(climbNumber, { topped: false, attempts: 1 });
+			}
+			return scoreState.get(climbNumber);
+		}
+
+		function updateCardUI(card) {
+			const state = getCardState(card);
+
+			const basePoints = parseIntSafe(card.dataset.basePoints, 0);
+			const penaltyPerAttempt = parseIntSafe(card.dataset.penaltyPerAttempt, 0);
+			const attemptCap = Math.max(1, parseIntSafe(card.dataset.attemptCap, 10));
+
+			if (state.attempts < 1) state.attempts = 1;
+			if (state.attempts > attemptCap) state.attempts = attemptCap;
+
+			const currentPoints = computePoints(basePoints, penaltyPerAttempt, attemptCap, state.topped, state.attempts);
+
+			const currentPointsEl = card.querySelector('[data-role="current-points"]');
+			if (currentPointsEl) currentPointsEl.textContent = String(currentPoints);
+
+			const statusPill = card.querySelector('[data-role="status-pill"]');
+			if (statusPill) {
+				statusPill.textContent = state.topped ? "Topped" : "Not topped";
+				statusPill.classList.toggle("is-done", !!state.topped);
+			}
+
+			const attemptValueEl = card.querySelector('[data-role="attempt-value"]');
+			if (attemptValueEl) attemptValueEl.textContent = String(state.attempts);
+
+			const minusBtn = card.querySelector(".attempt-minus");
+			const plusBtn = card.querySelector(".attempt-plus");
+			if (minusBtn) minusBtn.disabled = state.attempts <= 1;
+			if (plusBtn) plusBtn.disabled = state.attempts >= attemptCap;
+
+			card.classList.toggle("is-done", !!state.topped);
+
+			card.querySelectorAll(".topped-btn").forEach((btn) => {
+				const btnVal = btn.dataset.toppedValue === "true";
+				btn.classList.toggle("is-active", btnVal === !!state.topped);
+			});
+		}
+
+		function updateAllCardsUI() {
+			scoreCards.forEach(updateCardUI);
+		}
+
+		function recomputeSectionProgress() {
+			const doneBySection = new Map();
+
+			scoreCards.forEach((card) => {
+				const sid = card.dataset.sectionId;
+				const climbNumber = String(card.dataset.climbNumber || "");
+				const state = scoreState.get(climbNumber);
+				if (!sid || !state || !state.topped) return;
+				doneBySection.set(sid, (doneBySection.get(sid) || 0) + 1);
+			});
 
 			cards.forEach((card) => {
 				const sid = card.dataset.sectionId;
 				const total = totalsBySection.get(sid) || 0;
-				setCardProgress(card, 0, total);
+				const done = doneBySection.get(sid) || 0;
+				setCardProgress(card, done, total);
 			});
+		}
 
-			async function loadProgress() {
-				try {
-					const res = await fetch(`/api/score/${competitorId}`);
-					if (!res.ok) return;
+		function recomputeTotalPoints() {
+			let total = 0;
+			scoreCards.forEach((card) => {
+				const state = getCardState(card);
+				total += computePoints(
+					card.dataset.basePoints,
+					card.dataset.penaltyPerAttempt,
+					card.dataset.attemptCap,
+					state.topped,
+					state.attempts
+				);
+			});
+			if (totalPointsEl) totalPointsEl.textContent = String(total);
+		}
 
-					const rows = await res.json();
+		function updateMarkerNumberMode() {
+			if (!mapWrapper) return;
+			mapWrapper.classList.toggle("show-marker-numbers", activeSectionIds.size > 0);
+		}
 
-					const doneClimbs = new Set();
-					(rows || []).forEach((r) => {
-						if (!r) return;
-						const cn = r.climb_number;
-						if (cn === undefined || cn === null) return;
-						if (!!r.topped) doneClimbs.add(String(cn));
-					});
+		markers.forEach((m) => {
+			const sid = m.dataset.sectionId;
+			const colourKey = (m.dataset.colour || "unknown").trim().toLowerCase();
+			const colourLabel = (m.dataset.colourLabel || "Unknown").trim();
+			const swatch = m.style.background || "#ff4081";
 
-					const doneBySection = new Map();
-					doneClimbs.forEach((cn) => {
-						const sid = sectionByClimb.get(String(cn));
-						if (!sid) return;
-						doneBySection.set(sid, (doneBySection.get(sid) || 0) + 1);
-					});
+			if (sid) totalsBySection.set(sid, (totalsBySection.get(sid) || 0) + 1);
 
-					cards.forEach((card) => {
-						const sid = card.dataset.sectionId;
-						const total = totalsBySection.get(sid) || 0;
-						const done = doneBySection.get(sid) || 0;
-						setCardProgress(card, done, total);
-					});
-				} catch (_) {}
-			}
-
-			loadProgress();
-
-			let activeIds = new Set();
-
-			function applyFilter() {
-				if (!activeIds.size) {
-					markers.forEach((m) => { m.style.display = ""; });
-					return;
-				}
-				markers.forEach((m) => {
-					const sid = m.dataset.sectionId;
-					m.style.display = (!sid || activeIds.has(sid)) ? "" : "none";
+			if (!colourMeta.has(colourKey)) {
+				colourMeta.set(colourKey, {
+					label: colourLabel,
+					count: 0,
+					swatch: swatch
 				});
 			}
+			colourMeta.get(colourKey).count += 1;
+		});
 
-			async function syncZoomToActive() {
-				const ids = Array.from(activeIds);
-				if (!ids.length) {
-					if (window.__resetSectionsMapFit) window.__resetSectionsMapFit();
-					return;
-				}
-				if (window.__zoomToActiveSectionIds) {
-					await window.__zoomToActiveSectionIds(ids);
-				}
-			}
+		scoreCards.forEach((card) => {
+			const climbNumber = String(card.dataset.climbNumber || "");
+			scoreState.set(climbNumber, { topped: false, attempts: 1 });
+			updateCardUI(card);
+		});
 
-			cards.forEach((card) => {
-				card.addEventListener("click", async () => {
-					const sid = card.dataset.sectionId;
-					if (!sid) return;
+		cards.forEach((card) => {
+			const sid = card.dataset.sectionId;
+			const total = totalsBySection.get(sid) || 0;
+			setCardProgress(card, 0, total);
+		});
 
-					const isActive = card.classList.contains("is-active");
+		async function loadProgress() {
+			try {
+				const res = await fetch(`/api/score/${competitorId}`, { credentials: "same-origin" });
+				if (!res.ok) return;
+
+				const rows = await res.json();
+
+				(rows || []).forEach((r) => {
+					if (!r) return;
+					const cn = r.climb_number;
+					if (cn === undefined || cn === null) return;
+
+					scoreState.set(String(cn), {
+						topped: !!r.topped,
+						attempts: Math.max(1, parseIntSafe(r.attempts, 1))
+					});
+				});
+
+				updateAllCardsUI();
+				recomputeSectionProgress();
+				recomputeTotalPoints();
+			} catch (_) {}
+		}
+
+		function buildColourCards() {
+			if (!colourCardGrid) return;
+
+			const entries = Array.from(colourMeta.entries()).sort((a, b) => {
+				return a[1].label.localeCompare(b[1].label);
+			});
+
+			colourCardGrid.innerHTML = "";
+
+			entries.forEach(([key, meta]) => {
+				const btn = document.createElement("button");
+				btn.type = "button";
+				btn.className = "colour-card";
+				btn.dataset.colour = key;
+				btn.setAttribute("aria-pressed", "false");
+
+				btn.innerHTML = `
+					<span class="colour-swatch" style="--swatch: ${meta.swatch};"></span>
+					<span class="colour-name">${meta.label}</span>
+					<span class="colour-count">${meta.count}</span>
+				`;
+
+				btn.addEventListener("click", () => {
+					const isActive = btn.classList.contains("is-active");
+
 					if (isActive) {
-						card.classList.remove("is-active");
-						card.setAttribute("aria-pressed", "false");
-						activeIds.delete(sid);
+						btn.classList.remove("is-active");
+						btn.setAttribute("aria-pressed", "false");
+						activeColours.delete(key);
 					} else {
-						card.classList.add("is-active");
-						card.setAttribute("aria-pressed", "true");
-						activeIds.add(sid);
+						btn.classList.add("is-active");
+						btn.setAttribute("aria-pressed", "true");
+						activeColours.add(key);
 					}
 
-					const anyActive = cards.some((c) => c.classList.contains("is-active"));
-					if (!anyActive) activeIds.clear();
+					applyAllFilters();
+				});
 
-					applyFilter();
-					try { await syncZoomToActive(); } catch (_) {}
+				colourCardGrid.appendChild(btn);
+			});
+		}
+
+		let activeSectionIds = new Set();
+		let activeColours = new Set();
+
+		function matchesSection(el) {
+			if (!activeSectionIds.size) return true;
+			const sid = el.dataset.sectionId || "";
+			return activeSectionIds.has(sid);
+		}
+
+		function matchesColour(el) {
+			if (!activeColours.size) return true;
+			const colourKey = (el.dataset.colour || "unknown").trim().toLowerCase();
+			return activeColours.has(colourKey);
+		}
+
+		function applyMapFilter() {
+			markers.forEach((m) => {
+				const show = matchesSection(m) && matchesColour(m);
+				m.style.display = show ? "" : "none";
+			});
+		}
+
+		function applyScoreCardFilter() {
+			let visibleCardCount = 0;
+			let visibleGroupCount = 0;
+
+			climbGroups.forEach((group) => {
+				const groupCards = Array.from(group.querySelectorAll(".score-card"));
+				let groupVisible = 0;
+
+				groupCards.forEach((card) => {
+					const show = matchesSection(card) && matchesColour(card);
+					card.style.display = show ? "" : "none";
+					if (show) {
+						groupVisible += 1;
+						visibleCardCount += 1;
+					}
+				});
+
+				const countEl = group.querySelector(".group-visible-count");
+				if (countEl) countEl.textContent = String(groupVisible);
+
+				group.style.display = groupVisible ? "" : "none";
+				if (groupVisible) visibleGroupCount += 1;
+			});
+
+			if (summary) {
+				const groupsText = visibleGroupCount === 1 ? "section" : "sections";
+				const climbsText = visibleCardCount === 1 ? "climb" : "climbs";
+				summary.textContent = `${visibleCardCount} ${climbsText} in ${visibleGroupCount} ${groupsText}`;
+			}
+
+			if (emptyState) {
+				emptyState.style.display = visibleCardCount ? "none" : "";
+			}
+		}
+
+		async function syncZoomToActiveSections() {
+			const ids = Array.from(activeSectionIds);
+			if (!ids.length) {
+				if (window.__resetSectionsMapFit) window.__resetSectionsMapFit();
+				return;
+			}
+			if (window.__zoomToActiveSectionIds) {
+				await window.__zoomToActiveSectionIds(ids);
+			}
+		}
+
+		function applyAllFilters() {
+			applyMapFilter();
+			applyScoreCardFilter();
+			updateMarkerNumberMode();
+		}
+
+		function scrollToTargetCard(targetId) {
+			if (!targetId) return;
+			const el = document.getElementById(targetId);
+			if (!el) return;
+
+			el.scrollIntoView({
+				behavior: "smooth",
+				block: "center"
+			});
+
+			el.animate(
+					[
+						{ boxShadow: "0 0 0 0 rgba(93,244,162,0)" },
+						{ boxShadow: "0 0 0 4px rgba(93,244,162,0.65)", offset: 0.15 },
+						{ boxShadow: "0 0 0 4px rgba(93,244,162,0.65)", offset: 0.75 },
+						{ boxShadow: "0 0 0 0 rgba(93,244,162,0)", offset: 1 }
+					],
+					{ duration: 2800, easing: "ease-out" }
+				);
+		}
+
+		markers.forEach((marker) => {
+			if (marker.classList.contains("disabled")) return;
+			marker.addEventListener("click", () => {
+				scrollToTargetCard(marker.dataset.targetId);
+			});
+		});
+
+		cards.forEach((card) => {
+			card.addEventListener("click", async () => {
+				const sid = card.dataset.sectionId;
+				if (!sid) return;
+
+				const isActive = card.classList.contains("is-active");
+				if (isActive) {
+					card.classList.remove("is-active");
+					card.setAttribute("aria-pressed", "false");
+					activeSectionIds.delete(sid);
+				} else {
+					card.classList.add("is-active");
+					card.setAttribute("aria-pressed", "true");
+					activeSectionIds.add(sid);
+				}
+
+				const anyActive = cards.some((c) => c.classList.contains("is-active"));
+				if (!anyActive) activeSectionIds.clear();
+
+				applyAllFilters();
+				try { await syncZoomToActiveSections(); } catch (_) {}
+			});
+		});
+
+		scoreCards.forEach((card) => {
+			const climbNumber = String(card.dataset.climbNumber || "");
+			const attemptCap = Math.max(1, parseIntSafe(card.dataset.attemptCap, 10));
+
+			card.querySelectorAll(".topped-btn").forEach((btn) => {
+				btn.addEventListener("click", () => {
+					if (!canEdit) return;
+					const state = getCardState(card);
+					state.topped = btn.dataset.toppedValue === "true";
+
+					if (state.attempts < 1) state.attempts = 1;
+
+					updateCardUI(card);
+					recomputeSectionProgress();
+					recomputeTotalPoints();
 				});
 			});
 
-			applyFilter();
-		})();
+			const minusBtn = card.querySelector(".attempt-minus");
+			const plusBtn = card.querySelector(".attempt-plus");
+
+			if (minusBtn) {
+				minusBtn.addEventListener("click", () => {
+					if (!canEdit) return;
+					const state = getCardState(card);
+					if (state.attempts > 1) {
+						state.attempts -= 1;
+					}
+					updateCardUI(card);
+					recomputeSectionProgress();
+					recomputeTotalPoints();
+				});
+			}
+
+			if (plusBtn) {
+				plusBtn.addEventListener("click", () => {
+					if (!canEdit) return;
+					const state = getCardState(card);
+					if (state.attempts < attemptCap) {
+						state.attempts += 1;
+					}
+					updateCardUI(card);
+					recomputeSectionProgress();
+					recomputeTotalPoints();
+				});
+			}
+
+			const saveBtn = card.querySelector('[data-role="save-btn"]');
+			if (saveBtn) {
+				saveBtn.addEventListener("click", async () => {
+					await saveScore(card, saveBtn, climbNumber);
+				});
+			}
+		});
+
+		async function saveScore(card, saveBtn, climbNumber) {
+			const state = getCardState(card);
+			const saveStateEl = card.querySelector('[data-role="save-state"]');
+			const sectionClimbId = parseIntSafe(card.dataset.sectionClimbId, 0);
+
+			if (saveStateEl) {
+				saveStateEl.textContent = "Saving...";
+				saveStateEl.classList.remove("is-success", "is-error");
+			}
+
+			if (saveBtn) {
+				saveBtn.disabled = true;
+				saveBtn.textContent = "Saving...";
+			}
+
+			try {
+				const payload = {
+					competitor_id: competitorId,
+					section_climb_id: sectionClimbId,
+					attempts: Math.max(1, parseIntSafe(state.attempts, 1)),
+					topped: !!state.topped
+				};
+
+				const res = await fetch(`/api/score`, {
+					method: "POST",
+					credentials: "same-origin",
+					headers: {
+						"Content-Type": "application/json"
+					},
+					body: JSON.stringify(payload)
+				});
+
+				if (!res.ok) {
+					const text = await res.text().catch(() => "");
+					throw new Error(text || `HTTP ${res.status}`);
+				}
+
+				const result = await res.json().catch(() => null);
+
+				if (saveStateEl) {
+					saveStateEl.textContent = "Saved";
+					saveStateEl.classList.remove("is-error");
+					saveStateEl.classList.add("is-success");
+				}
+
+				if (result && typeof result.points === "number") {
+					const currentPointsEl = card.querySelector('[data-role="current-points"]');
+					if (currentPointsEl) currentPointsEl.textContent = String(result.points);
+				}
+
+				recomputeSectionProgress();
+				recomputeTotalPoints();
+			} catch (err) {
+				if (saveStateEl) {
+					saveStateEl.textContent = "Save failed";
+					saveStateEl.classList.remove("is-success");
+					saveStateEl.classList.add("is-error");
+				}
+				console.error("Failed to save score", err);
+			} finally {
+				if (saveBtn) {
+					saveBtn.disabled = false;
+					saveBtn.textContent = "Save score";
+				}
+			}
+		}
+
+		buildColourCards();
+		applyAllFilters();
+		loadProgress();
+	})();
 	</script>
 </body>
 </html>
