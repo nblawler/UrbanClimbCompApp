@@ -56,13 +56,11 @@ def _safe_label_from_section_climb(sc: Optional[SectionClimb]) -> Optional[str]:
     if not sc:
         return None
 
-    # common patterns people use:
     if hasattr(sc, "label") and getattr(sc, "label"):
         return getattr(sc, "label")
     if hasattr(sc, "name") and getattr(sc, "name"):
         return getattr(sc, "name")
 
-    # If SectionClimb has a color field, great:
     if hasattr(sc, "color") and getattr(sc, "color"):
         try:
             return f"{getattr(sc, 'color')} #{sc.climb_number}"
@@ -71,9 +69,11 @@ def _safe_label_from_section_climb(sc: Optional[SectionClimb]) -> Optional[str]:
 
     return None
 
+
 def get_top_climbs_for_competitor(competition_id: int, competitor_id: int, limit: int = 8):
     """
     Return the competitor's top N climbs using the SAME selection rule as build_leaderboard:
+      - ONLY include topped climbs
       - points_for(climb_number, attempts, topped, competition_id)
       - sort by points desc, attempts asc
       - take top N
@@ -122,6 +122,10 @@ def get_top_climbs_for_competitor(competition_id: int, competitor_id: int, limit
         if s.section_climb_id and sc is None:
             continue
 
+        # IMPORTANT: leaderboard details should only show topped climbs
+        if not bool(s.topped):
+            continue
+
         pts = points_for(s.climb_number, s.attempts, s.topped, competition_id)
 
         colour = (sc.colour.strip() if (sc and sc.colour) else None)
@@ -136,7 +140,7 @@ def get_top_climbs_for_competitor(competition_id: int, competitor_id: int, limit
             "colour": colour,
             "label": label,
             "attempts": int(s.attempts or 0),
-            "topped": bool(s.topped),
+            "topped": True,
             "score": int(pts or 0),
             "updated_at": s.updated_at.isoformat() if getattr(s, "updated_at", None) else None,
         })
@@ -151,9 +155,10 @@ def build_leaderboard(category=None, competition_id=None, slug=None):
 
     NEW SCORING / RANKING RULES:
     - Each climb has fixed base_points (no per-attempt penalty)
-    - A competitor's leaderboard score is the SUM of their TOP 8 climbs (by points)
+    - A competitor's leaderboard score is the SUM of their TOP 8 TOPPED climbs (by points)
+    - Untopped climbs do NOT count toward total_points
     - Tie-break: if total_points equal, LOWEST attempts_on_tops ranks higher
-      (attempts summed only over topped climbs within those top 8)
+      (attempts summed only over the selected top 8 topped climbs)
     - Stable final tie-break: name asc
 
     Modes:
@@ -172,9 +177,9 @@ def build_leaderboard(category=None, competition_id=None, slug=None):
           "team_id",
           "a_id", "b_id",
           "a_name", "b_name",
-          "name",              # "A and B"
+          "name",
           "total_points",
-          "attempts_on_tops",  # used for tie-break only (not required by UI)
+          "attempts_on_tops",
           "position"
         }
 
@@ -213,7 +218,7 @@ def build_leaderboard(category=None, competition_id=None, slug=None):
 
     # --- doubles mode ---
     if cat_key == "doubles":
-        # Always build singles "all" to get per-competitor totals/attempts
+        # Build singles "all" first so doubles inherits the same topped-only rule
         singles_rows, _ = build_leaderboard("all", competition_id=current_comp.id)
 
         points_by_id = {r["competitor_id"]: r.get("total_points", 0) for r in singles_rows}
@@ -246,7 +251,7 @@ def build_leaderboard(category=None, competition_id=None, slug=None):
                 "b_name": b_name,
                 "name": f"{a_name} and {b_name}",
                 "total_points": total_points,
-                "attempts_on_tops": team_attempts,  # tie-break only
+                "attempts_on_tops": team_attempts,
             })
 
         # Rank: points desc, attempts asc, name asc
@@ -288,7 +293,6 @@ def build_leaderboard(category=None, competition_id=None, slug=None):
 
     competitor_ids = [c.id for c in competitors]
 
-    # Pull all scores for these competitors in one go
     all_scores = (
         Score.query
         .filter(Score.competitor_id.in_(competitor_ids))
@@ -304,35 +308,37 @@ def build_leaderboard(category=None, competition_id=None, slug=None):
     for c in competitors:
         scores = by_competitor.get(c.id, [])
 
-        # Build list of scored climbs with points (fixed) and attempts
-        scored = []
+        topped_scored = []
         last_update = None
 
         for s in scores:
-            p = points_for(s.climb_number, s.attempts, s.topped, current_comp.id)
-            scored.append({
-                "climb_number": s.climb_number,
-                "points": int(p or 0),
-                "attempts": int(s.attempts or 0),
-                "topped": bool(s.topped),
-                "updated_at": s.updated_at,
-            })
-
             if s.updated_at is not None:
                 if last_update is None or s.updated_at > last_update:
                     last_update = s.updated_at
 
-        # Sort by points desc, then attempts asc for deterministic selection
-        scored.sort(key=lambda x: (-x["points"], x["attempts"], x.get("climb_number") or 0))
+            # IMPORTANT: only topped climbs are allowed into leaderboard scoring
+            if not bool(s.topped):
+                continue
 
-        # Take top N climbs
-        topN = scored[:TOP_N]
+            p = points_for(s.climb_number, s.attempts, s.topped, current_comp.id)
+
+            topped_scored.append({
+                "climb_number": s.climb_number,
+                "points": int(p or 0),
+                "attempts": int(s.attempts or 0),
+                "topped": True,
+                "updated_at": s.updated_at,
+            })
+
+        # Sort topped climbs by points desc, then attempts asc
+        topped_scored.sort(key=lambda x: (-x["points"], x["attempts"], x.get("climb_number") or 0))
+
+        # Take top N topped climbs only
+        topN = topped_scored[:TOP_N]
 
         total_points = sum(x["points"] for x in topN)
-
-        # Only count topped climbs in topN for tops/attempts_on_tops
-        tops = sum(1 for x in topN if x["points"] > 0 and x["topped"])
-        attempts_on_tops = sum(x["attempts"] for x in topN if x["points"] > 0 and x["topped"])
+        tops = len(topN)
+        attempts_on_tops = sum(x["attempts"] for x in topN)
 
         rows.append({
             "competitor_id": c.id,
@@ -371,7 +377,7 @@ def build_doubles_rows(singles_rows, competition_id: int):
 
     NOTE:
     This helper is kept for compatibility. It uses the *already computed*
-    singles totals + attempts_on_tops (which are top-8 based now).
+    singles totals + attempts_on_tops (which are now top-8 topped-climb based).
 
     Filtering rule: only include teams where BOTH partners appear in singles_rows
     (so category-filtered leaderboards behave sensibly).

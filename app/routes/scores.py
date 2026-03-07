@@ -56,7 +56,6 @@ def my_scoring_redirect():
     # 2) No competition attached yet -> use selected comp from session if present
     slug = (session.get("active_comp_slug") or "").strip()
     if slug:
-        # If they have no comp, they must register for this comp first
         return redirect(f"/comp/{slug}/join")
 
     # 3) No context at all -> choose a comp
@@ -91,7 +90,6 @@ def api_save_score():
     """
     data = request.get_json(force=True, silent=True) or {}
 
-    # ---- parse basics ----
     try:
         competitor_id = int(data.get("competitor_id", 0))
     except (TypeError, ValueError):
@@ -100,7 +98,6 @@ def api_save_score():
     if competitor_id <= 0:
         return "Invalid competitor_id", 400
 
-    # attempts + topped + flashed (support explicit flashed from UI)
     try:
         attempts = int(data.get("attempts", 1))
     except (TypeError, ValueError):
@@ -111,24 +108,18 @@ def api_save_score():
     flashed_in = data.get("flashed", None)
     flashed = bool(flashed_in) if flashed_in is not None else False
 
-    # ---- clamp attempts early (before we derive states) ----
     if attempts < 1:
         attempts = 1
     elif attempts > 50:
         attempts = 50
 
-    # ---- enforce state rules ----
-    # Flash implies topped, and flash only makes sense on attempt 1.
     if flashed:
         topped = True
         attempts = 1
 
-    # Backwards compatibility: old clients never send flashed
-    # If they topped on attempt 1, treat it as a flash.
     if not flashed and topped and attempts == 1:
         flashed = True
 
-    # payload may contain either section_climb_id or climb_number
     section_climb_id_raw = data.get("section_climb_id", None)
     climb_number_raw = data.get("climb_number", None)
 
@@ -150,7 +141,6 @@ def api_save_score():
     if section_climb_id is None and (climb_number is None or climb_number <= 0):
         return "Missing section_climb_id or climb_number", 400
 
-    # ---- Auth: competitor themself, admin, or local sim in debug ----
     viewer_id = session.get("competitor_id")
     is_admin = session.get("admin_ok", False)
 
@@ -165,7 +155,6 @@ def api_save_score():
     if viewer_id != competitor_id and not is_admin:
         return "Not allowed", 403
 
-    # ---- competitor + comp context ----
     comp_row = Competitor.query.get(competitor_id)
     if not comp_row:
         return "Competitor not found", 404
@@ -177,11 +166,9 @@ def api_save_score():
     if not current_comp:
         return "Competition not found", 404
 
-    # Block edits once the comp is finished
     if comp_is_finished(current_comp):
         return "Competition finished — scoring locked", 403
 
-    # ---- resolve SectionClimb (source of truth) ----
     sc = None
 
     if section_climb_id is not None:
@@ -189,13 +176,11 @@ def api_save_score():
         if not sc:
             return "Unknown section_climb_id", 400
 
-        # Ensure this section climb belongs to THIS competition
         sec = Section.query.get(sc.section_id) if sc.section_id else None
         if not sec or sec.competition_id != current_comp.id:
             return "section_climb_id not in this competition", 400
 
     else:
-        # Legacy lookup by climb_number scoped to THIS competition
         matches = (
             SectionClimb.query.join(Section, Section.id == SectionClimb.section_id)
             .filter(
@@ -217,7 +202,6 @@ def api_save_score():
 
         sc = matches[0]
 
-    # ---- upsert by (competitor_id, section_climb_id) ----
     score = (
         Score.query.filter_by(competitor_id=competitor_id, section_climb_id=sc.id)
         .first()
@@ -227,7 +211,7 @@ def api_save_score():
         score = Score(
             competitor_id=competitor_id,
             section_climb_id=sc.id,
-            climb_number=sc.climb_number,  # keep for stats/ordering
+            climb_number=sc.climb_number,
             attempts=attempts,
             topped=topped,
             flashed=flashed,
@@ -326,6 +310,8 @@ def leaderboard_details_api():
     if not competitor_id:
         return jsonify({"ok": False, "error": "Missing competitor_id", "climbs": []}), 400
 
+    # IMPORTANT:
+    # This helper should now return ONLY the competitor's top 8 TOPPED climbs.
     climbs = get_top_climbs_for_competitor(
         competition_id=comp.id, competitor_id=competitor_id, limit=8
     )
@@ -371,7 +357,7 @@ def leaderboard_all():
 
     return render_template(
         "leaderboard.html",
-        leaderboard=page_rows,               # initial SSR fallback
+        leaderboard=page_rows,
         category=category_label,
         current_competitor_id=session.get("competitor_id"),
         nav_active="leaderboard",
@@ -410,7 +396,7 @@ def leaderboard_by_category(category):
 
     return render_template(
         "leaderboard.html",
-        leaderboard=page_rows,               # initial SSR fallback
+        leaderboard=page_rows,
         category=category_label,
         current_competitor_id=session.get("competitor_id"),
         nav_active="leaderboard",
@@ -421,7 +407,8 @@ def leaderboard_by_category(category):
         total=total,
         total_pages=total_pages,
     )
-    
+
+
 @scores_bp.route("/leaderboard/comp/<int:comp_id>")
 def leaderboard_for_comp_id(comp_id):
     """
@@ -436,10 +423,8 @@ def leaderboard_for_comp_id(comp_id):
     if (not is_admin) and (not comp_is_live(comp)):
         return render_template("leaderboard.html", comp=None, not_live=True)
 
-    # Pin comp context for leaderboard/api
     session["active_comp_slug"] = comp.slug
 
-    # Keep admin=1 if it was provided (or force it for admins coming from manage)
     admin_q = (request.args.get("admin") or "").strip()
     if is_admin:
         admin_q = "1"
@@ -486,7 +471,6 @@ def api_leaderboard():
         resp.headers["Pragma"] = "no-cache"
         return resp
 
-    # Normalize category safely (never allow random strings through)
     try:
         cat = normalize_leaderboard_category(raw_category)
     except Exception:
@@ -496,13 +480,12 @@ def api_leaderboard():
     if cat not in allowed:
         cat = "all"
 
-    # clamp pagination
     if not page or page < 1:
         page = 1
     if not per_page or per_page < 1:
         per_page = DEFAULT_LB_PER_PAGE
     if per_page > 50:
-        per_page = 50  # sanity cap
+        per_page = 50
 
     req_id = int(time.time() * 1000)
 
