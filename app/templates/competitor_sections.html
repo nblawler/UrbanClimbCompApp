@@ -1,4 +1,4 @@
-<!doctype html>
+\<!doctype html>
 <html lang="en">
 <head>
 	<meta charset="utf-8" />
@@ -353,6 +353,7 @@
 			--marker-base: 7px;
 			--marker-min: 4px;
 			--marker-scale: 1;
+			--marker-scale-squared: 1;
 		}
 
 		.map-marker {
@@ -379,8 +380,8 @@
 		}
 
 		#mapWrapperSections .map-marker {
-			width: clamp(var(--marker-min), calc(var(--marker-base) / var(--marker-scale)), var(--marker-base));
-			height: clamp(var(--marker-min), calc(var(--marker-base) / var(--marker-scale)), var(--marker-base));
+			width: clamp(var(--marker-min), calc(var(--marker-base) / var(--marker-scale-squared)), var(--marker-base));
+			height: clamp(var(--marker-min), calc(var(--marker-base) / var(--marker-scale-squared)), var(--marker-base));
 			border: none;
 			box-shadow:
 				0 0 0 clamp(1px, calc(1.5px / var(--marker-scale)), 1.5px) rgba(0,0,0,0.65),
@@ -412,8 +413,8 @@
 		}
 
 		#mapWrapperSections.show-marker-numbers .map-marker {
-			width: clamp(14px, calc(20px / var(--marker-scale)), 20px);
-			height: clamp(14px, calc(20px / var(--marker-scale)), 20px);
+			width: clamp(8px, calc(20px / var(--marker-scale-squared)), 20px);
+			height: clamp(8px, calc(20px / var(--marker-scale-squared)), 20px);
 			box-shadow:
 				0 0 0 clamp(1px, calc(1.25px / var(--marker-scale)), 1.25px) rgba(0,0,0,0.72),
 				0 4px 8px rgba(0, 0, 0, 0.38);
@@ -426,7 +427,7 @@
 			left: 50%;
 			top: 50%;
 			transform: translate(-50%, -50%);
-			font-size: clamp(7px, calc(9px / var(--marker-scale)), 9px);
+			font-size: clamp(4px, calc(9px / var(--marker-scale-squared)), 9px);
 			font-weight: 900;
 			color: #fff;
 			text-shadow:
@@ -905,12 +906,12 @@
 			}
 
 			#mapWrapperSections.show-marker-numbers .map-marker {
-				width: clamp(10px, calc(14px / var(--marker-scale)), 14px);
-				height: clamp(10px, calc(14px / var(--marker-scale)), 14px);
+				width: clamp(6px, calc(14px / var(--marker-scale-squared)), 14px);
+				height: clamp(6px, calc(14px / var(--marker-scale-squared)), 14px);
 			}
 
 			#mapWrapperSections.show-marker-numbers .map-marker::before {
-				font-size: clamp(5px, calc(6px / var(--marker-scale)), 6px);
+				font-size: clamp(3px, calc(6px / var(--marker-scale-squared)), 6px);
 			}
 
 			.comp-header,
@@ -996,12 +997,12 @@
 			}
 
 			#mapWrapperSections.show-marker-numbers .map-marker {
-				width: clamp(9px, calc(12px / var(--marker-scale)), 12px);
-				height: clamp(9px, calc(12px / var(--marker-scale)), 12px);
+				width: clamp(5px, calc(12px / var(--marker-scale-squared)), 12px);
+				height: clamp(5px, calc(12px / var(--marker-scale-squared)), 12px);
 			}
 
 			#mapWrapperSections.show-marker-numbers .map-marker::before {
-				font-size: clamp(4px, calc(5px / var(--marker-scale)), 5px);
+				font-size: clamp(2px, calc(5px / var(--marker-scale-squared)), 5px);
 			}
 		}
 	</style>
@@ -1339,7 +1340,9 @@
 		function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
 		function updateMarkerScaleVar() {
-			wrapper.style.setProperty("--marker-scale", String(Math.max(1, currentScale)));
+			const safeScale = Math.max(1, currentScale);
+			wrapper.style.setProperty("--marker-scale", String(safeScale));
+			wrapper.style.setProperty("--marker-scale-squared", String(safeScale * safeScale));
 		}
 
 		function applyTransform() {
