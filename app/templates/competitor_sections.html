@@ -364,6 +364,8 @@
 			pointer-events: auto;
 			padding: 0;
 			margin: 0;
+			margin-left: var(--marker-offset-x, 0px);
+			margin-top: var(--marker-offset-y, 0px);
 			appearance: none;
 			-webkit-appearance: none;
 			display: flex;
@@ -413,8 +415,8 @@
 		}
 
 		#mapWrapperSections.show-marker-numbers .map-marker {
-			width: clamp(8px, calc(20px / var(--marker-scale-squared)), 20px);
-			height: clamp(8px, calc(20px / var(--marker-scale-squared)), 20px);
+			width: clamp(10px, calc(24px / var(--marker-scale-squared)), 24px);
+			height: clamp(10px, calc(24px / var(--marker-scale-squared)), 24px);
 			box-shadow:
 				0 0 0 clamp(1px, calc(1.25px / var(--marker-scale)), 1.25px) rgba(0,0,0,0.72),
 				0 4px 8px rgba(0, 0, 0, 0.38);
@@ -427,7 +429,7 @@
 			left: 50%;
 			top: 50%;
 			transform: translate(-50%, -50%);
-			font-size: clamp(4px, calc(9px / var(--marker-scale-squared)), 9px);
+			font-size: clamp(5px, calc(10px / var(--marker-scale-squared)), 10px);
 			font-weight: 900;
 			color: #fff;
 			text-shadow:
@@ -906,12 +908,12 @@
 			}
 
 			#mapWrapperSections.show-marker-numbers .map-marker {
-				width: clamp(6px, calc(14px / var(--marker-scale-squared)), 14px);
-				height: clamp(6px, calc(14px / var(--marker-scale-squared)), 14px);
+				width: clamp(7px, calc(16px / var(--marker-scale-squared)), 16px);
+				height: clamp(7px, calc(16px / var(--marker-scale-squared)), 16px);
 			}
 
 			#mapWrapperSections.show-marker-numbers .map-marker::before {
-				font-size: clamp(3px, calc(6px / var(--marker-scale-squared)), 6px);
+				font-size: clamp(4px, calc(7px / var(--marker-scale-squared)), 7px);
 			}
 
 			.comp-header,
@@ -997,12 +999,12 @@
 			}
 
 			#mapWrapperSections.show-marker-numbers .map-marker {
-				width: clamp(5px, calc(12px / var(--marker-scale-squared)), 12px);
-				height: clamp(5px, calc(12px / var(--marker-scale-squared)), 12px);
+				width: clamp(6px, calc(14px / var(--marker-scale-squared)), 14px);
+				height: clamp(6px, calc(14px / var(--marker-scale-squared)), 14px);
 			}
 
 			#mapWrapperSections.show-marker-numbers .map-marker::before {
-				font-size: clamp(2px, calc(5px / var(--marker-scale-squared)), 5px);
+				font-size: clamp(3px, calc(6px / var(--marker-scale-squared)), 6px);
 			}
 		}
 	</style>
@@ -1315,6 +1317,7 @@
 		let currentSectionIds = [];
 
 		let currentScale = 1;
+		window.__sectionsCurrentScale = 1;
 		let minScale = 1;
 		let maxScale = 5;
 		let translateX = 0;
@@ -1347,6 +1350,7 @@
 
 		function applyTransform() {
 			layer.style.transform = `translate(${translateX}px, ${translateY}px) scale(${currentScale})`;
+			window.__sectionsCurrentScale = currentScale;
 			updateMarkerScaleVar();
 		}
 
@@ -1455,6 +1459,8 @@
 				baseH = Math.max(1, Math.round(h));
 				layer.style.width  = baseW + "px";
 				layer.style.height = baseH + "px";
+				window.__sectionsBaseW = baseW;
+				window.__sectionsBaseH = baseH;
 				return true;
 			}
 			return false;
@@ -1785,6 +1791,99 @@
 
 		function getScoreKeyFromCard(card) {
 			return getScoreKeyFromValues(card.dataset.sectionId, card.dataset.climbNumber);
+		}
+
+		function clearMarkerOffsets() {
+			markers.forEach((m) => {
+				m.style.setProperty("--marker-offset-x", "0px");
+				m.style.setProperty("--marker-offset-y", "0px");
+			});
+		}
+
+		function applyMarkerOverlapOffsets() {
+			clearMarkerOffsets();
+
+			const visibleMarkers = markers.filter((m) => m.style.display !== "none");
+			if (visibleMarkers.length <= 1) return;
+
+			const safeScale = Math.max(1, window.__sectionsCurrentScale || 1);
+			const baseW = Math.max(1, window.__sectionsBaseW || 1);
+			const baseH = Math.max(1, window.__sectionsBaseH || 1);
+
+			const repelDistance = mapWrapper.classList.contains("show-marker-numbers")
+				? Math.max(10, 20 / Math.sqrt(safeScale))
+				: Math.max(6, 12 / Math.sqrt(safeScale));
+
+			const maxOffset = mapWrapper.classList.contains("show-marker-numbers")
+				? 10
+				: 7;
+
+			const nodes = visibleMarkers.map((marker) => {
+				const xPct = parseFloat(marker.style.left || "0") / 100;
+				const yPct = parseFloat(marker.style.top || "0") / 100;
+
+				return {
+					el: marker,
+					baseX: xPct * baseW * safeScale,
+					baseY: yPct * baseH * safeScale,
+					ox: 0,
+					oy: 0
+				};
+			});
+
+			const ITERATIONS = 8;
+
+			for (let iter = 0; iter < ITERATIONS; iter++) {
+				for (let i = 0; i < nodes.length; i++) {
+					for (let j = i + 1; j < nodes.length; j++) {
+						const a = nodes[i];
+						const b = nodes[j];
+
+						const ax = a.baseX + a.ox;
+						const ay = a.baseY + a.oy;
+						const bx = b.baseX + b.ox;
+						const by = b.baseY + b.oy;
+
+						let dx = bx - ax;
+						let dy = by - ay;
+						let dist = Math.hypot(dx, dy);
+
+						if (dist === 0) {
+							const angle = ((i + j + iter) % 12) * (Math.PI / 6);
+							dx = Math.cos(angle) * 0.01;
+							dy = Math.sin(angle) * 0.01;
+							dist = 0.01;
+						}
+
+						if (dist >= repelDistance) continue;
+
+						const overlap = repelDistance - dist;
+						const push = overlap * 0.22;
+
+						const nx = dx / dist;
+						const ny = dy / dist;
+
+						a.ox -= nx * push;
+						a.oy -= ny * push;
+						b.ox += nx * push;
+						b.oy += ny * push;
+					}
+				}
+
+				for (const node of nodes) {
+					const mag = Math.hypot(node.ox, node.oy);
+					if (mag > maxOffset) {
+						const s = maxOffset / mag;
+						node.ox *= s;
+						node.oy *= s;
+					}
+				}
+			}
+
+			for (const node of nodes) {
+				node.el.style.setProperty("--marker-offset-x", `${node.ox.toFixed(2)}px`);
+				node.el.style.setProperty("--marker-offset-y", `${node.oy.toFixed(2)}px`);
+			}
 		}
 
 		function setCardProgress(card, done, total) {
@@ -2126,6 +2225,7 @@
 				applyMapFilter();
 				applyScoreCardFilter();
 				updateMarkerNumberMode();
+				applyMarkerOverlapOffsets();
 				filterRaf = null;
 			});
 		}
