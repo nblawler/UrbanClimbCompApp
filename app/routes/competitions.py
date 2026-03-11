@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, redirect, session, flash, abort, request, url_for, jsonify
+from flask import Blueprint, render_template, redirect, session, flash, abort, request, url_for, jsonify, current_app
 from datetime import datetime, timedelta, timezone
 from urllib.parse import quote
 import secrets
@@ -353,14 +353,20 @@ def doubles_cancel(slug):
 
 @competitions_bp.route("/comp/<slug>/doubles/resend", methods=["POST"])
 def doubles_resend(slug):
+    current_app.logger.warning(f"[DOUBLES RESEND] Route hit for slug={slug}")
+
     viewer_id = session.get("competitor_id")
+    current_app.logger.warning(f"[DOUBLES RESEND] viewer_id={viewer_id}")
     if not viewer_id:
+        current_app.logger.warning("[DOUBLES RESEND] No viewer_id in session")
         return redirect(url_for("login", next=request.path))
 
     comp = Competition.query.filter_by(slug=slug).first_or_404()
+    current_app.logger.warning(f"[DOUBLES RESEND] comp_id={comp.id}")
 
     me = Competitor.query.filter_by(id=viewer_id, competition_id=comp.id).first()
     if not me:
+        current_app.logger.warning("[DOUBLES RESEND] No competitor found for viewer in this comp")
         abort(403)
 
     inv = DoublesInvite.query.filter_by(
@@ -368,6 +374,8 @@ def doubles_resend(slug):
         inviter_competitor_id=viewer_id,
         status="pending"
     ).order_by(DoublesInvite.created_at.desc()).first()
+
+    current_app.logger.warning(f"[DOUBLES RESEND] pending_invite_found={bool(inv)}")
 
     if not inv:
         flash("No pending invite to resend.", "error")
@@ -381,41 +389,50 @@ def doubles_resend(slug):
 
     accept_url = url_for("competitions.doubles_accept", slug=slug, _external=True) + f"?token={token}"
 
-    # Send via Resend (same pattern as doubles_invite)
+    current_app.logger.warning(f"[DOUBLES RESEND] invitee_email={inv.invitee_email}")
+    current_app.logger.warning(f"[DOUBLES RESEND] RESEND_FROM_EMAIL={RESEND_FROM_EMAIL}")
+    current_app.logger.warning(f"[DOUBLES RESEND] api_key_present={bool(RESEND_API_KEY)}")
+    current_app.logger.warning(f"[DOUBLES RESEND] accept_url={accept_url}")
+
     if not RESEND_API_KEY:
-        print(f"[DOUBLES INVITE RESEND - DEV ONLY] {inv.invitee_email} -> {accept_url}", file=sys.stderr)
-    else:
-        html = f"""
-          <div style="font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; padding: 16px;">
-            <p>Hey climber 👋</p>
-            <p><strong>{me.name}</strong> is reminding you about a doubles invite for:</p>
-            <p style="font-weight: 600; margin: 8px 0;">{comp.name}</p>
+        current_app.logger.error("[DOUBLES RESEND] Missing RESEND_API_KEY")
+        flash("Invite token was refreshed, but email sending is not configured.", "error")
+        return redirect(f"/comp/{slug}/doubles")
 
-            <p>Click below to accept:</p>
+    html = f"""
+      <div style="font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; padding: 16px;">
+        <p>Hey climber 👋</p>
+        <p><strong>{me.name}</strong> is reminding you about a doubles invite for:</p>
+        <p style="font-weight: 600; margin: 8px 0;">{comp.name}</p>
 
-            <p style="margin: 16px 0;">
-              <a href="{accept_url}"
-                 style="display:inline-block; padding:10px 18px; border-radius:999px; background:#111; color:#fff; text-decoration:none;">
-                 Accept Doubles Invite
-              </a>
-            </p>
+        <p>Click below to accept:</p>
 
-            <p>This link expires in 48 hours.</p>
-          </div>
-        """
-        try:
-            params = {
-                "from": RESEND_FROM_EMAIL,
-                "to": [inv.invitee_email],
-                "subject": f"Reminder: Doubles invite for {comp.name}",
-                "html": html,
-            }
-            resend.Emails.send(params)
-            print(f"[DOUBLES INVITE] Resent doubles invite to {inv.invitee_email}", file=sys.stderr)
-        except Exception as e:
-            print(f"[DOUBLES INVITE] Failed to resend via Resend: {e}", file=sys.stderr)
+        <p style="margin: 16px 0;">
+          <a href="{accept_url}"
+             style="display:inline-block; padding:10px 18px; border-radius:999px; background:#111; color:#fff; text-decoration:none;">
+             Accept Doubles Invite
+          </a>
+        </p>
 
-    flash("Invite resent.", "success")
+        <p>This link expires in 48 hours.</p>
+      </div>
+    """
+
+    try:
+        params = {
+            "from": RESEND_FROM_EMAIL,
+            "to": [inv.invitee_email],
+            "subject": f"Reminder: Doubles invite for {comp.name}",
+            "html": html,
+        }
+        current_app.logger.warning(f"[DOUBLES RESEND] Sending email to {inv.invitee_email}")
+        result = resend.Emails.send(params)
+        current_app.logger.warning(f"[DOUBLES RESEND] Resend success result={result}")
+        flash("Invite resent.", "success")
+    except Exception as e:
+        current_app.logger.exception(f"[DOUBLES RESEND] Failed to resend via Resend: {e}")
+        flash("Invite token was refreshed, but the email failed to send. Check Render logs / Resend config.", "error")
+
     return redirect(f"/comp/{slug}/doubles")
 
 
