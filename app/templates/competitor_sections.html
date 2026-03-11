@@ -1649,6 +1649,112 @@
 			return clusters;
 		}
 
+		function getSeedOffset(index) {
+			const pattern = [
+				{ x:  0,  y: -1 },
+				{ x:  0,  y:  1 },
+				{ x: -1,  y:  0 },
+				{ x:  1,  y:  0 },
+				{ x: -1,  y: -1 },
+				{ x:  1,  y: -1 },
+				{ x: -1,  y:  1 },
+				{ x:  1,  y:  1 },
+			];
+			return pattern[index % pattern.length];
+		}
+
+		function resolveClusterOffsets(cluster) {
+			if (!cluster || cluster.length <= 1) return;
+
+			const isMobile = window.innerWidth <= 768;
+			const baseGap = isMobile ? 1.5 : 2;
+			const maxOffset = isMobile ? 12 : 14;
+			const seedAmount = isMobile ? 1.25 : 1.5;
+			const iterations = 18;
+
+			cluster.sort((a, b) => {
+				const ay = parseIntSafe(a.marker.dataset.climbNumber, 0);
+				const by = parseIntSafe(b.marker.dataset.climbNumber, 0);
+				if (ay !== by) return ay - by;
+				if (a.y !== b.y) return a.y - b.y;
+				return a.x - b.x;
+			});
+
+			const items = cluster.map((item, index) => {
+				const seed = getSeedOffset(index);
+				const r = Math.max(item.rect.width, item.rect.height) / 2;
+				return {
+					marker: item.marker,
+					ox: item.x,
+					oy: item.y,
+					x: item.x + seed.x * seedAmount,
+					y: item.y + seed.y * seedAmount,
+					radius: r
+				};
+			});
+
+			for (let step = 0; step < iterations; step++) {
+				let moved = false;
+
+				for (let i = 0; i < items.length; i++) {
+					for (let j = i + 1; j < items.length; j++) {
+						const a = items[i];
+						const b = items[j];
+
+						let dx = b.x - a.x;
+						let dy = b.y - a.y;
+						let dist = Math.hypot(dx, dy);
+
+						const minSep = a.radius + b.radius + baseGap;
+
+						if (dist >= minSep) continue;
+
+						if (dist < 0.001) {
+							const seed = getSeedOffset(i + j);
+							dx = seed.x || 1;
+							dy = seed.y || 0;
+							dist = Math.hypot(dx, dy);
+						}
+
+						const ux = dx / dist;
+						const uy = dy / dist;
+						const push = (minSep - dist) / 2;
+
+						a.x -= ux * push;
+						a.y -= uy * push;
+						b.x += ux * push;
+						b.y += uy * push;
+						moved = true;
+					}
+				}
+
+				for (const item of items) {
+					item.x += (item.ox - item.x) * 0.12;
+					item.y += (item.oy - item.y) * 0.12;
+
+					const offX = item.x - item.ox;
+					const offY = item.y - item.oy;
+					const offLen = Math.hypot(offX, offY);
+
+					if (offLen > maxOffset && offLen > 0) {
+						const scale = maxOffset / offLen;
+						item.x = item.ox + offX * scale;
+						item.y = item.oy + offY * scale;
+					}
+				}
+
+				if (!moved) break;
+			}
+
+			for (const item of items) {
+				const offsetX = item.x - item.ox;
+				const offsetY = item.y - item.oy;
+
+				item.marker.style.setProperty("--marker-offset-x", `${offsetX.toFixed(1)}px`);
+				item.marker.style.setProperty("--marker-offset-y", `${offsetY.toFixed(1)}px`);
+			}
+		}
+
 		function applyMarkerOffsetsNow() {
 			clearMarkerOffsets();
 
@@ -1659,40 +1765,20 @@
 				const rect = marker.getBoundingClientRect();
 				return {
 					marker,
+					rect,
 					x: rect.left + rect.width / 2,
 					y: rect.top + rect.height / 2,
 				};
 			});
 
 			const isMobile = window.innerWidth <= 768;
-			const thresholdPx = isMobile ? 26 : 28;
-			const baseRadius = isMobile ? 12 : 12;
+			const thresholdPx = isMobile ? 18 : 22;
 
 			const clusters = buildMarkerClusters(markerItems, thresholdPx);
 
 			clusters.forEach((cluster) => {
 				if (cluster.length <= 1) return;
-
-				const count = cluster.length;
-				const radius = baseRadius + Math.min(10, (count - 2) * 2);
-
-				cluster.forEach((item, index) => {
-					let angle;
-
-					if (count === 2) {
-						angle = index === 0 ? Math.PI : 0;
-					} else if (count === 3) {
-						angle = (-Math.PI / 2) + ((Math.PI * 2) / 3) * index;
-					} else {
-						angle = (-Math.PI / 2) + ((Math.PI * 2) / count) * index;
-					}
-
-					const offsetX = Math.cos(angle) * radius;
-					const offsetY = Math.sin(angle) * radius;
-
-					item.marker.style.setProperty("--marker-offset-x", `${offsetX.toFixed(1)}px`);
-					item.marker.style.setProperty("--marker-offset-y", `${offsetY.toFixed(1)}px`);
-				});
+				resolveClusterOffsets(cluster);
 			});
 		}
 
