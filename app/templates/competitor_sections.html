@@ -407,21 +407,21 @@
 		}
 
 		#mapWrapperSections.show-marker-numbers .map-marker {
-			width: clamp(18px, calc(24px / var(--marker-scale)), 24px);
-			height: clamp(18px, calc(24px / var(--marker-scale)), 24px);
+			width: clamp(14px, calc(20px / var(--marker-scale)), 20px);
+			height: clamp(14px, calc(20px / var(--marker-scale)), 20px);
 			box-shadow:
-				0 0 0 clamp(1px, calc(1.5px / var(--marker-scale)), 1.5px) rgba(0,0,0,0.72),
-				0 5px 10px rgba(0, 0, 0, 0.4);
+				0 0 0 clamp(1px, calc(1.25px / var(--marker-scale)), 1.25px) rgba(0,0,0,0.72),
+				0 4px 8px rgba(0, 0, 0, 0.38);
 			z-index: 2;
 		}
-
+		
 		#mapWrapperSections.show-marker-numbers .map-marker::before {
 			content: attr(data-climb-number);
 			position: absolute;
 			left: 50%;
 			top: 50%;
 			transform: translate(-50%, -50%);
-			font-size: clamp(9px, calc(11px / var(--marker-scale)), 11px);
+			font-size: clamp(7px, calc(9px / var(--marker-scale)), 9px);
 			font-weight: 900;
 			color: #fff;
 			text-shadow:
