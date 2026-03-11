@@ -907,6 +907,15 @@
 				--marker-min: 3px;
 			}
 
+			#mapWrapperSections.show-marker-numbers .map-marker {
+				width: clamp(10px, calc(14px / var(--marker-scale)), 14px);
+				height: clamp(10px, calc(14px / var(--marker-scale)), 14px);
+			}
+
+			#mapWrapperSections.show-marker-numbers .map-marker::before {
+				font-size: clamp(5px, calc(6px / var(--marker-scale)), 6px);
+			}
+
 			.comp-header,
 			.map-card,
 			.climb-browser-card,
@@ -987,6 +996,15 @@
 			#mapWrapperSections {
 				--marker-base: 5px;
 				--marker-min: 2.5px;
+			}
+
+			#mapWrapperSections.show-marker-numbers .map-marker {
+				width: clamp(9px, calc(12px / var(--marker-scale)), 12px);
+				height: clamp(9px, calc(12px / var(--marker-scale)), 12px);
+			}
+
+			#mapWrapperSections.show-marker-numbers .map-marker::before {
+				font-size: clamp(4px, calc(5px / var(--marker-scale)), 5px);
 			}
 		}
 	</style>
@@ -1647,8 +1665,8 @@
 			});
 
 			const isMobile = window.innerWidth <= 768;
-			const thresholdPx = isMobile ? 24 : 28;
-			const baseRadius = isMobile ? 10 : 12;
+			const thresholdPx = isMobile ? 26 : 28;
+			const baseRadius = isMobile ? 12 : 12;
 
 			const clusters = buildMarkerClusters(markerItems, thresholdPx);
 
