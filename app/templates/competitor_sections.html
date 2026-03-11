@@ -373,6 +373,7 @@
 			justify-content: center;
 			line-height: 1;
 			overflow: visible;
+			z-index: var(--marker-z, 1);
 			transition:
 				opacity 0.15s,
 				width 0.15s,
@@ -1798,6 +1799,7 @@
 			markers.forEach((m) => {
 				m.style.setProperty("--marker-offset-x", "0px");
 				m.style.setProperty("--marker-offset-y", "0px");
+				m.style.setProperty("--marker-z", "1");
 			});
 		}
 
@@ -1899,6 +1901,10 @@
 			for (const node of nodes) {
 				node.el.style.setProperty("--marker-offset-x", `${node.ox.toFixed(2)}px`);
 				node.el.style.setProperty("--marker-offset-y", `${node.oy.toFixed(2)}px`);
+		
+				/* markers pushed further out sit on top */
+				const z = 10 + Math.round(Math.hypot(node.ox, node.oy) * 10);
+				node.el.style.setProperty("--marker-z", String(z));
 			}
 		}
 
