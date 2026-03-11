@@ -1665,91 +1665,111 @@
 
 		function resolveClusterOffsets(cluster) {
 			if (!cluster || cluster.length <= 1) return;
-
+		
 			const isMobile = window.innerWidth <= 768;
+		
+			// smaller target separation
 			const baseGap = isMobile ? 1.5 : 2;
-			const maxOffset = isMobile ? 12 : 14;
-			const seedAmount = isMobile ? 1.25 : 1.5;
-			const iterations = 18;
-
+		
+			// hard cap so markers stay close to true position
+			const maxOffset = isMobile ? 8 : 10;
+		
+			// enough passes to solve, but not overdo it
+			const iterations = 24;
+		
 			cluster.sort((a, b) => {
-				const ay = parseIntSafe(a.marker.dataset.climbNumber, 0);
-				const by = parseIntSafe(b.marker.dataset.climbNumber, 0);
-				if (ay !== by) return ay - by;
+				const an = parseIntSafe(a.marker.dataset.climbNumber, 0);
+				const bn = parseIntSafe(b.marker.dataset.climbNumber, 0);
+				if (an !== bn) return an - bn;
 				if (a.y !== b.y) return a.y - b.y;
 				return a.x - b.x;
 			});
-
+		
 			const items = cluster.map((item, index) => {
-				const seed = getSeedOffset(index);
 				const r = Math.max(item.rect.width, item.rect.height) / 2;
+		
+				// tiny deterministic starter offsets only
+				let seedX = 0;
+				let seedY = 0;
+		
+				if (index === 0) { seedX = 0; seedY = -0.8; }
+				else if (index === 1) { seedX = 0; seedY = 0.8; }
+				else if (index === 2) { seedX = -0.8; seedY = 0; }
+				else if (index === 3) { seedX = 0.8; seedY = 0; }
+				else {
+					const angle = ((index - 4) / Math.max(1, cluster.length - 4)) * Math.PI * 2;
+					seedX = Math.cos(angle) * 0.8;
+					seedY = Math.sin(angle) * 0.8;
+				}
+		
 				return {
 					marker: item.marker,
 					ox: item.x,
 					oy: item.y,
-					x: item.x + seed.x * seedAmount,
-					y: item.y + seed.y * seedAmount,
+					x: item.x + seedX,
+					y: item.y + seedY,
 					radius: r
 				};
 			});
-
+		
 			for (let step = 0; step < iterations; step++) {
 				let moved = false;
-
+		
 				for (let i = 0; i < items.length; i++) {
 					for (let j = i + 1; j < items.length; j++) {
 						const a = items[i];
 						const b = items[j];
-
+		
 						let dx = b.x - a.x;
 						let dy = b.y - a.y;
 						let dist = Math.hypot(dx, dy);
-
+		
 						const minSep = a.radius + b.radius + baseGap;
-
+		
 						if (dist >= minSep) continue;
-
+		
+						// if perfectly on top of each other, split vertically first
 						if (dist < 0.001) {
-							const seed = getSeedOffset(i + j);
-							dx = seed.x || 1;
-							dy = seed.y || 0;
-							dist = Math.hypot(dx, dy);
+							dx = 0;
+							dy = 1;
+							dist = 1;
 						}
-
+		
 						const ux = dx / dist;
 						const uy = dy / dist;
-						const push = (minSep - dist) / 2;
-
+		
+						// only push the minimum needed, plus a tiny buffer
+						const push = ((minSep - dist) / 2) + 0.15;
+		
 						a.x -= ux * push;
 						a.y -= uy * push;
 						b.x += ux * push;
 						b.y += uy * push;
+		
 						moved = true;
 					}
 				}
-
+		
+				// hard clamp so no marker wanders too far
 				for (const item of items) {
-					item.x += (item.ox - item.x) * 0.12;
-					item.y += (item.oy - item.y) * 0.12;
-
 					const offX = item.x - item.ox;
 					const offY = item.y - item.oy;
 					const offLen = Math.hypot(offX, offY);
-
+		
 					if (offLen > maxOffset && offLen > 0) {
 						const scale = maxOffset / offLen;
 						item.x = item.ox + offX * scale;
 						item.y = item.oy + offY * scale;
 					}
 				}
-
+		
 				if (!moved) break;
 			}
-
+		
 			for (const item of items) {
 				const offsetX = item.x - item.ox;
 				const offsetY = item.y - item.oy;
-
+		
 				item.marker.style.setProperty("--marker-offset-x", `${offsetX.toFixed(1)}px`);
 				item.marker.style.setProperty("--marker-offset-y", `${offsetY.toFixed(1)}px`);
 			}
@@ -1772,7 +1792,7 @@
 			});
 
 			const isMobile = window.innerWidth <= 768;
-			const thresholdPx = isMobile ? 18 : 22;
+			const thresholdPx = isMobile ? 22 : 24;
 
 			const clusters = buildMarkerClusters(markerItems, thresholdPx);
 
@@ -2152,7 +2172,6 @@
 				applyMapFilter();
 				applyScoreCardFilter();
 				updateMarkerNumberMode();
-				scheduleMarkerOffsets(30);
 				filterRaf = null;
 			});
 		}
@@ -2205,7 +2224,7 @@
 					await syncZoomToActiveSections();
 				} catch (_) {}
 
-				scheduleMarkerOffsets(320);
+				scheduleMarkerOffsets(420);
 			});
 		});
 
