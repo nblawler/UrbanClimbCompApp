@@ -329,7 +329,7 @@
 			aspect-ratio: var(--map-ar, 4 / 3);
 			overflow: hidden;
 			background: #000;
-			touch-action: pan-y;
+			touch-action: none;
 		}
 
 		.map-layer {
@@ -357,10 +357,7 @@
 
 		.map-marker {
 			position: absolute;
-			transform: translate(
-				calc(-50% + var(--marker-offset-x, 0px)),
-				calc(-50% + var(--marker-offset-y, 0px))
-			);
+			transform: translate(-50%, -50%);
 			border-radius: 999px;
 			cursor: pointer;
 			pointer-events: auto;
@@ -378,7 +375,7 @@
 				width 0.15s,
 				height 0.15s,
 				box-shadow 0.15s,
-				transform 0.18s ease;
+				transform 0.15s ease;
 		}
 
 		#mapWrapperSections .map-marker {
@@ -422,7 +419,7 @@
 				0 4px 8px rgba(0, 0, 0, 0.38);
 			z-index: 2;
 		}
-		
+
 		#mapWrapperSections.show-marker-numbers .map-marker::before {
 			content: attr(data-climb-number);
 			position: absolute;
@@ -1086,7 +1083,7 @@
 			<header class="section-header">
 				<h2 class="section-title">{{ gym_name }} Map</h2>
 				<p class="section-subtitle">
-					Filter by section and/or colour. The list below the map will update automatically.
+					Filter by section and/or colour. Pinch to zoom and drag to pan.
 				</p>
 			</header>
 
@@ -1316,8 +1313,100 @@
 		let baseW = 1, baseH = 1;
 		let currentSectionIds = [];
 
+		let currentScale = 1;
+		let minScale = 1;
+		let maxScale = 5;
+		let translateX = 0;
+		let translateY = 0;
+
+		let isPointerPanning = false;
+		let panStartX = 0;
+		let panStartY = 0;
+		let panOriginX = 0;
+		let panOriginY = 0;
+
+		let pinchStartDistance = 0;
+		let pinchStartScale = 1;
+		let pinchCenterStart = null;
+		let pinchPanStart = { x: 0, y: 0 };
+		let activePointers = new Map();
+
+		let lastTapTime = 0;
+		let lastTapX = 0;
+		let lastTapY = 0;
+
 		function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
 		function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+		function updateMarkerScaleVar() {
+			wrapper.style.setProperty("--marker-scale", String(Math.max(1, currentScale)));
+		}
+
+		function applyTransform() {
+			layer.style.transform = `translate(${translateX}px, ${translateY}px) scale(${currentScale})`;
+			updateMarkerScaleVar();
+		}
+
+		function clampPan(scale = currentScale) {
+			const vr = viewport.getBoundingClientRect();
+			const viewW = vr.width;
+			const viewH = vr.height;
+
+			const scaledW = baseW * scale;
+			const scaledH = baseH * scale;
+
+			const minTx = viewW - scaledW;
+			const minTy = viewH - scaledH;
+
+			if (scaledW <= viewW) {
+				translateX = (viewW - scaledW) / 2;
+			} else {
+				translateX = clamp(translateX, minTx, 0);
+			}
+
+			if (scaledH <= viewH) {
+				translateY = (viewH - scaledH) / 2;
+			} else {
+				translateY = clamp(translateY, minTy, 0);
+			}
+		}
+
+		function setTransform(scale, tx, ty) {
+			currentScale = scale;
+			translateX = tx;
+			translateY = ty;
+			clampPan(currentScale);
+			applyTransform();
+		}
+
+		function zoomAroundClientPoint(nextScale, clientX, clientY) {
+			const rect = viewport.getBoundingClientRect();
+			const px = clientX - rect.left;
+			const py = clientY - rect.top;
+
+			const imageX = (px - translateX) / currentScale;
+			const imageY = (py - translateY) / currentScale;
+
+			currentScale = clamp(nextScale, minScale, maxScale);
+			translateX = px - imageX * currentScale;
+			translateY = py - imageY * currentScale;
+
+			clampPan(currentScale);
+			applyTransform();
+		}
+
+		function getDistance(p1, p2) {
+			const dx = p2.clientX - p1.clientX;
+			const dy = p2.clientY - p1.clientY;
+			return Math.hypot(dx, dy);
+		}
+
+		function getMidpoint(p1, p2) {
+			return {
+				x: (p1.clientX + p2.clientX) / 2,
+				y: (p1.clientY + p2.clientY) / 2
+			};
+		}
 
 		async function loadBoundariesOnce() {
 			if (boundariesCache) return boundariesCache;
@@ -1418,40 +1507,20 @@
 			return { minX, minY, maxX, maxY };
 		}
 
-		function clampPan(tx, ty, scale) {
-			const vr = viewport.getBoundingClientRect();
-			const viewW = vr.width;
-			const viewH = vr.height;
-
-			const scaledW = baseW * scale;
-			const scaledH = baseH * scale;
-
-			const minTx = viewW - scaledW;
-			const minTy = viewH - scaledH;
-
-			if (scaledW <= viewW) tx = (viewW - scaledW) / 2;
-			else tx = clamp(tx, minTx, 0);
-
-			if (scaledH <= viewH) ty = (viewH - scaledH) / 2;
-			else ty = clamp(ty, minTy, 0);
-
-			return { tx, ty };
-		}
-
 		function resetFit() {
 			const vr = viewport.getBoundingClientRect();
 			const viewW = vr.width || 0;
 			const viewH = vr.height || 0;
 			if (!viewW || !viewH) return;
 
-			const scale = Math.min(viewW / baseW, viewH / baseH);
-			let tx = (viewW - baseW * scale) / 2;
-			let ty = (viewH - baseH * scale) / 2;
+			minScale = Math.min(viewW / baseW, viewH / baseH);
+			currentScale = minScale;
 
-			({ tx, ty } = clampPan(tx, ty, scale));
-			layer.style.transform = `translate(${tx}px, ${ty}px) scale(${scale})`;
+			translateX = (viewW - baseW * currentScale) / 2;
+			translateY = (viewH - baseH * currentScale) / 2;
 
-			wrapper.style.setProperty("--marker-scale", "1");
+			clampPan(currentScale);
+			applyTransform();
 		}
 
 		function fitRectToViewport(rect, paddingPx = 12) {
@@ -1471,6 +1540,7 @@
 
 			let scale = Math.min(availW / rectW, availH / rectH);
 			scale *= 1.04;
+			scale = clamp(scale, minScale, maxScale);
 
 			const cxImg = expanded.minX + rectW / 2;
 			const cyImg = expanded.minY + rectH / 2;
@@ -1478,15 +1548,12 @@
 			const cxView = viewW / 2;
 			const cyView = viewH / 2;
 
-			let tx = cxView - (cxImg * scale);
-			let ty = cyView - (cyImg * scale);
+			translateX = cxView - (cxImg * scale);
+			translateY = cyView - (cyImg * scale);
+			currentScale = scale;
 
-			({ tx, ty } = clampPan(tx, ty, scale));
-
-			layer.style.transform = `translate(${tx}px, ${ty}px) scale(${scale})`;
-
-			const normalized = Math.max(1, scale);
-			wrapper.style.setProperty("--marker-scale", String(normalized));
+			clampPan(currentScale);
+			applyTransform();
 
 			return true;
 		}
@@ -1514,6 +1581,9 @@
 				viewport.style.setProperty("--map-ar", `${img.naturalWidth} / ${img.naturalHeight}`);
 			}
 
+			const vr = viewport.getBoundingClientRect();
+			minScale = Math.min(vr.width / baseW, vr.height / baseH);
+
 			if (!sectionIds || !sectionIds.length) {
 				animateTransform(() => resetFit(), 220);
 				return;
@@ -1537,6 +1607,118 @@
 
 		window.__zoomToActiveSectionIds = (ids) => applyZoomForSectionIds(ids);
 		window.__resetSectionsMapFit = () => applyZoomForSectionIds([]);
+
+		viewport.addEventListener("pointerdown", (e) => {
+			activePointers.set(e.pointerId, { clientX: e.clientX, clientY: e.clientY });
+			viewport.setPointerCapture(e.pointerId);
+
+			const now = Date.now();
+			const dx = e.clientX - lastTapX;
+			const dy = e.clientY - lastTapY;
+			const dt = now - lastTapTime;
+
+			if (dt < 280 && Math.hypot(dx, dy) < 24) {
+				e.preventDefault();
+				if (currentSectionIds.length) {
+					applyZoomForSectionIds(currentSectionIds);
+				} else {
+					resetFit();
+				}
+				lastTapTime = 0;
+				return;
+			}
+
+			lastTapTime = now;
+			lastTapX = e.clientX;
+			lastTapY = e.clientY;
+
+			if (activePointers.size === 1) {
+				isPointerPanning = true;
+				panStartX = e.clientX;
+				panStartY = e.clientY;
+				panOriginX = translateX;
+				panOriginY = translateY;
+			}
+
+			if (activePointers.size === 2) {
+				const pts = Array.from(activePointers.values());
+				pinchStartDistance = getDistance(pts[0], pts[1]);
+				pinchStartScale = currentScale;
+				pinchCenterStart = getMidpoint(pts[0], pts[1]);
+				pinchPanStart = { x: translateX, y: translateY };
+				isPointerPanning = false;
+			}
+		}, { passive: false });
+
+		viewport.addEventListener("pointermove", (e) => {
+			if (!activePointers.has(e.pointerId)) return;
+			activePointers.set(e.pointerId, { clientX: e.clientX, clientY: e.clientY });
+
+			if (activePointers.size === 2) {
+				e.preventDefault();
+				const pts = Array.from(activePointers.values());
+				const dist = getDistance(pts[0], pts[1]);
+				const mid = getMidpoint(pts[0], pts[1]);
+
+				if (pinchStartDistance > 0) {
+					const nextScale = clamp(pinchStartScale * (dist / pinchStartDistance), minScale, maxScale);
+
+					const rect = viewport.getBoundingClientRect();
+					const px = pinchCenterStart.x - rect.left;
+					const py = pinchCenterStart.y - rect.top;
+
+					const imageX = (px - pinchPanStart.x) / pinchStartScale;
+					const imageY = (py - pinchPanStart.y) / pinchStartScale;
+
+					currentScale = nextScale;
+					translateX = (mid.x - rect.left) - imageX * currentScale;
+					translateY = (mid.y - rect.top) - imageY * currentScale;
+
+					clampPan(currentScale);
+					applyTransform();
+				}
+				return;
+			}
+
+			if (activePointers.size === 1 && isPointerPanning) {
+				e.preventDefault();
+				translateX = panOriginX + (e.clientX - panStartX);
+				translateY = panOriginY + (e.clientY - panStartY);
+				clampPan(currentScale);
+				applyTransform();
+			}
+		}, { passive: false });
+
+		function endPointer(e) {
+			activePointers.delete(e.pointerId);
+
+			if (activePointers.size < 2) {
+				pinchStartDistance = 0;
+			}
+
+			if (activePointers.size === 1) {
+				const remaining = Array.from(activePointers.values())[0];
+				isPointerPanning = true;
+				panStartX = remaining.clientX;
+				panStartY = remaining.clientY;
+				panOriginX = translateX;
+				panOriginY = translateY;
+			} else {
+				isPointerPanning = false;
+			}
+		}
+
+		viewport.addEventListener("pointerup", endPointer);
+		viewport.addEventListener("pointercancel", endPointer);
+		viewport.addEventListener("pointerleave", endPointer);
+
+		viewport.addEventListener("wheel", (e) => {
+			if (!e.ctrlKey && Math.abs(e.deltaY) < Math.abs(e.deltaX)) return;
+			e.preventDefault();
+
+			const factor = e.deltaY < 0 ? 1.12 : 0.9;
+			zoomAroundClientPoint(currentScale * factor, e.clientX, e.clientY);
+		}, { passive: false });
 
 		(async function init() {
 			await ensureImageReady();
@@ -1588,233 +1770,10 @@
 		let activeSectionIds = new Set();
 		let activeColours = new Set();
 		let filterRaf = null;
-		let markerOffsetTimer = null;
 
 		function parseIntSafe(v, fallback = 0) {
 			const n = parseInt(v, 10);
 			return Number.isFinite(n) ? n : fallback;
-		}
-
-		function clearMarkerOffsets() {
-			markers.forEach((marker) => {
-				marker.style.setProperty("--marker-offset-x", "0px");
-				marker.style.setProperty("--marker-offset-y", "0px");
-			});
-		}
-
-		function getVisibleNumberedMarkers() {
-			if (!mapWrapper || !mapWrapper.classList.contains("show-marker-numbers")) {
-				return [];
-			}
-
-			return markers.filter((marker) => {
-				if (marker.style.display === "none") return false;
-				const rect = marker.getBoundingClientRect();
-				return rect.width > 0 && rect.height > 0;
-			});
-		}
-
-		function buildMarkerClusters(markerItems, thresholdPx) {
-			const clusters = [];
-			const visited = new Set();
-
-			for (let i = 0; i < markerItems.length; i++) {
-				if (visited.has(i)) continue;
-
-				const cluster = [];
-				const queue = [i];
-				visited.add(i);
-
-				while (queue.length) {
-					const idx = queue.shift();
-					cluster.push(markerItems[idx]);
-
-					for (let j = 0; j < markerItems.length; j++) {
-						if (visited.has(j)) continue;
-
-						const dx = markerItems[idx].x - markerItems[j].x;
-						const dy = markerItems[idx].y - markerItems[j].y;
-						const dist = Math.hypot(dx, dy);
-
-						if (dist <= thresholdPx) {
-							visited.add(j);
-							queue.push(j);
-						}
-					}
-				}
-
-				clusters.push(cluster);
-			}
-
-			return clusters;
-		}
-
-		function getSeedOffset(index) {
-			const pattern = [
-				{ x:  0,  y: -1 },
-				{ x:  0,  y:  1 },
-				{ x: -1,  y:  0 },
-				{ x:  1,  y:  0 },
-				{ x: -1,  y: -1 },
-				{ x:  1,  y: -1 },
-				{ x: -1,  y:  1 },
-				{ x:  1,  y:  1 },
-			];
-			return pattern[index % pattern.length];
-		}
-
-		function resolveClusterOffsets(cluster) {
-			if (!cluster || cluster.length <= 1) return;
-		
-			const isMobile = window.innerWidth <= 768;
-		
-			// smaller target separation
-			const baseGap = isMobile ? 1.5 : 2;
-		
-			// hard cap so markers stay close to true position
-			const maxOffset = isMobile ? 8 : 10;
-		
-			// enough passes to solve, but not overdo it
-			const iterations = 24;
-		
-			cluster.sort((a, b) => {
-				const an = parseIntSafe(a.marker.dataset.climbNumber, 0);
-				const bn = parseIntSafe(b.marker.dataset.climbNumber, 0);
-				if (an !== bn) return an - bn;
-				if (a.y !== b.y) return a.y - b.y;
-				return a.x - b.x;
-			});
-		
-			const items = cluster.map((item, index) => {
-				const r = Math.max(item.rect.width, item.rect.height) / 2;
-		
-				// tiny deterministic starter offsets only
-				let seedX = 0;
-				let seedY = 0;
-		
-				if (index === 0) { seedX = 0; seedY = -0.8; }
-				else if (index === 1) { seedX = 0; seedY = 0.8; }
-				else if (index === 2) { seedX = -0.8; seedY = 0; }
-				else if (index === 3) { seedX = 0.8; seedY = 0; }
-				else {
-					const angle = ((index - 4) / Math.max(1, cluster.length - 4)) * Math.PI * 2;
-					seedX = Math.cos(angle) * 0.8;
-					seedY = Math.sin(angle) * 0.8;
-				}
-		
-				return {
-					marker: item.marker,
-					ox: item.x,
-					oy: item.y,
-					x: item.x + seedX,
-					y: item.y + seedY,
-					radius: r
-				};
-			});
-		
-			for (let step = 0; step < iterations; step++) {
-				let moved = false;
-		
-				for (let i = 0; i < items.length; i++) {
-					for (let j = i + 1; j < items.length; j++) {
-						const a = items[i];
-						const b = items[j];
-		
-						let dx = b.x - a.x;
-						let dy = b.y - a.y;
-						let dist = Math.hypot(dx, dy);
-		
-						const minSep = a.radius + b.radius + baseGap;
-		
-						if (dist >= minSep) continue;
-		
-						// if perfectly on top of each other, split vertically first
-						if (dist < 0.001) {
-							dx = 0;
-							dy = 1;
-							dist = 1;
-						}
-		
-						const ux = dx / dist;
-						const uy = dy / dist;
-		
-						// only push the minimum needed, plus a tiny buffer
-						const push = ((minSep - dist) / 2) + 0.15;
-		
-						a.x -= ux * push;
-						a.y -= uy * push;
-						b.x += ux * push;
-						b.y += uy * push;
-		
-						moved = true;
-					}
-				}
-		
-				// hard clamp so no marker wanders too far
-				for (const item of items) {
-					const offX = item.x - item.ox;
-					const offY = item.y - item.oy;
-					const offLen = Math.hypot(offX, offY);
-		
-					if (offLen > maxOffset && offLen > 0) {
-						const scale = maxOffset / offLen;
-						item.x = item.ox + offX * scale;
-						item.y = item.oy + offY * scale;
-					}
-				}
-		
-				if (!moved) break;
-			}
-		
-			for (const item of items) {
-				const offsetX = item.x - item.ox;
-				const offsetY = item.y - item.oy;
-		
-				item.marker.style.setProperty("--marker-offset-x", `${offsetX.toFixed(1)}px`);
-				item.marker.style.setProperty("--marker-offset-y", `${offsetY.toFixed(1)}px`);
-			}
-		}
-
-		function applyMarkerOffsetsNow() {
-			clearMarkerOffsets();
-
-			const visibleMarkers = getVisibleNumberedMarkers();
-			if (!visibleMarkers.length) return;
-
-			const markerItems = visibleMarkers.map((marker) => {
-				const rect = marker.getBoundingClientRect();
-				return {
-					marker,
-					rect,
-					x: rect.left + rect.width / 2,
-					y: rect.top + rect.height / 2,
-				};
-			});
-
-			const isMobile = window.innerWidth <= 768;
-			const thresholdPx = isMobile ? 22 : 24;
-
-			const clusters = buildMarkerClusters(markerItems, thresholdPx);
-
-			clusters.forEach((cluster) => {
-				if (cluster.length <= 1) return;
-				resolveClusterOffsets(cluster);
-			});
-		}
-
-		function scheduleMarkerOffsets(delay = 0) {
-			if (markerOffsetTimer) {
-				clearTimeout(markerOffsetTimer);
-				markerOffsetTimer = null;
-			}
-
-			requestAnimationFrame(() => {
-				markerOffsetTimer = setTimeout(() => {
-					requestAnimationFrame(() => {
-						applyMarkerOffsetsNow();
-					});
-				}, delay);
-			});
 		}
 
 		function getScoreKeyFromValues(sectionId, climbNumber) {
@@ -1960,16 +1919,8 @@
 
 		function updateMarkerNumberMode() {
 			if (!mapWrapper) return;
-
 			const showNumbers = activeSectionIds.size > 0;
 			mapWrapper.classList.toggle("show-marker-numbers", showNumbers);
-
-			if (!showNumbers) {
-				clearMarkerOffsets();
-				return;
-			}
-
-			scheduleMarkerOffsets(20);
 		}
 
 		function registerCardLookups(card) {
@@ -2223,8 +2174,6 @@
 				try {
 					await syncZoomToActiveSections();
 				} catch (_) {}
-
-				scheduleMarkerOffsets(420);
 			});
 		});
 
@@ -2360,10 +2309,6 @@
 				}
 			}
 		}
-
-		window.addEventListener("resize", () => {
-			scheduleMarkerOffsets(220);
-		}, { passive: true });
 
 		buildColourCards();
 		applyAllFilters();
