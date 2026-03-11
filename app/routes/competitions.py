@@ -22,6 +22,7 @@ from app.helpers.time import melb_now, aware_utc_to_naive_utc, utc_naive_to_melb
 
 competitions_bp = Blueprint("competitions", __name__)
 
+
 @competitions_bp.route("/competitions")
 def competitions_index():
     """
@@ -144,6 +145,7 @@ def my_competitions():
         nav_active="my_comps",
     )
 
+
 @competitions_bp.route("/comp/<slug>/doubles/invite", methods=["POST"])
 def doubles_invite(slug):
     viewer_id = session.get("competitor_id")
@@ -199,7 +201,7 @@ def doubles_invite(slug):
     db.session.add(inv)
     db.session.commit()
 
-    accept_url = url_for("doubles_accept", slug=slug, _external=True) + f"?token={token}"
+    accept_url = url_for("competitions.doubles_accept", slug=slug, _external=True) + f"?token={token}"
 
     # 5) send doubles invite email via Resend (same pattern as login code)
 
@@ -319,6 +321,7 @@ def doubles_accept(slug):
     flash("Doubles team created! You’re locked in and will appear on the doubles leaderboard.", "success")
     return redirect(f"/comp/{slug}/doubles")
 
+
 @competitions_bp.route("/comp/<slug>/doubles/cancel", methods=["POST"])
 def doubles_cancel(slug):
     viewer_id = session.get("competitor_id")
@@ -343,6 +346,7 @@ def doubles_cancel(slug):
 
     flash("Invite cancelled.", "success")
     return redirect(f"/comp/{slug}/doubles")
+
 
 @competitions_bp.route("/comp/<slug>/doubles/resend", methods=["POST"])
 def doubles_resend(slug):
@@ -372,7 +376,7 @@ def doubles_resend(slug):
     inv.expires_at = utcnow() + timedelta(hours=48)
     db.session.commit()
 
-    accept_url = url_for("doubles_accept", slug=slug, _external=True) + f"?token={token}"
+    accept_url = url_for("competitions.doubles_accept", slug=slug, _external=True) + f"?token={token}"
 
     # Send via Resend (same pattern as doubles_invite)
     if not RESEND_API_KEY:
@@ -592,7 +596,6 @@ def comp_competitor_sections(slug, competitor_id):
     )
 
 
-
 # --- Competitor stats page: My Stats + Overall Stats ---
 
 @competitions_bp.route("/comp/<slug>/competitor/<int:competitor_id>/stats")
@@ -729,7 +732,7 @@ def comp_competitor_stats(slug, competitor_id, mode="my"):
         idx = base_points_list.index(bp)
 
         cut_easy = 0.50 * n_bp
-        cut_med  = 0.75 * n_bp
+        cut_med = 0.75 * n_bp
 
         if idx < cut_easy:
             return "easy"
@@ -850,7 +853,8 @@ def comp_competitor_stats(slug, competitor_id, mode="my"):
         comp=current_comp,
         comp_slug=slug,
     )
-    
+
+
 @competitions_bp.route("/comp/<slug>/competitor/<int:competitor_id>/section/<section_slug>")
 def comp_competitor_section_climbs(slug, competitor_id, section_slug):
     """
@@ -1000,6 +1004,7 @@ def comp_competitor_section_climbs(slug, competitor_id, section_slug):
         comp=current_comp,
         comp_slug=slug,
     )
+
 
 @competitions_bp.route("/comp/<slug>/join", methods=["GET", "POST"])
 def public_register_for_comp(slug):
@@ -1152,6 +1157,7 @@ def public_register_for_comp(slug):
     next_path = f"/comp/{comp.slug}/join"
     return redirect(f"/login/verify?slug={comp.slug}&next={quote(next_path)}")
 
+
 @competitions_bp.route("/api/comp/<slug>/section-boundaries")
 def api_comp_section_boundaries(slug):
     """
@@ -1177,4 +1183,3 @@ def api_comp_section_boundaries(slug):
             out[str(s.id)] = pts
 
     return jsonify({"ok": True, "boundaries": out})
-
