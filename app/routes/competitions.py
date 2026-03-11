@@ -19,9 +19,10 @@ from app.helpers.url import make_token, hash_token
 from app.config import RESEND_API_KEY, RESEND_FROM_EMAIL
 from app.helpers.time import melb_now, aware_utc_to_naive_utc, utc_naive_to_melb
 
-
 competitions_bp = Blueprint("competitions", __name__)
 
+if RESEND_API_KEY:
+    resend.api_key = RESEND_API_KEY
 
 @competitions_bp.route("/competitions")
 def competitions_index():
@@ -203,43 +204,45 @@ def doubles_invite(slug):
 
     accept_url = url_for("competitions.doubles_accept", slug=slug, _external=True) + f"?token={token}"
 
-    # 5) send doubles invite email via Resend (same pattern as login code)
-
+    # 5) send doubles invite email via Resend
     if not RESEND_API_KEY:
-        print(f"[DOUBLES INVITE - DEV ONLY] {invitee_email} -> {accept_url}", file=sys.stderr)
-    else:
-        html = f"""
-          <div style="font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; padding: 16px;">
-            <p>Hey climber 👋</p>
-            <p><strong>{me.name}</strong> has invited you to form a doubles team for:</p>
-            <p style="font-weight: 600; margin: 8px 0;">{comp.name}</p>
+        print(f"[DOUBLES INVITE - DEV ONLY] RESEND_API_KEY missing | {invitee_email} -> {accept_url}", file=sys.stderr)
+        flash("Invite was created, but email sending is not configured (missing RESEND_API_KEY).", "error")
+        return redirect(f"/comp/{slug}/doubles")
 
-            <p>Click below to accept:</p>
+    html = f"""
+      <div style="font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; padding: 16px;">
+        <p>Hey climber 👋</p>
+        <p><strong>{me.name}</strong> has invited you to form a doubles team for:</p>
+        <p style="font-weight: 600; margin: 8px 0;">{comp.name}</p>
 
-            <p style="margin: 16px 0;">
-              <a href="{accept_url}"
-                 style="display:inline-block; padding:10px 18px; border-radius:999px; background:#111; color:#fff; text-decoration:none;">
-                 Accept Doubles Invite
-              </a>
-            </p>
+        <p>Click below to accept:</p>
 
-            <p>This link expires in 48 hours.</p>
-          </div>
-        """
+        <p style="margin: 16px 0;">
+          <a href="{accept_url}"
+             style="display:inline-block; padding:10px 18px; border-radius:999px; background:#111; color:#fff; text-decoration:none;">
+             Accept Doubles Invite
+          </a>
+        </p>
 
-        try:
-            params = {
-                "from": RESEND_FROM_EMAIL,
-                "to": [invitee_email],
-                "subject": f"Doubles invite for {comp.name}",
-                "html": html,
-            }
-            resend.Emails.send(params)
-            print(f"[DOUBLES INVITE] Sent doubles invite to {invitee_email}", file=sys.stderr)
-        except Exception as e:
-            print(f"[DOUBLES INVITE] Failed to send via Resend: {e}", file=sys.stderr)
+        <p>This link expires in 48 hours.</p>
+      </div>
+    """
 
-    flash("Invite sent. Waiting for them to accept.", "success")
+    try:
+        params = {
+            "from": RESEND_FROM_EMAIL,
+            "to": [invitee_email],
+            "subject": f"Doubles invite for {comp.name}",
+            "html": html,
+        }
+        result = resend.Emails.send(params)
+        print(f"[DOUBLES INVITE] Sent doubles invite to {invitee_email} | result={result}", file=sys.stderr)
+        flash("Invite sent. Waiting for them to accept.", "success")
+    except Exception as e:
+        print(f"[DOUBLES INVITE] Failed to send via Resend: {e}", file=sys.stderr)
+        flash("Invite was created, but the email failed to send. Check Render logs / Resend config.", "error")
+
     return redirect(f"/comp/{slug}/doubles")
 
 
