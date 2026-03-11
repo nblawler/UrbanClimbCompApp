@@ -415,6 +415,12 @@
 			background: transparent;
 			pointer-events: none;
 		}
+		@media (max-width: 768px) {
+			#mapWrapperSections .map-marker::after {
+				width: 14px;
+				height: 14px;
+			}
+		}
 
 		#mapWrapperSections.show-marker-numbers .map-marker {
 			width: clamp(10px, calc(24px / var(--marker-scale-squared)), 24px);
@@ -2243,11 +2249,23 @@
 
 		function applyAllFilters() {
 			if (filterRaf) cancelAnimationFrame(filterRaf);
+		
 			filterRaf = requestAnimationFrame(() => {
 				applyMapFilter();
 				applyScoreCardFilter();
 				updateMarkerNumberMode();
 				applyMarkerOverlapOffsets();
+		
+				/* run it again after layout/paint settles */
+				requestAnimationFrame(() => {
+					applyMarkerOverlapOffsets();
+		
+					/* one extra delayed pass helps on mobile after zoom/filter changes */
+					setTimeout(() => {
+						applyMarkerOverlapOffsets();
+					}, 60);
+				});
+		
 				filterRaf = null;
 			});
 		}
