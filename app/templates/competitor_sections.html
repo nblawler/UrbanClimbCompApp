@@ -357,7 +357,10 @@
 
 		.map-marker {
 			position: absolute;
-			transform: translate(-50%, -50%);
+			transform: translate(
+				calc(-50% + var(--marker-offset-x, 0px)),
+				calc(-50% + var(--marker-offset-y, 0px))
+			);
 			border-radius: 999px;
 			cursor: pointer;
 			pointer-events: auto;
@@ -370,7 +373,12 @@
 			justify-content: center;
 			line-height: 1;
 			overflow: visible;
-			transition: opacity 0.15s, width 0.15s, height 0.15s, box-shadow 0.15s;
+			transition:
+				opacity 0.15s,
+				width 0.15s,
+				height 0.15s,
+				box-shadow 0.15s,
+				transform 0.18s ease;
 		}
 
 		#mapWrapperSections .map-marker {
@@ -1562,10 +1570,127 @@
 		let activeSectionIds = new Set();
 		let activeColours = new Set();
 		let filterRaf = null;
+		let markerOffsetTimer = null;
 
 		function parseIntSafe(v, fallback = 0) {
 			const n = parseInt(v, 10);
 			return Number.isFinite(n) ? n : fallback;
+		}
+
+		function clearMarkerOffsets() {
+			markers.forEach((marker) => {
+				marker.style.setProperty("--marker-offset-x", "0px");
+				marker.style.setProperty("--marker-offset-y", "0px");
+			});
+		}
+
+		function getVisibleNumberedMarkers() {
+			if (!mapWrapper || !mapWrapper.classList.contains("show-marker-numbers")) {
+				return [];
+			}
+
+			return markers.filter((marker) => {
+				if (marker.style.display === "none") return false;
+				const rect = marker.getBoundingClientRect();
+				return rect.width > 0 && rect.height > 0;
+			});
+		}
+
+		function buildMarkerClusters(markerItems, thresholdPx) {
+			const clusters = [];
+			const visited = new Set();
+
+			for (let i = 0; i < markerItems.length; i++) {
+				if (visited.has(i)) continue;
+
+				const cluster = [];
+				const queue = [i];
+				visited.add(i);
+
+				while (queue.length) {
+					const idx = queue.shift();
+					cluster.push(markerItems[idx]);
+
+					for (let j = 0; j < markerItems.length; j++) {
+						if (visited.has(j)) continue;
+
+						const dx = markerItems[idx].x - markerItems[j].x;
+						const dy = markerItems[idx].y - markerItems[j].y;
+						const dist = Math.hypot(dx, dy);
+
+						if (dist <= thresholdPx) {
+							visited.add(j);
+							queue.push(j);
+						}
+					}
+				}
+
+				clusters.push(cluster);
+			}
+
+			return clusters;
+		}
+
+		function applyMarkerOffsetsNow() {
+			clearMarkerOffsets();
+
+			const visibleMarkers = getVisibleNumberedMarkers();
+			if (!visibleMarkers.length) return;
+
+			const markerItems = visibleMarkers.map((marker) => {
+				const rect = marker.getBoundingClientRect();
+				return {
+					marker,
+					x: rect.left + rect.width / 2,
+					y: rect.top + rect.height / 2,
+				};
+			});
+
+			const isMobile = window.innerWidth <= 768;
+			const thresholdPx = isMobile ? 24 : 28;
+			const baseRadius = isMobile ? 10 : 12;
+
+			const clusters = buildMarkerClusters(markerItems, thresholdPx);
+
+			clusters.forEach((cluster) => {
+				if (cluster.length <= 1) return;
+
+				const count = cluster.length;
+				const radius = baseRadius + Math.min(10, (count - 2) * 2);
+
+				cluster.forEach((item, index) => {
+					let angle;
+
+					if (count === 2) {
+						angle = index === 0 ? Math.PI : 0;
+					} else if (count === 3) {
+						angle = (-Math.PI / 2) + ((Math.PI * 2) / 3) * index;
+					} else {
+						angle = (-Math.PI / 2) + ((Math.PI * 2) / count) * index;
+					}
+
+					const offsetX = Math.cos(angle) * radius;
+					const offsetY = Math.sin(angle) * radius;
+
+					item.marker.style.setProperty("--marker-offset-x", `${offsetX.toFixed(1)}px`);
+					item.marker.style.setProperty("--marker-offset-y", `${offsetY.toFixed(1)}px`);
+				});
+			});
+		}
+
+		function scheduleMarkerOffsets(delay = 0) {
+			if (markerOffsetTimer) {
+				clearTimeout(markerOffsetTimer);
+				markerOffsetTimer = null;
+			}
+
+			requestAnimationFrame(() => {
+				markerOffsetTimer = setTimeout(() => {
+					requestAnimationFrame(() => {
+						applyMarkerOffsetsNow();
+					});
+				}, delay);
+			});
 		}
 
 		function getScoreKeyFromValues(sectionId, climbNumber) {
@@ -1711,7 +1836,16 @@
 
 		function updateMarkerNumberMode() {
 			if (!mapWrapper) return;
-			mapWrapper.classList.toggle("show-marker-numbers", activeSectionIds.size > 0);
+
+			const showNumbers = activeSectionIds.size > 0;
+			mapWrapper.classList.toggle("show-marker-numbers", showNumbers);
+
+			if (!showNumbers) {
+				clearMarkerOffsets();
+				return;
+			}
+
+			scheduleMarkerOffsets(20);
 		}
 
 		function registerCardLookups(card) {
@@ -1914,6 +2048,7 @@
 				applyMapFilter();
 				applyScoreCardFilter();
 				updateMarkerNumberMode();
+				scheduleMarkerOffsets(30);
 				filterRaf = null;
 			});
 		}
@@ -1961,7 +2096,12 @@
 				if (!anyActive) activeSectionIds.clear();
 
 				applyAllFilters();
-				try { await syncZoomToActiveSections(); } catch (_) {}
+
+				try {
+					await syncZoomToActiveSections();
+				} catch (_) {}
+
+				scheduleMarkerOffsets(320);
 			});
 		});
 
@@ -2097,6 +2237,10 @@
 				}
 			}
 		}
+
+		window.addEventListener("resize", () => {
+			scheduleMarkerOffsets(220);
+		}, { passive: true });
 
 		buildColourCards();
 		applyAllFilters();
