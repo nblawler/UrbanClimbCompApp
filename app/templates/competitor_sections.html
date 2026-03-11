@@ -2249,12 +2249,28 @@
 			if (!targetId) return;
 			const el = document.getElementById(targetId);
 			if (!el) return;
-
-			el.scrollIntoView({
-				behavior: "smooth",
-				block: "nearest"
+		
+			const rect = el.getBoundingClientRect();
+			const viewportHeight = window.innerHeight || document.documentElement.clientHeight;
+		
+			const absoluteTop = window.pageYOffset + rect.top;
+			const cardCenterOffset = rect.height / 2;
+			const viewportCenterOffset = viewportHeight / 2;
+		
+			let targetScrollTop = absoluteTop - viewportCenterOffset + cardCenterOffset;
+		
+			const maxScrollTop = Math.max(
+				0,
+				document.documentElement.scrollHeight - viewportHeight
+			);
+		
+			targetScrollTop = Math.max(0, Math.min(targetScrollTop, maxScrollTop));
+		
+			window.scrollTo({
+				top: targetScrollTop,
+				behavior: "smooth"
 			});
-
+		
 			el.classList.add("flash-highlight");
 			window.setTimeout(() => {
 				el.classList.remove("flash-highlight");
