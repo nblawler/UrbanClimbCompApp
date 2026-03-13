@@ -24,6 +24,7 @@ competitions_bp = Blueprint("competitions", __name__)
 if RESEND_API_KEY:
     resend.api_key = RESEND_API_KEY
 
+
 @competitions_bp.route("/competitions")
 def competitions_index():
     """
@@ -810,7 +811,13 @@ def comp_competitor_stats(slug, competitor_id, mode="my"):
             else:
                 status = "skipped"
 
-            personal_cells.append({"climb_number": sc.climb_number, "status": status})
+            personal_cells.append(
+                {
+                    "climb_number": sc.climb_number,
+                    "status": status,
+                    "climb_colour": sc.colour,
+                }
+            )
 
             # Global difficulty
             g = global_by_climb.get(sc.climb_number)
@@ -833,7 +840,13 @@ def comp_competitor_stats(slug, competitor_id, mode="my"):
                     else:
                         g_status = "easy"
 
-            global_cells.append({"climb_number": sc.climb_number, "status": g_status})
+            global_cells.append(
+                {
+                    "climb_number": sc.climb_number,
+                    "status": g_status,
+                    "climb_colour": sc.colour,
+                }
+            )
 
         efficiency = (sec_tops / sec_attempts) if sec_attempts > 0 else 0.0
 
@@ -1006,8 +1019,8 @@ def comp_competitor_section_climbs(slug, competitor_id, section_slug):
         "competitor.html",
         competitor=competitor,
         climbs=climbs,
-        existing=existing,                      # NEW: keyed by section_climb_id
-        existing_by_number=existing_by_number,  # Legacy helper for templates still using climb_number
+        existing=existing,
+        existing_by_number=existing_by_number,
         total_points=total_points,
         section=section,
         colours=colours,
@@ -1161,8 +1174,8 @@ def public_register_for_comp(slug):
         db.session.commit()
 
     login_code = LoginCode(
-        competitor_id=shell.id,    # legacy
-        account_id=acct.id,        # real
+        competitor_id=shell.id,
+        account_id=acct.id,
         code=code,
         created_at=now,
         expires_at=now + timedelta(minutes=10),

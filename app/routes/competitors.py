@@ -19,6 +19,7 @@ from app.helpers.scoring import points_for, competitor_total_points
 
 competitors_bp = Blueprint("competitors", __name__)
 
+
 @competitors_bp.route("/resume")
 def resume_competitor():
     """
@@ -44,6 +45,7 @@ def resume_competitor():
 
     # If the comp is finished (or missing), don't send them back to old scoring
     return redirect("/my-comps")
+
 
 @competitors_bp.route("/competitor/<int:competitor_id>")
 def competitor_redirect(competitor_id):
@@ -72,6 +74,7 @@ def competitor_redirect(competitor_id):
 
     # Fallback: legacy route
     return redirect(f"/competitor/{competitor_id}/sections")
+
 
 @competitors_bp.route("/competitor/<int:competitor_id>/sections")
 def competitor_sections(competitor_id):
@@ -206,6 +209,7 @@ def competitor_sections(competitor_id):
         gym_map_url=gym_map_url,
     )
 
+
 @competitors_bp.route("/competitor/<int:competitor_id>/stats")
 @competitors_bp.route("/competitor/<int:competitor_id>/stats/<string:mode>")
 def competitor_stats(competitor_id, mode="my"):
@@ -319,6 +323,7 @@ def competitor_stats(competitor_id, mode="my"):
                 {
                     "climb_number": sc.climb_number,
                     "status": status,
+                    "climb_colour": sc.colour,
                 }
             )
 
@@ -341,6 +346,7 @@ def competitor_stats(competitor_id, mode="my"):
                 {
                     "climb_number": sc.climb_number,
                     "status": g_status,
+                    "climb_colour": sc.colour,
                 }
             )
 
@@ -392,6 +398,7 @@ def competitor_stats(competitor_id, mode="my"):
         nav_active=nav_active,
     )
 
+
 @competitors_bp.route("/competitor/<int:competitor_id>/section/<section_slug>")
 def competitor_section_climbs(competitor_id, section_slug):
     """
@@ -439,7 +446,11 @@ def competitor_section_climbs(competitor_id, section_slug):
 
     climbs = [sc.climb_number for sc in section_climbs]
     colours = {sc.climb_number: sc.colour for sc in section_climbs if sc.colour}
-    max_points = {sc.climb_number: sc.base_points for sc in section_climbs if sc.base_points is not None}
+    max_points = {
+        sc.climb_number: sc.base_points
+        for sc in section_climbs
+        if sc.base_points is not None
+    }
 
     # Scores (legacy: unscoped if no competition context)
     if competitor.competition_id:
@@ -470,14 +481,18 @@ def competitor_section_climbs(competitor_id, section_slug):
     existing = {s.section_climb_id: s for s in scores if s.section_climb_id is not None}
     existing_by_number = {s.climb_number: s for s in scores}
 
-    rows, _ = build_leaderboard(None, competition_id=competitor.competition_id) if competitor.competition_id else build_leaderboard(None)
+    rows, _ = (
+        build_leaderboard(None, competition_id=competitor.competition_id)
+        if competitor.competition_id
+        else build_leaderboard(None)
+    )
     position = next((r["position"] for r in rows if r["competitor_id"] == target_id), None)
 
     return render_template(
         "competitor.html",
         competitor=competitor,
         climbs=climbs,
-        existing=existing,                      
+        existing=existing,
         existing_by_number=existing_by_number,  # legacy helper
         total_points=total_points,
         section=section,
@@ -493,4 +508,3 @@ def competitor_section_climbs(competitor_id, section_slug):
         sections=all_sections,
         gym_map_url=None,
     )
-

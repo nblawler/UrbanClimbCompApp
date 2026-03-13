@@ -196,8 +196,18 @@
 			color: inherit;
 		}
 
+		.heat-cell-wrap {
+			display: flex;
+			flex-direction: column;
+			align-items: center;
+			justify-content: flex-start;
+			gap: 0.32rem;
+			width: 100%;
+		}
+
 		.heat-cell {
 			height: 45px;
+			width: 100%;
 			border-radius: 0.65rem;
 			border: 1px solid rgba(0, 0, 0, 0.2);
 			display: flex;
@@ -219,6 +229,18 @@
 			transform: translateY(-2px);
 			box-shadow: 0 8px 20px rgba(0, 0, 0, 0.5);
 			filter: brightness(1.1);
+		}
+
+		.climb-colour-indicator {
+			width: 72%;
+			max-width: 28px;
+			min-width: 18px;
+			height: 6px;
+			border-radius: 999px;
+			border: 1px solid rgba(255, 255, 255, 0.18);
+			box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+			flex-shrink: 0;
+			opacity: 0.98;
 		}
 
 		/* Legend */
@@ -296,10 +318,12 @@
 		/* Responsive */
 		@media (max-width: 768px) {
 			.nav { padding: 1rem; }
+
 			.container {
 				padding: 1.5rem 1rem;
 				padding-bottom: calc(1.5rem + env(safe-area-inset-bottom, 0px) + var(--safe-bottom));
 			}
+
 			.page-title { font-size: 2rem; }
 			.comp-header { padding: 1.5rem; }
 			.comp-name { font-size: 1.6rem; }
@@ -313,6 +337,12 @@
 			.heat-cell {
 				height: 38px;
 				font-size: 0.8rem;
+			}
+
+			.climb-colour-indicator {
+				height: 5px;
+				max-width: 24px;
+				min-width: 16px;
 			}
 		}
 	</style>
@@ -331,7 +361,6 @@
 			<a href="/admin/comps" class="{% if nav_active == 'admin' %}active{% endif %}">Admin</a>
 		{% endif %}
 
-		{# Only show comp-specific links if we have an active comp context #}
 		{% if show_comp_nav %}
 			<a href="/comp/{{ comp_slug }}/competitor/{{ viewer_id }}/sections"
 			   class="{% if nav_active == 'sections' %}active{% endif %}">
@@ -349,11 +378,6 @@
 					Climber Stats
 				</a>
 			{% endif %}
-
-			<a href="/competitor/{{ viewer_id }}/stats/overall"
-			   class="{% if nav_active == 'overall_stats' %}active{% endif %}">
-				Overall Stats
-			</a>
 		{% endif %}
 
 		<a href="/leaderboard{% if show_comp_nav %}?cid={{ viewer_id }}{% endif %}"
@@ -414,7 +438,15 @@
 						{% for cell in block.climbs %}
 							<a class="heat-cell-link"
 							   href="/climb/{{ cell.climb_number }}/stats?cid={{ competitor.id }}&mode=personal{% if mode == 'climber' %}&view_from=climber{% endif %}">
-								<div class="heat-cell status-{{ cell.status }}">{{ cell.climb_number }}</div>
+								<div class="heat-cell-wrap">
+									<div class="heat-cell status-{{ cell.status }}">{{ cell.climb_number }}</div>
+									<div
+										class="climb-colour-indicator"
+										style="background: {{ cell.climb_colour or cell.climb_color or cell.color_hex or cell.color or '#666' }};"
+										title="Climb colour"
+										aria-label="Climb colour"
+									></div>
+								</div>
 							</a>
 						{% endfor %}
 					</div>

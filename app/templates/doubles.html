@@ -258,11 +258,6 @@
          class="{% if nav_active == 'my_stats' %}active{% endif %}">
         My Stats
       </a>
-
-      <a href="/competitor/{{ viewer_id }}/stats/overall"
-         class="{% if nav_active == 'overall_stats' %}active{% endif %}">
-        Overall Stats
-      </a>
     {% endif %}
 
     <a href="/leaderboard{% if show_comp_nav %}?cid={{ viewer_id }}{% endif %}"

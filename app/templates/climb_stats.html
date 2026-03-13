@@ -18,14 +18,8 @@
 	<style>
 		* { margin: 0; padding: 0; box-sizing: border-box; }
 
-		/* ===========================
-		   ✅ MOBILE “BOTTOM FLICK” FIX
-		   - Avoid raw 100vh on mobile (address bar resizing causes jumps)
-		   - Use dvh/-webkit-fill-available fallbacks
-		   - Add safe bottom padding + stop rubber-band scroll
-		   =========================== */
 		:root {
-			--app-height: 100vh; /* fallback */
+			--app-height: 100vh;
 			--safe-bottom: 16px;
 		}
 		@supports (height: 100dvh) {
@@ -43,21 +37,16 @@
 		body {
 			font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
 			background: linear-gradient(135deg, #0a1628 0%, #1a2942 100%);
-
-			/* ✅ replace min-height: 100vh */
 			min-height: var(--app-height);
-
 			display: flex;
 			flex-direction: column;
 			color: #fff;
-
 			overflow-x: hidden;
 			-webkit-overflow-scrolling: touch;
 			overscroll-behavior-y: none;
 			touch-action: pan-y;
 		}
 
-		/* Top nav */
 		.nav {
 			padding: 1.25rem 2rem;
 			display: flex;
@@ -87,19 +76,15 @@
 			opacity: 0.6;
 		}
 
-		/* Container */
 		.container {
 			flex: 1;
 			max-width: 1000px;
 			margin: 0 auto;
 			padding: 2rem;
 			width: 100%;
-
-			/* ✅ prevents “snap” at the end on iOS */
 			padding-bottom: calc(2rem + env(safe-area-inset-bottom, 0px) + var(--safe-bottom));
 		}
 
-		/* Back button */
 		.back-btn {
 			display: inline-block;
 			padding: 0.65rem 1.25rem;
@@ -119,7 +104,6 @@
 			transform: translateY(-1px);
 		}
 
-		/* Competitor header */
 		.comp-header {
 			background: rgba(255, 255, 255, 0.05);
 			backdrop-filter: blur(10px);
@@ -171,7 +155,6 @@
 			color: #fff;
 		}
 
-		/* Page title */
 		.stats-title {
 			font-size: 1.75rem;
 			font-weight: 900;
@@ -179,7 +162,6 @@
 			margin-bottom: 1.5rem;
 		}
 
-		/* Stats card */
 		.stats-card {
 			background: rgba(255, 255, 255, 0.05);
 			backdrop-filter: blur(10px);
@@ -196,8 +178,7 @@
 			margin-bottom: 1rem;
 		}
 
-		/* Difficulty pill */
-		.difficulty-badge {
+		.climb-colour-badge {
 			display: inline-flex;
 			align-items: center;
 			gap: 0.75rem;
@@ -209,19 +190,35 @@
 			flex-wrap: wrap;
 		}
 
-		.difficulty-badge span:first-child {
+		.climb-colour-badge .badge-title {
 			font-weight: 800;
 			color: #fff;
 		}
 
-		.difficulty-label {
+		.colour-label-pill {
+			display: inline-flex;
+			align-items: center;
+			gap: 0.6rem;
 			padding: 0.4rem 1rem;
 			border-radius: 999px;
 			font-size: 0.85rem;
 			font-weight: 900;
+			background: rgba(255, 255, 255, 0.08);
+			color: #fff;
+			border: 1px solid rgba(255, 255, 255, 0.14);
 		}
 
-		/* Status badges in text */
+		.colour-dot {
+			width: 16px;
+			height: 16px;
+			border-radius: 999px;
+			display: inline-block;
+			border: 1px solid rgba(255, 255, 255, 0.35);
+			box-shadow: 0 0 0 1px rgba(0,0,0,0.18) inset;
+			flex: 0 0 16px;
+			background: var(--climb-colour, #666);
+		}
+
 		.status-inline {
 			display: inline-block;
 			margin-left: 0.5rem;
@@ -231,7 +228,6 @@
 			font-weight: 900;
 		}
 
-		/* Table */
 		.stats-table {
 			width: 100%;
 			border-collapse: collapse;
@@ -261,7 +257,6 @@
 
 		.overview-table td { text-align: right; }
 
-		/* Filter buttons */
 		.filter-controls {
 			display: flex;
 			align-items: center;
@@ -311,19 +306,22 @@
 			transform: translateY(-1px);
 		}
 
-		/* Table wrapper with scroll */
+		.pagination-controls {
+			margin-left: auto;
+			display: flex;
+			gap: 0.5rem;
+			flex-wrap: wrap;
+		}
+
 		.table-scroll {
 			max-height: 70vh;
 			overflow-y: auto;
 			border-radius: 1rem;
 			border: 1px solid rgba(255, 255, 255, 0.08);
-
-			/* ✅ helps iOS scroll stability inside container */
 			-webkit-overflow-scrolling: touch;
 			overscroll-behavior: contain;
 		}
 
-		/* Responsive */
 		@media (max-width: 768px) {
 			.nav { padding: 1rem; }
 			.container {
@@ -334,6 +332,10 @@
 			.comp-name { font-size: 1.6rem; }
 			.stats-card { padding: 1.5rem; }
 			.stats-card h2 { font-size: 1.3rem; }
+			.pagination-controls {
+				margin-left: 0;
+				width: 100%;
+			}
 		}
 	</style>
 </head>
@@ -370,11 +372,6 @@
 			{% if is_climb_context %}
 				<a href="#" class="active disabled">Climb Stats</a>
 			{% endif %}
-
-			<a href="/competitor/{{ viewer_id }}/stats/overall"
-			   class="{% if nav_active == 'overall_stats' and not is_climb_context %}active{% endif %}">
-				Overall Stats
-			</a>
 		{% endif %}
 
 		<a href="/leaderboard{% if show_comp_nav %}?cid={{ viewer_id }}{% endif %}"
@@ -438,17 +435,13 @@
 			<h1 class="stats-title">Climb #{{ climb_number }} Stats</h1>
 		{% endif %}
 
-		{% if has_config and global_difficulty_key is defined and global_difficulty_label is defined %}
-			<div class="difficulty-badge">
-				<span>Difficulty:</span>
-				<span class="difficulty-label global-{{ global_difficulty_key }}">
-					{{ global_difficulty_label }}
+		{% if has_config %}
+			<div class="climb-colour-badge">
+				<span class="badge-title">Climb Colour:</span>
+				<span class="colour-label-pill">
+					<span class="colour-dot" style="background: {{ climb_colour or '#666' }};"></span>
+					{{ climb_colour or 'Unknown' }}
 				</span>
-				{% if num_competitors == 0 %}
-					<span style="font-size: 0.85rem; color: rgba(255,255,255,0.6);">
-						No attempts logged yet
-					</span>
-				{% endif %}
 			</div>
 		{% endif %}
 
@@ -513,16 +506,6 @@
 						<tr><th>Tops</th><td>{{ tops }}</td></tr>
 						<tr><th>Flashes</th><td>{{ flashes }}</td></tr>
 						<tr>
-							<th>Top rate</th>
-							<td>
-								{% if num_competitors %}
-									{{ (top_rate * 100) | round(1) }}%
-								{% else %}
-									–
-								{% endif %}
-							</td>
-						</tr>
-						<tr>
 							<th>Flash rate</th>
 							<td>
 								{% if num_competitors %}
@@ -542,41 +525,28 @@
 								{% endif %}
 							</td>
 						</tr>
-						<tr>
-							<th>Avg attempts (who topped)</th>
-							<td>
-								{% if tops %}
-									{{ avg_attempts_on_tops | round(2) }}
-								{% else %}
-									–
-								{% endif %}
-							</td>
-						</tr>
 					</tbody>
 				</table>
 			</section>
 
 			<section class="stats-card">
-				<h2>Top 5 Competitors</h2>
+				<h2>Competitors</h2>
 
 				{% if per_competitor %}
 					{% set total_rows = per_competitor|length %}
-					{% set default_limit = 5 %}
 
-					<p style="margin-bottom: 0.75rem; font-size: 0.9rem; color: rgba(255,255,255,0.7);">
+					<p id="competitor-summary" style="margin-bottom: 0.75rem; font-size: 0.9rem; color: rgba(255,255,255,0.7);">
 						{{ total_rows }} competitor{% if total_rows != 1 %}s{% endif %} logged
-						{% if total_rows > default_limit %} · Showing top {{ default_limit }}{% endif %}
 					</p>
 
 					<div class="filter-controls">
 						<button id="btn-topped" class="filter-btn" type="button">Only Topped</button>
 						<button id="btn-flashed" class="filter-btn" type="button">Only Flashes</button>
 
-						{% if total_rows > default_limit %}
-							<button id="toggle-rows-btn" type="button" class="primary">
-								Show all ({{ total_rows }})
-							</button>
-						{% endif %}
+						<div class="pagination-controls">
+							<button id="prev-page-btn" type="button" class="filter-btn">Previous</button>
+							<button id="next-page-btn" type="button" class="primary">Next</button>
+						</div>
 					</div>
 
 					<div class="table-scroll">
@@ -627,16 +597,18 @@
 	{% if per_competitor and per_competitor|length > 0 %}
 	<script>
 		(function () {
-			const defaultLimit = {{ default_limit | default(25) }};
+			const pageSize = 25;
 			const rows = Array.from(document.querySelectorAll(".comp-row"));
 			if (!rows.length) return;
 
-			const btnShowAll = document.getElementById("toggle-rows-btn");
+			const btnPrev = document.getElementById("prev-page-btn");
+			const btnNext = document.getElementById("next-page-btn");
 			const btnTopped = document.getElementById("btn-topped");
 			const btnFlashed = document.getElementById("btn-flashed");
+			const summary = document.getElementById("competitor-summary");
 
-			let showingAll = false;
 			let filterMode = "none";
+			let currentPage = 1;
 
 			function rowMatchesFilter(row) {
 				const isTopped = row.dataset.topped === "1";
@@ -646,28 +618,50 @@
 				return true;
 			}
 
+			function getFilteredRows() {
+				return rows.filter(rowMatchesFilter);
+			}
+
 			function applyState() {
-				let visibleCount = 0;
+				const filteredRows = getFilteredRows();
+				const totalFiltered = filteredRows.length;
+				const totalPages = Math.max(1, Math.ceil(totalFiltered / pageSize));
+
+				if (currentPage > totalPages) currentPage = totalPages;
+				if (currentPage < 1) currentPage = 1;
+
+				const startIndex = (currentPage - 1) * pageSize;
+				const endIndex = startIndex + pageSize;
 
 				rows.forEach((row) => {
-					if (!rowMatchesFilter(row)) {
-						row.style.display = "none";
-						return;
-					}
-
-					if (!showingAll && visibleCount >= defaultLimit) {
-						row.style.display = "none";
-						return;
-					}
-
-					row.style.display = "";
-					visibleCount++;
+					row.style.display = "none";
 				});
 
-				if (btnShowAll) {
-					btnShowAll.textContent = showingAll
-						? "Show top " + defaultLimit
-						: "Show all (" + rows.length + ")";
+				filteredRows.slice(startIndex, endIndex).forEach((row) => {
+					row.style.display = "";
+				});
+
+				if (btnPrev) {
+					btnPrev.disabled = currentPage <= 1;
+					btnPrev.style.opacity = currentPage <= 1 ? "0.5" : "1";
+					btnPrev.style.cursor = currentPage <= 1 ? "default" : "pointer";
+				}
+
+				if (btnNext) {
+					btnNext.disabled = currentPage >= totalPages;
+					btnNext.style.opacity = currentPage >= totalPages ? "0.5" : "1";
+					btnNext.style.cursor = currentPage >= totalPages ? "default" : "pointer";
+				}
+
+				if (summary) {
+					if (totalFiltered === 0) {
+						summary.textContent = "No competitors match this filter.";
+					} else {
+						const fromNum = startIndex + 1;
+						const toNum = Math.min(endIndex, totalFiltered);
+						summary.textContent =
+							`${totalFiltered} competitor${totalFiltered !== 1 ? "s" : ""} logged · Showing ${fromNum}–${toNum} · Page ${currentPage} of ${totalPages}`;
+					}
 				}
 			}
 
@@ -676,7 +670,7 @@
 					filterMode = (filterMode === "topped") ? "none" : "topped";
 					btnTopped.classList.toggle("active", filterMode === "topped");
 					if (btnFlashed) btnFlashed.classList.remove("active");
-					showingAll = true;
+					currentPage = 1;
 					applyState();
 				});
 			}
@@ -686,15 +680,28 @@
 					filterMode = (filterMode === "flashed") ? "none" : "flashed";
 					btnFlashed.classList.toggle("active", filterMode === "flashed");
 					if (btnTopped) btnTopped.classList.remove("active");
-					showingAll = true;
+					currentPage = 1;
 					applyState();
 				});
 			}
 
-			if (btnShowAll) {
-				btnShowAll.addEventListener("click", () => {
-					showingAll = !showingAll;
-					applyState();
+			if (btnPrev) {
+				btnPrev.addEventListener("click", () => {
+					if (currentPage > 1) {
+						currentPage--;
+						applyState();
+					}
+				});
+			}
+
+			if (btnNext) {
+				btnNext.addEventListener("click", () => {
+					const totalFiltered = getFilteredRows().length;
+					const totalPages = Math.max(1, Math.ceil(totalFiltered / pageSize));
+					if (currentPage < totalPages) {
+						currentPage++;
+						applyState();
+					}
 				});
 			}
 

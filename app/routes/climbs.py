@@ -8,6 +8,7 @@ from app.helpers.competition import get_current_comp, get_viewer_comp, comp_is_l
 
 climbs_bp = Blueprint("climbs", __name__)
 
+
 @climbs_bp.route("/climb/<int:climb_number>/stats")
 def climb_stats(climb_number):
     """
@@ -74,6 +75,10 @@ def climb_stats(climb_number):
     section_ids = {sc.section_id for sc in section_climbs}
     sections = Section.query.filter(Section.id.in_(section_ids)).all()
     sections_by_id = {s.id: s for s in sections}
+
+    # Use the first configured section climb colour for this climb.
+    # This matches the same underlying source used elsewhere: sc.colour
+    climb_colour = next((sc.colour for sc in section_climbs if sc.colour), None)
 
     scores = (
         Score.query
@@ -143,6 +148,7 @@ def climb_stats(climb_number):
         "climb_stats.html",
         climb_number=climb_number,
         has_config=True,
+        climb_colour=climb_colour,
         sections=[sections_by_id[sc.section_id] for sc in section_climbs if sc.section_id in sections_by_id],
         total_attempts=total_attempts,
         tops=tops,
@@ -163,4 +169,3 @@ def climb_stats(climb_number):
         global_difficulty_label=global_difficulty_label,
         from_climber=from_climber,
     )
-
