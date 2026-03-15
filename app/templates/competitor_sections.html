@@ -344,7 +344,7 @@
 			aspect-ratio: var(--map-ar, 4 / 3);
 			overflow: hidden;
 			background: #000;
-			touch-action: none;
+			touch-action: pan-y pinch-zoom;
 		}
 
 		.map-layer {
@@ -1189,7 +1189,7 @@
 			<header class="section-header">
 				<h2 class="section-title">{{ gym_name }} Map</h2>
 				<p class="section-subtitle">
-					Pinch to zoom and drag to pan. Tap a marker to jump to that climb’s score card.
+					Use two fingers to move or zoom the map. Tap a marker to jump to that climb’s score card.
 				</p>
 			</header>
 
@@ -1381,12 +1381,6 @@
 		let translateX = 0;
 		let translateY = 0;
 
-		let isPointerPanning = false;
-		let panStartX = 0;
-		let panStartY = 0;
-		let panOriginX = 0;
-		let panOriginY = 0;
-
 		let pinchStartDistance = 0;
 		let pinchStartScale = 1;
 		let pinchCenterStart = null;
@@ -1434,14 +1428,6 @@
 			} else {
 				translateY = clamp(translateY, minTy, 0);
 			}
-		}
-
-		function setTransform(scale, tx, ty) {
-			currentScale = scale;
-			translateX = tx;
-			translateY = ty;
-			clampPan(currentScale);
-			applyTransform();
 		}
 
 		function zoomAroundClientPoint(nextScale, clientX, clientY) {
@@ -1677,7 +1663,6 @@
 
 		viewport.addEventListener("pointerdown", (e) => {
 			activePointers.set(e.pointerId, { clientX: e.clientX, clientY: e.clientY });
-			viewport.setPointerCapture(e.pointerId);
 
 			const now = Date.now();
 			const dx = e.clientX - lastTapX;
@@ -1685,27 +1670,20 @@
 			const dt = now - lastTapTime;
 
 			if (dt < 280 && Math.hypot(dx, dy) < 24) {
-				e.preventDefault();
-				if (currentSectionIds.length) {
-					applyZoomForSectionIds(currentSectionIds);
-				} else {
-					resetFit();
+				if (activePointers.size === 1) {
+					if (currentSectionIds.length) {
+						applyZoomForSectionIds(currentSectionIds);
+					} else {
+						resetFit();
+					}
+					lastTapTime = 0;
+					return;
 				}
-				lastTapTime = 0;
-				return;
 			}
 
 			lastTapTime = now;
 			lastTapX = e.clientX;
 			lastTapY = e.clientY;
-
-			if (activePointers.size === 1) {
-				isPointerPanning = true;
-				panStartX = e.clientX;
-				panStartY = e.clientY;
-				panOriginX = translateX;
-				panOriginY = translateY;
-			}
 
 			if (activePointers.size === 2) {
 				const pts = Array.from(activePointers.values());
@@ -1713,44 +1691,35 @@
 				pinchStartScale = currentScale;
 				pinchCenterStart = getMidpoint(pts[0], pts[1]);
 				pinchPanStart = { x: translateX, y: translateY };
-				isPointerPanning = false;
 			}
-		}, { passive: false });
+		}, { passive: true });
 
 		viewport.addEventListener("pointermove", (e) => {
 			if (!activePointers.has(e.pointerId)) return;
 			activePointers.set(e.pointerId, { clientX: e.clientX, clientY: e.clientY });
 
-			if (activePointers.size === 2) {
-				e.preventDefault();
-				const pts = Array.from(activePointers.values());
-				const dist = getDistance(pts[0], pts[1]);
-				const mid = getMidpoint(pts[0], pts[1]);
+			if (activePointers.size !== 2) return;
 
-				if (pinchStartDistance > 0) {
-					const nextScale = clamp(pinchStartScale * (dist / pinchStartDistance), minScale, maxScale);
+			e.preventDefault();
 
-					const rect = viewport.getBoundingClientRect();
-					const px = pinchCenterStart.x - rect.left;
-					const py = pinchCenterStart.y - rect.top;
+			const pts = Array.from(activePointers.values());
+			const dist = getDistance(pts[0], pts[1]);
+			const mid = getMidpoint(pts[0], pts[1]);
 
-					const imageX = (px - pinchPanStart.x) / pinchStartScale;
-					const imageY = (py - pinchPanStart.y) / pinchStartScale;
+			if (pinchStartDistance > 0) {
+				const nextScale = clamp(pinchStartScale * (dist / pinchStartDistance), minScale, maxScale);
 
-					currentScale = nextScale;
-					translateX = (mid.x - rect.left) - imageX * currentScale;
-					translateY = (mid.y - rect.top) - imageY * currentScale;
+				const rect = viewport.getBoundingClientRect();
+				const px = pinchCenterStart.x - rect.left;
+				const py = pinchCenterStart.y - rect.top;
 
-					clampPan(currentScale);
-					applyTransform();
-				}
-				return;
-			}
+				const imageX = (px - pinchPanStart.x) / pinchStartScale;
+				const imageY = (py - pinchPanStart.y) / pinchStartScale;
 
-			if (activePointers.size === 1 && isPointerPanning) {
-				e.preventDefault();
-				translateX = panOriginX + (e.clientX - panStartX);
-				translateY = panOriginY + (e.clientY - panStartY);
+				currentScale = nextScale;
+				translateX = (mid.x - rect.left) - imageX * currentScale;
+				translateY = (mid.y - rect.top) - imageY * currentScale;
+
 				clampPan(currentScale);
 				applyTransform();
 			}
@@ -1763,15 +1732,12 @@
 				pinchStartDistance = 0;
 			}
 
-			if (activePointers.size === 1) {
-				const remaining = Array.from(activePointers.values())[0];
-				isPointerPanning = true;
-				panStartX = remaining.clientX;
-				panStartY = remaining.clientY;
-				panOriginX = translateX;
-				panOriginY = translateY;
-			} else {
-				isPointerPanning = false;
+			if (activePointers.size === 2) {
+				const pts = Array.from(activePointers.values());
+				pinchStartDistance = getDistance(pts[0], pts[1]);
+				pinchStartScale = currentScale;
+				pinchCenterStart = getMidpoint(pts[0], pts[1]);
+				pinchPanStart = { x: translateX, y: translateY };
 			}
 		}
 
