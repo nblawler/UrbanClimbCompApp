@@ -310,8 +310,6 @@ def leaderboard_details_api():
     if not competitor_id:
         return jsonify({"ok": False, "error": "Missing competitor_id", "climbs": []}), 400
 
-    # IMPORTANT:
-    # This helper should now return ONLY the competitor's top 8 TOPPED climbs.
     climbs = get_top_climbs_for_competitor(
         competition_id=comp.id, competitor_id=competitor_id, limit=8
     )
@@ -350,7 +348,7 @@ def leaderboard_all():
     page = request.args.get("page", 1, type=int)
     per_page = DEFAULT_LB_PER_PAGE
 
-    cat = normalize_leaderboard_category(None)
+    cat = "all"
     rows, category_label = build_leaderboard(cat, competition_id=comp.id)
 
     page_rows, page, per_page, total, total_pages = _paginate(rows, page, per_page)

@@ -33,14 +33,10 @@
 		body {
 			font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
 			background: linear-gradient(135deg, #0a1628 0%, #1a2942 100%);
-
-			/* ✅ replace min-height: 100vh */
 			min-height: var(--app-height);
-
 			display: flex;
 			flex-direction: column;
 			color: #fff;
-
 			overflow-x: hidden;
 			-webkit-overflow-scrolling: touch;
 			overscroll-behavior-y: none;
@@ -72,8 +68,6 @@
 			margin: 0 auto;
 			padding: 2rem;
 			width: 100%;
-
-			/* ✅ give iOS some breathing room */
 			padding-bottom: calc(2rem + env(safe-area-inset-bottom, 0px) + var(--safe-bottom));
 		}
 
@@ -277,11 +271,9 @@
 		}
 		.details-table tr:last-child td { border-bottom: 0; }
 
-		/* ✅ FIX: center the Attempts column values (and header) like the other columns */
 		.details-table th:nth-child(2),
 		.details-table td:nth-child(2) { text-align: center; }
 
-		/* keep Score right-aligned */
 		.details-table th:nth-child(3),
 		.details-table td:nth-child(3) { text-align: right; }
 
@@ -354,11 +346,9 @@
 	{% set is_admin = session.get('admin_ok', False) %}
 	{% set comp_slug = comp_slug if comp_slug is defined else session.get('active_comp_slug') %}
 
-	{# ✅ ADMIN-ONLY MODE FLAG (prevents competitor nav leaking in) #}
 	{% set admin_flag = (request.args.get('admin') or '').strip() %}
 	{% set admin_only = (is_admin and admin_flag == '1') %}
 
-	{# cid from query, but DO NOT fall back to competitor_id in admin_only mode #}
 	{% set cid_q = (request.args.get('cid') or '').strip() %}
 	{% if admin_only %}
 		{% set cid_val = (cid_q if cid_q else '') %}
@@ -366,23 +356,19 @@
 		{% set cid_val = (cid_q if cid_q else (viewer_id if viewer_id else '')) %}
 	{% endif %}
 
-	{# querystring builder (preserve cid + admin) #}
 	{% set qs = [] %}
 	{% if cid_val %}{% set _ = qs.append('cid=' ~ cid_val) %}{% endif %}
 	{% if admin_only %}{% set _ = qs.append('admin=1') %}{% endif %}
 	{% set qs_str = ('?' ~ (qs|join('&'))) if qs|length else '' %}
 
-	{# Only show competitor-scoped nav when we truly have a competitor for this view #}
 	{% set show_comp_nav = (not admin_only) and (comp_slug and cid_val) %}
 
 	<nav class="nav">
-		{# HOME: in admin_only mode keep them in admin-land #}
 		<a href="{% if admin_only %}/admin/comps{% elif is_logged_in or is_admin %}/my-comps{% else %}/{% endif %}"
 		   class="{% if nav_active == 'my_comps' %}active{% endif %}">
 			{% if admin_only %}Admin{% else %}Home{% endif %}
 		</a>
 
-		{# ✅ prevent duplicate Admin link in admin_only mode #}
 		{% if is_admin and (not admin_only) %}
 			<a href="/admin/comps" class="{% if nav_active == 'admin' %}active{% endif %}">Admin</a>
 		{% endif %}
@@ -394,12 +380,13 @@
 			<a href="/competitor/{{ cid_val }}/stats/my"
 			   class="{% if nav_active == 'my_stats' %}active{% endif %}">My Stats</a>
 
-		<a href="/leaderboard{{ qs_str }}"
-		   class="{% if nav_active == 'leaderboard' %}active{% endif %}">Leaderboard</a>
+			<a href="/leaderboard{{ qs_str }}"
+			   class="{% if nav_active == 'leaderboard' %}active{% endif %}">Leaderboard</a>
 
-		{% if (not admin_only) and comp_slug %}
-			<a class="{% if nav_active == 'doubles' %}active{% endif %}"
-			   href="/comp/{{ comp_slug }}/doubles">Doubles</a>
+			{% if (not admin_only) and comp_slug %}
+				<a class="{% if nav_active == 'doubles' %}active{% endif %}"
+				   href="/comp/{{ comp_slug }}/doubles">Doubles</a>
+			{% endif %}
 		{% endif %}
 
 		{% if is_logged_in or is_admin %}
@@ -414,7 +401,7 @@
 		<header class="page-header">
 			<h1 class="page-title">Leaderboard</h1>
 			<p class="page-subtitle">
-				Category: <span id="category-label">All</span>
+				Category: <span id="category-label">{{ category if category is defined and category else 'All' }}</span>
 				<span style="opacity:.55; font-weight:700;"> · </span>
 				<span style="opacity:.75;">Score = top 8 climbs</span>
 			</p>
@@ -716,21 +703,20 @@
 				const btn = document.querySelector(`.expander[data-cid="${CSS.escape(String(cid))}"]`);
 				const detailsRow = document.querySelector(`.lb-details[data-cid="${CSS.escape(String(cid))}"]`);
 				if (!btn || !detailsRow) return;
-
+			
 				const isOpen = !detailsRow.hidden;
-
+			
 				if (isOpen) {
 					detailsRow.hidden = true;
 					btn.classList.remove("open");
 					btn.setAttribute("aria-expanded", "false");
 					return;
 				}
-
-				closeAllDetails();
+			
 				detailsRow.hidden = false;
 				btn.classList.add("open");
 				btn.setAttribute("aria-expanded", "true");
-
+			
 				loadDetails(cid);
 			}
 
