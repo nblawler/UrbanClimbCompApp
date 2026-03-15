@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 	<meta charset="utf-8" />
-	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
 	<title>{{ competitor.name }} · Enter Scores</title>
 	<link rel="stylesheet" href="/static/app.css" />
 	<style>
@@ -344,7 +344,7 @@
 			aspect-ratio: var(--map-ar, 4 / 3);
 			overflow: hidden;
 			background: #000;
-			touch-action: pan-y pinch-zoom;
+			touch-action: none;
 		}
 
 		.map-layer {
