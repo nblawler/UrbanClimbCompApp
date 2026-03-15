@@ -307,10 +307,11 @@
 		}
 
 		.pagination-controls {
-			margin-left: auto;
 			display: flex;
+			justify-content: flex-end;
 			gap: 0.5rem;
 			flex-wrap: wrap;
+			margin-top: 1rem;
 		}
 
 		.table-scroll {
@@ -333,8 +334,11 @@
 			.stats-card { padding: 1.5rem; }
 			.stats-card h2 { font-size: 1.3rem; }
 			.pagination-controls {
-				margin-left: 0;
+				justify-content: stretch;
 				width: 100%;
+			}
+			.pagination-controls button {
+				flex: 1;
 			}
 		}
 	</style>
@@ -542,11 +546,6 @@
 					<div class="filter-controls">
 						<button id="btn-topped" class="filter-btn" type="button">Only Topped</button>
 						<button id="btn-flashed" class="filter-btn" type="button">Only Flashes</button>
-
-						<div class="pagination-controls">
-							<button id="prev-page-btn" type="button" class="filter-btn">Previous</button>
-							<button id="next-page-btn" type="button" class="primary">Next</button>
-						</div>
 					</div>
 
 					<div class="table-scroll">
@@ -582,6 +581,11 @@
 								{% endfor %}
 							</tbody>
 						</table>
+					</div>
+
+					<div class="pagination-controls">
+						<button id="prev-page-btn" type="button" class="filter-btn">Previous</button>
+						<button id="next-page-btn" type="button" class="primary">Next</button>
 					</div>
 
 				{% else %}
