@@ -72,6 +72,7 @@
 		}
 
 		.comp-header,
+		.filter-card,
 		.map-card,
 		.climb-browser-card {
 			background: rgba(255, 255, 255, 0.06);
@@ -137,14 +138,24 @@
 
 		.view-only-note strong { color: #fff; }
 
-		.map-card,
+		.filter-card,
 		.climb-browser-card {
 			padding: 2rem;
 			margin-bottom: 2rem;
 		}
 
+		.map-card {
+			padding: 1rem;
+			margin-bottom: 2rem;
+		}
+
 		.section-header {
 			margin-bottom: 1.5rem;
+		}
+
+		.map-card .section-header {
+			margin-bottom: 0.85rem;
+			padding: 0 0.35rem;
 		}
 
 		.section-title {
@@ -164,6 +175,10 @@
 		.section-filter-row,
 		.colour-filter-row {
 			margin-bottom: 1.25rem;
+		}
+
+		.colour-filter-row:last-child {
+			margin-bottom: 0;
 		}
 
 		.section-filter-label,
@@ -316,7 +331,7 @@
 		.map-wrapper {
 			position: relative;
 			width: 100%;
-			border-radius: 1rem;
+			border-radius: 1.15rem;
 			overflow: hidden;
 			border: 1px solid rgba(255, 255, 255, 0.1);
 			background: #000;
@@ -834,9 +849,20 @@
 			}
 
 			.comp-header,
-			.map-card,
+			.filter-card,
 			.climb-browser-card {
 				padding: 1.25rem;
+			}
+
+			.map-card {
+				padding: 0.55rem;
+				margin-left: -0.2rem;
+				margin-right: -0.2rem;
+			}
+
+			.map-card .section-header {
+				padding: 0 0.35rem;
+				margin-bottom: 0.6rem;
 			}
 
 			.comp-name { font-size: 1.6rem; }
@@ -926,6 +952,7 @@
 			}
 
 			.comp-header,
+			.filter-card,
 			.map-card,
 			.climb-browser-card,
 			.climb-group,
@@ -1000,6 +1027,22 @@
 			.save-score-btn {
 				width: 100%;
 				max-width: 240px;
+			}
+
+			.map-card {
+				padding: 0.4rem;
+				margin-left: -0.35rem;
+				margin-right: -0.35rem;
+				border-radius: 1.2rem;
+			}
+
+			.map-card .section-header {
+				padding: 0 0.3rem;
+				margin-bottom: 0.5rem;
+			}
+
+			.map-wrapper {
+				border-radius: 0.95rem;
 			}
 
 			#mapWrapperSections {
@@ -1088,11 +1131,11 @@
 			</div>
 		{% endif %}
 
-		<section class="map-card">
+		<section class="filter-card">
 			<header class="section-header">
-				<h2 class="section-title">{{ gym_name }} Map</h2>
+				<h2 class="section-title">Filter Climbs</h2>
 				<p class="section-subtitle">
-					Filter by section and/or colour. Pinch to zoom and drag to pan.
+					Filter by section and/or colour. The map is shown below in its own larger card.
 				</p>
 			</header>
 
@@ -1140,6 +1183,15 @@
 				<div class="colour-filter-label">Colours (tap to filter by colour):</div>
 				<div class="colour-card-grid" id="colourCardGrid"></div>
 			</div>
+		</section>
+
+		<section class="map-card">
+			<header class="section-header">
+				<h2 class="section-title">{{ gym_name }} Map</h2>
+				<p class="section-subtitle">
+					Pinch to zoom and drag to pan. Tap a marker to jump to that climb’s score card.
+				</p>
+			</header>
 
 			{% if gym_map_path %}
 				<div class="map-wrapper" id="mapWrapperSections">
