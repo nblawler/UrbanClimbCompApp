@@ -840,29 +840,58 @@
 			}
 		}
 
+		/* ─── TABLET (≤ 768px) ──────────────────────────────────────────── */
 		@media (max-width: 768px) {
 			.nav { padding: 1rem; }
 
 			.container {
-				padding: 1.5rem 1rem;
-				padding-bottom: calc(1.5rem + env(safe-area-inset-bottom, 0px) + var(--safe-bottom));
+				/* Remove horizontal padding so cards go full-width */
+				padding: 1rem 0;
+				padding-bottom: calc(1rem + env(safe-area-inset-bottom, 0px) + var(--safe-bottom));
 			}
 
+			/* Outer cards: no horizontal border-radius on left/right edges,
+			   bleed to screen edges, slim vertical gap */
 			.comp-header,
 			.filter-card,
 			.climb-browser-card {
-				padding: 1.25rem;
+				padding: 1.25rem 1rem;
+				border-radius: 0;
+				border-left: none;
+				border-right: none;
+				margin-bottom: 0.75rem;
 			}
 
+			/* Map gets no side padding/borders and stretches full width */
 			.map-card {
-				padding: 0.55rem;
-				margin-left: -0.2rem;
-				margin-right: -0.2rem;
+				padding: 0;
+				margin: 0 0 0.75rem 0;
+				border-radius: 0;
+				border-left: none;
+				border-right: none;
+				background: transparent;
+				border-top: 1px solid rgba(255,255,255,0.08);
+				border-bottom: 1px solid rgba(255,255,255,0.08);
 			}
 
 			.map-card .section-header {
-				padding: 0 0.35rem;
+				padding: 0.85rem 1rem 0;
 				margin-bottom: 0.6rem;
+			}
+
+			/* Map viewport taller on mobile — give it more real estate */
+			.map-viewport {
+				aspect-ratio: var(--map-ar, 3 / 2) !important;
+				min-height: 52vw;
+				max-height: 70vw;
+			}
+
+			.map-wrapper {
+				border-radius: 0;
+				border-left: none;
+				border-right: none;
+				border-top: none;
+				border-bottom: none;
 			}
 
 			.comp-name { font-size: 1.6rem; }
@@ -907,26 +936,92 @@
 				font-size: 0.85rem;
 			}
 
-			.climb-group {
-				padding: 0.9rem 0.95rem 1rem;
+			/* Climb browser: no inner card wrapper feel, just a plain section */
+			.climb-browser-card {
+				padding: 1rem 0 0 0;
 			}
 
+			.browser-header {
+				padding: 0 1rem;
+				margin-bottom: 0.85rem;
+			}
+
+			/* Groups: remove the card-in-card background box, use a simple divider */
+			.climb-groups {
+				gap: 0;
+			}
+
+			.climb-group {
+				padding: 0;
+				border-radius: 0;
+				background: transparent;
+				border: none;
+				border-top: 1px solid rgba(255,255,255,0.07);
+			}
+
+			.climb-group-header {
+				padding: 0.85rem 1rem 0.6rem;
+				margin-bottom: 0;
+				background: rgba(255,255,255,0.03);
+			}
+
+			.climb-group-title {
+				font-size: 0.95rem;
+			}
+
+			/* Score cards: full-width stacked list, no grid */
 			.score-card-grid {
-				grid-template-columns: 1fr;
-				gap: 0.8rem;
+				display: flex;
+				flex-direction: column;
+				gap: 0;
+			}
+
+			.score-card {
+				border-radius: 0;
+				border-left: none;
+				border-right: none;
+				border-top: none;
+				border-bottom: 1px solid rgba(255,255,255,0.07);
+				box-shadow: none !important;
+				background: rgba(255,255,255,0.03);
+			}
+
+			.score-card:last-child {
+				border-bottom: none;
+			}
+
+			.score-card.is-done {
+				background: rgba(93,244,162,0.05);
+				border-bottom-color: rgba(93,244,162,0.2);
+			}
+
+			/* Topbar slightly thicker so it reads well at full width */
+			.score-card-topbar {
+				height: 5px;
 			}
 
 			.score-card-body {
-				padding: 0.9rem;
+				padding: 1.1rem 1rem;
 			}
 
+			.score-card-title {
+				font-size: 1.05rem;
+			}
+
+			.score-card-subtitle {
+				font-size: 0.8rem;
+			}
+
+			/* Meta row: use horizontal layout with more breathing room */
 			.score-meta {
 				grid-template-columns: repeat(3, minmax(0, 1fr));
-				gap: 0.5rem;
+				gap: 0.55rem;
+				margin-bottom: 1.1rem;
 			}
 
 			.score-meta-item {
-				padding: 0.65rem 0.7rem;
+				padding: 0.7rem 0.75rem;
+				border-radius: 0.85rem;
 			}
 
 			.score-meta-label {
@@ -934,7 +1029,43 @@
 			}
 
 			.score-meta-value {
-				font-size: 0.9rem;
+				font-size: 0.95rem;
+			}
+
+			/* Topped buttons taller for easier tapping */
+			.topped-btn {
+				padding: 0.95rem 0.9rem;
+				font-size: 0.95rem;
+				border-radius: 0.9rem;
+			}
+
+			/* Attempt controls bigger touch targets */
+			.attempt-minus,
+			.attempt-plus {
+				width: 48px;
+				height: 48px;
+				flex: 0 0 48px;
+				font-size: 1.35rem;
+				border-radius: 0.9rem;
+			}
+
+			.attempt-value {
+				height: 48px;
+				font-size: 1.25rem;
+				min-width: 58px;
+			}
+
+			/* Save button full-width */
+			.save-score-btn {
+				width: 100%;
+				max-width: none;
+				padding: 1rem;
+				font-size: 0.95rem;
+				border-radius: 0.9rem;
+			}
+
+			.score-footer {
+				margin-top: 0.5rem;
 			}
 
 			#mapWrapperSections {
@@ -953,10 +1084,6 @@
 
 			.comp-header,
 			.filter-card,
-			.map-card,
-			.climb-browser-card,
-			.climb-group,
-			.score-card,
 			.section-card,
 			.colour-card,
 			.score-meta-item {
@@ -975,6 +1102,7 @@
 			}
 		}
 
+		/* ─── SMALL PHONE (≤ 520px) ─────────────────────────────────────── */
 		@media (max-width: 520px) {
 			.comp-meta-row { gap: 0.75rem; }
 
@@ -1008,41 +1136,20 @@
 			}
 
 			.score-card-title {
-				font-size: 1.02rem;
+				font-size: 1rem;
 			}
 
 			.score-card-subtitle {
 				font-size: 0.76rem;
 			}
 
+			/* On very small screens, collapse meta to 2 cols + let colour span */
 			.score-meta {
-				grid-template-columns: 1fr 1fr 1fr;
+				grid-template-columns: 1fr 1fr;
 			}
 
-			.score-footer {
-				flex-direction: column;
-				align-items: center;
-			}
-
-			.save-score-btn {
-				width: 100%;
-				max-width: 240px;
-			}
-
-			.map-card {
-				padding: 0.4rem;
-				margin-left: -0.35rem;
-				margin-right: -0.35rem;
-				border-radius: 1.2rem;
-			}
-
-			.map-card .section-header {
-				padding: 0 0.3rem;
-				margin-bottom: 0.5rem;
-			}
-
-			.map-wrapper {
-				border-radius: 0.95rem;
+			.score-meta-item:last-child {
+				grid-column: 1 / -1;
 			}
 
 			#mapWrapperSections {
@@ -1189,7 +1296,7 @@
 			<header class="section-header">
 				<h2 class="section-title">{{ gym_name }} Map</h2>
 				<p class="section-subtitle">
-					Use two fingers to move or zoom the map. Tap a marker to jump to that climb’s score card.
+					Use two fingers to move or zoom the map. Tap a marker to jump to that climb's score card.
 				</p>
 			</header>
 
@@ -1354,7 +1461,7 @@
 			{% else %}
 				<div class="browser-empty">
 					<strong>No climbs available</strong>
-					<div>Once climbs are added to the map, they’ll appear here grouped by section.</div>
+					<div>Once climbs are added to the map, they'll appear here grouped by section.</div>
 				</div>
 			{% endif %}
 		</section>
