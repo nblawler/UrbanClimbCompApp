@@ -289,31 +289,6 @@
 			box-shadow: 0 8px 16px rgba(93, 244, 162, 0.3);
 		}
 
-		.primary {
-			padding: 0.65rem 1.25rem;
-			background: #5df4a2;
-			color: #0a1628;
-			border: none;
-			border-radius: 999px;
-			font-weight: 900;
-			font-size: 0.9rem;
-			cursor: pointer;
-			transition: all 0.2s;
-		}
-
-		.primary:hover {
-			background: #4de392;
-			transform: translateY(-1px);
-		}
-
-		.pagination-controls {
-			display: flex;
-			justify-content: flex-end;
-			gap: 0.5rem;
-			flex-wrap: wrap;
-			margin-top: 1rem;
-		}
-
 		.table-scroll {
 			max-height: 70vh;
 			overflow-y: auto;
@@ -323,22 +298,70 @@
 			overscroll-behavior: contain;
 		}
 
+		.pagination {
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			gap: 0.75rem;
+			margin-top: 1.25rem;
+			flex-wrap: wrap;
+		}
+
+		.page-btn {
+			border-radius: 999px;
+			border: 2px solid rgba(255, 255, 255, 0.18);
+			background: rgba(255, 255, 255, 0.06);
+			color: rgba(255, 255, 255, 0.92);
+			font-weight: 900;
+			padding: 0.6rem 1rem;
+			cursor: pointer;
+			transition: transform 0.15s, background 0.15s, border-color 0.15s;
+			user-select: none;
+			-webkit-tap-highlight-color: transparent;
+		}
+
+		.page-btn:hover {
+			transform: translateY(-1px);
+			background: rgba(255, 255, 255, 0.10);
+			border-color: rgba(255, 255, 255, 0.32);
+		}
+
+		.page-btn:disabled {
+			opacity: 0.5;
+			cursor: not-allowed;
+			transform: none;
+		}
+
+		.page-info {
+			opacity: 0.85;
+			font-weight: 800;
+		}
+
 		@media (max-width: 768px) {
 			.nav { padding: 1rem; }
+
 			.container {
 				padding: 1.5rem 1rem;
 				padding-bottom: calc(1.5rem + env(safe-area-inset-bottom, 0px) + var(--safe-bottom));
 			}
+
 			.comp-header { padding: 1.5rem; }
 			.comp-name { font-size: 1.6rem; }
 			.stats-card { padding: 1.5rem; }
 			.stats-card h2 { font-size: 1.3rem; }
-			.pagination-controls {
-				justify-content: stretch;
-				width: 100%;
+
+			.pagination {
+				gap: 0.6rem;
 			}
-			.pagination-controls button {
-				flex: 1;
+
+			.page-btn {
+				padding: 0.55rem 0.9rem;
+			}
+
+			.page-info {
+				width: 100%;
+				text-align: center;
+				order: -1;
 			}
 		}
 	</style>
@@ -588,9 +611,10 @@
 						</table>
 					</div>
 
-					<div class="pagination-controls">
-						<button id="prev-page-btn" type="button" class="filter-btn">Previous</button>
-						<button id="next-page-btn" type="button" class="primary">Next</button>
+					<div class="pagination" id="pagination">
+						<button id="prev-page-btn" type="button" class="page-btn">Previous</button>
+						<div class="page-info" id="page-info">Page 1 of 1</div>
+						<button id="next-page-btn" type="button" class="page-btn">Next</button>
 					</div>
 
 				{% else %}
@@ -615,6 +639,8 @@
 			const btnTopped = document.getElementById("btn-topped");
 			const btnFlashed = document.getElementById("btn-flashed");
 			const summary = document.getElementById("competitor-summary");
+			const pageInfo = document.getElementById("page-info");
+			const pagination = document.getElementById("pagination");
 
 			let filterMode = "none";
 			let currentPage = 1;
@@ -622,6 +648,7 @@
 			function rowMatchesFilter(row) {
 				const isTopped = row.dataset.topped === "1";
 				const isFlash = row.dataset.flash === "1";
+
 				if (filterMode === "flashed") return isFlash;
 				if (filterMode === "topped") return isTopped;
 				return true;
@@ -652,14 +679,18 @@
 
 				if (btnPrev) {
 					btnPrev.disabled = currentPage <= 1;
-					btnPrev.style.opacity = currentPage <= 1 ? "0.5" : "1";
-					btnPrev.style.cursor = currentPage <= 1 ? "default" : "pointer";
 				}
 
 				if (btnNext) {
 					btnNext.disabled = currentPage >= totalPages;
-					btnNext.style.opacity = currentPage >= totalPages ? "0.5" : "1";
-					btnNext.style.cursor = currentPage >= totalPages ? "default" : "pointer";
+				}
+
+				if (pageInfo) {
+					pageInfo.textContent = `Page ${currentPage} of ${totalPages}`;
+				}
+
+				if (pagination) {
+					pagination.hidden = totalFiltered <= pageSize;
 				}
 
 				if (summary) {
@@ -669,7 +700,7 @@
 						const fromNum = startIndex + 1;
 						const toNum = Math.min(endIndex, totalFiltered);
 						summary.textContent =
-							`${totalFiltered} competitor${totalFiltered !== 1 ? "s" : ""} logged · Showing ${fromNum}–${toNum} · Page ${currentPage} of ${totalPages}`;
+							`${totalFiltered} competitor${totalFiltered !== 1 ? "s" : ""} logged · Showing ${fromNum}–${toNum}`;
 					}
 				}
 			}
@@ -696,10 +727,9 @@
 
 			if (btnPrev) {
 				btnPrev.addEventListener("click", () => {
-					if (currentPage > 1) {
-						currentPage--;
-						applyState();
-					}
+					if (currentPage <= 1) return;
+					currentPage--;
+					applyState();
 				});
 			}
 
@@ -707,10 +737,9 @@
 				btnNext.addEventListener("click", () => {
 					const totalFiltered = getFilteredRows().length;
 					const totalPages = Math.max(1, Math.ceil(totalFiltered / pageSize));
-					if (currentPage < totalPages) {
-						currentPage++;
-						applyState();
-					}
+					if (currentPage >= totalPages) return;
+					currentPage++;
+					applyState();
 				});
 			}
 
