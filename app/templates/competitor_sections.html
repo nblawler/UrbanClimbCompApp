@@ -691,7 +691,11 @@
 			gap: 0.6rem;
 		}
 
-		/* Base state for all topped buttons: dim and unselected-looking */
+		/* ── TOPPED BUTTONS ─────────────────────────────────────────────────
+		   Unselected: dim, clearly inactive.
+		   No (selected): neutral white highlight — chosen but not celebratory.
+		   Yes (selected): green highlight — positive confirmation only.
+		─────────────────────────────────────────────────────────────────── */
 		.topped-btn {
 			border: 1px solid rgba(255,255,255,0.1);
 			background: rgba(255,255,255,0.04);
@@ -710,15 +714,8 @@
 			color: rgba(255,255,255,0.7);
 		}
 
-		/* "No" when selected: neutral white — clearly chosen but not celebratory */
-		.topped-btn[data-topped-value="false"].is-active {
-			background: rgba(255,255,255,0.1);
-			border-color: rgba(255,255,255,0.28);
-			color: rgba(255,255,255,0.9);
-		}
-
-		/* "Yes" when selected: green — positive confirmation */
-		.topped-btn[data-topped-value="true"].is-active {
+		/* Selected: same green highlight for both Yes and No */
+		.topped-btn.is-active {
 			background: rgba(93,244,162,0.16);
 			border-color: rgba(93,244,162,0.45);
 			color: #d8ffe9;
