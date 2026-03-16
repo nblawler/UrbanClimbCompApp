@@ -691,7 +691,39 @@
 			gap: 0.6rem;
 		}
 
-		.topped-btn,
+		/* Base state for all topped buttons: dim and unselected-looking */
+		.topped-btn {
+			border: 1px solid rgba(255,255,255,0.1);
+			background: rgba(255,255,255,0.04);
+			color: rgba(255,255,255,0.38);
+			border-radius: 0.95rem;
+			font-weight: 800;
+			cursor: pointer;
+			padding: 0.8rem 0.9rem;
+			font-size: 0.9rem;
+			transition: background 0.12s ease, border-color 0.12s ease, color 0.12s ease, opacity 0.12s ease;
+		}
+
+		.topped-btn:hover {
+			background: rgba(255,255,255,0.08);
+			border-color: rgba(255,255,255,0.18);
+			color: rgba(255,255,255,0.7);
+		}
+
+		/* "No" when selected: neutral white — clearly chosen but not celebratory */
+		.topped-btn[data-topped-value="false"].is-active {
+			background: rgba(255,255,255,0.1);
+			border-color: rgba(255,255,255,0.28);
+			color: rgba(255,255,255,0.9);
+		}
+
+		/* "Yes" when selected: green — positive confirmation */
+		.topped-btn[data-topped-value="true"].is-active {
+			background: rgba(93,244,162,0.16);
+			border-color: rgba(93,244,162,0.45);
+			color: #d8ffe9;
+		}
+
 		.save-score-btn,
 		.attempt-minus,
 		.attempt-plus {
@@ -704,23 +736,11 @@
 			transition: background 0.12s ease, border-color 0.12s ease, opacity 0.12s ease;
 		}
 
-		.topped-btn:hover,
 		.save-score-btn:hover,
 		.attempt-minus:hover,
 		.attempt-plus:hover {
 			background: rgba(255,255,255,0.09);
 			border-color: rgba(255,255,255,0.2);
-		}
-
-		.topped-btn {
-			padding: 0.8rem 0.9rem;
-			font-size: 0.9rem;
-		}
-
-		.topped-btn.is-active {
-			background: rgba(93,244,162,0.16);
-			border-color: rgba(93,244,162,0.45);
-			color: #d8ffe9;
 		}
 
 		.attempt-control {
@@ -779,17 +799,9 @@
 			width: 100%;
 		}
 
-		.score-save-state.is-success {
-			color: #9ff3c4;
-		}
-
-		.score-save-state.is-error {
-			color: #ff9cab;
-		}
-
-		.score-save-state.is-warning {
-			color: #ffd66b;
-		}
+		.score-save-state.is-success { color: #9ff3c4; }
+		.score-save-state.is-error   { color: #ff9cab; }
+		.score-save-state.is-warning { color: #ffd66b; }
 
 		.save-score-btn {
 			padding: 0.82rem 1rem;
@@ -929,13 +941,8 @@
 				padding: 0.65rem 0.7rem;
 			}
 
-			.score-meta-label {
-				font-size: 0.62rem;
-			}
-
-			.score-meta-value {
-				font-size: 0.9rem;
-			}
+			.score-meta-label { font-size: 0.62rem; }
+			.score-meta-value { font-size: 0.9rem; }
 
 			#mapWrapperSections {
 				--marker-base: 6px;
@@ -990,10 +997,7 @@
 
 			.section-card-stats { display: none; }
 
-			.section-card {
-				padding: 0.6rem 0.7rem;
-			}
-
+			.section-card { padding: 0.6rem 0.7rem; }
 			.section-card-name { font-size: 0.92rem; }
 			.section-card-meta { font-size: 0.72rem; }
 
@@ -1007,13 +1011,8 @@
 				align-items: flex-start;
 			}
 
-			.score-card-title {
-				font-size: 1.02rem;
-			}
-
-			.score-card-subtitle {
-				font-size: 0.76rem;
-			}
+			.score-card-title { font-size: 1.02rem; }
+			.score-card-subtitle { font-size: 0.76rem; }
 
 			.score-meta {
 				grid-template-columns: 1fr 1fr 1fr;
@@ -1041,9 +1040,7 @@
 				margin-bottom: 0.5rem;
 			}
 
-			.map-wrapper {
-				border-radius: 0.95rem;
-			}
+			.map-wrapper { border-radius: 0.95rem; }
 
 			#mapWrapperSections {
 				--marker-base: 5px;
@@ -1189,7 +1186,7 @@
 			<header class="section-header">
 				<h2 class="section-title">{{ gym_name }} Map</h2>
 				<p class="section-subtitle">
-					Use two fingers to move or zoom the map. Tap a marker to jump to that climb’s score card.
+					Use two fingers to move or zoom the map. Tap a marker to jump to that climb's score card.
 				</p>
 			</header>
 
@@ -1354,7 +1351,7 @@
 			{% else %}
 				<div class="browser-empty">
 					<strong>No climbs available</strong>
-					<div>Once climbs are added to the map, they’ll appear here grouped by section.</div>
+					<div>Once climbs are added to the map, they'll appear here grouped by section.</div>
 				</div>
 			{% endif %}
 		</section>
