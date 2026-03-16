@@ -383,6 +383,11 @@
 			Leaderboard
 		</a>
 
+		<a href="/comp/{{ comp_slug }}/doubles"
+			class="{% if nav_active == 'doubles' %}active{% endif %}">
+			Doubles
+	 	</a>
+
 		{% if is_logged_in or is_admin %}
 			<a href="/logout">Log out</a>
 		{% else %}

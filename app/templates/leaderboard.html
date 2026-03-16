@@ -8,12 +8,6 @@
 	<style>
 		* { margin: 0; padding: 0; box-sizing: border-box; }
 
-		/* ===========================
-		   ✅ MOBILE “BOTTOM FLICK” FIX
-		   - Avoid raw 100vh on mobile (address bar resizing causes jumps)
-		   - Use dvh/-webkit-fill-available fallbacks
-		   - Add safe bottom padding + stop rubber-band scroll
-		   =========================== */
 		:root{
 			--app-height: 100vh;
 			--safe-bottom: 16px;
@@ -186,9 +180,19 @@
 		.leaderboard tbody tr { transition: background 0.15s; }
 		.leaderboard tbody tr:hover { background: rgba(255, 255, 255, 0.05); }
 
-		#leaderboard-body tr.lb-main:nth-of-type(1) { background: rgba(255, 215, 0, 0.08); border-left: 4px solid #FFD700; }
-		#leaderboard-body tr.lb-main:nth-of-type(2) { background: rgba(192, 192, 192, 0.08); border-left: 4px solid #C0C0C0; }
-		#leaderboard-body tr.lb-main:nth-of-type(3) { background: rgba(205, 127, 50, 0.08); border-left: 4px solid #CD7F32; }
+		/* Fixed podium styling */
+		#leaderboard-body tr.lb-main.podium-gold {
+			background: rgba(255, 215, 0, 0.08);
+			border-left: 4px solid #FFD700;
+		}
+		#leaderboard-body tr.lb-main.podium-silver {
+			background: rgba(192, 192, 192, 0.08);
+			border-left: 4px solid #C0C0C0;
+		}
+		#leaderboard-body tr.lb-main.podium-bronze {
+			background: rgba(205, 127, 50, 0.08);
+			border-left: 4px solid #CD7F32;
+		}
 
 		.leaderboard tbody td:first-child { font-weight: 950; font-size: 1.1rem; }
 
@@ -423,7 +427,15 @@
 				<tbody id="leaderboard-body">
 					{% if leaderboard and leaderboard|length %}
 						{% for r in leaderboard %}
-							<tr class="lb-main">
+							{% set podium_class = '' %}
+							{% if loop.index0 == 0 %}
+								{% set podium_class = ' podium-gold' %}
+							{% elif loop.index0 == 1 %}
+								{% set podium_class = ' podium-silver' %}
+							{% elif loop.index0 == 2 %}
+								{% set podium_class = ' podium-bronze' %}
+							{% endif %}
+							<tr class="lb-main{{ podium_class }}">
 								<td>{{ r.position }}</td>
 								<td>{{ r.name }}</td>
 								<td style="text-align:center;">{{ r.tops }}</td>
@@ -488,6 +500,13 @@
 					.replaceAll(">", "&gt;")
 					.replaceAll('"', "&quot;")
 					.replaceAll("'", "&#039;");
+			}
+
+			function getPodiumClass(index) {
+				if (index === 0) return " podium-gold";
+				if (index === 1) return " podium-silver";
+				if (index === 2) return " podium-bronze";
+				return "";
 			}
 
 			function applyTabState(key, isLoading) {
@@ -559,8 +578,8 @@
 				}
 
 				if (cat.isDoubles) {
-					bodyEl.innerHTML = rows.map(r => `
-						<tr class="lb-main">
+					bodyEl.innerHTML = rows.map((r, idx) => `
+						<tr class="lb-main${getPodiumClass(idx)}">
 							<td>${escapeHtml(r.position)}</td>
 							<td>${escapeHtml(r.name)}</td>
 							<td>${escapeHtml(r.total_points)}</td>
@@ -569,13 +588,14 @@
 					return;
 				}
 
-				bodyEl.innerHTML = rows.map(r => {
+				bodyEl.innerHTML = rows.map((r, idx) => {
 					const cid = r.competitor_id;
 					const hasCid = !!cid;
+					const podiumClass = getPodiumClass(idx);
 
 					if (!hasCid) {
 						return `
-							<tr class="lb-main">
+							<tr class="lb-main${podiumClass}">
 								<td>${escapeHtml(r.position)}</td>
 								<td>${escapeHtml(r.name)}</td>
 								<td>${escapeHtml(r.tops)}</td>
@@ -586,7 +606,7 @@
 					}
 
 					return `
-						<tr class="lb-main" data-cid="${escapeHtml(cid)}">
+						<tr class="lb-main${podiumClass}" data-cid="${escapeHtml(cid)}">
 							<td>${escapeHtml(r.position)}</td>
 							<td class="name-cell">
 								<button class="expander" type="button" data-cid="${escapeHtml(cid)}" aria-expanded="false">
@@ -703,20 +723,20 @@
 				const btn = document.querySelector(`.expander[data-cid="${CSS.escape(String(cid))}"]`);
 				const detailsRow = document.querySelector(`.lb-details[data-cid="${CSS.escape(String(cid))}"]`);
 				if (!btn || !detailsRow) return;
-			
+
 				const isOpen = !detailsRow.hidden;
-			
+
 				if (isOpen) {
 					detailsRow.hidden = true;
 					btn.classList.remove("open");
 					btn.setAttribute("aria-expanded", "false");
 					return;
 				}
-			
+
 				detailsRow.hidden = false;
 				btn.classList.add("open");
 				btn.setAttribute("aria-expanded", "true");
-			
+
 				loadDetails(cid);
 			}
 
