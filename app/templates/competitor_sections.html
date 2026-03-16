@@ -691,11 +691,6 @@
 			gap: 0.6rem;
 		}
 
-		/* ── TOPPED BUTTONS ─────────────────────────────────────────────────
-		   Unselected: dim, clearly inactive.
-		   No (selected): neutral white highlight — chosen but not celebratory.
-		   Yes (selected): green highlight — positive confirmation only.
-		─────────────────────────────────────────────────────────────────── */
 		.topped-btn {
 			border: 1px solid rgba(255,255,255,0.1);
 			background: rgba(255,255,255,0.04);
@@ -714,7 +709,6 @@
 			color: rgba(255,255,255,0.7);
 		}
 
-		/* Selected: same green highlight for both Yes and No */
 		.topped-btn.is-active {
 			background: rgba(93,244,162,0.16);
 			border-color: rgba(93,244,162,0.45);
@@ -2054,18 +2048,28 @@
 		}
 
 		function recomputeTotalPoints() {
-			let total = 0;
+			const scoredClimbs = [];
+
 			scoreCards.forEach((card) => {
 				const state = getCardState(card);
-				total += computePoints(
+				const pts = computePoints(
 					card.dataset.basePoints,
 					card.dataset.penaltyPerAttempt,
 					card.dataset.attemptCap,
 					state.topped,
 					state.attempts
 				);
+
+				if (pts > 0) scoredClimbs.push(pts);
 			});
-			if (totalPointsEl) totalPointsEl.textContent = String(total);
+
+			scoredClimbs.sort((a, b) => b - a);
+
+			const totalTop8 = scoredClimbs
+				.slice(0, 8)
+				.reduce((sum, pts) => sum + pts, 0);
+
+			if (totalPointsEl) totalPointsEl.textContent = String(totalTop8);
 		}
 
 		function updateMarkerNumberMode() {
