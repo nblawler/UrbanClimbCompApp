@@ -180,7 +180,6 @@
 		.leaderboard tbody tr { transition: background 0.15s; }
 		.leaderboard tbody tr:hover { background: rgba(255, 255, 255, 0.05); }
 
-		/* Fixed podium styling */
 		#leaderboard-body tr.lb-main.podium-gold {
 			background: rgba(255, 215, 0, 0.08);
 			border-left: 4px solid #FFD700;
@@ -426,14 +425,17 @@
 				</thead>
 				<tbody id="leaderboard-body">
 					{% if leaderboard and leaderboard|length %}
+						{% set current_page_server = page if page is defined else 1 %}
 						{% for r in leaderboard %}
 							{% set podium_class = '' %}
-							{% if loop.index0 == 0 %}
-								{% set podium_class = ' podium-gold' %}
-							{% elif loop.index0 == 1 %}
-								{% set podium_class = ' podium-silver' %}
-							{% elif loop.index0 == 2 %}
-								{% set podium_class = ' podium-bronze' %}
+							{% if current_page_server == 1 %}
+								{% if loop.index0 == 0 %}
+									{% set podium_class = ' podium-gold' %}
+								{% elif loop.index0 == 1 %}
+									{% set podium_class = ' podium-silver' %}
+								{% elif loop.index0 == 2 %}
+									{% set podium_class = ' podium-bronze' %}
+								{% endif %}
 							{% endif %}
 							<tr class="lb-main{{ podium_class }}">
 								<td>{{ r.position }}</td>
@@ -502,7 +504,8 @@
 					.replaceAll("'", "&#039;");
 			}
 
-			function getPodiumClass(index) {
+			function getPodiumClass(index, page) {
+				if (page !== 1) return "";
 				if (index === 0) return " podium-gold";
 				if (index === 1) return " podium-silver";
 				if (index === 2) return " podium-bronze";
@@ -567,7 +570,7 @@
 				`;
 			}
 
-			function renderRows(key, rows) {
+			function renderRows(key, rows, page) {
 				const cat = catByKey.get(key) || catByKey.get("all");
 
 				if (!rows || !rows.length) {
@@ -579,7 +582,7 @@
 
 				if (cat.isDoubles) {
 					bodyEl.innerHTML = rows.map((r, idx) => `
-						<tr class="lb-main${getPodiumClass(idx)}">
+						<tr class="lb-main${getPodiumClass(idx, page)}">
 							<td>${escapeHtml(r.position)}</td>
 							<td>${escapeHtml(r.name)}</td>
 							<td>${escapeHtml(r.total_points)}</td>
@@ -591,7 +594,7 @@
 				bodyEl.innerHTML = rows.map((r, idx) => {
 					const cid = r.competitor_id;
 					const hasCid = !!cid;
-					const podiumClass = getPodiumClass(idx);
+					const podiumClass = getPodiumClass(idx, page);
 
 					if (!hasCid) {
 						return `
@@ -778,7 +781,7 @@
 					if (data.cat_key && data.cat_key !== k) return;
 
 					closeAllDetails();
-					renderRows(k, data.rows || []);
+					renderRows(k, data.rows || [], data.page || p);
 					setPager(data.page || p, data.total_pages || 1);
 
 				} catch (err) {
