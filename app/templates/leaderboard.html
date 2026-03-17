@@ -237,7 +237,25 @@
 		}
 		.expander.open .chev { transform: rotate(90deg) translateY(-1px); }
 
-		.nm { font-weight: 950; font-size: 1.05rem; }
+		.nm {
+			font-weight: 950;
+			font-size: 1.05rem;
+		}
+
+		.name-stack {
+			display: flex;
+			flex-direction: column;
+			align-items: flex-start;
+			gap: 0.18rem;
+			min-width: 0;
+		}
+
+		.competitor-number {
+			font-size: 0.78rem;
+			font-weight: 800;
+			color: rgba(255, 255, 255, 0.58);
+			line-height: 1;
+		}
 
 		.lb-details td {
 			padding: 0 !important;
@@ -365,9 +383,6 @@
 				font-size: 0.9rem;
 			}
 
-			.leaderboard.singles thead th:nth-child(4),
-			.leaderboard.singles tbody tr.lb-main td:nth-child(4) { display: none; }
-
 			.details-wrap { padding: 0.65rem 0.75rem 1rem 1.5rem; }
 			.expander { padding: 1rem 0.75rem; }
 
@@ -474,7 +489,12 @@
 							{% endif %}
 							<tr class="lb-main{{ podium_class }}">
 								<td>{{ r.position }}</td>
-								<td>{{ r.name }}</td>
+								<td>
+									<div class="name-stack">
+										<span class="nm">{{ r.name }}</span>
+										<span class="competitor-number">#{{ r.competitor_id }}</span>
+									</div>
+								</td>
 								<td style="text-align:center;">{{ r.tops }}</td>
 								<td style="text-align:center;">{{ r.attempts_on_tops }}</td>
 								<td style="text-align:center;">{{ r.total_points }}</td>
@@ -715,7 +735,10 @@
 							<td class="name-cell">
 								<button class="expander" type="button" data-cid="${escapeHtml(cid)}" aria-expanded="false">
 									<span class="chev" aria-hidden="true">▸</span>
-									<span class="nm">${escapeHtml(r.name)}</span>
+									<span class="name-stack">
+										<span class="nm">${escapeHtml(r.name)}</span>
+										<span class="competitor-number">#${escapeHtml(cid)}</span>
+									</span>
 								</button>
 							</td>
 							<td>${escapeHtml(r.tops)}</td>
