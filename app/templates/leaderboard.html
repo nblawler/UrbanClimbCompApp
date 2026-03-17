@@ -203,7 +203,9 @@
 		.leaderboard.singles td:nth-child(5) { text-align: center; }
 
 		.leaderboard.doubles th:nth-child(3),
-		.leaderboard.doubles td:nth-child(3) { text-align: center; }
+		.leaderboard.doubles td:nth-child(3),
+		.leaderboard.doubles th:nth-child(4),
+		.leaderboard.doubles td:nth-child(4) { text-align: center; }
 
 		.name-cell { padding: 0 !important; }
 
@@ -278,7 +280,36 @@
 		.details-table td:nth-child(2) { text-align: center; }
 
 		.details-table th:nth-child(3),
-		.details-table td:nth-child(3) { text-align: right; }
+		.details-table td:nth-child(3),
+		.details-table th:nth-child(4),
+		.details-table td:nth-child(4) { text-align: right; }
+
+		.team-members {
+			display: grid;
+			grid-template-columns: repeat(2, minmax(0, 1fr));
+			gap: 1rem;
+			margin-top: 0.5rem;
+		}
+
+		.member-card {
+			background: rgba(255, 255, 255, 0.03);
+			border: 1px solid rgba(255, 255, 255, 0.08);
+			border-radius: 1rem;
+			padding: 1rem;
+		}
+
+		.member-title {
+			font-weight: 900;
+			color: #5df4a2;
+			margin-bottom: 0.5rem;
+			font-size: 0.98rem;
+		}
+
+		.member-empty {
+			opacity: 0.75;
+			font-weight: 700;
+			padding-top: 0.25rem;
+		}
 
 		.pagination {
 			display: flex;
@@ -339,6 +370,10 @@
 
 			.details-wrap { padding: 0.65rem 0.75rem 1rem 1.5rem; }
 			.expander { padding: 1rem 0.75rem; }
+
+			.team-members {
+				grid-template-columns: 1fr;
+			}
 		}
 	</style>
 </head>
@@ -535,7 +570,7 @@
 				if (cat.isDoubles) {
 					tableEl.classList.remove("singles");
 					tableEl.classList.add("doubles");
-					headEl.innerHTML = `<tr><th>Pos</th><th>Team</th><th>Score</th></tr>`;
+					headEl.innerHTML = `<tr><th>Pos</th><th>Team</th><th>Attempts</th><th>Score</th></tr>`;
 				} else {
 					tableEl.classList.remove("doubles");
 					tableEl.classList.add("singles");
@@ -545,10 +580,10 @@
 
 			function renderLoading(key) {
 				const cat = catByKey.get(key) || catByKey.get("all");
-				bodyEl.innerHTML = `<tr><td colspan="${cat.isDoubles ? 3 : 5}" style="opacity:.75;">Loading…</td></tr>`;
+				bodyEl.innerHTML = `<tr><td colspan="${cat.isDoubles ? 4 : 5}" style="opacity:.75;">Loading…</td></tr>`;
 			}
 
-			function detailsRowHtml(cid) {
+			function detailsRowHtmlSingle(cid) {
 				return `
 					<tr class="lb-details" data-cid="${cid}" hidden>
 						<td colspan="5">
@@ -570,24 +605,90 @@
 				`;
 			}
 
+			function detailsRowHtmlTeam(teamKey, aId, bId, aName, bName) {
+				return `
+					<tr class="lb-details" data-team-key="${teamKey}" data-a-id="${aId}" data-b-id="${bId}" hidden>
+						<td colspan="4">
+							<div class="details-wrap">
+								<div class="details-loading">Loading…</div>
+								<div class="team-members" hidden>
+									<div class="member-card">
+										<div class="member-title">${escapeHtml(aName)}</div>
+										<div class="member-empty" data-empty-a hidden>No contributing climbs found.</div>
+										<table class="details-table" data-table-a hidden>
+											<thead>
+												<tr>
+													<th>Climb</th>
+													<th>Attempts</th>
+													<th>Score</th>
+												</tr>
+											</thead>
+											<tbody data-body-a></tbody>
+										</table>
+									</div>
+									<div class="member-card">
+										<div class="member-title">${escapeHtml(bName)}</div>
+										<div class="member-empty" data-empty-b hidden>No contributing climbs found.</div>
+										<table class="details-table" data-table-b hidden>
+											<thead>
+												<tr>
+													<th>Climb</th>
+													<th>Attempts</th>
+													<th>Score</th>
+												</tr>
+											</thead>
+											<tbody data-body-b></tbody>
+										</table>
+									</div>
+								</div>
+							</div>
+						</td>
+					</tr>
+				`;
+			}
+
 			function renderRows(key, rows, page) {
 				const cat = catByKey.get(key) || catByKey.get("all");
 
 				if (!rows || !rows.length) {
-					bodyEl.innerHTML = `<tr><td colspan="${cat.isDoubles ? 3 : 5}" style="opacity:.75;">${
+					bodyEl.innerHTML = `<tr><td colspan="${cat.isDoubles ? 4 : 5}" style="opacity:.75;">${
 						cat.isDoubles ? "No doubles teams yet." : "No competitors yet."
 					}</td></tr>`;
 					return;
 				}
 
 				if (cat.isDoubles) {
-					bodyEl.innerHTML = rows.map((r, idx) => `
-						<tr class="lb-main${getPodiumClass(idx, page)}">
-							<td>${escapeHtml(r.position)}</td>
-							<td>${escapeHtml(r.name)}</td>
-							<td>${escapeHtml(r.total_points)}</td>
-						</tr>
-					`).join("");
+					bodyEl.innerHTML = rows.map((r, idx) => {
+						const teamKey = `team-${r.team_id || `${r.a_id}-${r.b_id}`}`;
+						const podiumClass = getPodiumClass(idx, page);
+
+						return `
+							<tr class="lb-main${podiumClass}" data-team-key="${escapeHtml(teamKey)}">
+								<td>${escapeHtml(r.position)}</td>
+								<td class="name-cell">
+									<button class="expander" type="button"
+										data-team-key="${escapeHtml(teamKey)}"
+										data-a-id="${escapeHtml(r.a_id)}"
+										data-b-id="${escapeHtml(r.b_id)}"
+										data-a-name="${escapeHtml(r.a_name || '')}"
+										data-b-name="${escapeHtml(r.b_name || '')}"
+										aria-expanded="false">
+										<span class="chev" aria-hidden="true">▸</span>
+										<span class="nm">${escapeHtml(r.name)}</span>
+									</button>
+								</td>
+								<td>${escapeHtml(r.attempts_on_tops)}</td>
+								<td>${escapeHtml(r.total_points)}</td>
+							</tr>
+							${detailsRowHtmlTeam(
+								escapeHtml(teamKey),
+								escapeHtml(r.a_id),
+								escapeHtml(r.b_id),
+								r.a_name || "",
+								r.b_name || ""
+							)}
+						`;
+					}).join("");
 					return;
 				}
 
@@ -621,14 +722,14 @@
 							<td>${escapeHtml(r.attempts_on_tops)}</td>
 							<td>${escapeHtml(r.total_points)}</td>
 						</tr>
-						${detailsRowHtml(escapeHtml(cid))}
+						${detailsRowHtmlSingle(escapeHtml(cid))}
 					`;
 				}).join("");
 			}
 
 			function renderError(key, msg) {
 				const cat = catByKey.get(key) || catByKey.get("all");
-				bodyEl.innerHTML = `<tr><td colspan="${cat.isDoubles ? 3 : 5}" style="opacity:.75;">${escapeHtml(msg)}</td></tr>`;
+				bodyEl.innerHTML = `<tr><td colspan="${cat.isDoubles ? 4 : 5}" style="opacity:.75;">${escapeHtml(msg)}</td></tr>`;
 			}
 
 			function setPager(page, totalPages) {
@@ -672,7 +773,27 @@
 				});
 			}
 
-			async function loadDetails(cid) {
+			function renderClimbRows(climbs) {
+				return climbs.map(c => `
+					<tr>
+						<td>${escapeHtml(c.label)}</td>
+						<td>${escapeHtml(c.attempts)}</td>
+						<td>${escapeHtml(c.score)}</td>
+					</tr>
+				`).join("");
+			}
+
+			async function fetchCompetitorDetails(cid) {
+				const resp = await fetch(`/api/leaderboard/details?competitor_id=${encodeURIComponent(cid)}`, {
+					method: "GET",
+					cache: "no-store",
+					headers: { "Accept": "application/json" },
+				});
+				if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+				return resp.json();
+			}
+
+			async function loadSingleDetails(cid) {
 				const detailsRow = document.querySelector(`.lb-details[data-cid="${CSS.escape(String(cid))}"]`);
 				if (!detailsRow) return;
 				if (detailsRow.dataset.loaded === "1") return;
@@ -687,13 +808,7 @@
 				tbody.innerHTML = "";
 
 				try {
-					const resp = await fetch(`/api/leaderboard/details?competitor_id=${encodeURIComponent(cid)}`, {
-						method: "GET",
-						cache: "no-store",
-						headers: { "Accept": "application/json" },
-					});
-					if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-					const data = await resp.json();
+					const data = await fetchCompetitorDetails(cid);
 
 					if (!data.ok) {
 						loading.textContent = data.error || "Could not load details";
@@ -706,13 +821,7 @@
 						return;
 					}
 
-					tbody.innerHTML = climbs.map(c => `
-						<tr>
-							<td>${escapeHtml(c.label)}</td>
-							<td>${escapeHtml(c.attempts)}</td>
-							<td>${escapeHtml(c.score)}</td>
-						</tr>
-					`).join("");
+					tbody.innerHTML = renderClimbRows(climbs);
 
 					loading.hidden = true;
 					table.hidden = false;
@@ -722,7 +831,68 @@
 				}
 			}
 
-			function toggleDetails(cid) {
+			async function loadTeamDetails(teamKey, aId, bId) {
+				const detailsRow = document.querySelector(`.lb-details[data-team-key="${CSS.escape(String(teamKey))}"]`);
+				if (!detailsRow) return;
+				if (detailsRow.dataset.loaded === "1") return;
+
+				const loading = detailsRow.querySelector(".details-loading");
+				const membersWrap = detailsRow.querySelector(".team-members");
+				const tableA = detailsRow.querySelector("[data-table-a]");
+				const tableB = detailsRow.querySelector("[data-table-b]");
+				const bodyA = detailsRow.querySelector("[data-body-a]");
+				const bodyB = detailsRow.querySelector("[data-body-b]");
+				const emptyA = detailsRow.querySelector("[data-empty-a]");
+				const emptyB = detailsRow.querySelector("[data-empty-b]");
+
+				loading.textContent = "Loading…";
+				loading.hidden = false;
+				membersWrap.hidden = true;
+
+				tableA.hidden = true;
+				tableB.hidden = true;
+				emptyA.hidden = true;
+				emptyB.hidden = true;
+				bodyA.innerHTML = "";
+				bodyB.innerHTML = "";
+
+				try {
+					const [dataA, dataB] = await Promise.all([
+						fetchCompetitorDetails(aId),
+						fetchCompetitorDetails(bId),
+					]);
+
+					if (!dataA.ok || !dataB.ok) {
+						loading.textContent = (dataA.error || dataB.error || "Could not load team details");
+						return;
+					}
+
+					const climbsA = dataA.climbs || [];
+					const climbsB = dataB.climbs || [];
+
+					if (climbsA.length) {
+						bodyA.innerHTML = renderClimbRows(climbsA);
+						tableA.hidden = false;
+					} else {
+						emptyA.hidden = false;
+					}
+
+					if (climbsB.length) {
+						bodyB.innerHTML = renderClimbRows(climbsB);
+						tableB.hidden = false;
+					} else {
+						emptyB.hidden = false;
+					}
+
+					loading.hidden = true;
+					membersWrap.hidden = false;
+					detailsRow.dataset.loaded = "1";
+				} catch (e) {
+					loading.textContent = "Error loading details";
+				}
+			}
+
+			function toggleSingleDetails(cid) {
 				const btn = document.querySelector(`.expander[data-cid="${CSS.escape(String(cid))}"]`);
 				const detailsRow = document.querySelector(`.lb-details[data-cid="${CSS.escape(String(cid))}"]`);
 				if (!btn || !detailsRow) return;
@@ -740,7 +910,28 @@
 				btn.classList.add("open");
 				btn.setAttribute("aria-expanded", "true");
 
-				loadDetails(cid);
+				loadSingleDetails(cid);
+			}
+
+			function toggleTeamDetails(teamKey, aId, bId) {
+				const btn = document.querySelector(`.expander[data-team-key="${CSS.escape(String(teamKey))}"]`);
+				const detailsRow = document.querySelector(`.lb-details[data-team-key="${CSS.escape(String(teamKey))}"]`);
+				if (!btn || !detailsRow) return;
+
+				const isOpen = !detailsRow.hidden;
+
+				if (isOpen) {
+					detailsRow.hidden = true;
+					btn.classList.remove("open");
+					btn.setAttribute("aria-expanded", "false");
+					return;
+				}
+
+				detailsRow.hidden = false;
+				btn.classList.add("open");
+				btn.setAttribute("aria-expanded", "true");
+
+				loadTeamDetails(teamKey, aId, bId);
 			}
 
 			async function load(key, page, { push = true } = {}) {
@@ -806,11 +997,19 @@
 			bodyEl.addEventListener("click", (e) => {
 				const btn = e.target.closest(".expander");
 				if (!btn) return;
-				if (tableEl.classList.contains("doubles")) return;
 
 				const cid = btn.dataset.cid;
-				if (!cid) return;
-				toggleDetails(cid);
+				if (cid) {
+					toggleSingleDetails(cid);
+					return;
+				}
+
+				const teamKey = btn.dataset.teamKey;
+				const aId = btn.dataset.aId;
+				const bId = btn.dataset.bId;
+				if (teamKey && aId && bId) {
+					toggleTeamDetails(teamKey, aId, bId);
+				}
 			});
 
 			prevBtn.addEventListener("click", () => {

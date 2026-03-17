@@ -292,26 +292,6 @@
 				{% if current_comp %}
 
 					<div class="card">
-						<h2>Create competitor</h2>
-
-						<form method="post">
-							<label>Name</label>
-							<input type="text" name="new_name" required />
-
-							<label>Gender</label>
-							<select name="new_gender">
-								<option>Inclusive</option>
-								<option>Male</option>
-								<option>Female</option>
-							</select>
-
-							<button type="submit" name="action" value="create_competitor" class="btn">
-								Create competitor
-							</button>
-						</form>
-					</div>
-
-					<div class="card">
 						<h2>Delete competitor</h2>
 
 						<form method="post">
@@ -375,6 +355,84 @@
 						{% elif search_results is defined and not search_results and search_query %}
 							<p class="muted" style="margin-top:12px;">
 								No competitors found matching "{{ search_query }}".
+							</p>
+						{% endif %}
+					</div>
+
+					<div class="card" id="doubles-lookup-card">
+						<h2>Doubles lookup by competitor number</h2>
+					
+						<form method="post" action="/admin#doubles-lookup-card">
+							<label>Competitor number</label>
+							<input
+								type="number"
+								name="lookup_competitor_id"
+								min="1"
+								value="{{ lookup_competitor_id or '' }}"
+								required
+							/>
+					
+							<button type="submit" name="action" value="lookup_doubles_status" class="btn">
+								Check doubles status
+							</button>
+						</form>
+					
+						{% if doubles_lookup is defined and doubles_lookup %}
+							<hr />
+							<div class="table-wrap">
+								<table>
+									<tbody>
+										<tr>
+											<th style="width: 220px;">Competitor #</th>
+											<td>{{ doubles_lookup.id }}</td>
+										</tr>
+										<tr>
+											<th>Name</th>
+											<td>{{ doubles_lookup.name }}</td>
+										</tr>
+										<tr>
+											<th>Email</th>
+											<td>{{ doubles_lookup.email or "–" }}</td>
+										</tr>
+										<tr>
+											<th>Category</th>
+											<td>{{ doubles_lookup.gender or "–" }}</td>
+										</tr>
+										<tr>
+											<th>In doubles team?</th>
+											<td>
+												{% if doubles_lookup.in_team %}
+													Yes
+												{% else %}
+													No
+												{% endif %}
+											</td>
+										</tr>
+					
+										{% if doubles_lookup.in_team %}
+											<tr>
+												<th>Partner #</th>
+												<td>{{ doubles_lookup.partner_id }}</td>
+											</tr>
+											<tr>
+												<th>Partner name</th>
+												<td>{{ doubles_lookup.partner_name }}</td>
+											</tr>
+											<tr>
+												<th>Partner email</th>
+												<td>{{ doubles_lookup.partner_email or "–" }}</td>
+											</tr>
+											<tr>
+												<th>Team ID</th>
+												<td>{{ doubles_lookup.team_id }}</td>
+											</tr>
+										{% endif %}
+									</tbody>
+								</table>
+							</div>
+						{% elif doubles_lookup is defined and lookup_competitor_id %}
+							<p class="muted" style="margin-top:12px;">
+								No competitor found for number {{ lookup_competitor_id }} in this competition.
 							</p>
 						{% endif %}
 					</div>
