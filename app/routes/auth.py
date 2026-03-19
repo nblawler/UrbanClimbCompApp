@@ -18,7 +18,8 @@ def signup():
     """
     App-level signup (ACCOUNT-based):
     - Collect name + email
-    - Create/find Account for email
+    - If account already exists, stop and tell them to log in
+    - Otherwise create Account
     - Ensure a shell Competitor row exists for legacy linkage (competition_id=None)
     - Send a 6-digit code for verification
     - Redirect to /login/verify
@@ -30,65 +31,54 @@ def signup():
 
     if request.method == "POST":
         name = (request.form.get("name") or "").strip()
-        email = (request.form.get("email") or "").strip().lower()
+        email = normalize_email(request.form.get("email"))
 
         if not name:
             error = "Please enter your name."
         elif not email:
             error = "Please enter your email."
         else:
-            # 1) Create/find Account (REAL identity)
-            acct = Account.query.filter_by(email=email).first()
-            if not acct:
+            # Check whether account already exists
+            existing_acct = Account.query.filter_by(email=email).first()
+            if existing_acct:
+                error = f"You already have an account with email address {email}. Please log in instead."
+            else:
+                # 1) Create new Account
                 acct = Account(email=email)
                 db.session.add(acct)
                 db.session.commit()
 
-            # 2) Ensure a shell competitor exists for this account (legacy competitor_id)
-            shell = (
-                Competitor.query
-                .filter(
-                    Competitor.account_id == acct.id,
-                    Competitor.competition_id.is_(None),
-                )
-                .first()
-            )
-            if not shell:
+                # 2) Ensure a shell competitor exists for this account (legacy competitor_id)
                 shell = Competitor(
                     name=name or "Account",
                     gender="Inclusive",
-                    email=acct.email,          # legacy copy
+                    email=acct.email,   # legacy copy
                     competition_id=None,
                     account_id=acct.id,
                 )
                 db.session.add(shell)
                 db.session.commit()
-            else:
-                # Optional: keep shell name fresh-ish
-                if name and shell.name in (None, "", "Account"):
-                    shell.name = name
-                    db.session.commit()
 
-            # 3) Send a login/verification code (tied to ACCOUNT)
-            code = f"{secrets.randbelow(1_000_000):06d}"
-            now = datetime.utcnow()
+                # 3) Send a login/verification code (tied to ACCOUNT)
+                code = f"{secrets.randbelow(1_000_000):06d}"
+                now = datetime.utcnow()
 
-            login_code = LoginCode(
-                competitor_id=shell.id,   # legacy column
-                account_id=acct.id,       # REAL identity
-                code=code,
-                created_at=now,
-                expires_at=now + timedelta(minutes=10),
-                used=False,
-            )
-            db.session.add(login_code)
-            db.session.commit()
+                login_code = LoginCode(
+                    competitor_id=shell.id,   # legacy column
+                    account_id=acct.id,       # REAL identity
+                    code=code,
+                    created_at=now,
+                    expires_at=now + timedelta(minutes=10),
+                    used=False,
+                )
+                db.session.add(login_code)
+                db.session.commit()
 
-            send_login_code_via_email(email, code)
+                send_login_code_via_email(email, code)
 
-            session["login_email"] = email
-            message = "We emailed you a login code."
-            return redirect("/login/verify")
+                session["login_email"] = email
+                message = "We emailed you a login code."
+                return redirect("/login/verify")
 
     return render_template(
         "signup.html",
