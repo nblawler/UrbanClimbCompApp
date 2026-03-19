@@ -13,6 +13,7 @@ import time
 
 from app.extensions import db
 from app.models import Competition, Competitor, Score, Section, SectionClimb
+from app.helpers.admin import admin_can_manage_competition
 from app.helpers.competition import comp_is_finished, get_viewer_comp, comp_is_live
 from app.helpers.leaderboard import (
     build_leaderboard,
@@ -293,7 +294,9 @@ def leaderboard_details_api():
             200,
         )
 
-    if not comp_is_live(comp):
+    is_admin = admin_can_manage_competition(comp)
+
+    if not comp_is_live(comp) and not is_admin:
         session.pop("active_comp_slug", None)
         return (
             jsonify(
@@ -340,7 +343,9 @@ def leaderboard_all():
         flash("Pick a competition first to view the leaderboard.", "warning")
         return redirect("/my-comps")
 
-    if not comp_is_live(comp):
+    is_admin = admin_can_manage_competition(comp)
+
+    if not comp_is_live(comp) and not is_admin:
         session.pop("active_comp_slug", None)
         flash("That competition isn’t live right now — leaderboard is unavailable.", "warning")
         return redirect("/my-comps")
@@ -379,7 +384,9 @@ def leaderboard_by_category(category):
         flash("Pick a competition first to view the leaderboard.", "warning")
         return redirect("/my-comps")
 
-    if not comp_is_live(comp):
+    is_admin = admin_can_manage_competition(comp)
+
+    if not comp_is_live(comp) and not is_admin:
         session.pop("active_comp_slug", None)
         flash("That competition isn’t live right now — leaderboard is unavailable.", "warning")
         return redirect("/my-comps")
@@ -417,8 +424,8 @@ def leaderboard_for_comp_id(comp_id):
     """
     comp = Competition.query.get_or_404(comp_id)
 
-    is_admin = bool(session.get("admin_ok"))
-    if (not is_admin) and (not comp_is_live(comp)):
+    is_admin = admin_can_manage_competition(comp)
+    if not is_admin and not comp_is_live(comp):
         return render_template("leaderboard.html", comp=None, not_live=True)
 
     session["active_comp_slug"] = comp.slug
@@ -454,7 +461,9 @@ def api_leaderboard():
         resp.headers["Pragma"] = "no-cache"
         return resp
 
-    if not comp_is_live(comp):
+    is_admin = admin_can_manage_competition(comp)
+
+    if not comp_is_live(comp) and not is_admin:
         session.pop("active_comp_slug", None)
         resp = make_response(jsonify({
             "category": "Competition not live",
