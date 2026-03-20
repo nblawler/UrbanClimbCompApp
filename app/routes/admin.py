@@ -434,31 +434,22 @@ def edit_section(section_id):
 
                     climb_raw = (request.form.get("climb_number") or "").strip()
                     colour = (request.form.get("colour") or "").strip()
-
                     base_raw = (request.form.get("base_points") or "").strip()
-                    penalty_raw = (request.form.get("penalty_per_attempt") or "").strip()
-                    cap_raw = (request.form.get("attempt_cap") or "").strip()
 
                     if not climb_raw.isdigit():
                         error = "Please enter a valid climb number."
-                    elif base_raw == "" or penalty_raw == "" or cap_raw == "":
-                        error = "Please enter base points, penalty per attempt, and attempt cap."
-                    elif not (
-                        base_raw.lstrip("-").isdigit()
-                        and penalty_raw.lstrip("-").isdigit()
-                        and cap_raw.lstrip("-").isdigit()
-                    ):
-                        error = "Base points, penalty per attempt, and attempt cap must be whole numbers."
+                    elif base_raw == "":
+                        error = "Please enter base points."
+                    elif not base_raw.lstrip("-").isdigit():
+                        error = "Base points must be a whole number."
                     else:
                         new_climb_number = int(climb_raw)
                         new_base = int(base_raw)
-                        new_penalty = int(penalty_raw)
-                        new_cap = int(cap_raw)
 
                         if new_climb_number <= 0:
                             error = "Climb number must be positive."
-                        elif new_base < 0 or new_penalty < 0 or new_cap <= 0:
-                            error = "Base points and penalty must be ≥ 0 and attempt cap must be > 0."
+                        elif new_base < 0:
+                            error = "Base points must be ≥ 0."
                         else:
                             if new_climb_number != sc.climb_number:
                                 dup = (
@@ -482,8 +473,6 @@ def edit_section(section_id):
                             if not error:
                                 sc.colour = colour or None
                                 sc.base_points = new_base
-                                sc.penalty_per_attempt = new_penalty
-                                sc.attempt_cap = new_cap
 
                                 db.session.commit()
                                 invalidate_leaderboard_cache()
