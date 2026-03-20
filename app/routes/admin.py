@@ -390,6 +390,7 @@ def edit_section(section_id):
     def _delete_scores_for_climb_numbers(climb_numbers: list[int]):
         if not climb_numbers:
             return
+
         q = Score.query.filter(Score.climb_number.in_(climb_numbers))
 
         if hasattr(Score, "competition_id"):
@@ -452,15 +453,16 @@ def edit_section(section_id):
                             error = "Base points must be ≥ 0."
                         else:
                             if new_climb_number != sc.climb_number:
-                                dup = (
-                                    SectionClimb.query
-                                    .filter_by(
-                                        section_id=section.id,
-                                        gym_id=current_comp.gym_id,
-                                        climb_number=new_climb_number,
-                                    )
-                                    .first()
+                                dup_q = SectionClimb.query.filter_by(
+                                    section_id=section.id,
+                                    climb_number=new_climb_number,
                                 )
+
+                                if hasattr(SectionClimb, "gym_id") and current_comp.gym_id:
+                                    dup_q = dup_q.filter(SectionClimb.gym_id == current_comp.gym_id)
+
+                                dup = dup_q.first()
+
                                 if dup:
                                     error = f"Climb {new_climb_number} is already in this section."
                                 else:
@@ -548,6 +550,22 @@ def edit_section(section_id):
 
     climbs = climbs_q.order_by(SectionClimb.climb_number).all()
 
+    section_boundary_points = parse_boundary_points(section.boundary_points_json)
+
+    climb_points_json = []
+    for c in climbs:
+        if getattr(c, "x_percent", None) is not None and getattr(c, "y_percent", None) is not None:
+            climb_points_json.append(
+                {
+                    "id": c.id,
+                    "climb_number": c.climb_number,
+                    "x": float(c.x_percent),
+                    "y": float(c.y_percent),
+                }
+            )
+
+    gym_map_url = current_comp.gym.map_image_path if current_comp.gym else None
+
     return render_template(
         "admin_section_edit.html",
         section=section,
@@ -556,6 +574,9 @@ def edit_section(section_id):
         message=message,
         current_comp=current_comp,
         current_comp_id=current_comp.id,
+        gym_map_url=gym_map_url,
+        section_boundary_points=section_boundary_points,
+        climb_points_json=climb_points_json,
     )
 
 

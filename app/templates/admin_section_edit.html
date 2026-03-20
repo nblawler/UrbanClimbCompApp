@@ -44,7 +44,7 @@
 				flex-direction: column;
 				align-items: center;
 				padding: 2rem;
-				max-width: 920px;
+				max-width: 1120px;
 				margin: 0 auto;
 				width: 100%;
 			}
@@ -112,6 +112,116 @@
 				color: #5df4a2;
 			}
 
+			/* Map preview */
+			.map-card {
+				overflow: hidden;
+			}
+
+			.map-preview-shell {
+				width: 100%;
+				border-radius: 1rem;
+				overflow: hidden;
+				background: rgba(255,255,255,0.04);
+				border: 1px solid rgba(255,255,255,0.08);
+			}
+
+			.map-preview-viewport {
+				position: relative;
+				width: 100%;
+				height: min(72vh, 680px);
+				overflow: hidden;
+				background:
+					radial-gradient(circle at top, rgba(255,255,255,0.06), transparent 48%),
+					rgba(255,255,255,0.03);
+			}
+
+			.map-preview-stage {
+				position: absolute;
+				top: 0;
+				left: 0;
+				transform-origin: top left;
+				will-change: transform;
+			}
+
+			.map-preview-image {
+				display: block;
+				width: 100%;
+				height: auto;
+				user-select: none;
+				-webkit-user-drag: none;
+				pointer-events: none;
+			}
+
+			.map-svg-overlay {
+				position: absolute;
+				inset: 0;
+				width: 100%;
+				height: 100%;
+				pointer-events: none;
+				overflow: visible;
+			}
+
+			.section-boundary {
+				fill: rgba(93, 244, 162, 0.14);
+				stroke: rgba(93, 244, 162, 0.95);
+				stroke-width: 3;
+			}
+
+			.section-boundary-outline {
+				fill: none;
+				stroke: rgba(10, 22, 40, 0.95);
+				stroke-width: 6;
+				opacity: 0.7;
+			}
+
+			.climb-dot-ring {
+				fill: rgba(10, 22, 40, 0.95);
+				stroke: rgba(255,255,255,0.75);
+				stroke-width: 1.5;
+			}
+
+			.climb-dot-core {
+				stroke: rgba(10, 22, 40, 0.95);
+				stroke-width: 1;
+			}
+
+			.climb-label {
+				font-size: 14px;
+				font-weight: 900;
+				fill: #fff;
+				text-anchor: middle;
+				dominant-baseline: central;
+				paint-order: stroke;
+				stroke: rgba(10, 22, 40, 0.95);
+				stroke-width: 3px;
+			}
+
+			.map-meta {
+				display: flex;
+				gap: 0.75rem;
+				flex-wrap: wrap;
+				margin-top: 0.9rem;
+			}
+
+			.map-chip {
+				padding: 0.5rem 0.8rem;
+				border-radius: 999px;
+				background: rgba(255,255,255,0.08);
+				border: 1px solid rgba(255,255,255,0.1);
+				color: rgba(255,255,255,0.85);
+				font-size: 0.85rem;
+				font-weight: 700;
+			}
+
+			.map-empty {
+				padding: 1rem 1.1rem;
+				border-radius: 0.9rem;
+				background: rgba(255,255,255,0.05);
+				border: 1px solid rgba(255,255,255,0.08);
+				color: rgba(255,255,255,0.75);
+				margin-top: 0.9rem;
+			}
+
 			/* Form elements */
 			label {
 				display: block;
@@ -134,13 +244,14 @@
 				color: #fff;
 				font-size: 1rem;
 				outline: none;
-				transition: border-color 0.2s;
+				transition: border-color 0.2s, background 0.2s;
 			}
 
 			input::placeholder { color: rgba(255,255,255,0.3); }
 
 			input:focus {
 				border-color: rgba(93, 244, 162, 0.5);
+				background: rgba(255,255,255,0.09);
 			}
 
 			/* Buttons */
@@ -265,6 +376,7 @@
 				.container { padding: 1.25rem; }
 				.hero h1 { font-size: 2rem; }
 				.card { padding: 1.25rem; }
+				.map-preview-viewport { height: 52vh; }
 			}
 		</style>
 	</head>
@@ -299,6 +411,81 @@
 			{% if message %}
 				<div class="alert alert--ok">{{ message }}</div>
 			{% endif %}
+
+			<div class="card map-card">
+				<h3>Section map reference</h3>
+				<p class="muted">
+					Zoomed preview for <strong style="color:#fff;">{{ section.name }}</strong>
+					{% if current_comp and current_comp.gym %}
+						· {{ current_comp.gym.name }}
+					{% endif %}
+				</p>
+
+				{% if gym_map_url %}
+					<div class="map-preview-shell" style="margin-top:0.9rem;">
+						<div class="map-preview-viewport" id="mapViewport">
+							<div class="map-preview-stage" id="mapStage">
+								<img
+									src="{{ gym_map_url }}"
+									alt="Gym map for {{ section.name }}"
+									class="map-preview-image"
+									id="mapImage"
+								/>
+
+								<svg class="map-svg-overlay" id="mapOverlay" viewBox="0 0 1000 1000" preserveAspectRatio="none">
+									{% if section_boundary_points %}
+										{% set boundary_points_attr = [] %}
+										{% for p in section_boundary_points %}
+											{% set _ = boundary_points_attr.append((p.x * 10)|string ~ "," ~ (p.y * 10)|string) %}
+										{% endfor %}
+										<polygon
+											class="section-boundary-outline"
+											points="{{ boundary_points_attr|join(' ') }}"
+										></polygon>
+										<polygon
+											class="section-boundary"
+											points="{{ boundary_points_attr|join(' ') }}"
+										></polygon>
+									{% endif %}
+
+									{% for c in climbs %}
+										{% if c.x_percent is not none and c.y_percent is not none %}
+											{% set cx = c.x_percent * 10 %}
+											{% set cy = c.y_percent * 10 %}
+											<circle class="climb-dot-ring" cx="{{ cx }}" cy="{{ cy }}" r="16"></circle>
+											<circle
+												class="climb-dot-core"
+												cx="{{ cx }}"
+												cy="{{ cy }}"
+												r="12"
+												style="fill: {{ c.colour|default('#ff8a3d', true) }};"
+											></circle>
+											<text class="climb-label" x="{{ cx }}" y="{{ cy }}">{{ c.climb_number }}</text>
+										{% endif %}
+									{% endfor %}
+								</svg>
+							</div>
+						</div>
+					</div>
+
+					<div class="map-meta">
+						<div class="map-chip">{{ climbs|length }} climb{% if climbs|length != 1 %}s{% endif %} in this section</div>
+						<div class="map-chip">
+							{% if section_boundary_points %}
+								Boundary saved
+							{% elif climb_points_json and climb_points_json|length > 0 %}
+								Zooming from climb positions
+							{% else %}
+								No boundary or climb positions
+							{% endif %}
+						</div>
+					</div>
+				{% else %}
+					<div class="map-empty">
+						No gym map image is set for this competition yet, so there’s nothing to preview here.
+					</div>
+				{% endif %}
+			</div>
 
 			<div class="card">
 				<p class="muted">
@@ -442,6 +629,141 @@
 
 				row.classList.remove("is-editing");
 			}
+
+			function fitSectionPreview() {
+				const viewport = document.getElementById("mapViewport");
+				const stage = document.getElementById("mapStage");
+				const image = document.getElementById("mapImage");
+				if (!viewport || !stage || !image) return;
+
+				const climbs = {{ climb_points_json|default([], true)|tojson }};
+				const boundary = {{ section_boundary_points|default([], true)|tojson }};
+
+				function clamp(value, min, max) {
+					return Math.max(min, Math.min(max, value));
+				}
+
+				function getAllPoints() {
+					const pts = [];
+
+					if (Array.isArray(boundary) && boundary.length) {
+						for (const p of boundary) {
+							if (p && typeof p.x === "number" && typeof p.y === "number") {
+								pts.push({ x: p.x, y: p.y });
+							}
+						}
+					}
+
+					if (Array.isArray(climbs) && climbs.length) {
+						for (const p of climbs) {
+							if (p && typeof p.x === "number" && typeof p.y === "number") {
+								pts.push({ x: p.x, y: p.y });
+							}
+						}
+					}
+
+					return pts;
+				}
+
+				function calcBounds() {
+					const pts = getAllPoints();
+
+					if (!pts.length) {
+						return { minX: 0, minY: 0, maxX: 100, maxY: 100, hasTarget: false };
+					}
+
+					let minX = Infinity;
+					let minY = Infinity;
+					let maxX = -Infinity;
+					let maxY = -Infinity;
+
+					for (const p of pts) {
+						minX = Math.min(minX, p.x);
+						minY = Math.min(minY, p.y);
+						maxX = Math.max(maxX, p.x);
+						maxY = Math.max(maxY, p.y);
+					}
+
+					const width = Math.max(8, maxX - minX);
+					const height = Math.max(8, maxY - minY);
+
+					const padX = Math.max(6, width * 0.18);
+					const padY = Math.max(6, height * 0.18);
+
+					minX = clamp(minX - padX, 0, 100);
+					minY = clamp(minY - padY, 0, 100);
+					maxX = clamp(maxX + padX, 0, 100);
+					maxY = clamp(maxY + padY, 0, 100);
+
+					if ((maxX - minX) < 12) {
+						const midX = (minX + maxX) / 2;
+						minX = clamp(midX - 6, 0, 100);
+						maxX = clamp(midX + 6, 0, 100);
+					}
+
+					if ((maxY - minY) < 12) {
+						const midY = (minY + maxY) / 2;
+						minY = clamp(midY - 6, 0, 100);
+						maxY = clamp(midY + 6, 0, 100);
+					}
+
+					return { minX, minY, maxX, maxY, hasTarget: true };
+				}
+
+				function applyFit() {
+					const naturalWidth = image.naturalWidth || image.clientWidth;
+					const naturalHeight = image.naturalHeight || image.clientHeight;
+					if (!naturalWidth || !naturalHeight) return;
+
+					stage.style.width = naturalWidth + "px";
+					stage.style.height = naturalHeight + "px";
+
+					const bounds = calcBounds();
+					const viewportW = viewport.clientWidth;
+					const viewportH = viewport.clientHeight;
+					if (!viewportW || !viewportH) return;
+
+					if (!bounds.hasTarget) {
+						const scale = Math.min(viewportW / naturalWidth, viewportH / naturalHeight);
+						const offsetX = (viewportW - naturalWidth * scale) / 2;
+						const offsetY = (viewportH - naturalHeight * scale) / 2;
+						stage.style.transform = `translate(${offsetX}px, ${offsetY}px) scale(${scale})`;
+						return;
+					}
+
+					const boxX = (bounds.minX / 100) * naturalWidth;
+					const boxY = (bounds.minY / 100) * naturalHeight;
+					const boxW = ((bounds.maxX - bounds.minX) / 100) * naturalWidth;
+					const boxH = ((bounds.maxY - bounds.minY) / 100) * naturalHeight;
+
+					if (!boxW || !boxH) {
+						const scale = Math.min(viewportW / naturalWidth, viewportH / naturalHeight);
+						const offsetX = (viewportW - naturalWidth * scale) / 2;
+						const offsetY = (viewportH - naturalHeight * scale) / 2;
+						stage.style.transform = `translate(${offsetX}px, ${offsetY}px) scale(${scale})`;
+						return;
+					}
+
+					const scale = Math.min(viewportW / boxW, viewportH / boxH);
+					const scaledBoxW = boxW * scale;
+					const scaledBoxH = boxH * scale;
+
+					const offsetX = (viewportW - scaledBoxW) / 2 - (boxX * scale);
+					const offsetY = (viewportH - scaledBoxH) / 2 - (boxY * scale);
+
+					stage.style.transform = `translate(${offsetX}px, ${offsetY}px) scale(${scale})`;
+				}
+
+				if (image.complete) {
+					applyFit();
+				} else {
+					image.addEventListener("load", applyFit, { once: true });
+				}
+
+				window.addEventListener("resize", applyFit);
+			}
+
+			fitSectionPreview();
 		</script>
 	</body>
 </html>
