@@ -1766,743 +1766,831 @@
 	</script>
 
 	<script>
-	(function () {
-		const competitorId = {{ competitor.id }};
-		const canEdit = {{ 'true' if can_edit else 'false' }};
-
-		const mapWrapper = document.getElementById("mapWrapperSections");
-		const cards = Array.from(document.querySelectorAll(".section-card"));
-		const markers = Array.from(document.querySelectorAll(".map-marker"));
-		const colourCardGrid = document.getElementById("colourCardGrid");
-		const climbGroups = Array.from(document.querySelectorAll(".climb-group"));
-		const scoreCards = Array.from(document.querySelectorAll(".score-card"));
-		const emptyState = document.getElementById("filteredClimbEmpty");
-		const summary = document.getElementById("filteredClimbSummary");
-		const totalPointsEl = document.getElementById("total-points");
-
-		if (!markers.length && !scoreCards.length) return;
-
-		const totalsBySection = new Map();
-		const colourMeta = new Map();
-		const scoreState = new Map();
-		const cardsByKey = new Map();
-		const cardsByClimbNumber = new Map();
-
-		let activeSectionIds = new Set();
-		let activeColours = new Set();
-		let filterRaf = null;
-
-		function parseIntSafe(v, fallback = 0) {
-			const n = parseInt(v, 10);
-			return Number.isFinite(n) ? n : fallback;
-		}
-
-		function getScoreKeyFromValues(sectionId, climbNumber) {
-			return `${String(sectionId || "")}:${String(climbNumber || "")}`;
-		}
-
-		function getScoreKeyFromCard(card) {
-			return getScoreKeyFromValues(card.dataset.sectionId, card.dataset.climbNumber);
-		}
-
-		function clearMarkerOffsets() {
-			markers.forEach((m) => {
-				m.style.setProperty("--marker-offset-x", "0px");
-				m.style.setProperty("--marker-offset-y", "0px");
-				m.style.setProperty("--marker-z", "1");
-			});
-		}
-
-		function applyMarkerOverlapOffsets() {
-			clearMarkerOffsets();
-
-			const visibleMarkers = markers.filter((m) => m.style.display !== "none");
-			if (visibleMarkers.length <= 1) return;
-
-			const baseW = Math.max(1, window.__sectionsBaseW || 1);
-			const baseH = Math.max(1, window.__sectionsBaseH || 1);
-			const safeScale = Math.max(1, window.__sectionsCurrentScale || 1);
-			const isMobile = window.innerWidth <= 768;
-			const showingNumbers = !!(mapWrapper && mapWrapper.classList.contains("show-marker-numbers"));
-
-			let repelDistance;
-			let maxOffset;
-			let pushFactor;
-
-			if (isMobile) {
-				repelDistance = showingNumbers
-					? Math.max(8, 10 / Math.sqrt(safeScale))
-					: Math.max(5, 6 / Math.sqrt(safeScale));
-				maxOffset = showingNumbers ? 5 : 3.5;
-				pushFactor = 0.18;
-			} else {
-				repelDistance = showingNumbers
-					? Math.max(13, 16 / Math.sqrt(safeScale))
-					: Math.max(8, 10 / Math.sqrt(safeScale));
-				maxOffset = showingNumbers ? 10 : 7;
-				pushFactor = 0.24;
+		(function () {
+			const competitorId = {{ competitor.id }};
+			const canEdit = {{ 'true' if can_edit else 'false' }};
+	
+			const mapWrapper = document.getElementById("mapWrapperSections");
+			const cards = Array.from(document.querySelectorAll(".section-card"));
+			const markers = Array.from(document.querySelectorAll(".map-marker"));
+			const colourCardGrid = document.getElementById("colourCardGrid");
+			const climbGroups = Array.from(document.querySelectorAll(".climb-group"));
+			const scoreCards = Array.from(document.querySelectorAll(".score-card"));
+			const emptyState = document.getElementById("filteredClimbEmpty");
+			const summary = document.getElementById("filteredClimbSummary");
+			const totalPointsEl = document.getElementById("total-points");
+	
+			if (!markers.length && !scoreCards.length) return;
+	
+			const totalsBySection = new Map();
+			const colourMeta = new Map();
+			const scoreState = new Map();        // current in-UI state
+			const savedScoreState = new Map();   // last saved / loaded state
+			const cardsByKey = new Map();
+			const cardsByClimbNumber = new Map();
+	
+			let activeSectionIds = new Set();
+			let activeColours = new Set();
+			let filterRaf = null;
+	
+			function parseIntSafe(v, fallback = 0) {
+				const n = parseInt(v, 10);
+				return Number.isFinite(n) ? n : fallback;
 			}
-
-			const nodes = visibleMarkers.map((marker) => {
-				const xPct = parseFloat(marker.style.left || "0") / 100;
-				const yPct = parseFloat(marker.style.top || "0") / 100;
-
+	
+			function getScoreKeyFromValues(sectionId, climbNumber) {
+				return `${String(sectionId || "")}:${String(climbNumber || "")}`;
+			}
+	
+			function getScoreKeyFromCard(card) {
+				return getScoreKeyFromValues(card.dataset.sectionId, card.dataset.climbNumber);
+			}
+	
+			function normalizeState(state) {
 				return {
-					el: marker,
-					baseX: xPct * baseW,
-					baseY: yPct * baseH,
-					ox: 0,
-					oy: 0
+					topped: !!(state && state.topped),
+					attempts: Math.max(0, parseIntSafe(state && state.attempts, 0)),
 				};
-			});
-
-			const ITERATIONS = isMobile ? 7 : 9;
-
-			for (let iter = 0; iter < ITERATIONS; iter++) {
-				for (let i = 0; i < nodes.length; i++) {
-					for (let j = i + 1; j < nodes.length; j++) {
-						const a = nodes[i];
-						const b = nodes[j];
-
-						const ax = a.baseX + a.ox;
-						const ay = a.baseY + a.oy;
-						const bx = b.baseX + b.ox;
-						const by = b.baseY + b.oy;
-
-						let dx = bx - ax;
-						let dy = by - ay;
-						let dist = Math.hypot(dx, dy);
-
-						if (dist === 0) {
-							const angle = ((i + j + iter) % 12) * (Math.PI / 6);
-							dx = Math.cos(angle) * 0.01;
-							dy = Math.sin(angle) * 0.01;
-							dist = 0.01;
+			}
+	
+			function cloneState(state) {
+				const s = normalizeState(state);
+				return { topped: s.topped, attempts: s.attempts };
+			}
+	
+			function statesEqual(a, b) {
+				const aa = normalizeState(a);
+				const bb = normalizeState(b);
+				return aa.topped === bb.topped && aa.attempts === bb.attempts;
+			}
+	
+			function getCardState(card) {
+				const key = getScoreKeyFromCard(card);
+				if (!scoreState.has(key)) {
+					scoreState.set(key, { topped: false, attempts: 0 });
+				}
+				return scoreState.get(key);
+			}
+	
+			function getSavedCardState(card) {
+				const key = getScoreKeyFromCard(card);
+				if (!savedScoreState.has(key)) {
+					savedScoreState.set(key, { topped: false, attempts: 0 });
+				}
+				return savedScoreState.get(key);
+			}
+	
+			function setSavedCardState(card, state) {
+				const key = getScoreKeyFromCard(card);
+				savedScoreState.set(key, cloneState(state));
+			}
+	
+			function isCardDirty(card) {
+				return !statesEqual(getCardState(card), getSavedCardState(card));
+			}
+	
+			function clearSuccessMessageIfDirty(card) {
+				if (!isCardDirty(card)) return;
+				const saveStateEl = card.querySelector('[data-role="save-state"]');
+				if (!saveStateEl) return;
+	
+				if (saveStateEl.classList.contains("is-success")) {
+					saveStateEl.textContent = "";
+					saveStateEl.classList.remove("is-success");
+				}
+			}
+	
+			function updateSaveButtonState(card) {
+				const saveBtn = card.querySelector('[data-role="save-btn"]');
+				if (!saveBtn) return;
+	
+				const dirty = isCardDirty(card);
+				saveBtn.classList.toggle("is-dirty", dirty);
+	
+				if (dirty) {
+					saveBtn.style.background = "linear-gradient(135deg, rgba(93,244,162,0.24), rgba(93,244,162,0.14))";
+					saveBtn.style.borderColor = "rgba(93,244,162,0.58)";
+					saveBtn.style.color = "#f2fff8";
+				} else {
+					saveBtn.style.background = "rgba(255,255,255,0.06)";
+					saveBtn.style.borderColor = "rgba(255,255,255,0.12)";
+					saveBtn.style.color = "#fff";
+				}
+			}
+	
+			function clearMarkerOffsets() {
+				markers.forEach((m) => {
+					m.style.setProperty("--marker-offset-x", "0px");
+					m.style.setProperty("--marker-offset-y", "0px");
+					m.style.setProperty("--marker-z", "1");
+				});
+			}
+	
+			function applyMarkerOverlapOffsets() {
+				clearMarkerOffsets();
+	
+				const visibleMarkers = markers.filter((m) => m.style.display !== "none");
+				if (visibleMarkers.length <= 1) return;
+	
+				const baseW = Math.max(1, window.__sectionsBaseW || 1);
+				const baseH = Math.max(1, window.__sectionsBaseH || 1);
+				const safeScale = Math.max(1, window.__sectionsCurrentScale || 1);
+				const isMobile = window.innerWidth <= 768;
+				const showingNumbers = !!(mapWrapper && mapWrapper.classList.contains("show-marker-numbers"));
+	
+				let repelDistance;
+				let maxOffset;
+				let pushFactor;
+	
+				if (isMobile) {
+					repelDistance = showingNumbers
+						? Math.max(8, 10 / Math.sqrt(safeScale))
+						: Math.max(5, 6 / Math.sqrt(safeScale));
+					maxOffset = showingNumbers ? 5 : 3.5;
+					pushFactor = 0.18;
+				} else {
+					repelDistance = showingNumbers
+						? Math.max(13, 16 / Math.sqrt(safeScale))
+						: Math.max(8, 10 / Math.sqrt(safeScale));
+					maxOffset = showingNumbers ? 10 : 7;
+					pushFactor = 0.24;
+				}
+	
+				const nodes = visibleMarkers.map((marker) => {
+					const xPct = parseFloat(marker.style.left || "0") / 100;
+					const yPct = parseFloat(marker.style.top || "0") / 100;
+	
+					return {
+						el: marker,
+						baseX: xPct * baseW,
+						baseY: yPct * baseH,
+						ox: 0,
+						oy: 0
+					};
+				});
+	
+				const ITERATIONS = isMobile ? 7 : 9;
+	
+				for (let iter = 0; iter < ITERATIONS; iter++) {
+					for (let i = 0; i < nodes.length; i++) {
+						for (let j = i + 1; j < nodes.length; j++) {
+							const a = nodes[i];
+							const b = nodes[j];
+	
+							const ax = a.baseX + a.ox;
+							const ay = a.baseY + a.oy;
+							const bx = b.baseX + b.ox;
+							const by = b.baseY + b.oy;
+	
+							let dx = bx - ax;
+							let dy = by - ay;
+							let dist = Math.hypot(dx, dy);
+	
+							if (dist === 0) {
+								const angle = ((i + j + iter) % 12) * (Math.PI / 6);
+								dx = Math.cos(angle) * 0.01;
+								dy = Math.sin(angle) * 0.01;
+								dist = 0.01;
+							}
+	
+							if (dist >= repelDistance) continue;
+	
+							const overlap = repelDistance - dist;
+							const push = overlap * pushFactor;
+	
+							const nx = dx / dist;
+							const ny = dy / dist;
+	
+							a.ox -= nx * push;
+							a.oy -= ny * push;
+							b.ox += nx * push;
+							b.oy += ny * push;
 						}
-
-						if (dist >= repelDistance) continue;
-
-						const overlap = repelDistance - dist;
-						const push = overlap * pushFactor;
-
-						const nx = dx / dist;
-						const ny = dy / dist;
-
-						a.ox -= nx * push;
-						a.oy -= ny * push;
-						b.ox += nx * push;
-						b.oy += ny * push;
+					}
+	
+					for (const node of nodes) {
+						const mag = Math.hypot(node.ox, node.oy);
+						if (mag > maxOffset) {
+							const s = maxOffset / mag;
+							node.ox *= s;
+							node.oy *= s;
+						}
 					}
 				}
-
+	
 				for (const node of nodes) {
-					const mag = Math.hypot(node.ox, node.oy);
-					if (mag > maxOffset) {
-						const s = maxOffset / mag;
-						node.ox *= s;
-						node.oy *= s;
-					}
+					node.el.style.setProperty("--marker-offset-x", `${node.ox.toFixed(2)}px`);
+					node.el.style.setProperty("--marker-offset-y", `${node.oy.toFixed(2)}px`);
+					const z = 10 + Math.round(Math.hypot(node.ox, node.oy) * 10);
+					node.el.style.setProperty("--marker-z", String(z));
 				}
 			}
-
-			for (const node of nodes) {
-				node.el.style.setProperty("--marker-offset-x", `${node.ox.toFixed(2)}px`);
-				node.el.style.setProperty("--marker-offset-y", `${node.oy.toFixed(2)}px`);
-				const z = 10 + Math.round(Math.hypot(node.ox, node.oy) * 10);
-				node.el.style.setProperty("--marker-z", String(z));
-			}
-		}
-
-		function rerunMarkerSeparationAfterZoom() {
-			clearMarkerOffsets();
-
-			requestAnimationFrame(() => {
-				applyMarkerOverlapOffsets();
-
+	
+			function rerunMarkerSeparationAfterZoom() {
+				clearMarkerOffsets();
+	
 				requestAnimationFrame(() => {
 					applyMarkerOverlapOffsets();
-
-					setTimeout(() => applyMarkerOverlapOffsets(), 80);
-					setTimeout(() => applyMarkerOverlapOffsets(), 180);
-					setTimeout(() => applyMarkerOverlapOffsets(), 320);
+	
+					requestAnimationFrame(() => {
+						applyMarkerOverlapOffsets();
+	
+						setTimeout(() => applyMarkerOverlapOffsets(), 80);
+						setTimeout(() => applyMarkerOverlapOffsets(), 180);
+						setTimeout(() => applyMarkerOverlapOffsets(), 320);
+					});
 				});
-			});
-		}
-
-		function setCardProgress(card, done, total) {
-			const left = Math.max(0, total - done);
-			card.querySelectorAll(".sec-done").forEach(el => el.textContent = String(done));
-			card.querySelectorAll(".sec-total").forEach(el => el.textContent = String(total));
-			const leftEl = card.querySelector(".sec-left");
-			if (leftEl) leftEl.textContent = String(left);
-
-			const bar = card.querySelector(".sec-bar");
-			if (bar) {
-				const pct = total ? Math.round((done / total) * 100) : 0;
-				bar.style.width = pct + "%";
 			}
-		}
-
-		function computePoints(basePoints, penaltyPerAttempt, attemptCap, topped, attempts) {
-			const base = parseIntSafe(basePoints, 0);
-			const penalty = parseIntSafe(penaltyPerAttempt, 0);
-			const cap = Math.max(1, parseIntSafe(attemptCap, 10));
-			const clampedAttempts = Math.max(0, Math.min(parseIntSafe(attempts, 0), cap));
-
-			if (!topped) return 0;
-
-			const penalties = Math.max(0, clampedAttempts - 1) * penalty;
-			return Math.max(0, base - penalties);
-		}
-
-		function getCardState(card) {
-			const key = getScoreKeyFromCard(card);
-			if (!scoreState.has(key)) {
-				scoreState.set(key, { topped: false, attempts: 0 });
-			}
-			return scoreState.get(key);
-		}
-
-		function validateCard(card) {
-			const state = getCardState(card);
-			const saveStateEl = card.querySelector('[data-role="save-state"]');
-
-			if (state.topped && state.attempts < 1) {
-				if (saveStateEl) {
-					saveStateEl.textContent = "Enter at least 1 attempt for a topped climb";
-					saveStateEl.classList.remove("is-success", "is-error");
-					saveStateEl.classList.add("is-warning");
+	
+			function setCardProgress(card, done, total) {
+				const left = Math.max(0, total - done);
+				card.querySelectorAll(".sec-done").forEach(el => el.textContent = String(done));
+				card.querySelectorAll(".sec-total").forEach(el => el.textContent = String(total));
+				const leftEl = card.querySelector(".sec-left");
+				if (leftEl) leftEl.textContent = String(left);
+	
+				const bar = card.querySelector(".sec-bar");
+				if (bar) {
+					const pct = total ? Math.round((done / total) * 100) : 0;
+					bar.style.width = pct + "%";
 				}
-				return false;
 			}
-
-			if (saveStateEl && saveStateEl.classList.contains("is-warning")) {
-				saveStateEl.textContent = "";
-				saveStateEl.classList.remove("is-warning");
+	
+			function computePoints(basePoints, penaltyPerAttempt, attemptCap, topped, attempts) {
+				const base = parseIntSafe(basePoints, 0);
+				const penalty = parseIntSafe(penaltyPerAttempt, 0);
+				const cap = Math.max(1, parseIntSafe(attemptCap, 10));
+				const clampedAttempts = Math.max(0, Math.min(parseIntSafe(attempts, 0), cap));
+	
+				if (!topped) return 0;
+	
+				const penalties = Math.max(0, clampedAttempts - 1) * penalty;
+				return Math.max(0, base - penalties);
 			}
-
-			return true;
-		}
-
-		function updateCardUI(card) {
-			const state = getCardState(card);
-
-			const basePoints = parseIntSafe(card.dataset.basePoints, 0);
-			const penaltyPerAttempt = parseIntSafe(card.dataset.penaltyPerAttempt, 0);
-			const attemptCap = Math.max(1, parseIntSafe(card.dataset.attemptCap, 10));
-
-			if (state.attempts < 0) state.attempts = 0;
-			if (state.attempts > attemptCap) state.attempts = attemptCap;
-
-			const currentPoints = computePoints(basePoints, penaltyPerAttempt, attemptCap, state.topped, state.attempts);
-
-			const currentPointsEl = card.querySelector('[data-role="current-points"]');
-			if (currentPointsEl) currentPointsEl.textContent = String(currentPoints);
-
-			const statusPill = card.querySelector('[data-role="status-pill"]');
-			if (statusPill) {
-				statusPill.textContent = state.topped ? "Topped" : "Not topped";
-				statusPill.classList.toggle("is-done", !!state.topped);
+	
+			function validateCard(card) {
+				const state = getCardState(card);
+				const saveStateEl = card.querySelector('[data-role="save-state"]');
+	
+				if (state.topped && state.attempts < 1) {
+					if (saveStateEl) {
+						saveStateEl.textContent = "Enter at least 1 attempt for a topped climb";
+						saveStateEl.classList.remove("is-success", "is-error");
+						saveStateEl.classList.add("is-warning");
+					}
+					return false;
+				}
+	
+				if (saveStateEl && saveStateEl.classList.contains("is-warning")) {
+					saveStateEl.textContent = "";
+					saveStateEl.classList.remove("is-warning");
+				}
+	
+				return true;
 			}
-
-			const attemptValueEl = card.querySelector('[data-role="attempt-value"]');
-			if (attemptValueEl) attemptValueEl.textContent = String(state.attempts);
-
-			const minusBtn = card.querySelector(".attempt-minus");
-			const plusBtn = card.querySelector(".attempt-plus");
-			if (minusBtn) minusBtn.disabled = state.attempts <= 0;
-			if (plusBtn) plusBtn.disabled = state.attempts >= attemptCap;
-
-			card.classList.toggle("is-done", !!state.topped);
-
-			card.querySelectorAll(".topped-btn").forEach((btn) => {
-				const btnVal = btn.dataset.toppedValue === "true";
-				btn.classList.toggle("is-active", btnVal === !!state.topped);
+	
+			function updateCardUI(card) {
+				const state = getCardState(card);
+	
+				const basePoints = parseIntSafe(card.dataset.basePoints, 0);
+				const penaltyPerAttempt = parseIntSafe(card.dataset.penaltyPerAttempt, 0);
+				const attemptCap = Math.max(1, parseIntSafe(card.dataset.attemptCap, 10));
+	
+				if (state.attempts < 0) state.attempts = 0;
+				if (state.attempts > attemptCap) state.attempts = attemptCap;
+	
+				const currentPoints = computePoints(basePoints, penaltyPerAttempt, attemptCap, state.topped, state.attempts);
+	
+				const currentPointsEl = card.querySelector('[data-role="current-points"]');
+				if (currentPointsEl) currentPointsEl.textContent = String(currentPoints);
+	
+				const statusPill = card.querySelector('[data-role="status-pill"]');
+				if (statusPill) {
+					statusPill.textContent = state.topped ? "Topped" : "Not topped";
+					statusPill.classList.toggle("is-done", !!state.topped);
+				}
+	
+				const attemptValueEl = card.querySelector('[data-role="attempt-value"]');
+				if (attemptValueEl) attemptValueEl.textContent = String(state.attempts);
+	
+				const minusBtn = card.querySelector(".attempt-minus");
+				const plusBtn = card.querySelector(".attempt-plus");
+				if (minusBtn) minusBtn.disabled = state.attempts <= 0;
+				if (plusBtn) plusBtn.disabled = state.attempts >= attemptCap;
+	
+				card.classList.toggle("is-done", !!state.topped);
+	
+				card.querySelectorAll(".topped-btn").forEach((btn) => {
+					const btnVal = btn.dataset.toppedValue === "true";
+					btn.classList.toggle("is-active", btnVal === !!state.topped);
+				});
+	
+				updateSaveButtonState(card);
+			}
+	
+			function updateAllCardsUI() {
+				scoreCards.forEach((card) => {
+					updateCardUI(card);
+					validateCard(card);
+				});
+			}
+	
+			function recomputeSectionProgress() {
+				const doneBySection = new Map();
+	
+				scoreCards.forEach((card) => {
+					const sid = card.dataset.sectionId;
+					const key = getScoreKeyFromCard(card);
+					const state = scoreState.get(key);
+					if (!sid || !state || !state.topped) return;
+					doneBySection.set(sid, (doneBySection.get(sid) || 0) + 1);
+				});
+	
+				cards.forEach((card) => {
+					const sid = card.dataset.sectionId;
+					const total = totalsBySection.get(sid) || 0;
+					const done = doneBySection.get(sid) || 0;
+					setCardProgress(card, done, total);
+				});
+			}
+	
+			function recomputeTotalPoints() {
+				const scoredClimbs = [];
+	
+				scoreCards.forEach((card) => {
+					const state = getCardState(card);
+					const pts = computePoints(
+						card.dataset.basePoints,
+						card.dataset.penaltyPerAttempt,
+						card.dataset.attemptCap,
+						state.topped,
+						state.attempts
+					);
+	
+					if (pts > 0) scoredClimbs.push(pts);
+				});
+	
+				scoredClimbs.sort((a, b) => b - a);
+	
+				const totalTop8 = scoredClimbs
+					.slice(0, 8)
+					.reduce((sum, pts) => sum + pts, 0);
+	
+				if (totalPointsEl) totalPointsEl.textContent = String(totalTop8);
+			}
+	
+			function updateMarkerNumberMode() {
+				if (!mapWrapper) return;
+				const showNumbers = activeSectionIds.size > 0;
+				mapWrapper.classList.toggle("show-marker-numbers", showNumbers);
+			}
+	
+			function registerCardLookups(card) {
+				const key = getScoreKeyFromCard(card);
+				const climbNumber = String(card.dataset.climbNumber || "");
+	
+				cardsByKey.set(key, card);
+	
+				if (!cardsByClimbNumber.has(climbNumber)) {
+					cardsByClimbNumber.set(climbNumber, []);
+				}
+				cardsByClimbNumber.get(climbNumber).push(card);
+			}
+	
+			markers.forEach((m) => {
+				const sid = m.dataset.sectionId;
+				const colourKey = (m.dataset.colour || "unknown").trim().toLowerCase();
+				const colourLabel = (m.dataset.colourLabel || "Unknown").trim();
+				const swatch = m.style.background || "#ff4081";
+	
+				if (sid) totalsBySection.set(sid, (totalsBySection.get(sid) || 0) + 1);
+	
+				if (!colourMeta.has(colourKey)) {
+					colourMeta.set(colourKey, {
+						label: colourLabel,
+						count: 0,
+						swatch: swatch
+					});
+				}
+				colourMeta.get(colourKey).count += 1;
 			});
-		}
-
-		function updateAllCardsUI() {
+	
 			scoreCards.forEach((card) => {
+				registerCardLookups(card);
+				const key = getScoreKeyFromCard(card);
+				const initialState = { topped: false, attempts: 0 };
+				scoreState.set(key, cloneState(initialState));
+				savedScoreState.set(key, cloneState(initialState));
 				updateCardUI(card);
 				validateCard(card);
 			});
-		}
-
-		function recomputeSectionProgress() {
-			const doneBySection = new Map();
-
-			scoreCards.forEach((card) => {
-				const sid = card.dataset.sectionId;
-				const key = getScoreKeyFromCard(card);
-				const state = scoreState.get(key);
-				if (!sid || !state || !state.topped) return;
-				doneBySection.set(sid, (doneBySection.get(sid) || 0) + 1);
-			});
-
+	
 			cards.forEach((card) => {
 				const sid = card.dataset.sectionId;
 				const total = totalsBySection.get(sid) || 0;
-				const done = doneBySection.get(sid) || 0;
-				setCardProgress(card, done, total);
+				setCardProgress(card, 0, total);
 			});
-		}
-
-		function recomputeTotalPoints() {
-			const scoredClimbs = [];
-
-			scoreCards.forEach((card) => {
-				const state = getCardState(card);
-				const pts = computePoints(
-					card.dataset.basePoints,
-					card.dataset.penaltyPerAttempt,
-					card.dataset.attemptCap,
-					state.topped,
-					state.attempts
-				);
-
-				if (pts > 0) scoredClimbs.push(pts);
-			});
-
-			scoredClimbs.sort((a, b) => b - a);
-
-			const totalTop8 = scoredClimbs
-				.slice(0, 8)
-				.reduce((sum, pts) => sum + pts, 0);
-
-			if (totalPointsEl) totalPointsEl.textContent = String(totalTop8);
-		}
-
-		function updateMarkerNumberMode() {
-			if (!mapWrapper) return;
-			const showNumbers = activeSectionIds.size > 0;
-			mapWrapper.classList.toggle("show-marker-numbers", showNumbers);
-		}
-
-		function registerCardLookups(card) {
-			const key = getScoreKeyFromCard(card);
-			const climbNumber = String(card.dataset.climbNumber || "");
-
-			cardsByKey.set(key, card);
-
-			if (!cardsByClimbNumber.has(climbNumber)) {
-				cardsByClimbNumber.set(climbNumber, []);
-			}
-			cardsByClimbNumber.get(climbNumber).push(card);
-		}
-
-		markers.forEach((m) => {
-			const sid = m.dataset.sectionId;
-			const colourKey = (m.dataset.colour || "unknown").trim().toLowerCase();
-			const colourLabel = (m.dataset.colourLabel || "Unknown").trim();
-			const swatch = m.style.background || "#ff4081";
-
-			if (sid) totalsBySection.set(sid, (totalsBySection.get(sid) || 0) + 1);
-
-			if (!colourMeta.has(colourKey)) {
-				colourMeta.set(colourKey, {
-					label: colourLabel,
-					count: 0,
-					swatch: swatch
-				});
-			}
-			colourMeta.get(colourKey).count += 1;
-		});
-
-		scoreCards.forEach((card) => {
-			registerCardLookups(card);
-			const key = getScoreKeyFromCard(card);
-			scoreState.set(key, { topped: false, attempts: 0 });
-			updateCardUI(card);
-			validateCard(card);
-		});
-
-		cards.forEach((card) => {
-			const sid = card.dataset.sectionId;
-			const total = totalsBySection.get(sid) || 0;
-			setCardProgress(card, 0, total);
-		});
-
-		async function loadProgress() {
-			try {
-				const res = await fetch(`/api/score/${competitorId}`, { credentials: "same-origin" });
-				if (!res.ok) return;
-
-				const rows = await res.json();
-
-				(rows || []).forEach((r) => {
-					if (!r) return;
-
-					const cn = r.climb_number;
-					if (cn === undefined || cn === null) return;
-
-					let sid = r.section_id;
-					if (sid === undefined || sid === null) {
-						sid = r.section?.id ?? r.section_climb?.section_id ?? null;
-					}
-
-					let key = null;
-
-					if (sid !== undefined && sid !== null) {
-						key = getScoreKeyFromValues(sid, cn);
-					} else {
-						const matches = cardsByClimbNumber.get(String(cn)) || [];
-						if (matches.length === 1) {
-							key = getScoreKeyFromCard(matches[0]);
+	
+			async function loadProgress() {
+				try {
+					const res = await fetch(`/api/score/${competitorId}`, { credentials: "same-origin" });
+					if (!res.ok) return;
+	
+					const rows = await res.json();
+	
+					(rows || []).forEach((r) => {
+						if (!r) return;
+	
+						const cn = r.climb_number;
+						if (cn === undefined || cn === null) return;
+	
+						let sid = r.section_id;
+						if (sid === undefined || sid === null) {
+							sid = r.section?.id ?? r.section_climb?.section_id ?? null;
 						}
-					}
-
-					if (!key || !cardsByKey.has(key)) return;
-
-					scoreState.set(key, {
-						topped: !!r.topped,
-						attempts: Math.max(0, parseIntSafe(r.attempts, 0))
+	
+						let key = null;
+	
+						if (sid !== undefined && sid !== null) {
+							key = getScoreKeyFromValues(sid, cn);
+						} else {
+							const matches = cardsByClimbNumber.get(String(cn)) || [];
+							if (matches.length === 1) {
+								key = getScoreKeyFromCard(matches[0]);
+							}
+						}
+	
+						if (!key || !cardsByKey.has(key)) return;
+	
+						const loadedState = {
+							topped: !!r.topped,
+							attempts: Math.max(0, parseIntSafe(r.attempts, 0))
+						};
+	
+						scoreState.set(key, cloneState(loadedState));
+						savedScoreState.set(key, cloneState(loadedState));
 					});
+	
+					updateAllCardsUI();
+					recomputeSectionProgress();
+					recomputeTotalPoints();
+				} catch (_) {}
+			}
+	
+			function buildColourCards() {
+				if (!colourCardGrid) return;
+	
+				const entries = Array.from(colourMeta.entries()).sort((a, b) => {
+					return a[1].label.localeCompare(b[1].label);
 				});
-
-				updateAllCardsUI();
-				recomputeSectionProgress();
-				recomputeTotalPoints();
-			} catch (_) {}
-		}
-
-		function buildColourCards() {
-			if (!colourCardGrid) return;
-
-			const entries = Array.from(colourMeta.entries()).sort((a, b) => {
-				return a[1].label.localeCompare(b[1].label);
-			});
-
-			colourCardGrid.innerHTML = "";
-
-			entries.forEach(([key, meta]) => {
-				const btn = document.createElement("button");
-				btn.type = "button";
-				btn.className = "colour-card";
-				btn.dataset.colour = key;
-				btn.setAttribute("aria-pressed", "false");
-
-				btn.innerHTML = `
-					<span class="colour-swatch" style="--swatch: ${meta.swatch};"></span>
-					<span class="colour-name">${meta.label}</span>
-					<span class="colour-count">${meta.count}</span>
-				`;
-
-				btn.addEventListener("click", async () => {
-					const isActive = btn.classList.contains("is-active");
-
-					if (isActive) {
-						btn.classList.remove("is-active");
-						btn.setAttribute("aria-pressed", "false");
-						activeColours.delete(key);
-					} else {
-						btn.classList.add("is-active");
-						btn.setAttribute("aria-pressed", "true");
-						activeColours.add(key);
-					}
-
+	
+				colourCardGrid.innerHTML = "";
+	
+				entries.forEach(([key, meta]) => {
+					const btn = document.createElement("button");
+					btn.type = "button";
+					btn.className = "colour-card";
+					btn.dataset.colour = key;
+					btn.setAttribute("aria-pressed", "false");
+	
+					btn.innerHTML = `
+						<span class="colour-swatch" style="--swatch: ${meta.swatch};"></span>
+						<span class="colour-name">${meta.label}</span>
+						<span class="colour-count">${meta.count}</span>
+					`;
+	
+					btn.addEventListener("click", async () => {
+						const isActive = btn.classList.contains("is-active");
+	
+						if (isActive) {
+							btn.classList.remove("is-active");
+							btn.setAttribute("aria-pressed", "false");
+							activeColours.delete(key);
+						} else {
+							btn.classList.add("is-active");
+							btn.setAttribute("aria-pressed", "true");
+							activeColours.add(key);
+						}
+	
+						applyMapFilter();
+						applyScoreCardFilter();
+						updateMarkerNumberMode();
+	
+						try {
+							await syncZoomToActiveSections();
+						} catch (_) {}
+	
+						rerunMarkerSeparationAfterZoom();
+					});
+	
+					colourCardGrid.appendChild(btn);
+				});
+			}
+	
+			function matchesSection(el) {
+				if (!activeSectionIds.size) return true;
+				const sid = el.dataset.sectionId || "";
+				return activeSectionIds.has(sid);
+			}
+	
+			function matchesColour(el) {
+				if (!activeColours.size) return true;
+				const colourKey = (el.dataset.colour || "unknown").trim().toLowerCase();
+				return activeColours.has(colourKey);
+			}
+	
+			function applyMapFilter() {
+				markers.forEach((m) => {
+					const show = matchesSection(m) && matchesColour(m);
+					m.style.display = show ? "" : "none";
+				});
+			}
+	
+			function applyScoreCardFilter() {
+				let visibleCardCount = 0;
+				let visibleGroupCount = 0;
+	
+				climbGroups.forEach((group) => {
+					const groupCards = Array.from(group.querySelectorAll(".score-card"));
+					let groupVisible = 0;
+	
+					groupCards.forEach((card) => {
+						const show = matchesSection(card) && matchesColour(card);
+						card.style.display = show ? "" : "none";
+						if (show) {
+							groupVisible += 1;
+							visibleCardCount += 1;
+						}
+					});
+	
+					const countEl = group.querySelector(".group-visible-count");
+					if (countEl) countEl.textContent = String(groupVisible);
+	
+					group.style.display = groupVisible ? "" : "none";
+					if (groupVisible) visibleGroupCount += 1;
+				});
+	
+				if (summary) {
+					const groupsText = visibleGroupCount === 1 ? "section" : "sections";
+					const climbsText = visibleCardCount === 1 ? "climb" : "climbs";
+					summary.textContent = `${visibleCardCount} ${climbsText} in ${visibleGroupCount} ${groupsText}`;
+				}
+	
+				if (emptyState) {
+					emptyState.style.display = visibleCardCount ? "none" : "";
+				}
+			}
+	
+			async function syncZoomToActiveSections() {
+				const ids = Array.from(activeSectionIds);
+				if (!ids.length) {
+					if (window.__resetSectionsMapFit) await window.__resetSectionsMapFit();
+					return;
+				}
+				if (window.__zoomToActiveSectionIds) {
+					await window.__zoomToActiveSectionIds(ids);
+				}
+			}
+	
+			function applyAllFilters() {
+				if (filterRaf) cancelAnimationFrame(filterRaf);
+	
+				filterRaf = requestAnimationFrame(() => {
 					applyMapFilter();
 					applyScoreCardFilter();
 					updateMarkerNumberMode();
-
+					applyMarkerOverlapOffsets();
+					filterRaf = null;
+				});
+			}
+	
+			function scrollToTargetCard(targetId) {
+				if (!targetId) return;
+				const el = document.getElementById(targetId);
+				if (!el) return;
+	
+				const rect = el.getBoundingClientRect();
+				const viewportHeight = window.innerHeight || document.documentElement.clientHeight;
+	
+				const absoluteTop = window.pageYOffset + rect.top;
+				const cardCenterOffset = rect.height / 2;
+				const viewportCenterOffset = viewportHeight / 2;
+	
+				let targetScrollTop = absoluteTop - viewportCenterOffset + cardCenterOffset;
+	
+				const maxScrollTop = Math.max(
+					0,
+					document.documentElement.scrollHeight - viewportHeight
+				);
+	
+				targetScrollTop = Math.max(0, Math.min(targetScrollTop, maxScrollTop));
+	
+				window.scrollTo({
+					top: targetScrollTop,
+					behavior: "smooth"
+				});
+	
+				el.classList.add("flash-highlight");
+				window.setTimeout(() => {
+					el.classList.remove("flash-highlight");
+				}, 1800);
+			}
+	
+			markers.forEach((marker) => {
+				if (marker.classList.contains("disabled")) return;
+				marker.addEventListener("click", () => {
+					scrollToTargetCard(marker.dataset.targetId);
+				});
+			});
+	
+			cards.forEach((card) => {
+				card.addEventListener("click", async () => {
+					const sid = card.dataset.sectionId;
+					if (!sid) return;
+	
+					const isActive = card.classList.contains("is-active");
+					if (isActive) {
+						card.classList.remove("is-active");
+						card.setAttribute("aria-pressed", "false");
+						activeSectionIds.delete(sid);
+					} else {
+						card.classList.add("is-active");
+						card.setAttribute("aria-pressed", "true");
+						activeSectionIds.add(sid);
+					}
+	
+					const anyActive = cards.some((c) => c.classList.contains("is-active"));
+					if (!anyActive) activeSectionIds.clear();
+	
+					applyMapFilter();
+					applyScoreCardFilter();
+					updateMarkerNumberMode();
+	
 					try {
 						await syncZoomToActiveSections();
 					} catch (_) {}
-
+	
 					rerunMarkerSeparationAfterZoom();
 				});
-
-				colourCardGrid.appendChild(btn);
 			});
-		}
-
-		function matchesSection(el) {
-			if (!activeSectionIds.size) return true;
-			const sid = el.dataset.sectionId || "";
-			return activeSectionIds.has(sid);
-		}
-
-		function matchesColour(el) {
-			if (!activeColours.size) return true;
-			const colourKey = (el.dataset.colour || "unknown").trim().toLowerCase();
-			return activeColours.has(colourKey);
-		}
-
-		function applyMapFilter() {
-			markers.forEach((m) => {
-				const show = matchesSection(m) && matchesColour(m);
-				m.style.display = show ? "" : "none";
-			});
-		}
-
-		function applyScoreCardFilter() {
-			let visibleCardCount = 0;
-			let visibleGroupCount = 0;
-
-			climbGroups.forEach((group) => {
-				const groupCards = Array.from(group.querySelectorAll(".score-card"));
-				let groupVisible = 0;
-
-				groupCards.forEach((card) => {
-					const show = matchesSection(card) && matchesColour(card);
-					card.style.display = show ? "" : "none";
-					if (show) {
-						groupVisible += 1;
-						visibleCardCount += 1;
-					}
+	
+			scoreCards.forEach((card) => {
+				const attemptCap = Math.max(1, parseIntSafe(card.dataset.attemptCap, 10));
+	
+				card.querySelectorAll(".topped-btn").forEach((btn) => {
+					btn.addEventListener("click", () => {
+						if (!canEdit) return;
+						const state = getCardState(card);
+						state.topped = btn.dataset.toppedValue === "true";
+	
+						if (state.attempts < 0) state.attempts = 0;
+	
+						clearSuccessMessageIfDirty(card);
+						updateCardUI(card);
+						validateCard(card);
+						recomputeSectionProgress();
+						recomputeTotalPoints();
+					});
 				});
-
-				const countEl = group.querySelector(".group-visible-count");
-				if (countEl) countEl.textContent = String(groupVisible);
-
-				group.style.display = groupVisible ? "" : "none";
-				if (groupVisible) visibleGroupCount += 1;
-			});
-
-			if (summary) {
-				const groupsText = visibleGroupCount === 1 ? "section" : "sections";
-				const climbsText = visibleCardCount === 1 ? "climb" : "climbs";
-				summary.textContent = `${visibleCardCount} ${climbsText} in ${visibleGroupCount} ${groupsText}`;
-			}
-
-			if (emptyState) {
-				emptyState.style.display = visibleCardCount ? "none" : "";
-			}
-		}
-
-		async function syncZoomToActiveSections() {
-			const ids = Array.from(activeSectionIds);
-			if (!ids.length) {
-				if (window.__resetSectionsMapFit) await window.__resetSectionsMapFit();
-				return;
-			}
-			if (window.__zoomToActiveSectionIds) {
-				await window.__zoomToActiveSectionIds(ids);
-			}
-		}
-
-		function applyAllFilters() {
-			if (filterRaf) cancelAnimationFrame(filterRaf);
-
-			filterRaf = requestAnimationFrame(() => {
-				applyMapFilter();
-				applyScoreCardFilter();
-				updateMarkerNumberMode();
-				applyMarkerOverlapOffsets();
-				filterRaf = null;
-			});
-		}
-
-		function scrollToTargetCard(targetId) {
-			if (!targetId) return;
-			const el = document.getElementById(targetId);
-			if (!el) return;
-
-			const rect = el.getBoundingClientRect();
-			const viewportHeight = window.innerHeight || document.documentElement.clientHeight;
-
-			const absoluteTop = window.pageYOffset + rect.top;
-			const cardCenterOffset = rect.height / 2;
-			const viewportCenterOffset = viewportHeight / 2;
-
-			let targetScrollTop = absoluteTop - viewportCenterOffset + cardCenterOffset;
-
-			const maxScrollTop = Math.max(
-				0,
-				document.documentElement.scrollHeight - viewportHeight
-			);
-
-			targetScrollTop = Math.max(0, Math.min(targetScrollTop, maxScrollTop));
-
-			window.scrollTo({
-				top: targetScrollTop,
-				behavior: "smooth"
-			});
-
-			el.classList.add("flash-highlight");
-			window.setTimeout(() => {
-				el.classList.remove("flash-highlight");
-			}, 1800);
-		}
-
-		markers.forEach((marker) => {
-			if (marker.classList.contains("disabled")) return;
-			marker.addEventListener("click", () => {
-				scrollToTargetCard(marker.dataset.targetId);
-			});
-		});
-
-		cards.forEach((card) => {
-			card.addEventListener("click", async () => {
-				const sid = card.dataset.sectionId;
-				if (!sid) return;
-
-				const isActive = card.classList.contains("is-active");
-				if (isActive) {
-					card.classList.remove("is-active");
-					card.setAttribute("aria-pressed", "false");
-					activeSectionIds.delete(sid);
-				} else {
-					card.classList.add("is-active");
-					card.setAttribute("aria-pressed", "true");
-					activeSectionIds.add(sid);
+	
+				const minusBtn = card.querySelector(".attempt-minus");
+				const plusBtn = card.querySelector(".attempt-plus");
+	
+				if (minusBtn) {
+					minusBtn.addEventListener("click", () => {
+						if (!canEdit) return;
+						const state = getCardState(card);
+						if (state.attempts > 0) {
+							state.attempts -= 1;
+						}
+						clearSuccessMessageIfDirty(card);
+						updateCardUI(card);
+						validateCard(card);
+						recomputeSectionProgress();
+						recomputeTotalPoints();
+					});
 				}
-
-				const anyActive = cards.some((c) => c.classList.contains("is-active"));
-				if (!anyActive) activeSectionIds.clear();
-
-				applyMapFilter();
-				applyScoreCardFilter();
-				updateMarkerNumberMode();
-
-				try {
-					await syncZoomToActiveSections();
-				} catch (_) {}
-
-				rerunMarkerSeparationAfterZoom();
-			});
-		});
-
-		scoreCards.forEach((card) => {
-			const attemptCap = Math.max(1, parseIntSafe(card.dataset.attemptCap, 10));
-
-			card.querySelectorAll(".topped-btn").forEach((btn) => {
-				btn.addEventListener("click", () => {
-					if (!canEdit) return;
-					const state = getCardState(card);
-					state.topped = btn.dataset.toppedValue === "true";
-
-					if (state.attempts < 0) state.attempts = 0;
-
-					updateCardUI(card);
-					validateCard(card);
-					recomputeSectionProgress();
-					recomputeTotalPoints();
-				});
-			});
-
-			const minusBtn = card.querySelector(".attempt-minus");
-			const plusBtn = card.querySelector(".attempt-plus");
-
-			if (minusBtn) {
-				minusBtn.addEventListener("click", () => {
-					if (!canEdit) return;
-					const state = getCardState(card);
-					if (state.attempts > 0) {
-						state.attempts -= 1;
-					}
-					updateCardUI(card);
-					validateCard(card);
-					recomputeSectionProgress();
-					recomputeTotalPoints();
-				});
-			}
-
-			if (plusBtn) {
-				plusBtn.addEventListener("click", () => {
-					if (!canEdit) return;
-					const state = getCardState(card);
-					if (state.attempts < attemptCap) {
-						state.attempts += 1;
-					}
-					updateCardUI(card);
-					validateCard(card);
-					recomputeSectionProgress();
-					recomputeTotalPoints();
-				});
-			}
-
-			const saveBtn = card.querySelector('[data-role="save-btn"]');
-			if (saveBtn) {
-				saveBtn.addEventListener("click", async () => {
-					await saveScore(card, saveBtn);
-				});
-			}
-		});
-
-		async function saveScore(card, saveBtn) {
-			const state = getCardState(card);
-			const saveStateEl = card.querySelector('[data-role="save-state"]');
-			const sectionClimbId = parseIntSafe(card.dataset.sectionClimbId, 0);
-
-			if (state.topped && state.attempts < 1) {
-				if (saveStateEl) {
-					saveStateEl.textContent = "Enter at least 1 attempt for a topped climb";
-					saveStateEl.classList.remove("is-success", "is-error");
-					saveStateEl.classList.add("is-warning");
+	
+				if (plusBtn) {
+					plusBtn.addEventListener("click", () => {
+						if (!canEdit) return;
+						const state = getCardState(card);
+						if (state.attempts < attemptCap) {
+							state.attempts += 1;
+						}
+						clearSuccessMessageIfDirty(card);
+						updateCardUI(card);
+						validateCard(card);
+						recomputeSectionProgress();
+						recomputeTotalPoints();
+					});
 				}
-				return;
-			}
-
-			if (saveStateEl) {
-				saveStateEl.textContent = "Saving...";
-				saveStateEl.classList.remove("is-success", "is-error", "is-warning");
-			}
-
-			if (saveBtn) {
-				saveBtn.disabled = true;
-				saveBtn.textContent = "Saving...";
-			}
-
-			try {
-				const payload = {
-					competitor_id: competitorId,
-					section_climb_id: sectionClimbId,
-					attempts: Math.max(0, parseIntSafe(state.attempts, 0)),
-					topped: !!state.topped
-				};
-
-				const res = await fetch(`/api/score`, {
-					method: "POST",
-					credentials: "same-origin",
-					headers: {
-						"Content-Type": "application/json"
-					},
-					body: JSON.stringify(payload)
-				});
-
-				if (!res.ok) {
-					const text = await res.text().catch(() => "");
-					throw new Error(text || `HTTP ${res.status}`);
-				}
-
-				const result = await res.json().catch(() => null);
-
-				if (saveStateEl) {
-					saveStateEl.textContent = "Saved";
-					saveStateEl.classList.remove("is-error", "is-warning");
-					saveStateEl.classList.add("is-success");
-				}
-
-				if (result && typeof result.points === "number") {
-					const currentPointsEl = card.querySelector('[data-role="current-points"]');
-					if (currentPointsEl) currentPointsEl.textContent = String(result.points);
-				}
-
-				recomputeSectionProgress();
-				recomputeTotalPoints();
-			} catch (err) {
-				if (saveStateEl) {
-					saveStateEl.textContent = "Save failed";
-					saveStateEl.classList.remove("is-success", "is-warning");
-					saveStateEl.classList.add("is-error");
-				}
-				console.error("Failed to save score", err);
-			} finally {
+	
+				const saveBtn = card.querySelector('[data-role="save-btn"]');
 				if (saveBtn) {
-					saveBtn.disabled = false;
-					saveBtn.textContent = "Save score";
+					saveBtn.addEventListener("click", async () => {
+						await saveScore(card, saveBtn);
+					});
+				}
+			});
+	
+			async function saveScore(card, saveBtn) {
+				const state = getCardState(card);
+				const saveStateEl = card.querySelector('[data-role="save-state"]');
+				const sectionClimbId = parseIntSafe(card.dataset.sectionClimbId, 0);
+	
+				if (state.topped && state.attempts < 1) {
+					if (saveStateEl) {
+						saveStateEl.textContent = "Enter at least 1 attempt for a topped climb";
+						saveStateEl.classList.remove("is-success", "is-error");
+						saveStateEl.classList.add("is-warning");
+					}
+					return;
+				}
+	
+				if (saveStateEl) {
+					saveStateEl.textContent = "Saving...";
+					saveStateEl.classList.remove("is-success", "is-error", "is-warning");
+				}
+	
+				if (saveBtn) {
+					saveBtn.disabled = true;
+					saveBtn.textContent = "Saving...";
+				}
+	
+				try {
+					const payload = {
+						competitor_id: competitorId,
+						section_climb_id: sectionClimbId,
+						attempts: Math.max(0, parseIntSafe(state.attempts, 0)),
+						topped: !!state.topped
+					};
+	
+					const res = await fetch(`/api/score`, {
+						method: "POST",
+						credentials: "same-origin",
+						headers: {
+							"Content-Type": "application/json"
+						},
+						body: JSON.stringify(payload)
+					});
+	
+					if (!res.ok) {
+						const text = await res.text().catch(() => "");
+						throw new Error(text || `HTTP ${res.status}`);
+					}
+	
+					const result = await res.json().catch(() => null);
+	
+					setSavedCardState(card, state);
+	
+					if (result) {
+						scoreState.set(getScoreKeyFromCard(card), {
+							topped: !!result.topped,
+							attempts: Math.max(0, parseIntSafe(result.attempts, state.attempts))
+						});
+						setSavedCardState(card, getCardState(card));
+					}
+	
+					if (saveStateEl) {
+						saveStateEl.textContent = "Saved";
+						saveStateEl.classList.remove("is-error", "is-warning");
+						saveStateEl.classList.add("is-success");
+					}
+	
+					if (result && typeof result.points === "number") {
+						const currentPointsEl = card.querySelector('[data-role="current-points"]');
+						if (currentPointsEl) currentPointsEl.textContent = String(result.points);
+					}
+	
+					updateCardUI(card);
+					validateCard(card);
+					recomputeSectionProgress();
+					recomputeTotalPoints();
+				} catch (err) {
+					if (saveStateEl) {
+						saveStateEl.textContent = "Save failed";
+						saveStateEl.classList.remove("is-success", "is-warning");
+						saveStateEl.classList.add("is-error");
+					}
+					console.error("Failed to save score", err);
+				} finally {
+					if (saveBtn) {
+						saveBtn.disabled = false;
+						saveBtn.textContent = "Save score";
+						updateSaveButtonState(card);
+					}
 				}
 			}
-		}
-
-		buildColourCards();
-		applyAllFilters();
-		loadProgress();
-
-		window.addEventListener("resize", () => {
-			rerunMarkerSeparationAfterZoom();
-		}, { passive: true });
-	})();
+	
+			buildColourCards();
+			applyAllFilters();
+			loadProgress();
+	
+			window.addEventListener("resize", () => {
+				rerunMarkerSeparationAfterZoom();
+			}, { passive: true });
+		})();
 	</script>
 </body>
 </html>
