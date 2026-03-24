@@ -8,8 +8,12 @@ from flask import (
     render_template,
     flash,
     make_response,
+    abort,
 )
+import csv
+import io
 import time
+from collections import defaultdict
 
 from app.extensions import db
 from app.models import Competition, Competitor, Score, Section, SectionClimb
@@ -28,16 +32,136 @@ scores_bp = Blueprint("scores", __name__)
 DEFAULT_LB_PER_PAGE = 10
 
 
+def build_final_results_csv_rows(comp):
+    """
+    Fast final-results export that matches the intended singles scoring rule:
+
+    - topped climbs only
+    - fixed base_points from section_climb
+    - no attempt penalty in score
+    - top 8 topped climbs summed
+    - tie-break by lowest attempts on those top 8
+    - stable final tie-break by name asc
+
+    Exports one row per competitor:
+      category
+      position
+      total_competitors
+      competitor_name
+      competitor_email
+      score
+    """
+    TOP_N = 8
+
+    competitors = (
+        db.session.query(
+            Competitor.id,
+            Competitor.name,
+            Competitor.email,
+        )
+        .filter(Competitor.competition_id == comp.id)
+        .all()
+    )
+
+    if not competitors:
+        return []
+
+    competitor_ids = [c.id for c in competitors]
+
+    # Pull exact scoring config per saved score row
+    score_rows = (
+        db.session.query(
+            Score.competitor_id,
+            Score.climb_number,
+            Score.attempts,
+            Score.topped,
+            Score.updated_at,
+            SectionClimb.base_points,
+        )
+        .join(SectionClimb, SectionClimb.id == Score.section_climb_id)
+        .join(Section, Section.id == SectionClimb.section_id)
+        .filter(
+            Score.competitor_id.in_(competitor_ids),
+            Section.competition_id == comp.id,
+        )
+        .all()
+    )
+
+    by_competitor = defaultdict(list)
+    for s in score_rows:
+        by_competitor[s.competitor_id].append(s)
+
+    rows = []
+    for c in competitors:
+        scores = by_competitor.get(c.id, [])
+
+        topped_scored = []
+
+        for s in scores:
+            if not bool(s.topped):
+                continue
+
+            pts = int(s.base_points or 0)
+
+            topped_scored.append({
+                "climb_number": s.climb_number,
+                "points": pts,
+                "attempts": int(s.attempts or 0),
+            })
+
+        # Sort exactly like intended rule
+        topped_scored.sort(
+            key=lambda x: (-x["points"], x["attempts"], x.get("climb_number") or 0)
+        )
+
+        topN = topped_scored[:TOP_N]
+
+        total_points = sum(x["points"] for x in topN)
+        attempts_on_tops = sum(x["attempts"] for x in topN)
+
+        rows.append({
+            "competitor_id": c.id,
+            "competitor_name": c.name or "",
+            "competitor_email": c.email or "",
+            "score": total_points,
+            "attempts_on_tops": attempts_on_tops,
+        })
+
+    # Rank: score desc, attempts asc, name asc
+    rows.sort(
+        key=lambda r: (
+            -int(r["score"]),
+            int(r["attempts_on_tops"]),
+            (r["competitor_name"] or "").lower(),
+        )
+    )
+
+    total_competitors = len(rows)
+
+    output_rows = []
+    pos = 0
+    prev_key = None
+
+    for row in rows:
+        k = (row["score"], row["attempts_on_tops"])
+        if k != prev_key:
+            pos += 1
+        prev_key = k
+
+        output_rows.append({
+            "category": "All",
+            "position": pos,
+            "total_competitors": total_competitors,
+            "competitor_name": row["competitor_name"],
+            "competitor_email": row["competitor_email"],
+            "score": row["score"],
+        })
+
+    return output_rows
+
+
 @scores_bp.route("/my-scoring")
 def my_scoring_redirect():
-    """
-    Safe entry point for competitor scoring.
-
-    Priority:
-    1) If the logged-in competitor is attached to a competition -> go there.
-    2) Else, if the session has an active_comp_slug -> send them to that comp's join page.
-    3) Else -> back to /my-comps to pick a competition.
-    """
     viewer_id = session.get("competitor_id")
     if not viewer_id:
         return redirect("/")
@@ -47,48 +171,21 @@ def my_scoring_redirect():
         session.pop("competitor_id", None)
         return redirect("/")
 
-    # 1) If competitor already belongs to a comp, go straight to scoring
     if competitor.competition_id:
         comp = Competition.query.get(competitor.competition_id)
         if comp and comp.slug:
             session["active_comp_slug"] = comp.slug
             return redirect(f"/comp/{comp.slug}/competitor/{competitor.id}/sections")
 
-    # 2) No competition attached yet -> use selected comp from session if present
     slug = (session.get("active_comp_slug") or "").strip()
     if slug:
         return redirect(f"/comp/{slug}/join")
 
-    # 3) No context at all -> choose a comp
     return redirect("/my-comps")
 
 
 @scores_bp.route("/api/score", methods=["POST"])
 def api_save_score():
-    """
-    Save/upsert a score.
-
-    Preferred payload (new):
-      {
-        "competitor_id": 123,
-        "section_climb_id": 456,
-        "attempts": 2,
-        "topped": true,
-        "flashed": false
-      }
-
-    Legacy payload (still supported):
-      {
-        "competitor_id": 123,
-        "climb_number": 17,
-        "attempts": 2,
-        "topped": true
-      }
-
-    Why:
-    - DB uniqueness is (competitor_id, section_climb_id)
-    - climb_number alone can be ambiguous if the same number exists in multiple sections
-    """
     data = request.get_json(force=True, silent=True) or {}
 
     try:
@@ -245,13 +342,6 @@ def api_save_score():
 
 @scores_bp.route("/api/score/<int:competitor_id>")
 def api_get_scores(competitor_id):
-    """
-    Return all scores for this competitor.
-
-    IMPORTANT:
-    - Returns BOTH section_climb_id and climb_number so the UI can map correctly.
-    - Points are scoped to the competitor's competition.
-    """
     competitor = Competitor.query.get_or_404(competitor_id)
 
     scores = (
@@ -416,12 +506,6 @@ def leaderboard_by_category(category):
 
 @scores_bp.route("/leaderboard/comp/<int:comp_id>")
 def leaderboard_for_comp_id(comp_id):
-    """
-    Show leaderboard for a specific competition, without requiring the viewer
-    to be registered as a competitor.
-    - Admins can view even if not live.
-    - Non-admins only if the comp is live.
-    """
     comp = Competition.query.get_or_404(comp_id)
 
     is_admin = admin_can_manage_competition(comp)
@@ -521,3 +605,39 @@ def api_leaderboard():
     resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
     resp.headers["Pragma"] = "no-cache"
     return resp
+
+
+@scores_bp.route("/admin/competition/<slug>/export-final-results.csv")
+def export_final_results_csv(slug):
+    comp = Competition.query.filter_by(slug=slug).first_or_404()
+
+    if not admin_can_manage_competition(comp):
+        abort(403)
+
+    rows = build_final_results_csv_rows(comp)
+
+    fieldnames = [
+        "category",
+        "position",
+        "total_competitors",
+        "competitor_name",
+        "competitor_email",
+        "score",
+    ]
+
+    buffer = io.StringIO()
+    writer = csv.DictWriter(buffer, fieldnames=fieldnames)
+    writer.writeheader()
+
+    for row in rows:
+        writer.writerow(row)
+
+    csv_data = buffer.getvalue()
+    buffer.close()
+
+    response = make_response(csv_data)
+    response.headers["Content-Type"] = "text/csv; charset=utf-8"
+    response.headers["Content-Disposition"] = (
+        f'attachment; filename="{comp.slug}-final-results.csv"'
+    )
+    return response
