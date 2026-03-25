@@ -1,4 +1,5 @@
-from flask import Blueprint, render_template, redirect, session
+from flask import Blueprint, render_template, redirect, session, send_from_directory
+import os
 
 from app.models import Competitor
 
@@ -16,6 +17,22 @@ def index():
         return redirect("/my-comps")
 
     return render_template("auth_landing.html")
+
+
+@index_bp.route("/results")
+def results_page():
+    # index_bp.root_path is app/routes/ — go up one level to reach app/results/
+    results_dir = os.path.join(os.path.dirname(index_bp.root_path), "results")
+    print("DEBUG results_dir:", results_dir)
+    print("DEBUG files in dir:", os.listdir(results_dir) if os.path.exists(results_dir) else "DIRECTORY NOT FOUND")
+    return send_from_directory(results_dir, "results.html")
+
+
+@index_bp.route("/results/<path:filename>")
+def results_files(filename):
+    results_dir = os.path.join(os.path.dirname(index_bp.root_path), "results")
+    return send_from_directory(results_dir, filename)
+
 
 @index_bp.app_context_processor
 def inject_nav_context():

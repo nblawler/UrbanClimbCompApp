@@ -1,0 +1,416 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Results · Collingwood Classic</title>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+
+    :root{
+      --green:#5df4a2;
+      --bg-deep:#0a1628;
+      --bg-mid:#1a2942;
+    }
+
+    html{height:100%;overscroll-behavior-y:none}
+
+    body{
+      font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Oxygen,Ubuntu,Cantarell,sans-serif;
+      background:linear-gradient(135deg,var(--bg-deep) 0%,var(--bg-mid) 100%);
+      min-height:100vh;
+      display:flex;
+      flex-direction:column;
+      color:#fff;
+      overflow-x:hidden;
+    }
+
+    .nav{
+      padding:1.25rem 2rem;
+      display:flex;
+      gap:1.5rem;
+      align-items:center;
+      flex-wrap:wrap;
+    }
+    .nav-brand{
+      font-weight:900;
+      font-size:1.05rem;
+      background:linear-gradient(135deg,#fff 0%,var(--green) 100%);
+      -webkit-background-clip:text;
+      -webkit-text-fill-color:transparent;
+      background-clip:text;
+      letter-spacing:-.02em;
+    }
+
+    .container{
+      flex:1;
+      max-width:1100px;
+      margin:0 auto;
+      padding:2rem;
+      width:100%;
+    }
+
+    .page-title{
+      font-size:2.5rem;
+      font-weight:900;
+      margin-bottom:.5rem;
+      background:linear-gradient(135deg,#fff 0%,var(--green) 100%);
+      -webkit-background-clip:text;
+      -webkit-text-fill-color:transparent;
+      background-clip:text;
+      letter-spacing:-.02em;
+    }
+    .page-subtitle{
+      font-size:1rem;
+      color:rgba(255,255,255,.65);
+      margin-bottom:1.75rem;
+    }
+    .page-subtitle strong{color:var(--green)}
+
+    .category-tabs{
+      display:flex;
+      gap:.65rem;
+      flex-wrap:wrap;
+      margin-bottom:1.5rem;
+    }
+    .tab{
+      padding:.65rem 1.4rem;
+      border-radius:999px;
+      border:2px solid rgba(255,255,255,.2);
+      background:rgba(255,255,255,.05);
+      color:rgba(255,255,255,.85);
+      font-size:.9rem;
+      font-weight:800;
+      cursor:pointer;
+      transition:all .18s;
+      user-select:none;
+      -webkit-tap-highlight-color:transparent;
+    }
+    .tab:hover{background:rgba(255,255,255,.1);border-color:rgba(255,255,255,.38)}
+    .tab.active{
+      background:var(--green);
+      color:var(--bg-deep);
+      border-color:var(--green);
+      transform:translateY(-1px);
+      box-shadow:0 8px 20px rgba(93,244,162,.28);
+    }
+
+    .lb-wrap{
+      background:rgba(255,255,255,.05);
+      backdrop-filter:blur(10px);
+      border:1px solid rgba(255,255,255,.1);
+      border-radius:1.5rem;
+      overflow:hidden;
+      transition:opacity .15s;
+    }
+    .lb-wrap.loading{opacity:.7;pointer-events:none}
+
+    table{width:100%;border-collapse:collapse}
+
+    thead th{
+      text-align:left;
+      font-weight:800;
+      padding:1.1rem 1.4rem;
+      border-bottom:1px solid rgba(255,255,255,.1);
+      color:rgba(255,255,255,.6);
+      font-size:.82rem;
+      letter-spacing:.06em;
+      text-transform:uppercase;
+      background:rgba(255,255,255,.02);
+    }
+    thead th.c{text-align:center}
+
+    tbody td{
+      padding:1.1rem 1.4rem;
+      border-bottom:1px solid rgba(255,255,255,.05);
+      color:#fff;
+      font-size:.97rem;
+    }
+    tbody tr:last-child td{border-bottom:0}
+    tbody tr{transition:background .14s}
+    tbody tr:hover{background:rgba(255,255,255,.04)}
+
+    tbody tr.gold  {background:rgba(255,215,0,.08);border-left:4px solid #FFD700}
+    tbody tr.silver{background:rgba(192,192,192,.08);border-left:4px solid #C0C0C0}
+    tbody tr.bronze{background:rgba(205,127,50,.08);border-left:4px solid #CD7F32}
+
+    td.pos{font-weight:950;font-size:1.05rem;white-space:nowrap}
+    td.c{text-align:center}
+
+    .nm{font-weight:950;font-size:1rem}
+
+    .score-pill{
+      display:inline-block;
+      background:rgba(93,244,162,.12);
+      color:var(--green);
+      border:1px solid rgba(93,244,162,.3);
+      border-radius:999px;
+      padding:.18rem .75rem;
+      font-weight:900;
+      font-size:.88rem;
+      min-width:52px;
+      text-align:center;
+    }
+
+    .medal{margin-right:.3rem;font-size:1rem}
+
+    .state-row td{
+      padding:1.5rem 1.4rem;
+      opacity:.65;
+      font-weight:700;
+    }
+
+    .pagination{
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      gap:.75rem;
+      margin-top:1.25rem;
+      flex-wrap:wrap;
+    }
+    .page-btn{
+      border-radius:999px;
+      border:2px solid rgba(255,255,255,.18);
+      background:rgba(255,255,255,.06);
+      color:rgba(255,255,255,.92);
+      font-weight:900;
+      padding:.6rem 1.1rem;
+      cursor:pointer;
+      transition:all .15s;
+      user-select:none;
+      font-size:.9rem;
+    }
+    .page-btn:hover:not(:disabled){
+      background:rgba(255,255,255,.1);
+      border-color:rgba(255,255,255,.32);
+      transform:translateY(-1px);
+    }
+    .page-btn:disabled{opacity:.4;cursor:not-allowed}
+    .page-info{opacity:.8;font-weight:800;font-size:.9rem}
+
+    @media(max-width:640px){
+      .nav{padding:1rem}
+      .container{padding:1.25rem 1rem}
+      .page-title{font-size:1.9rem}
+      thead th,tbody td{padding:.9rem .75rem;font-size:.85rem}
+    }
+  </style>
+</head>
+<body>
+
+<nav class="nav">
+  <span class="nav-brand">Collingwood Classic — Final Results</span>
+</nav>
+
+<main class="container">
+
+  <header>
+    <h1 class="page-title">Final Results</h1>
+    <p class="page-subtitle">
+      Score = top 8 climbs &nbsp;·&nbsp; <strong id="total-label">Loading…</strong>
+    </p>
+  </header>
+
+  <div class="category-tabs" id="tabs">
+    <button class="tab active" data-cat="all">All</button>
+    <button class="tab" data-cat="male">Male</button>
+    <button class="tab" data-cat="female">Female</button>
+    <button class="tab" data-cat="inclusive">Inclusive</button>
+  </div>
+
+  <div class="lb-wrap" id="lb-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th style="width:60px">Pos</th>
+          <th>Name</th>
+          <th class="c">Score</th>
+        </tr>
+      </thead>
+      <tbody id="lb-body">
+        <tr class="state-row"><td colspan="3">Loading…</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="pagination" id="pagination" hidden>
+    <button class="page-btn" id="prev-btn">← Prev</button>
+    <span class="page-info" id="page-info"></span>
+    <button class="page-btn" id="next-btn">Next →</button>
+  </div>
+
+</main>
+
+<script>
+  // ─────────────────────────────────────────────────────────────────
+  //  CONFIG
+  //  CSV files must sit in the same folder as this HTML file.
+  //  Update these filenames if you rename or reorganise the files.
+  // ─────────────────────────────────────────────────────────────────
+  const CSV_FILES = {
+    all:       '/results/collingwood-classic-all-results.csv',
+    male:      '/results/collingwood-classic-male-results.csv',
+    female:    '/results/collingwood-classic-female-results.csv',
+    inclusive: '/results/collingwood-classic-inclusive-results.csv',
+  };
+
+  const PER_PAGE = 25;
+
+  // ─────────────────────────────────────────────────────────────────
+  //  STATE
+  // ─────────────────────────────────────────────────────────────────
+  const cache = {};
+  let currentCat  = 'all';
+  let currentPage = 1;
+  let currentTotalPages = 1;
+
+  // ─────────────────────────────────────────────────────────────────
+  //  CSV PARSER
+  // ─────────────────────────────────────────────────────────────────
+  function parseCSV(text) {
+    const lines = text.replace(/\r/g, '').split('\n').filter(l => l.trim());
+    if (lines.length < 2) return [];
+    const headers = lines[0].split(',').map(h => h.trim().toLowerCase().replace(/\s+/g, '_'));
+    return lines.slice(1).map(line => {
+      const vals = line.split(',').map(v => v.trim());
+      const row = {};
+      headers.forEach((h, i) => { row[h] = vals[i] ?? ''; });
+      return row;
+    });
+  }
+
+  // ─────────────────────────────────────────────────────────────────
+  //  FETCH + CACHE
+  // ─────────────────────────────────────────────────────────────────
+  async function loadCSV(cat) {
+    if (cache[cat]) return cache[cat];
+    const file = CSV_FILES[cat];
+    if (!file) return [];
+    const resp = await fetch(file);
+    if (!resp.ok) throw new Error(`Could not load ${file} (HTTP ${resp.status})`);
+    const rows = parseCSV(await resp.text());
+    cache[cat] = rows;
+    return rows;
+  }
+
+  // ─────────────────────────────────────────────────────────────────
+  //  HELPERS
+  // ─────────────────────────────────────────────────────────────────
+  function esc(v) {
+    return String(v ?? '')
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+      .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  const MEDALS = ['🥇','🥈','🥉'];
+
+  function podiumClass(pos) {
+    const p = parseInt(pos, 10);
+    if (p === 1) return 'gold';
+    if (p === 2) return 'silver';
+    if (p === 3) return 'bronze';
+    return '';
+  }
+
+  function medalHtml(pos) {
+    const p = parseInt(pos, 10);
+    return (p >= 1 && p <= 3) ? `<span class="medal">${MEDALS[p-1]}</span>` : '';
+  }
+
+  // ─────────────────────────────────────────────────────────────────
+  //  RENDER
+  // ─────────────────────────────────────────────────────────────────
+  function renderRows(rows, page) {
+    const tbody  = document.getElementById('lb-body');
+    const pager  = document.getElementById('pagination');
+    const prevBtn = document.getElementById('prev-btn');
+    const nextBtn = document.getElementById('next-btn');
+
+    if (!rows.length) {
+      tbody.innerHTML = `<tr class="state-row"><td colspan="3">No results available.</td></tr>`;
+      pager.hidden = true;
+      return;
+    }
+
+    const totalPages = Math.ceil(rows.length / PER_PAGE);
+    currentTotalPages = totalPages;
+
+    const start = (page - 1) * PER_PAGE;
+    const slice = rows.slice(start, start + PER_PAGE);
+
+    tbody.innerHTML = slice.map(r => `
+      <tr class="${podiumClass(r.position)}">
+        <td class="pos">${medalHtml(r.position)}${esc(r.position)}</td>
+        <td><span class="nm">${esc(r.competitor_name)}</span></td>
+        <td class="c"><span class="score-pill">${esc(r.score)}</span></td>
+      </tr>`
+    ).join('');
+
+    if (totalPages > 1) {
+      pager.hidden = false;
+      document.getElementById('page-info').textContent = `Page ${page} of ${totalPages}`;
+      prevBtn.disabled = page <= 1;
+      nextBtn.disabled = page >= totalPages;
+    } else {
+      pager.hidden = true;
+    }
+  }
+
+  function updateSubtitle(rows, cat) {
+    const label = { all:'All', male:'Male', female:'Female', inclusive:'Inclusive' }[cat] || cat;
+    const n = rows.length;
+    document.getElementById('total-label').textContent =
+      `${label} · ${n} competitor${n !== 1 ? 's' : ''}`;
+  }
+
+  // ─────────────────────────────────────────────────────────────────
+  //  LOAD + DISPLAY
+  // ─────────────────────────────────────────────────────────────────
+  async function show(cat, page) {
+    currentCat  = cat;
+    currentPage = page;
+
+    const wrap = document.getElementById('lb-wrap');
+    wrap.classList.add('loading');
+    document.getElementById('lb-body').innerHTML =
+      `<tr class="state-row"><td colspan="3">Loading…</td></tr>`;
+    document.getElementById('pagination').hidden = true;
+
+    try {
+      const rows = await loadCSV(cat);
+      renderRows(rows, page);
+      updateSubtitle(rows, cat);
+    } catch (e) {
+      document.getElementById('lb-body').innerHTML =
+        `<tr class="state-row"><td colspan="3">Error: ${esc(e.message)}</td></tr>`;
+      document.getElementById('total-label').textContent = '—';
+    } finally {
+      wrap.classList.remove('loading');
+    }
+  }
+
+  // ─────────────────────────────────────────────────────────────────
+  //  EVENTS
+  // ─────────────────────────────────────────────────────────────────
+  document.getElementById('tabs').addEventListener('click', e => {
+    const btn = e.target.closest('.tab');
+    if (!btn) return;
+    document.querySelectorAll('.tab').forEach(b => b.classList.toggle('active', b === btn));
+    show(btn.dataset.cat, 1);
+  });
+
+  document.getElementById('prev-btn').addEventListener('click', () => {
+    if (currentPage > 1) show(currentCat, currentPage - 1);
+  });
+
+  document.getElementById('next-btn').addEventListener('click', () => {
+    if (currentPage < currentTotalPages) show(currentCat, currentPage + 1);
+  });
+
+  // ─────────────────────────────────────────────────────────────────
+  //  INIT
+  // ─────────────────────────────────────────────────────────────────
+  show('all', 1);
+</script>
+</body>
+</html>

@@ -13,6 +13,7 @@ from flask import (
 import csv
 import io
 import time
+import zipfile
 from collections import defaultdict
 
 from app.extensions import db
@@ -32,33 +33,65 @@ scores_bp = Blueprint("scores", __name__)
 DEFAULT_LB_PER_PAGE = 10
 
 
-def build_final_results_csv_rows(comp):
+def _normalize_competitor_category(value):
+    s = (value or "").strip().lower()
+    s = s.replace("_", " ").replace("-", " ")
+
+    if s in {"male", "man", "men", "m"}:
+        return "male"
+    if s in {"female", "woman", "women", "f"}:
+        return "female"
+    if s in {
+        "inclusive",
+        "gender inclusive",
+        "genderinclusive",
+        "open",
+        "non binary",
+        "non-binary",
+        "nb",
+    }:
+        return "inclusive"
+    if s in {"doubles", "double"}:
+        return "doubles"
+
+    return s
+
+
+def _get_competitor_category_key(competitor):
+    for attr in ("category", "registration_category", "division", "gender"):
+        if hasattr(competitor, attr):
+            raw = getattr(competitor, attr)
+            if raw:
+                return _normalize_competitor_category(raw)
+    return ""
+
+
+def _category_label(category):
+    if category == "all":
+        return "All"
+    if category == "male":
+        return "Male"
+    if category == "female":
+        return "Female"
+    if category == "inclusive":
+        return "Inclusive"
+    return category.title()
+
+
+def build_final_results_rows_all(comp):
     """
-    Fast final-results export that matches the intended singles scoring rule:
+    This is the WORKING score calculation logic:
 
     - topped climbs only
     - fixed base_points from section_climb
     - no attempt penalty in score
     - top 8 topped climbs summed
     - tie-break by lowest attempts on those top 8
-    - stable final tie-break by name asc
-
-    Exports one row per competitor:
-      category
-      position
-      total_competitors
-      competitor_name
-      competitor_email
-      score
     """
     TOP_N = 8
 
     competitors = (
-        db.session.query(
-            Competitor.id,
-            Competitor.name,
-            Competitor.email,
-        )
+        db.session.query(Competitor)
         .filter(Competitor.competition_id == comp.id)
         .all()
     )
@@ -68,14 +101,13 @@ def build_final_results_csv_rows(comp):
 
     competitor_ids = [c.id for c in competitors]
 
-    # Pull exact scoring config per saved score row
     score_rows = (
         db.session.query(
             Score.competitor_id,
             Score.climb_number,
             Score.attempts,
             Score.topped,
-            Score.updated_at,
+            Score.section_climb_id,
             SectionClimb.base_points,
         )
         .join(SectionClimb, SectionClimb.id == Score.section_climb_id)
@@ -94,7 +126,6 @@ def build_final_results_csv_rows(comp):
     rows = []
     for c in competitors:
         scores = by_competitor.get(c.id, [])
-
         topped_scored = []
 
         for s in scores:
@@ -109,7 +140,6 @@ def build_final_results_csv_rows(comp):
                 "attempts": int(s.attempts or 0),
             })
 
-        # Sort exactly like intended rule
         topped_scored.sort(
             key=lambda x: (-x["points"], x["attempts"], x.get("climb_number") or 0)
         )
@@ -122,12 +152,11 @@ def build_final_results_csv_rows(comp):
         rows.append({
             "competitor_id": c.id,
             "competitor_name": c.name or "",
-            "competitor_email": c.email or "",
+            "category_key": _get_competitor_category_key(c),
             "score": total_points,
             "attempts_on_tops": attempts_on_tops,
         })
 
-    # Rank: score desc, attempts asc, name asc
     rows.sort(
         key=lambda r: (
             -int(r["score"]),
@@ -136,28 +165,59 @@ def build_final_results_csv_rows(comp):
         )
     )
 
-    total_competitors = len(rows)
+    return rows
 
+
+def build_final_results_csv_rows_for_category(comp, category):
+    all_rows = build_final_results_rows_all(comp)
+
+    if category == "all":
+        filtered = all_rows
+    else:
+        filtered = [r for r in all_rows if r.get("category_key") == category]
+
+    total_competitors = len(filtered)
     output_rows = []
+
     pos = 0
     prev_key = None
 
-    for row in rows:
+    for row in filtered:
         k = (row["score"], row["attempts_on_tops"])
         if k != prev_key:
             pos += 1
         prev_key = k
 
         output_rows.append({
-            "category": "All",
+            "category": _category_label(category),
             "position": pos,
             "total_competitors": total_competitors,
             "competitor_name": row["competitor_name"],
-            "competitor_email": row["competitor_email"],
             "score": row["score"],
         })
 
     return output_rows
+
+
+def _rows_to_csv_string(rows):
+    fieldnames = [
+        "category",
+        "position",
+        "total_competitors",
+        "competitor_name",
+        "score",
+    ]
+
+    buffer = io.StringIO()
+    writer = csv.DictWriter(buffer, fieldnames=fieldnames)
+    writer.writeheader()
+
+    for row in rows:
+        writer.writerow(row)
+
+    csv_data = buffer.getvalue()
+    buffer.close()
+    return csv_data
 
 
 @scores_bp.route("/my-scoring")
@@ -607,37 +667,29 @@ def api_leaderboard():
     return resp
 
 
-@scores_bp.route("/admin/competition/<slug>/export-final-results.csv")
-def export_final_results_csv(slug):
+@scores_bp.route("/admin/competition/<slug>/export-final-results.zip")
+def export_final_results_zip(slug):
     comp = Competition.query.filter_by(slug=slug).first_or_404()
 
     if not admin_can_manage_competition(comp):
         abort(403)
 
-    rows = build_final_results_csv_rows(comp)
+    categories = ["all", "male", "female", "inclusive"]
 
-    fieldnames = [
-        "category",
-        "position",
-        "total_competitors",
-        "competitor_name",
-        "competitor_email",
-        "score",
-    ]
+    zip_buffer = io.BytesIO()
 
-    buffer = io.StringIO()
-    writer = csv.DictWriter(buffer, fieldnames=fieldnames)
-    writer.writeheader()
+    with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zf:
+        for category in categories:
+            rows = build_final_results_csv_rows_for_category(comp, category)
+            csv_data = _rows_to_csv_string(rows)
+            filename = f"{comp.slug}-{category}-results.csv"
+            zf.writestr(filename, csv_data)
 
-    for row in rows:
-        writer.writerow(row)
+    zip_buffer.seek(0)
 
-    csv_data = buffer.getvalue()
-    buffer.close()
-
-    response = make_response(csv_data)
-    response.headers["Content-Type"] = "text/csv; charset=utf-8"
+    response = make_response(zip_buffer.getvalue())
+    response.headers["Content-Type"] = "application/zip"
     response.headers["Content-Disposition"] = (
-        f'attachment; filename="{comp.slug}-final-results.csv"'
+        f'attachment; filename="{comp.slug}-final-results-by-category.zip"'
     )
     return response
