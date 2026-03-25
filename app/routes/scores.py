@@ -75,6 +75,8 @@ def _category_label(category):
         return "Female"
     if category == "inclusive":
         return "Inclusive"
+    if category == "doubles":
+        return "Doubles"
     return category.title()
 
 
@@ -199,14 +201,57 @@ def build_final_results_csv_rows_for_category(comp, category):
     return output_rows
 
 
-def _rows_to_csv_string(rows):
-    fieldnames = [
-        "category",
-        "position",
-        "total_competitors",
-        "competitor_name",
-        "score",
-    ]
+def build_export_rows_from_leaderboard(comp, category):
+    """
+    Use the existing build_leaderboard helper for export.
+
+    This is especially useful for doubles, since doubles logic already lives there.
+    """
+    rows, category_label = build_leaderboard(category, competition_id=comp.id)
+    rows = rows or []
+    total_competitors = len(rows)
+
+    output_rows = []
+
+    if category == "doubles":
+        for row in rows:
+            output_rows.append({
+                "category": category_label,
+                "position": row.get("position", ""),
+                "total_competitors": total_competitors,
+                "team_name": row.get("name", ""),
+                "score": row.get("total_points", 0),
+            })
+    else:
+        for row in rows:
+            output_rows.append({
+                "category": category_label,
+                "position": row.get("position", ""),
+                "total_competitors": total_competitors,
+                "competitor_name": row.get("name", ""),
+                "score": row.get("total_points", 0),
+            })
+
+    return output_rows
+
+
+def _rows_to_csv_string(rows, category="singles"):
+    if category == "doubles":
+        fieldnames = [
+            "category",
+            "position",
+            "total_competitors",
+            "team_name",
+            "score",
+        ]
+    else:
+        fieldnames = [
+            "category",
+            "position",
+            "total_competitors",
+            "competitor_name",
+            "score",
+        ]
 
     buffer = io.StringIO()
     writer = csv.DictWriter(buffer, fieldnames=fieldnames)
@@ -674,14 +719,14 @@ def export_final_results_zip(slug):
     if not admin_can_manage_competition(comp):
         abort(403)
 
-    categories = ["all", "male", "female", "inclusive"]
+    categories = ["all", "male", "female", "inclusive", "doubles"]
 
     zip_buffer = io.BytesIO()
 
     with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zf:
         for category in categories:
-            rows = build_final_results_csv_rows_for_category(comp, category)
-            csv_data = _rows_to_csv_string(rows)
+            rows = build_export_rows_from_leaderboard(comp, category)
+            csv_data = _rows_to_csv_string(rows, category)
             filename = f"{comp.slug}-{category}-results.csv"
             zf.writestr(filename, csv_data)
 
