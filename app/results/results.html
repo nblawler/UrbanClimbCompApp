@@ -207,7 +207,7 @@
   <header>
     <h1 class="page-title">Qualifier Results</h1>
     <p class="page-subtitle">
-      &nbsp;·&nbsp; <strong id="total-label">Loading…</strong>
+      &nbsp;&nbsp; <strong id="total-label">Loading…</strong>
     </p>
   </header>
 
@@ -216,6 +216,7 @@
     <button class="tab" data-cat="male">Male</button>
     <button class="tab" data-cat="female">Female</button>
     <button class="tab" data-cat="inclusive">Inclusive</button>
+    <button class="tab" data-cat="doubles">Doubles</button>
   </div>
 
   <div class="lb-wrap" id="lb-wrap">
@@ -252,6 +253,7 @@
     male:      '/results/collingwood-classic-male-results.csv',
     female:    '/results/collingwood-classic-female-results.csv',
     inclusive: '/results/collingwood-classic-inclusive-results.csv',
+    doubles:   '/results/collingwood-classic-doubles-results.csv',
   };
 
   const PER_PAGE = 25;
@@ -357,7 +359,7 @@
   }
 
   function updateSubtitle(rows, cat) {
-    const label = { all:'All', male:'Male', female:'Female', inclusive:'Inclusive' }[cat] || cat;
+    const label = { all:'All', male:'Male', female:'Female', inclusive:'Inclusive' , doubles:'Doubles'}[cat] || cat;
     const n = rows.length;
     document.getElementById('total-label').textContent =
       `${label} · ${n} competitor${n !== 1 ? 's' : ''}`;
