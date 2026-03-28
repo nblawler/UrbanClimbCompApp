@@ -13,72 +13,112 @@ from app.helpers.leaderboard_cache import invalidate_leaderboard_cache
 
 auth_bp = Blueprint("auth", __name__)
 
+
 @auth_bp.route("/signup", methods=["GET", "POST"])
 def signup():
     """
     App-level signup (ACCOUNT-based):
     - Collect name + email
-    - If account already exists, stop and tell them to log in
+    - If account already exists, send them to login instead (preserving comp context)
     - Otherwise create Account
     - Ensure a shell Competitor row exists for legacy linkage (competition_id=None)
     - Send a 6-digit code for verification
-    - Redirect to /login/verify
+    - Redirect to /login/verify while preserving slug/next
     """
     error = None
     message = None
     name = ""
     email = ""
 
+    slug = (request.args.get("slug") or "").strip()
+    current_comp = Competition.query.filter_by(slug=slug).first() if slug else None
+    if slug and not current_comp:
+        slug = ""
+        current_comp = None
+
+    if request.method == "GET":
+        next_url = (request.args.get("next") or "").strip()
+        if next_url:
+            session["login_next"] = next_url
+
     if request.method == "POST":
         name = (request.form.get("name") or "").strip()
         email = normalize_email(request.form.get("email"))
+
+        posted_slug = (request.form.get("slug") or "").strip()
+        if posted_slug:
+            slug = posted_slug
+            current_comp = Competition.query.filter_by(slug=slug).first()
+            if not current_comp:
+                slug = ""
+                current_comp = None
+
+        posted_next = (request.form.get("next") or "").strip()
+        if posted_next:
+            session["login_next"] = posted_next
 
         if not name:
             error = "Please enter your name."
         elif not email:
             error = "Please enter your email."
         else:
-            # Check whether account already exists
             existing_acct = Account.query.filter_by(email=email).first()
             if existing_acct:
-                error = f"You already have an account with email address {email}. Please log in instead."
-            else:
-                # 1) Create new Account
-                acct = Account(email=email)
-                db.session.add(acct)
-                db.session.commit()
+                if current_comp and current_comp.slug:
+                    session["active_comp_slug"] = current_comp.slug
+                    next_url = session.get("login_next")
+                    if next_url:
+                        return redirect(f"/login?slug={current_comp.slug}&next={quote(next_url)}")
+                    return redirect(f"/login?slug={current_comp.slug}")
 
-                # 2) Ensure a shell competitor exists for this account (legacy competitor_id)
-                shell = Competitor(
-                    name=name or "Account",
-                    gender="Inclusive",
-                    email=acct.email,   # legacy copy
-                    competition_id=None,
-                    account_id=acct.id,
-                )
-                db.session.add(shell)
-                db.session.commit()
+                next_url = session.get("login_next")
+                if next_url:
+                    return redirect(f"/login?next={quote(next_url)}")
+                return redirect("/login")
 
-                # 3) Send a login/verification code (tied to ACCOUNT)
-                code = f"{secrets.randbelow(1_000_000):06d}"
-                now = datetime.utcnow()
+            acct = Account(email=email)
+            db.session.add(acct)
+            db.session.commit()
 
-                login_code = LoginCode(
-                    competitor_id=shell.id,   # legacy column
-                    account_id=acct.id,       # REAL identity
-                    code=code,
-                    created_at=now,
-                    expires_at=now + timedelta(minutes=10),
-                    used=False,
-                )
-                db.session.add(login_code)
-                db.session.commit()
+            shell = Competitor(
+                name=name or "Account",
+                gender="Inclusive",
+                email=acct.email,
+                competition_id=None,
+                account_id=acct.id,
+            )
+            db.session.add(shell)
+            db.session.commit()
 
-                send_login_code_via_email(email, code)
+            code = f"{secrets.randbelow(1_000_000):06d}"
+            now = datetime.utcnow()
 
-                session["login_email"] = email
-                message = "We emailed you a login code."
-                return redirect("/login/verify")
+            login_code = LoginCode(
+                competitor_id=shell.id,
+                account_id=acct.id,
+                code=code,
+                created_at=now,
+                expires_at=now + timedelta(minutes=10),
+                used=False,
+            )
+            db.session.add(login_code)
+            db.session.commit()
+
+            send_login_code_via_email(email, code)
+
+            session["login_email"] = email
+
+            if current_comp and current_comp.slug:
+                session["active_comp_slug"] = current_comp.slug
+                next_url = session.get("login_next")
+                if next_url:
+                    return redirect(f"/login/verify?slug={current_comp.slug}&next={quote(next_url)}")
+                return redirect(f"/login/verify?slug={current_comp.slug}")
+
+            next_url = session.get("login_next")
+            if next_url:
+                return redirect(f"/login/verify?next={quote(next_url)}")
+            return redirect("/login/verify")
 
     return render_template(
         "signup.html",
@@ -86,7 +126,10 @@ def signup():
         message=message,
         name=name,
         email=email,
+        slug=slug,
+        next=session.get("login_next", ""),
     )
+
 
 @auth_bp.route("/login", methods=["GET", "POST"])
 def login_request():
@@ -100,13 +143,11 @@ def login_request():
         slug = ""
         current_comp = None
 
-    # Capture "next" on entry (GET) and preserve in session through verify step
     if request.method == "GET":
         next_url = (request.args.get("next") or "").strip()
         if next_url:
             session["login_next"] = next_url
 
-    # If they came from nav (no slug), clear comp context
     if not slug:
         session.pop("active_comp_slug", None)
 
@@ -121,7 +162,6 @@ def login_request():
                 slug = ""
                 current_comp = None
 
-        # Also allow next to be carried via hidden input (optional, but safe)
         posted_next = (request.form.get("next") or "").strip()
         if posted_next:
             session["login_next"] = posted_next
@@ -129,7 +169,6 @@ def login_request():
         if not email:
             error = "Please enter your email."
         else:
-            # Must already exist as an account OR be an admin email (optional)
             acct = Account.query.filter_by(email=email).first()
             if not acct:
                 if is_admin_email(email):
@@ -141,7 +180,6 @@ def login_request():
                 code = f"{secrets.randbelow(1_000_000):06d}"
                 now = datetime.utcnow()
 
-                # We still need a competitor_id for legacy column (NOT used for auth)
                 comp_shell = (
                     Competitor.query
                     .filter(
@@ -164,8 +202,8 @@ def login_request():
                     db.session.commit()
 
                 login_code = LoginCode(
-                    competitor_id=comp_shell.id,   # legacy
-                    account_id=acct.id,            # REAL
+                    competitor_id=comp_shell.id,
+                    account_id=acct.id,
                     code=code,
                     created_at=now,
                     expires_at=now + timedelta(minutes=10),
@@ -178,7 +216,6 @@ def login_request():
 
                 session["login_email"] = email
 
-                # If comp context exists, keep it and pass next through to verify
                 next_url = session.get("login_next")
                 if current_comp and current_comp.slug:
                     session["active_comp_slug"] = current_comp.slug
@@ -197,12 +234,9 @@ def login_request():
         error=error,
         message=message,
         slug=slug,
-        # Optional: if you add a hidden field in the template, you can use this
         next=session.get("login_next", ""),
     )
 
-
-# --- Email login: verify code ---
 
 @auth_bp.route("/login/verify", methods=["GET", "POST"])
 def login_verify():
@@ -215,7 +249,6 @@ def login_verify():
         slug = ""
         current_comp = None
 
-    # Capture / preserve next (GET entry point)
     if request.method == "GET":
         next_qs = (request.args.get("next") or "").strip()
         if next_qs:
@@ -231,10 +264,6 @@ def login_verify():
         )
 
     def get_next_url_from_request() -> str:
-        """
-        Prefer explicit next passed through the form (POST),
-        else querystring (GET/POST), else session.
-        """
         if request.method == "POST":
             posted_next = (request.form.get("next") or "").strip()
             if posted_next:
@@ -245,9 +274,6 @@ def login_verify():
         return (session.get("login_next") or "").strip()
 
     def safe_redirect(url: str):
-        """
-        Only allow internal redirects. If url is blank or looks external, ignore it.
-        """
         if not url:
             return None
         u = url.strip()
@@ -269,7 +295,6 @@ def login_verify():
                 slug = ""
                 current_comp = None
 
-        # Keep next alive across POSTs
         next_url = get_next_url_from_request()
         if next_url:
             session["login_next"] = next_url
@@ -299,19 +324,15 @@ def login_verify():
                     login_code.used = True
                     db.session.commit()
 
-                    # Auth/session identity = ACCOUNT
                     session.pop("login_email", None)
                     session["competitor_email"] = acct.email
                     session["account_id"] = acct.id
 
-                    # Update admin flags off account-based GymAdmin
                     establish_gym_admin_session_for_email(acct.email)
 
-                    # If comp-scoped, keep it
                     if current_comp and current_comp.slug:
                         session["active_comp_slug"] = current_comp.slug
 
-                        # 1) JOIN FLOW FINALIZE (delayed registration)
                         if pending_join_matches(current_comp.slug):
                             name = (session.get("pending_join_name") or "").strip()
                             gender = (session.get("pending_join_gender") or "Inclusive").strip()
@@ -331,7 +352,7 @@ def login_verify():
                                 registered = Competitor(
                                     name=name,
                                     gender=gender,
-                                    email=acct.email,         # legacy copy
+                                    email=acct.email,
                                     competition_id=current_comp.id,
                                     account_id=acct.id,
                                 )
@@ -341,13 +362,11 @@ def login_verify():
 
                             session["competitor_id"] = registered.id
 
-                            # Clear pending join state
                             session.pop("pending_join_slug", None)
                             session.pop("pending_join_name", None)
                             session.pop("pending_join_gender", None)
                             session.pop("pending_comp_verify", None)
 
-                            # If next exists, honour it (common: /comp/<slug>/join or similar)
                             next_url = get_next_url_from_request()
                             r = safe_redirect(next_url)
                             if r:
@@ -357,7 +376,6 @@ def login_verify():
                             session.pop("login_next", None)
                             return redirect(f"/comp/{current_comp.slug}/competitor/{registered.id}/sections")
 
-                        # 2) Normal comp-scoped login:
                         registered = (
                             Competitor.query
                             .filter(
@@ -367,12 +385,10 @@ def login_verify():
                             .first()
                         )
 
-                        # If they have a competitor row, set it
                         if registered:
                             session["competitor_id"] = registered.id
                             session.pop("pending_comp_verify", None)
 
-                            # If next exists, honour it (but keep internal-only safety)
                             next_url = get_next_url_from_request()
                             r = safe_redirect(next_url)
                             if r:
@@ -382,8 +398,6 @@ def login_verify():
                             session.pop("login_next", None)
                             return redirect(f"/comp/{current_comp.slug}/competitor/{registered.id}/sections")
 
-                        # Otherwise: they must join
-                        # If next points to join, go there; else go to join anyway.
                         next_url = get_next_url_from_request()
                         if next_url == f"/comp/{current_comp.slug}/join":
                             session.pop("login_next", None)
@@ -392,7 +406,6 @@ def login_verify():
                         session.pop("login_next", None)
                         return redirect(f"/comp/{current_comp.slug}/join")
 
-                    # Non-comp scoped login: keep them logged in as account only.
                     shell = (
                         Competitor.query
                         .filter(
@@ -416,7 +429,6 @@ def login_verify():
                     session.pop("active_comp_slug", None)
                     session.pop("pending_comp_verify", None)
 
-                    # Honour next for non-comp flows too (e.g., returning to a page)
                     next_url = get_next_url_from_request()
                     r = safe_redirect(next_url)
                     if r:
@@ -430,7 +442,6 @@ def login_verify():
         if email and not message:
             message = "We've emailed you a 6-digit code. Enter it below to continue."
 
-    # Make sure template can carry next through as hidden field (optional but recommended)
     next_url = get_next_url_from_request()
 
     return render_template(
@@ -441,6 +452,7 @@ def login_verify():
         slug=slug,
         next=next_url,
     )
+
 
 @auth_bp.route("/register", methods=["GET", "POST"])
 def register_competitor():
@@ -453,7 +465,6 @@ def register_competitor():
     IMPORTANT:
     - This route is now ADMIN-ONLY to avoid bypassing the email verification flow.
     """
-    # Staff/admin only (prevents bypassing delayed verify flow)
     if not session.get("admin_ok"):
         return redirect("/admin")
 
@@ -476,7 +487,6 @@ def register_competitor():
         if gender not in ("Male", "Female", "Inclusive"):
             gender = "Inclusive"
 
-        # Prevent duplicate registration for this comp by email
         if email:
             existing = (
                 Competitor.query
@@ -506,7 +516,8 @@ def register_competitor():
         return render_template("register.html", error=None, competitor=comp)
 
     return render_template("register.html", error=None, competitor=None)
-    
+
+
 @auth_bp.route("/logout")
 def logout():
     for k in [
@@ -516,7 +527,7 @@ def logout():
         "admin_gym_ids",
         "admin_comp_id",
         "competitor_id",
-        "competitor_email",   
+        "competitor_email",
         "active_comp_slug",
         "login_next",
         "login_slug",
@@ -554,4 +565,3 @@ def public_register():
         return redirect("/my-comps")
 
     return redirect(f"/comp/{current_comp.slug}/join")
-

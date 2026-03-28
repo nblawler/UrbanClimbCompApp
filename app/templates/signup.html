@@ -79,6 +79,20 @@
 			margin: 0.35rem 0;
 		}
 
+		.hero .comp-info {
+			margin-top: 1rem;
+			padding: 0.75rem 1rem;
+			background: rgba(93, 244, 162, 0.1);
+			border: 1px solid rgba(93, 244, 162, 0.2);
+			border-radius: 0.75rem;
+			font-size: 0.95rem;
+			color: rgba(255, 255, 255, 0.9);
+		}
+
+		.hero .comp-info strong {
+			color: #5df4a2;
+		}
+
 		/* Form card */
 		.form-card {
 			width: 100%;
@@ -176,6 +190,16 @@
 			line-height: 1.5;
 		}
 
+		.hint a {
+			color: #5df4a2;
+			text-decoration: none;
+			font-weight: 700;
+		}
+
+		.hint a:hover {
+			text-decoration: underline;
+		}
+
 		@media (max-width: 768px) {
 			.nav { padding: 1rem; }
 			.container { padding: 1.5rem 1rem; }
@@ -187,16 +211,19 @@
 </head>
 
 <body>
+	{% set is_logged_in = session.get('account_id') %}
 	{% set viewer_id = session.get('competitor_id') %}
 	{% set is_admin = session.get('admin_ok', False) %}
+	{% set slug = slug if slug is defined else (request.args.get('slug') if request is defined else '') %}
+	{% set next = next if next is defined else (request.args.get('next') if request is defined else session.get('login_next', '')) %}
 
 	<nav class="nav">
-		<a class="active" href="{% if viewer_id or is_admin %}/my-comps{% else %}/{% endif %}">Home</a>
+		<a class="active" href="{% if is_logged_in or is_admin %}/my-comps{% else %}/{% endif %}">Home</a>
 
-		{% if viewer_id or is_admin %}
+		{% if is_logged_in or is_admin %}
 			<a href="/logout">Log out</a>
 		{% else %}
-			<a href="/login">Log in</a>
+			<a href="/login{% if slug or next %}?{% if slug %}slug={{ slug }}{% endif %}{% if slug and next %}&{% endif %}{% if next %}next={{ next|urlencode }}{% endif %}{% endif %}">Log in</a>
 		{% endif %}
 	</nav>
 
@@ -205,6 +232,12 @@
 			<h1>Sign up</h1>
 			<p>Create your account with your name and email.</p>
 			<p>We’ll email you a one-time 6-digit code to verify.</p>
+
+			{% if slug %}
+				<div class="comp-info">
+					You’re signing up to join <strong>{{ slug }}</strong>.
+				</div>
+			{% endif %}
 		</header>
 
 		{% if error %}
@@ -215,6 +248,9 @@
 		{% endif %}
 
 		<form method="post" class="form-card">
+			<input type="hidden" name="slug" value="{{ slug or '' }}" />
+			<input type="hidden" name="next" value="{{ next or '' }}" />
+
 			<div class="field">
 				<label for="name">Name</label>
 				<input
@@ -243,7 +279,8 @@
 		</form>
 
 		<p class="hint">
-			Already have an account? Use <a href="/login" style="color:#5df4a2; text-decoration:none; font-weight:700;">Log in</a>.
+			Already have an account?
+			<a href="/login{% if slug or next %}?{% if slug %}slug={{ slug }}{% endif %}{% if slug and next %}&{% endif %}{% if next %}next={{ next|urlencode }}{% endif %}{% endif %}">Log in</a>.
 		</p>
 	</main>
 </body>

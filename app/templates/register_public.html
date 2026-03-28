@@ -174,6 +174,16 @@
 			line-height: 1.5;
 		}
 
+		.hint a {
+			color: #5df4a2;
+			text-decoration: none;
+			font-weight: 700;
+		}
+
+		.hint a:hover {
+			text-decoration: underline;
+		}
+
 		@media (max-width: 768px) {
 			.nav { padding: 1rem; }
 			.container { padding: 1.5rem 1rem; }
@@ -186,6 +196,7 @@
 
 <body>
 	{% set slug = (comp.slug if comp is defined and comp and comp.slug) %}
+	{% set next = next if next is defined else (request.args.get('next') if request is defined else session.get('login_next', '')) %}
 	{% set viewer_id = session.get('competitor_id') %}
 	{% set is_admin = session.get('admin_ok', False) %}
 
@@ -195,7 +206,7 @@
 		{% if viewer_id or is_admin %}
 			<a href="/logout">Log out</a>
 		{% else %}
-			<a href="/login{% if slug %}?slug={{ slug }}{% endif %}">Log in</a>
+			<a href="/login{% if slug or next %}?{% if slug %}slug={{ slug }}{% endif %}{% if slug and next %}&{% endif %}{% if next %}next={{ next|urlencode }}{% endif %}{% endif %}">Log in</a>
 		{% endif %}
 	</nav>
 
@@ -216,6 +227,9 @@
 			{% endif %}
 
 			<form method="post" autocomplete="off">
+				<input type="hidden" name="slug" value="{{ slug or '' }}" />
+				<input type="hidden" name="next" value="{{ next or '' }}" />
+
 				<div class="field">
 					<label for="name">Your name</label>
 					<input
@@ -240,7 +254,9 @@
 			</form>
 
 			<p class="hint">
-				Already have an account? Use “Log in” and we’ll send your code.
+				Already have an account?
+				<a href="/login{% if slug or next %}?{% if slug %}slug={{ slug }}{% endif %}{% if slug and next %}&{% endif %}{% if next %}next={{ next|urlencode }}{% endif %}{% endif %}">Log in</a>
+				and we’ll send your code.
 			</p>
 		</section>
 	</main>
