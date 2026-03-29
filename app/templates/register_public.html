@@ -136,6 +136,19 @@
 			background: rgba(0, 0, 0, 0.3);
 		}
 
+		select:invalid {
+			color: rgba(255, 255, 255, 0.45);
+		}
+
+		option {
+			color: #fff;
+			background: #14233a;
+		}
+
+		option[value=""] {
+			color: rgba(255, 255, 255, 0.45);
+		}
+
 		.readonly-value {
 			width: 100%;
 			padding: 0.875rem 1rem;
@@ -243,13 +256,14 @@
 			{% else %}
 				<form method="post" autocomplete="off">
 					<div class="field">
-						<label>Your name</label>
+						<label>Name</label>
 						<div class="readonly-value">{{ account_name or "No saved name found" }}</div>
 					</div>
 
 					<div class="field">
 						<label for="gender">Category</label>
-						<select id="gender" name="gender">
+						<select id="gender" name="gender" required>
+							<option value="" disabled {% if not gender %}selected{% endif %}>Choose a category</option>
 							<option value="Inclusive" {% if gender == "Inclusive" %}selected{% endif %}>Gender Inclusive</option>
 							<option value="Female" {% if gender == "Female" %}selected{% endif %}>Female</option>
 							<option value="Male" {% if gender == "Male" %}selected{% endif %}>Male</option>
