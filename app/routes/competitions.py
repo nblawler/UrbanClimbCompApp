@@ -10,6 +10,7 @@ from app.models import Account, Competition, Competitor, Section, SectionClimb, 
 from app.helpers.admin import admin_can_manage_competition
 from app.helpers.climb import parse_boundary_points
 from app.helpers.competition import get_comp_or_404, comp_is_live, comp_is_finished
+from app.helpers.leaderboard_cache import invalidate_leaderboard_cache
 from app.helpers.date import utcnow
 from app.helpers.email import send_login_code_via_email
 from app.helpers.gym import get_gym_map_url_for_competition
@@ -1056,7 +1057,7 @@ def public_register_for_comp(slug):
             session.pop(k, None)
         return redirect("/my-comps")
 
-    # Must have an account_id in session
+    # Must be logged in at the ACCOUNT level
     account_id = session.get("account_id")
     if not account_id:
         session.pop("competitor_id", None)
@@ -1075,9 +1076,6 @@ def public_register_for_comp(slug):
         next_path = f"/comp/{comp.slug}/join"
         return redirect(f"/login?slug={comp.slug}&next={quote(next_path)}")
 
-    # Resolve account name:
-    # 1) use Account.name if your model has it and it is populated
-    # 2) otherwise fall back to the shell competitor name
     account_name = (getattr(acct, "name", None) or "").strip()
 
     if not account_name:
@@ -1093,7 +1091,6 @@ def public_register_for_comp(slug):
         if shell and shell.name:
             account_name = shell.name.strip()
 
-    # Check if this account is already registered for this comp
     existing_for_comp = (
         Competitor.query
         .filter(
@@ -1103,7 +1100,6 @@ def public_register_for_comp(slug):
         .first()
     )
 
-    # Already registered -> go score
     if existing_for_comp:
         session["competitor_id"] = existing_for_comp.id
         session["competitor_email"] = acct.email
@@ -1116,17 +1112,16 @@ def public_register_for_comp(slug):
 
     error = None
     message = None
-    gender = "Inclusive"
+    gender = ""
 
     if request.method == "POST":
-        gender = (request.form.get("gender") or "Inclusive").strip()
-        if gender not in ("Male", "Female", "Inclusive"):
-            gender = "Inclusive"
+        gender = (request.form.get("gender") or "").strip()
 
-        if not account_name:
-            error = "Your account doesn’t have a saved name yet. Please update the signup flow to store it, or add a fallback name."
+        if gender not in ("Male", "Female", "Inclusive"):
+            error = "Please choose a category."
+        elif not account_name:
+            error = "Your account doesn’t have a saved name yet."
         else:
-            # Safety check for double-submit / refresh weirdness
             existing_for_comp = (
                 Competitor.query
                 .filter(
