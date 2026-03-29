@@ -197,13 +197,13 @@
 <body>
 	{% set slug = (comp.slug if comp is defined and comp and comp.slug) %}
 	{% set next = next if next is defined else (request.args.get('next') if request is defined else session.get('login_next', '')) %}
-	{% set viewer_id = session.get('competitor_id') %}
+	{% set is_logged_in = session.get('account_id') %}
 	{% set is_admin = session.get('admin_ok', False) %}
 
 	<nav class="nav">
 		<a class="active" href="/my-comps">Home</a>
 
-		{% if viewer_id or is_admin %}
+		{% if is_logged_in or is_admin %}
 			<a href="/logout">Log out</a>
 		{% else %}
 			<a href="/login{% if slug or next %}?{% if slug %}slug={{ slug }}{% endif %}{% if slug and next %}&{% endif %}{% if next %}next={{ next|urlencode }}{% endif %}{% endif %}">Log in</a>
@@ -213,9 +213,11 @@
 	<main class="container">
 		<header class="hero">
 			<h1>Join the comp</h1>
-			<p>
-				Enter your name + category. We’ll email you a one-time code to confirm and jump you into scoring.
-			</p>
+			{% if is_logged_in %}
+				<p>Enter your details to join this competition.</p>
+			{% else %}
+				<p>You need to log in first before joining this competition.</p>
+			{% endif %}
 		</header>
 
 		<section class="form-card">
@@ -226,38 +228,44 @@
 				<div class="message">{{ message }}</div>
 			{% endif %}
 
-			<form method="post" autocomplete="off">
-				<input type="hidden" name="slug" value="{{ slug or '' }}" />
-				<input type="hidden" name="next" value="{{ next or '' }}" />
+			{% if not is_logged_in %}
+				<a class="btn" href="/login{% if slug %}?slug={{ slug }}&next={{ ('/comp/' ~ slug ~ '/join')|urlencode }}{% elif next %}?next={{ next|urlencode }}{% endif %}">
+					Log in to join
+				</a>
 
-				<div class="field">
-					<label for="name">Your name</label>
-					<input
-						id="name"
-						name="name"
-						type="text"
-						required
-						value="{{ name or '' }}"
-					/>
-				</div>
+				<p class="hint">
+					Need an account first?
+					<a href="/signup{% if slug %}?slug={{ slug }}&next={{ ('/comp/' ~ slug ~ '/join')|urlencode }}{% elif next %}?next={{ next|urlencode }}{% endif %}">Sign up</a>.
+				</p>
+			{% else %}
+				<form method="post" autocomplete="off">
+					<div class="field">
+						<label for="name">Your name</label>
+						<input
+							id="name"
+							name="name"
+							type="text"
+							required
+							value="{{ name or '' }}"
+						/>
+					</div>
 
-				<div class="field">
-					<label for="gender">Category</label>
-					<select id="gender" name="gender">
-						<option value="Inclusive" {% if gender == "Inclusive" %}selected{% endif %}>Gender Inclusive</option>
-						<option value="Female" {% if gender == "Female" %}selected{% endif %}>Female</option>
-						<option value="Male" {% if gender == "Male" %}selected{% endif %}>Male</option>
-					</select>
-				</div>
+					<div class="field">
+						<label for="gender">Category</label>
+						<select id="gender" name="gender">
+							<option value="Inclusive" {% if gender == "Inclusive" %}selected{% endif %}>Gender Inclusive</option>
+							<option value="Female" {% if gender == "Female" %}selected{% endif %}>Female</option>
+							<option value="Male" {% if gender == "Male" %}selected{% endif %}>Male</option>
+						</select>
+					</div>
 
-				<button type="submit" class="btn">Send me a code</button>
-			</form>
+					<button type="submit" class="btn">Join competition</button>
+				</form>
 
-			<p class="hint">
-				Already have an account?
-				<a href="/login{% if slug or next %}?{% if slug %}slug={{ slug }}{% endif %}{% if slug and next %}&{% endif %}{% if next %}next={{ next|urlencode }}{% endif %}{% endif %}">Log in</a>
-				and we’ll send your code.
-			</p>
+				<p class="hint">
+					Already logged in — no extra code needed.
+				</p>
+			{% endif %}
 		</section>
 	</main>
 </body>

@@ -1056,10 +1056,9 @@ def public_register_for_comp(slug):
             session.pop(k, None)
         return redirect("/my-comps")
 
-    # Must have an account_id in session (NOT competitor_id, NOT competitor_email)
+    # Must be logged in at the ACCOUNT level
     account_id = session.get("account_id")
     if not account_id:
-        # IMPORTANT: when not logged in, do NOT establish comp context in session
         session.pop("competitor_id", None)
         session.pop("active_comp_slug", None)
 
@@ -1067,10 +1066,9 @@ def public_register_for_comp(slug):
         next_path = f"/comp/{comp.slug}/join"
         return redirect(f"/login?slug={comp.slug}&next={quote(next_path)}")
 
-    # Fetch account (now safe)
+    # Resolve account from session
     acct = Account.query.get(account_id)
     if not acct:
-        # Session is stale/bad: clear and force login
         for k in ["account_id", "competitor_id", "competitor_email", "active_comp_slug"]:
             session.pop(k, None)
 
@@ -1078,7 +1076,7 @@ def public_register_for_comp(slug):
         next_path = f"/comp/{comp.slug}/join"
         return redirect(f"/login?slug={comp.slug}&next={quote(next_path)}")
 
-    # Check if this ACCOUNT is already registered for THIS comp
+    # Already registered for this competition?
     existing_for_comp = (
         Competitor.query
         .filter(
@@ -1088,107 +1086,83 @@ def public_register_for_comp(slug):
         .first()
     )
 
-    # If already registered -> establish comp context + competitor_id and go score
-    if existing_for_comp and request.method == "GET":
-        session["competitor_id"] = existing_for_comp.id
-        session["competitor_email"] = acct.email
-        session["active_comp_slug"] = comp.slug
-        session.pop("pending_comp_verify", None)
-        return redirect(f"/comp/{comp.slug}/competitor/{existing_for_comp.id}/sections")
-
-    # Not registered yet (GET): make sure there is NO sticky scoring context
-    if request.method == "GET" and not existing_for_comp:
-        session.pop("competitor_id", None)
-        session.pop("active_comp_slug", None)
-        # also clear any stale pending join state for a different comp
-        session.pop("pending_comp_verify", None)
-
-        return render_template(
-            "register_public.html",
-            comp=comp,
-            error=None,
-            name="",
-            gender="Inclusive",
-        )
-
-    # POST: attempt to register (this is where we *can* establish comp context)
-    name = (request.form.get("name") or "").strip()
-    gender = (request.form.get("gender") or "Inclusive").strip()
-    if gender not in ("Male", "Female", "Inclusive"):
-        gender = "Inclusive"
-
-    if not name:
-        return render_template(
-            "register_public.html",
-            comp=comp,
-            error="Please enter your name.",
-            name=name,
-            gender=gender,
-        )
-
-    # If already registered (POST) -> go score (and set context)
+    # If already registered, go straight to scoring
     if existing_for_comp:
         session["competitor_id"] = existing_for_comp.id
         session["competitor_email"] = acct.email
         session["active_comp_slug"] = comp.slug
         session.pop("pending_comp_verify", None)
+        session.pop("pending_join_slug", None)
+        session.pop("pending_join_name", None)
+        session.pop("pending_join_gender", None)
         return redirect(f"/comp/{comp.slug}/competitor/{existing_for_comp.id}/sections")
 
-    # Store pending join details (for delayed verify)
-    session["pending_join_slug"] = comp.slug
-    session["pending_join_name"] = name
-    session["pending_join_gender"] = gender
-    session["pending_comp_verify"] = comp.slug
+    error = None
+    message = None
+    name = ""
+    gender = "Inclusive"
 
-    session["login_email"] = acct.email
-    session["competitor_email"] = acct.email
+    if request.method == "POST":
+        name = (request.form.get("name") or "").strip()
+        gender = (request.form.get("gender") or "Inclusive").strip()
 
-    # IMPORTANT: we can set active_comp_slug during the verify flow
-    # because user is actively joining this comp now
-    session["active_comp_slug"] = comp.slug
+        if not name:
+            error = "Please enter your name."
+        else:
+            if gender not in ("Male", "Female", "Inclusive"):
+                gender = "Inclusive"
 
-    # Send code against ACCOUNT
-    code = f"{secrets.randbelow(1_000_000):06d}"
-    now = datetime.utcnow()
+            # Safety check again in case they double-submit / tab weirdness / race condition
+            existing_for_comp = (
+                Competitor.query
+                .filter(
+                    Competitor.account_id == acct.id,
+                    Competitor.competition_id == comp.id,
+                )
+                .first()
+            )
 
-    # Need a shell competitor_id for legacy LoginCode column
-    shell = (
-        Competitor.query
-        .filter(
-            Competitor.account_id == acct.id,
-            Competitor.competition_id.is_(None),
-        )
-        .order_by(Competitor.created_at.desc())
-        .first()
+            if existing_for_comp:
+                session["competitor_id"] = existing_for_comp.id
+                session["competitor_email"] = acct.email
+                session["active_comp_slug"] = comp.slug
+                session.pop("pending_comp_verify", None)
+                session.pop("pending_join_slug", None)
+                session.pop("pending_join_name", None)
+                session.pop("pending_join_gender", None)
+                return redirect(f"/comp/{comp.slug}/competitor/{existing_for_comp.id}/sections")
+
+            competitor = Competitor(
+                name=name,
+                gender=gender,
+                email=acct.email,   # legacy copy
+                competition_id=comp.id,
+                account_id=acct.id,
+            )
+            db.session.add(competitor)
+            db.session.commit()
+            invalidate_leaderboard_cache()
+
+            session["competitor_id"] = competitor.id
+            session["competitor_email"] = acct.email
+            session["active_comp_slug"] = comp.slug
+
+            # Old delayed-join session state is no longer needed
+            session.pop("pending_comp_verify", None)
+            session.pop("pending_join_slug", None)
+            session.pop("pending_join_name", None)
+            session.pop("pending_join_gender", None)
+
+            return redirect(f"/comp/{comp.slug}/competitor/{competitor.id}/sections")
+
+    return render_template(
+        "register_public.html",
+        comp=comp,
+        error=error,
+        message=message,
+        name=name,
+        gender=gender,
     )
-
-    if not shell:
-        shell = Competitor(
-            name="Account",
-            gender="Inclusive",
-            email=acct.email,
-            competition_id=None,
-            account_id=acct.id,
-        )
-        db.session.add(shell)
-        db.session.commit()
-
-    login_code = LoginCode(
-        competitor_id=shell.id,
-        account_id=acct.id,
-        code=code,
-        created_at=now,
-        expires_at=now + timedelta(minutes=10),
-        used=False,
-    )
-    db.session.add(login_code)
-    db.session.commit()
-
-    send_login_code_via_email(acct.email, code)
-
-    flash(f"We sent a 6-digit code to {acct.email}.", "success")
-    next_path = f"/comp/{comp.slug}/join"
-    return redirect(f"/login/verify?slug={comp.slug}&next={quote(next_path)}")
 
 
 @competitions_bp.route("/api/comp/<slug>/section-boundaries")
