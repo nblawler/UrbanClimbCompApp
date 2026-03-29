@@ -1056,7 +1056,7 @@ def public_register_for_comp(slug):
             session.pop(k, None)
         return redirect("/my-comps")
 
-    # Must be logged in at the ACCOUNT level
+    # Must have an account_id in session
     account_id = session.get("account_id")
     if not account_id:
         session.pop("competitor_id", None)
@@ -1066,7 +1066,6 @@ def public_register_for_comp(slug):
         next_path = f"/comp/{comp.slug}/join"
         return redirect(f"/login?slug={comp.slug}&next={quote(next_path)}")
 
-    # Resolve account from session
     acct = Account.query.get(account_id)
     if not acct:
         for k in ["account_id", "competitor_id", "competitor_email", "active_comp_slug"]:
@@ -1076,7 +1075,25 @@ def public_register_for_comp(slug):
         next_path = f"/comp/{comp.slug}/join"
         return redirect(f"/login?slug={comp.slug}&next={quote(next_path)}")
 
-    # Already registered for this competition?
+    # Resolve account name:
+    # 1) use Account.name if your model has it and it is populated
+    # 2) otherwise fall back to the shell competitor name
+    account_name = (getattr(acct, "name", None) or "").strip()
+
+    if not account_name:
+        shell = (
+            Competitor.query
+            .filter(
+                Competitor.account_id == acct.id,
+                Competitor.competition_id.is_(None),
+            )
+            .order_by(Competitor.created_at.desc())
+            .first()
+        )
+        if shell and shell.name:
+            account_name = shell.name.strip()
+
+    # Check if this account is already registered for this comp
     existing_for_comp = (
         Competitor.query
         .filter(
@@ -1086,7 +1103,7 @@ def public_register_for_comp(slug):
         .first()
     )
 
-    # If already registered, go straight to scoring
+    # Already registered -> go score
     if existing_for_comp:
         session["competitor_id"] = existing_for_comp.id
         session["competitor_email"] = acct.email
@@ -1099,20 +1116,17 @@ def public_register_for_comp(slug):
 
     error = None
     message = None
-    name = ""
     gender = "Inclusive"
 
     if request.method == "POST":
-        name = (request.form.get("name") or "").strip()
         gender = (request.form.get("gender") or "Inclusive").strip()
+        if gender not in ("Male", "Female", "Inclusive"):
+            gender = "Inclusive"
 
-        if not name:
-            error = "Please enter your name."
+        if not account_name:
+            error = "Your account doesn’t have a saved name yet. Please update the signup flow to store it, or add a fallback name."
         else:
-            if gender not in ("Male", "Female", "Inclusive"):
-                gender = "Inclusive"
-
-            # Safety check again in case they double-submit / tab weirdness / race condition
+            # Safety check for double-submit / refresh weirdness
             existing_for_comp = (
                 Competitor.query
                 .filter(
@@ -1133,9 +1147,9 @@ def public_register_for_comp(slug):
                 return redirect(f"/comp/{comp.slug}/competitor/{existing_for_comp.id}/sections")
 
             competitor = Competitor(
-                name=name,
+                name=account_name,
                 gender=gender,
-                email=acct.email,   # legacy copy
+                email=acct.email,
                 competition_id=comp.id,
                 account_id=acct.id,
             )
@@ -1147,7 +1161,6 @@ def public_register_for_comp(slug):
             session["competitor_email"] = acct.email
             session["active_comp_slug"] = comp.slug
 
-            # Old delayed-join session state is no longer needed
             session.pop("pending_comp_verify", None)
             session.pop("pending_join_slug", None)
             session.pop("pending_join_name", None)
@@ -1160,8 +1173,8 @@ def public_register_for_comp(slug):
         comp=comp,
         error=error,
         message=message,
-        name=name,
         gender=gender,
+        account_name=account_name,
     )
 
 

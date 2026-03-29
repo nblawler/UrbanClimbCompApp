@@ -13,14 +13,13 @@ from app.helpers.leaderboard_cache import invalidate_leaderboard_cache
 
 auth_bp = Blueprint("auth", __name__)
 
-
 @auth_bp.route("/signup", methods=["GET", "POST"])
 def signup():
     """
     App-level signup (ACCOUNT-based):
     - Collect name + email
     - If account already exists, send them to login instead (preserving comp context)
-    - Otherwise create Account
+    - Otherwise create Account with saved name
     - Ensure a shell Competitor row exists for legacy linkage (competition_id=None)
     - Send a 6-digit code for verification
     - Redirect to /login/verify while preserving slug/next
@@ -64,6 +63,11 @@ def signup():
         else:
             existing_acct = Account.query.filter_by(email=email).first()
             if existing_acct:
+                # Optional: backfill missing account name if they typed one and existing account has no name
+                if not getattr(existing_acct, "name", None):
+                    existing_acct.name = name
+                    db.session.commit()
+
                 if current_comp and current_comp.slug:
                     session["active_comp_slug"] = current_comp.slug
                     next_url = session.get("login_next")
@@ -76,12 +80,15 @@ def signup():
                     return redirect(f"/login?next={quote(next_url)}")
                 return redirect("/login")
 
-            acct = Account(email=email)
+            acct = Account(
+                name=name,
+                email=email,
+            )
             db.session.add(acct)
             db.session.commit()
 
             shell = Competitor(
-                name=name or "Account",
+                name=name,
                 gender="Inclusive",
                 email=acct.email,
                 competition_id=None,
@@ -129,7 +136,6 @@ def signup():
         slug=slug,
         next=session.get("login_next", ""),
     )
-
 
 @auth_bp.route("/login", methods=["GET", "POST"])
 def login_request():
