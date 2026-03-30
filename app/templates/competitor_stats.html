@@ -49,17 +49,11 @@
 </head>
 <body>
 	{% set viewer_id = viewer_id if viewer_id is defined else session.get('competitor_id') %}
-	{% set is_admin = session.get('admin_ok', False) %}
 	{% set comp_slug = comp_slug if comp_slug is defined else session.get('active_comp_slug') %}
 	{% set show_comp_nav = (viewer_id and comp_slug) %}
 
 	<nav class="nav">
-		<a href="{% if viewer_id or is_admin %}/my-comps{% else %}/{% endif %}"
-		   class="{% if nav_active == 'my_comps' %}active{% endif %}">Home</a>
-
-		{% if is_admin %}
-			<a href="/admin/comps" class="{% if nav_active == 'admin' %}active{% endif %}">Admin</a>
-		{% endif %}
+		<button type="button" class="menu-toggle" onclick="openSidebar()">☰ Menu</button>
 
 		{% if show_comp_nav %}
 			<a href="/comp/{{ comp_slug }}/competitor/{{ viewer_id }}/sections"
@@ -78,27 +72,25 @@
 					Climber Stats
 				</a>
 			{% endif %}
-		{% endif %}
 
-		<a href="/leaderboard{% if show_comp_nav %}?cid={{ viewer_id }}{% endif %}"
-		   class="{% if nav_active == 'leaderboard' %}active{% endif %}">
-			Leaderboard
-		</a>
+			<a href="/leaderboard?cid={{ viewer_id }}"
+			   class="{% if nav_active == 'leaderboard' %}active{% endif %}">
+				Leaderboard
+			</a>
 
-		<a href="/comp/{{ comp_slug }}/doubles"
-			class="{% if nav_active == 'doubles' %}active{% endif %}">
-			Doubles
-		</a>
-
-		{% if viewer_id or is_admin %}
-			<a href="/logout">Log out</a>
+			<a href="/comp/{{ comp_slug }}/doubles"
+			   class="{% if nav_active == 'doubles' %}active{% endif %}">
+				Doubles
+			</a>
 		{% else %}
-			<a href="/login{% if comp_slug %}?slug={{ comp_slug }}{% endif %}"
-			   class="{% if nav_active == 'login' %}active{% endif %}">
-				Log in
+			<a href="/leaderboard"
+			   class="{% if nav_active == 'leaderboard' %}active{% endif %}">
+				Leaderboard
 			</a>
 		{% endif %}
 	</nav>
+
+	{% include "sidebar.html" %}
 
 	<main class="container">
 		{% if mode == "climber" %}

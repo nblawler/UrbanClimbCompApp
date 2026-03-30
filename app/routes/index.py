@@ -7,16 +7,7 @@ index_bp = Blueprint("index", __name__)
 
 @index_bp.route("/")
 def index():
-    """
-    First page of the app:
-    - If not logged in as a competitor/account, show signup/login landing.
-    - If logged in, go straight to Home (/my-comps).
-    """
-    viewer_id = session.get("competitor_id")
-    if viewer_id:
-        return redirect("/my-comps")
-
-    return render_template("auth_landing.html")
+    return redirect("/my-comps")
 
 
 @index_bp.route("/results")
