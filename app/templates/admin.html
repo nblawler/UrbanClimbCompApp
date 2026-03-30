@@ -223,8 +223,10 @@
 	<body>
 		<nav class="top-nav">
 			<div class="nav-links">
+				<a href="/">Home</a>
+		
 				<a class="active" href="/admin/comps">Admin</a>
-
+		
 				{% if current_comp %}
 					<a
 						class="{% if nav_active == 'leaderboard' %}active{% endif %}"
@@ -234,7 +236,7 @@
 						Leaderboard
 					</a>
 				{% endif %}
-
+		
 				<a href="/logout">Log out</a>
 			</div>
 		</nav>
