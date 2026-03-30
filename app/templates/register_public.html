@@ -1,213 +1,11 @@
+<!-- register_public.html -->
 <!doctype html>
 <html lang="en">
 <head>
 	<meta charset="utf-8" />
 	<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-	<title>Join the Comp · Urban Climb Comp</title>
+	<title>Join the Comp · Comp Circuit</title>
 	<link rel="stylesheet" href="/static/app.css" />
-
-	<style>
-		* { margin: 0; padding: 0; box-sizing: border-box; }
-
-		body {
-			font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-			background: linear-gradient(135deg, #0a1628 0%, #1a2942 100%);
-			min-height: 100vh;
-			display: flex;
-			flex-direction: column;
-			color: #fff;
-		}
-
-		.nav {
-			padding: 1.25rem 2rem;
-			display: flex;
-			gap: 1.5rem;
-			align-items: center;
-			flex-wrap: wrap;
-		}
-
-		.nav a {
-			color: rgba(255, 255, 255, 0.7);
-			text-decoration: none;
-			font-size: 0.95rem;
-			transition: color 0.2s;
-			font-weight: 600;
-		}
-
-		.nav a.active {
-			color: #5df4a2;
-			font-weight: 700;
-		}
-
-		.nav a:hover { color: #fff; }
-
-		.container {
-			flex: 1;
-			display: flex;
-			flex-direction: column;
-			align-items: center;
-			padding: 2rem;
-			max-width: 680px;
-			margin: 0 auto;
-			width: 100%;
-		}
-
-		.hero {
-			text-align: center;
-			margin: 2rem 0 1.75rem;
-			width: 100%;
-		}
-
-		.hero h1 {
-			font-size: 2.6rem;
-			font-weight: 900;
-			margin-bottom: 0.75rem;
-			background: linear-gradient(135deg, #fff 0%, #5df4a2 100%);
-			-webkit-background-clip: text;
-			-webkit-text-fill-color: transparent;
-			background-clip: text;
-			letter-spacing: -0.02em;
-		}
-
-		.hero p {
-			font-size: 1.05rem;
-			color: rgba(255, 255, 255, 0.75);
-			line-height: 1.6;
-			margin: 0.35rem 0;
-		}
-
-		.form-card {
-			width: 100%;
-			background: rgba(255, 255, 255, 0.05);
-			backdrop-filter: blur(10px);
-			border: 1px solid rgba(255, 255, 255, 0.1);
-			border-radius: 1.5rem;
-			padding: 2rem;
-		}
-
-		.error, .message {
-			width: 100%;
-			margin: 0 0 1rem 0;
-			padding: 1rem 1.25rem;
-			border-radius: 1rem;
-			border: 1px solid;
-		}
-
-		.error {
-			border-color: rgba(251, 113, 133, 0.4);
-			background: rgba(251, 113, 133, 0.12);
-			color: rgba(255, 255, 255, 0.95);
-		}
-
-		.message {
-			border-color: rgba(93, 244, 162, 0.4);
-			background: rgba(93, 244, 162, 0.12);
-			color: rgba(255, 255, 255, 0.95);
-		}
-
-		.field {
-			margin-top: 1rem;
-		}
-
-		label {
-			display: block;
-			margin: 0 0 0.5rem 0;
-			color: rgba(255, 255, 255, 0.85);
-			font-weight: 700;
-			font-size: 0.95rem;
-		}
-
-		input, select {
-			width: 100%;
-			padding: 0.875rem 1rem;
-			border-radius: 0.75rem;
-			border: 1px solid rgba(255, 255, 255, 0.15);
-			background: rgba(0, 0, 0, 0.2);
-			color: #fff;
-			outline: none;
-			font-size: 1rem;
-			transition: all 0.2s;
-			appearance: none;
-		}
-
-		input:focus, select:focus {
-			border-color: #5df4a2;
-			box-shadow: 0 0 0 3px rgba(93, 244, 162, 0.15);
-			background: rgba(0, 0, 0, 0.3);
-		}
-
-		select:invalid {
-			color: rgba(255, 255, 255, 0.45);
-		}
-
-		option {
-			color: #fff;
-			background: #14233a;
-		}
-
-		option[value=""] {
-			color: rgba(255, 255, 255, 0.45);
-		}
-
-		.readonly-value {
-			width: 100%;
-			padding: 0.875rem 1rem;
-			border-radius: 0.75rem;
-			border: 1px solid rgba(255, 255, 255, 0.15);
-			background: rgba(255, 255, 255, 0.07);
-			color: #fff;
-			font-size: 1rem;
-		}
-
-		.btn {
-			display: block;
-			width: 100%;
-			padding: 1rem 1.25rem;
-			background: #5df4a2;
-			color: #0a1628;
-			text-decoration: none;
-			border-radius: 0.85rem;
-			font-weight: 900;
-			font-size: 1rem;
-			text-align: center;
-			transition: all 0.2s;
-			border: none;
-			cursor: pointer;
-			margin-top: 1.5rem;
-		}
-
-		.btn:hover {
-			background: #4de392;
-			transform: scale(1.02);
-		}
-
-		.hint {
-			width: 100%;
-			text-align: center;
-			font-size: 0.9rem;
-			color: rgba(255, 255, 255, 0.6);
-			margin-top: 1rem;
-			line-height: 1.5;
-		}
-
-		.hint a {
-			color: #5df4a2;
-			text-decoration: none;
-			font-weight: 700;
-		}
-
-		.hint a:hover {
-			text-decoration: underline;
-		}
-
-		@media (max-width: 768px) {
-			.nav { padding: 1rem; }
-			.container { padding: 1.5rem 1rem; }
-			.hero h1 { font-size: 2.2rem; }
-			.hero p { font-size: 1rem; }
-			.form-card { padding: 1.5rem; }
-		}
-	</style>
 </head>
 
 <body>
@@ -226,9 +24,9 @@
 		{% endif %}
 	</nav>
 
-	<main class="container">
-		<header class="hero">
-			<h1>Join the comp</h1>
+	<main class="container container--centered" style="max-width:680px;">
+		<header class="hero" style="margin:2rem 0 1.75rem;">
+			<h1 style="font-size:2.6rem;">Join the comp</h1>
 			{% if is_logged_in %}
 				<p>Your account name will be used for this competition entry.</p>
 			{% else %}
@@ -236,7 +34,7 @@
 			{% endif %}
 		</header>
 
-		<section class="form-card">
+		<section class="card" style="width:100%;">
 			{% if error %}
 				<div class="error">{{ error }}</div>
 			{% endif %}
@@ -245,7 +43,7 @@
 			{% endif %}
 
 			{% if not is_logged_in %}
-				<a class="btn" href="/login{% if slug %}?slug={{ slug }}&next={{ ('/comp/' ~ slug ~ '/join')|urlencode }}{% elif next %}?next={{ next|urlencode }}{% endif %}">
+				<a class="btn btn--block" href="/login{% if slug %}?slug={{ slug }}&next={{ ('/comp/' ~ slug ~ '/join')|urlencode }}{% elif next %}?next={{ next|urlencode }}{% endif %}">
 					Log in to join
 				</a>
 
@@ -255,27 +53,25 @@
 				</p>
 			{% else %}
 				<form method="post" autocomplete="off">
-					<div class="field">
+					<div style="margin-top:1rem;">
 						<label>Name</label>
 						<div class="readonly-value">{{ account_name or "No saved name found" }}</div>
 					</div>
 
-					<div class="field">
+					<div style="margin-top:1rem;">
 						<label for="gender">Category</label>
 						<select id="gender" name="gender" required>
 							<option value="" disabled {% if not gender %}selected{% endif %}>Choose a category</option>
 							<option value="Inclusive" {% if gender == "Inclusive" %}selected{% endif %}>Gender Inclusive</option>
-							<option value="Female" {% if gender == "Female" %}selected{% endif %}>Female</option>
-							<option value="Male" {% if gender == "Male" %}selected{% endif %}>Male</option>
+							<option value="Female"    {% if gender == "Female"    %}selected{% endif %}>Female</option>
+							<option value="Male"      {% if gender == "Male"      %}selected{% endif %}>Male</option>
 						</select>
 					</div>
 
-					<button type="submit" class="btn">Join competition</button>
+					<button type="submit" class="btn btn--block" style="margin-top:1.5rem;">Join competition</button>
 				</form>
 
-				<p class="hint">
-					Already logged in — no extra code needed.
-				</p>
+				<p class="hint">Already logged in — no extra code needed.</p>
 			{% endif %}
 		</section>
 	</main>

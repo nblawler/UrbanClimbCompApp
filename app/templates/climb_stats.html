@@ -1,3 +1,4 @@
+<!-- climb_stats.html -->
 <!doctype html>
 <html lang="en">
 <head>
@@ -15,356 +16,6 @@
 		{% endif %}
 	</title>
 	<link rel="stylesheet" href="/static/app.css" />
-	<style>
-		* { margin: 0; padding: 0; box-sizing: border-box; }
-
-		:root {
-			--app-height: 100vh;
-			--safe-bottom: 16px;
-		}
-		@supports (height: 100dvh) {
-			:root { --app-height: 100dvh; }
-		}
-		@supports (height: -webkit-fill-available) {
-			:root { --app-height: -webkit-fill-available; }
-		}
-
-		html {
-			height: 100%;
-			overscroll-behavior-y: none;
-		}
-
-		body {
-			font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-			background: linear-gradient(135deg, #0a1628 0%, #1a2942 100%);
-			min-height: var(--app-height);
-			display: flex;
-			flex-direction: column;
-			color: #fff;
-			overflow-x: hidden;
-			-webkit-overflow-scrolling: touch;
-			overscroll-behavior-y: none;
-			touch-action: pan-y;
-		}
-
-		.nav {
-			padding: 1.25rem 2rem;
-			display: flex;
-			gap: 1.5rem;
-			align-items: center;
-			flex-wrap: wrap;
-		}
-
-		.nav a {
-			color: rgba(255, 255, 255, 0.7);
-			text-decoration: none;
-			font-size: 0.95rem;
-			transition: color 0.2s;
-			font-weight: 600;
-		}
-
-		.nav a.active {
-			color: #5df4a2;
-			font-weight: 800;
-		}
-
-		.nav a:hover { color: #fff; }
-
-		.nav a.disabled {
-			pointer-events: none;
-			cursor: default;
-			opacity: 0.6;
-		}
-
-		.container {
-			flex: 1;
-			max-width: 1000px;
-			margin: 0 auto;
-			padding: 2rem;
-			width: 100%;
-			padding-bottom: calc(2rem + env(safe-area-inset-bottom, 0px) + var(--safe-bottom));
-		}
-
-		.back-btn {
-			display: inline-block;
-			padding: 0.65rem 1.25rem;
-			background: rgba(255, 255, 255, 0.08);
-			border: 1px solid rgba(255, 255, 255, 0.15);
-			border-radius: 999px;
-			color: #fff;
-			text-decoration: none;
-			font-size: 0.9rem;
-			font-weight: 700;
-			margin-bottom: 1.5rem;
-			transition: all 0.2s;
-		}
-
-		.back-btn:hover {
-			background: rgba(255, 255, 255, 0.12);
-			transform: translateY(-1px);
-		}
-
-		.comp-header {
-			background: rgba(255, 255, 255, 0.05);
-			backdrop-filter: blur(10px);
-			border: 1px solid rgba(255, 255, 255, 0.1);
-			border-radius: 1.5rem;
-			padding: 2rem;
-			margin-bottom: 2rem;
-		}
-
-		.comp-name {
-			font-size: 2rem;
-			font-weight: 900;
-			margin-bottom: 1.25rem;
-			background: linear-gradient(135deg, #fff 0%, #5df4a2 100%);
-			-webkit-background-clip: text;
-			-webkit-text-fill-color: transparent;
-			background-clip: text;
-			letter-spacing: -0.02em;
-		}
-
-		.comp-meta-row {
-			display: flex;
-			gap: 1rem;
-			flex-wrap: wrap;
-		}
-
-		.comp-pill {
-			background: rgba(0, 0, 0, 0.2);
-			border: 1px solid rgba(255, 255, 255, 0.15);
-			border-radius: 0.85rem;
-			padding: 0.75rem 1.25rem;
-			display: flex;
-			flex-direction: column;
-			gap: 0.25rem;
-			min-width: 110px;
-		}
-
-		.comp-pill-label {
-			font-size: 0.75rem;
-			color: rgba(255, 255, 255, 0.6);
-			text-transform: uppercase;
-			letter-spacing: 0.05em;
-			font-weight: 800;
-		}
-
-		.comp-pill-value {
-			font-size: 1.5rem;
-			font-weight: 900;
-			color: #fff;
-		}
-
-		.stats-title {
-			font-size: 1.75rem;
-			font-weight: 900;
-			color: #fff;
-			margin-bottom: 1.5rem;
-		}
-
-		.stats-card {
-			background: rgba(255, 255, 255, 0.05);
-			backdrop-filter: blur(10px);
-			border: 1px solid rgba(255, 255, 255, 0.1);
-			border-radius: 1.5rem;
-			padding: 2rem;
-			margin-bottom: 1.5rem;
-		}
-
-		.stats-card h2 {
-			font-size: 1.5rem;
-			font-weight: 900;
-			color: #fff;
-			margin-bottom: 1rem;
-		}
-
-		.climb-colour-badge {
-			display: inline-flex;
-			align-items: center;
-			gap: 0.75rem;
-			padding: 0.75rem 1.25rem;
-			background: rgba(0, 0, 0, 0.2);
-			border: 1px solid rgba(255, 255, 255, 0.15);
-			border-radius: 1rem;
-			margin-bottom: 1.5rem;
-			flex-wrap: wrap;
-		}
-
-		.climb-colour-badge .badge-title {
-			font-weight: 800;
-			color: #fff;
-		}
-
-		.colour-label-pill {
-			display: inline-flex;
-			align-items: center;
-			gap: 0.6rem;
-			padding: 0.4rem 1rem;
-			border-radius: 999px;
-			font-size: 0.85rem;
-			font-weight: 900;
-			background: rgba(255, 255, 255, 0.08);
-			color: #fff;
-			border: 1px solid rgba(255, 255, 255, 0.14);
-		}
-
-		.colour-dot {
-			width: 16px;
-			height: 16px;
-			border-radius: 999px;
-			display: inline-block;
-			border: 1px solid rgba(255, 255, 255, 0.35);
-			box-shadow: 0 0 0 1px rgba(0,0,0,0.18) inset;
-			flex: 0 0 16px;
-			background: var(--climb-colour, #666);
-		}
-
-		.status-inline {
-			display: inline-block;
-			margin-left: 0.5rem;
-			padding: 0.25rem 0.75rem;
-			border-radius: 999px;
-			font-size: 0.8rem;
-			font-weight: 900;
-		}
-
-		.stats-table {
-			width: 100%;
-			border-collapse: collapse;
-			font-size: 0.95rem;
-		}
-
-		.stats-table th,
-		.stats-table td {
-			padding: 0.75rem 1rem;
-			text-align: left;
-			border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-		}
-
-		.stats-table th {
-			font-weight: 800;
-			color: rgba(255, 255, 255, 0.7);
-			text-transform: uppercase;
-			font-size: 0.85rem;
-			letter-spacing: 0.05em;
-		}
-
-		.stats-table td { color: #fff; }
-
-		.stats-table tbody tr:hover {
-			background: rgba(255, 255, 255, 0.03);
-		}
-
-		.overview-table td { text-align: right; }
-
-		.filter-controls {
-			display: flex;
-			align-items: center;
-			gap: 0.75rem;
-			margin-bottom: 1rem;
-			flex-wrap: wrap;
-		}
-
-		.filter-btn {
-			padding: 0.65rem 1.25rem;
-			border-radius: 999px;
-			border: 2px solid rgba(255, 255, 255, 0.2);
-			background: rgba(255, 255, 255, 0.05);
-			color: rgba(255, 255, 255, 0.85);
-			font-size: 0.9rem;
-			font-weight: 800;
-			cursor: pointer;
-			transition: all 0.2s;
-		}
-
-		.filter-btn:hover {
-			background: rgba(255, 255, 255, 0.1);
-			border-color: rgba(255, 255, 255, 0.4);
-		}
-
-		.filter-btn.active {
-			background: #5df4a2;
-			color: #0a1628;
-			border-color: #5df4a2;
-			box-shadow: 0 8px 16px rgba(93, 244, 162, 0.3);
-		}
-
-		.table-scroll {
-			max-height: 70vh;
-			overflow-y: auto;
-			border-radius: 1rem;
-			border: 1px solid rgba(255, 255, 255, 0.08);
-			-webkit-overflow-scrolling: touch;
-			overscroll-behavior: contain;
-		}
-
-		.pagination {
-			display: flex;
-			align-items: center;
-			justify-content: center;
-			gap: 0.75rem;
-			margin-top: 1.25rem;
-			flex-wrap: wrap;
-		}
-
-		.page-btn {
-			border-radius: 999px;
-			border: 2px solid rgba(255, 255, 255, 0.18);
-			background: rgba(255, 255, 255, 0.06);
-			color: rgba(255, 255, 255, 0.92);
-			font-weight: 900;
-			padding: 0.6rem 1rem;
-			cursor: pointer;
-			transition: transform 0.15s, background 0.15s, border-color 0.15s;
-			user-select: none;
-			-webkit-tap-highlight-color: transparent;
-		}
-
-		.page-btn:hover {
-			transform: translateY(-1px);
-			background: rgba(255, 255, 255, 0.10);
-			border-color: rgba(255, 255, 255, 0.32);
-		}
-
-		.page-btn:disabled {
-			opacity: 0.5;
-			cursor: not-allowed;
-			transform: none;
-		}
-
-		.page-info {
-			opacity: 0.85;
-			font-weight: 800;
-		}
-
-		@media (max-width: 768px) {
-			.nav { padding: 1rem; }
-
-			.container {
-				padding: 1.5rem 1rem;
-				padding-bottom: calc(1.5rem + env(safe-area-inset-bottom, 0px) + var(--safe-bottom));
-			}
-
-			.comp-header { padding: 1.5rem; }
-			.comp-name { font-size: 1.6rem; }
-			.stats-card { padding: 1.5rem; }
-			.stats-card h2 { font-size: 1.3rem; }
-
-			.pagination {
-				gap: 0.6rem;
-			}
-
-			.page-btn {
-				padding: 0.55rem 0.9rem;
-			}
-
-			.page-info {
-				width: 100%;
-				text-align: center;
-				order: -1;
-			}
-		}
-	</style>
 </head>
 
 <body>
@@ -409,7 +60,7 @@
 		<a href="/comp/{{ comp_slug }}/doubles"
 			class="{% if nav_active == 'doubles' %}active{% endif %}">
 			Doubles
-	 	</a>
+		</a>
 
 		{% if is_logged_in or is_admin %}
 			<a href="/logout">Log out</a>
@@ -421,7 +72,7 @@
 		{% endif %}
 	</nav>
 
-	<main class="container">
+	<main class="container" style="max-width:1000px;">
 		{% if view_from in ('climber', 'overall') and competitor %}
 			{% if view_from == 'climber' %}
 				<a href="/competitor/{{ competitor.id }}/stats/climber" class="back-btn">← Back to Climber Stats</a>
@@ -596,11 +247,8 @@
 										<td>{{ row.attempts }}</td>
 										<td>
 											{% if row.topped %}
-												{% if row.attempts == 1 %}
-													Flashed
-												{% else %}
-													Topped
-												{% endif %}
+												{% if row.attempts == 1 %}Flashed
+												{% else %}Topped{% endif %}
 											{% else %}
 												Not topped
 											{% endif %}
@@ -634,73 +282,53 @@
 			const rows = Array.from(document.querySelectorAll(".comp-row"));
 			if (!rows.length) return;
 
-			const btnPrev = document.getElementById("prev-page-btn");
-			const btnNext = document.getElementById("next-page-btn");
-			const btnTopped = document.getElementById("btn-topped");
+			const btnPrev    = document.getElementById("prev-page-btn");
+			const btnNext    = document.getElementById("next-page-btn");
+			const btnTopped  = document.getElementById("btn-topped");
 			const btnFlashed = document.getElementById("btn-flashed");
-			const summary = document.getElementById("competitor-summary");
-			const pageInfo = document.getElementById("page-info");
+			const summary    = document.getElementById("competitor-summary");
+			const pageInfo   = document.getElementById("page-info");
 			const pagination = document.getElementById("pagination");
 
-			let filterMode = "none";
+			let filterMode  = "none";
 			let currentPage = 1;
 
 			function rowMatchesFilter(row) {
 				const isTopped = row.dataset.topped === "1";
-				const isFlash = row.dataset.flash === "1";
-
+				const isFlash  = row.dataset.flash  === "1";
 				if (filterMode === "flashed") return isFlash;
-				if (filterMode === "topped") return isTopped;
+				if (filterMode === "topped")  return isTopped;
 				return true;
 			}
 
-			function getFilteredRows() {
-				return rows.filter(rowMatchesFilter);
-			}
+			function getFilteredRows() { return rows.filter(rowMatchesFilter); }
 
 			function applyState() {
-				const filteredRows = getFilteredRows();
+				const filteredRows  = getFilteredRows();
 				const totalFiltered = filteredRows.length;
-				const totalPages = Math.max(1, Math.ceil(totalFiltered / pageSize));
+				const totalPages    = Math.max(1, Math.ceil(totalFiltered / pageSize));
 
 				if (currentPage > totalPages) currentPage = totalPages;
-				if (currentPage < 1) currentPage = 1;
+				if (currentPage < 1)          currentPage = 1;
 
 				const startIndex = (currentPage - 1) * pageSize;
-				const endIndex = startIndex + pageSize;
+				const endIndex   = startIndex + pageSize;
 
-				rows.forEach((row) => {
-					row.style.display = "none";
-				});
+				rows.forEach(row => { row.style.display = "none"; });
+				filteredRows.slice(startIndex, endIndex).forEach(row => { row.style.display = ""; });
 
-				filteredRows.slice(startIndex, endIndex).forEach((row) => {
-					row.style.display = "";
-				});
-
-				if (btnPrev) {
-					btnPrev.disabled = currentPage <= 1;
-				}
-
-				if (btnNext) {
-					btnNext.disabled = currentPage >= totalPages;
-				}
-
-				if (pageInfo) {
-					pageInfo.textContent = `Page ${currentPage} of ${totalPages}`;
-				}
-
-				if (pagination) {
-					pagination.hidden = totalFiltered <= pageSize;
-				}
+				if (btnPrev)    btnPrev.disabled    = currentPage <= 1;
+				if (btnNext)    btnNext.disabled    = currentPage >= totalPages;
+				if (pageInfo)   pageInfo.textContent = `Page ${currentPage} of ${totalPages}`;
+				if (pagination) pagination.hidden    = totalFiltered <= pageSize;
 
 				if (summary) {
 					if (totalFiltered === 0) {
 						summary.textContent = "No competitors match this filter.";
 					} else {
 						const fromNum = startIndex + 1;
-						const toNum = Math.min(endIndex, totalFiltered);
-						summary.textContent =
-							`${totalFiltered} competitor${totalFiltered !== 1 ? "s" : ""} logged · Showing ${fromNum}–${toNum}`;
+						const toNum   = Math.min(endIndex, totalFiltered);
+						summary.textContent = `${totalFiltered} competitor${totalFiltered !== 1 ? "s" : ""} logged · Showing ${fromNum}–${toNum}`;
 					}
 				}
 			}
@@ -736,7 +364,7 @@
 			if (btnNext) {
 				btnNext.addEventListener("click", () => {
 					const totalFiltered = getFilteredRows().length;
-					const totalPages = Math.max(1, Math.ceil(totalFiltered / pageSize));
+					const totalPages    = Math.max(1, Math.ceil(totalFiltered / pageSize));
 					if (currentPage >= totalPages) return;
 					currentPage++;
 					applyState();

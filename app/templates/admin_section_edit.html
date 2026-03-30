@@ -4,381 +4,7 @@
 		<meta charset="utf-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 		<title>Edit section · Urban Climb Comp</title>
-
-		<style>
-			* { margin: 0; padding: 0; box-sizing: border-box; }
-
-			body {
-				font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-				background: linear-gradient(135deg, #0a1628 0%, #1a2942 100%);
-				min-height: 100vh;
-				display: flex;
-				flex-direction: column;
-				color: #fff;
-			}
-
-			/* Nav */
-			.nav {
-				padding: 1.25rem 2rem;
-				display: flex;
-				gap: 1.25rem;
-				align-items: center;
-				flex-wrap: wrap;
-			}
-
-			.nav a {
-				color: rgba(255, 255, 255, 0.7);
-				text-decoration: none;
-				font-size: 0.95rem;
-				transition: color 0.2s;
-				font-weight: 700;
-			}
-
-			.nav a.active { color: #5df4a2; }
-			.nav a:hover { color: #fff; }
-
-			/* Main container */
-			.container {
-				flex: 1;
-				display: flex;
-				flex-direction: column;
-				align-items: center;
-				padding: 2rem;
-				max-width: 1120px;
-				margin: 0 auto;
-				width: 100%;
-			}
-
-			/* Hero */
-			.hero {
-				text-align: center;
-				margin: 2rem 0 2rem;
-				width: 100%;
-			}
-
-			.hero h1 {
-				font-size: 2.75rem;
-				font-weight: 900;
-				background: linear-gradient(135deg, #fff 0%, #5df4a2 100%);
-				-webkit-background-clip: text;
-				-webkit-text-fill-color: transparent;
-				background-clip: text;
-				letter-spacing: -0.02em;
-				margin-bottom: 0.5rem;
-			}
-
-			/* Glass card */
-			.card {
-				background: rgba(255, 255, 255, 0.05);
-				backdrop-filter: blur(10px);
-				border: 1px solid rgba(255, 255, 255, 0.1);
-				border-radius: 1.5rem;
-				padding: 2rem;
-				width: 100%;
-				margin-bottom: 1.5rem;
-			}
-
-			.card h3 {
-				font-size: 1.05rem;
-				font-weight: 700;
-				margin-bottom: 0.5rem;
-				color: rgba(255,255,255,0.9);
-			}
-
-			.muted {
-				color: rgba(255, 255, 255, 0.6);
-				font-size: 0.95rem;
-				line-height: 1.5;
-			}
-
-			/* Alerts */
-			.alert {
-				border-radius: 0.85rem;
-				padding: 0.85rem 1.1rem;
-				margin-bottom: 1.25rem;
-				font-size: 0.95rem;
-				width: 100%;
-			}
-
-			.alert--error {
-				background: rgba(139, 30, 30, 0.3);
-				border: 1px solid rgba(220, 80, 80, 0.4);
-				color: #f88;
-			}
-
-			.alert--ok {
-				background: rgba(93, 244, 162, 0.1);
-				border: 1px solid rgba(93, 244, 162, 0.3);
-				color: #5df4a2;
-			}
-
-			/* Map preview */
-			.map-card {
-				overflow: hidden;
-			}
-
-			.map-preview-shell {
-				width: 100%;
-				border-radius: 1rem;
-				overflow: hidden;
-				background: rgba(255,255,255,0.04);
-				border: 1px solid rgba(255,255,255,0.08);
-			}
-
-			.map-preview-viewport {
-				position: relative;
-				width: 100%;
-				height: min(72vh, 680px);
-				overflow: hidden;
-				background:
-					radial-gradient(circle at top, rgba(255,255,255,0.06), transparent 48%),
-					rgba(255,255,255,0.03);
-			}
-
-			.map-preview-stage {
-				position: absolute;
-				top: 0;
-				left: 0;
-				transform-origin: top left;
-				will-change: transform;
-			}
-
-			.map-preview-image {
-				display: block;
-				width: 100%;
-				height: auto;
-				user-select: none;
-				-webkit-user-drag: none;
-				pointer-events: none;
-			}
-
-			.map-svg-overlay {
-				position: absolute;
-				inset: 0;
-				width: 100%;
-				height: 100%;
-				pointer-events: none;
-				overflow: visible;
-			}
-
-			.section-boundary {
-				fill: rgba(93, 244, 162, 0.14);
-				stroke: rgba(93, 244, 162, 0.95);
-				stroke-width: 3;
-			}
-
-			.section-boundary-outline {
-				fill: none;
-				stroke: rgba(10, 22, 40, 0.95);
-				stroke-width: 6;
-				opacity: 0.7;
-			}
-
-			.climb-dot-ring {
-				fill: rgba(10, 22, 40, 0.95);
-				stroke: rgba(255,255,255,0.75);
-				stroke-width: 1.5;
-			}
-
-			.climb-dot-core {
-				stroke: rgba(10, 22, 40, 0.95);
-				stroke-width: 1;
-			}
-
-			.climb-label {
-				font-size: 14px;
-				font-weight: 900;
-				fill: #fff;
-				text-anchor: middle;
-				dominant-baseline: central;
-				paint-order: stroke;
-				stroke: rgba(10, 22, 40, 0.95);
-				stroke-width: 3px;
-			}
-
-			.map-meta {
-				display: flex;
-				gap: 0.75rem;
-				flex-wrap: wrap;
-				margin-top: 0.9rem;
-			}
-
-			.map-chip {
-				padding: 0.5rem 0.8rem;
-				border-radius: 999px;
-				background: rgba(255,255,255,0.08);
-				border: 1px solid rgba(255,255,255,0.1);
-				color: rgba(255,255,255,0.85);
-				font-size: 0.85rem;
-				font-weight: 700;
-			}
-
-			.map-empty {
-				padding: 1rem 1.1rem;
-				border-radius: 0.9rem;
-				background: rgba(255,255,255,0.05);
-				border: 1px solid rgba(255,255,255,0.08);
-				color: rgba(255,255,255,0.75);
-				margin-top: 0.9rem;
-			}
-
-			/* Form elements */
-			label {
-				display: block;
-				font-size: 0.875rem;
-				font-weight: 600;
-				color: rgba(255,255,255,0.65);
-				margin-top: 1rem;
-				margin-bottom: 0.35rem;
-				text-transform: uppercase;
-				letter-spacing: 0.04em;
-			}
-
-			input[type="text"],
-			input[type="number"] {
-				width: 100%;
-				background: rgba(255,255,255,0.07);
-				border: 1px solid rgba(255,255,255,0.15);
-				border-radius: 0.65rem;
-				padding: 0.7rem 0.9rem;
-				color: #fff;
-				font-size: 1rem;
-				outline: none;
-				transition: border-color 0.2s, background 0.2s;
-			}
-
-			input::placeholder { color: rgba(255,255,255,0.3); }
-
-			input:focus {
-				border-color: rgba(93, 244, 162, 0.5);
-				background: rgba(255,255,255,0.09);
-			}
-
-			/* Buttons */
-			.btn {
-				display: inline-block;
-				padding: 0.8rem 1.25rem;
-				background: #5df4a2;
-				color: #0a1628;
-				border: none;
-				border-radius: 0.85rem;
-				font-weight: 900;
-				font-size: 0.95rem;
-				cursor: pointer;
-				transition: all 0.2s;
-				text-decoration: none;
-				white-space: nowrap;
-			}
-
-			.btn:hover { background: #4de392; transform: scale(1.02); }
-
-			.btn--danger {
-				background: rgba(220, 60, 60, 0.85);
-				color: #fff;
-			}
-
-			.btn--danger:hover { background: rgba(200, 40, 40, 0.9); }
-
-			.btn--ghost {
-				background: rgba(255,255,255,0.08);
-				color: rgba(255,255,255,0.9);
-				border: 1px solid rgba(255,255,255,0.12);
-			}
-
-			.btn--ghost:hover {
-				background: rgba(255,255,255,0.13);
-				border-color: rgba(255,255,255,0.2);
-				transform: translateY(-1px);
-			}
-
-			.btn--sm {
-				padding: 0.45rem 0.8rem;
-				font-size: 0.8rem;
-				border-radius: 0.55rem;
-			}
-
-			/* Divider */
-			hr {
-				border: none;
-				border-top: 1px solid rgba(255,255,255,0.08);
-				margin: 1.5rem 0;
-			}
-
-			/* Table */
-			.table-wrap { width: 100%; overflow-x: auto; }
-
-			table {
-				width: 100%;
-				min-width: 620px;
-				border-collapse: collapse;
-				font-size: 0.9rem;
-			}
-
-			thead th {
-				text-align: left;
-				padding: 0.6rem 0.75rem;
-				color: rgba(255,255,255,0.45);
-				font-size: 0.75rem;
-				font-weight: 700;
-				text-transform: uppercase;
-				letter-spacing: 0.06em;
-				border-bottom: 1px solid rgba(255,255,255,0.08);
-			}
-
-			tbody td {
-				padding: 0.75rem 0.75rem;
-				border-bottom: 1px solid rgba(255,255,255,0.05);
-				color: rgba(255,255,255,0.85);
-				vertical-align: middle;
-			}
-
-			tbody tr:last-child td { border-bottom: none; }
-
-			/* Inline edit UX */
-			.cell-display { display: inline; }
-			.cell-edit { display: none; }
-
-			tr.is-editing .cell-display { display: none; }
-			tr.is-editing .cell-edit { display: inline; }
-
-			.inline-input {
-				width: 100%;
-				min-width: 90px;
-				background: rgba(255,255,255,0.07);
-				border: 1px solid rgba(255,255,255,0.15);
-				border-radius: 0.55rem;
-				padding: 0.45rem 0.55rem;
-				color: #fff;
-				font-size: 0.9rem;
-				outline: none;
-			}
-
-			.inline-input:focus {
-				border-color: rgba(93, 244, 162, 0.5);
-			}
-
-			.row-actions {
-				display: flex;
-				gap: 0.5rem;
-				justify-content: flex-end;
-				align-items: center;
-				flex-wrap: wrap;
-			}
-
-			/* Only show save/cancel while editing */
-			.btn-save, .btn-cancel { display: none; }
-			tr.is-editing .btn-save,
-			tr.is-editing .btn-cancel { display: inline-block; }
-			tr.is-editing .btn-edit { display: none; }
-
-			@media (max-width: 600px) {
-				.nav { padding: 1rem; }
-				.container { padding: 1.25rem; }
-				.hero h1 { font-size: 2rem; }
-				.card { padding: 1.25rem; }
-				.map-preview-viewport { height: 52vh; }
-			}
-		</style>
+		<link rel="stylesheet" href="/static/app.css" />
 	</head>
 	<body>
 		<nav class="nav">
@@ -399,8 +25,8 @@
 			{% endif %}
 		</nav>
 
-		<main class="container">
-			<header class="hero">
+		<main class="container container--centered" style="max-width:1120px;">
+			<header class="hero" style="margin:2rem 0 2rem;">
 				<h1>Edit section</h1>
 			</header>
 
@@ -412,7 +38,7 @@
 				<div class="alert alert--ok">{{ message }}</div>
 			{% endif %}
 
-			<div class="card map-card">
+			<div class="card map-preview-shell" style="width:100%;">
 				<h3>Section map reference</h3>
 				<p class="muted">
 					Zoomed preview for <strong style="color:#fff;">{{ section.name }}</strong>
@@ -482,12 +108,12 @@
 					</div>
 				{% else %}
 					<div class="map-empty">
-						No gym map image is set for this competition yet, so there’s nothing to preview here.
+						No gym map image is set for this competition yet, so there's nothing to preview here.
 					</div>
 				{% endif %}
 			</div>
 
-			<div class="card">
+			<div class="card" style="width:100%;">
 				<p class="muted">
 					Editing Section <strong style="color:#fff;">{{ section.name }}</strong>
 					{% if current_comp is defined and current_comp and current_comp.name %}
@@ -608,13 +234,10 @@
 			function enterEdit(id) {
 				const row = document.getElementById("row-" + id);
 				if (!row) return;
-
 				document.querySelectorAll("tbody tr.is-editing").forEach((r) => {
 					if (r !== row) r.classList.remove("is-editing");
 				});
-
 				row.classList.add("is-editing");
-
 				const firstInput = row.querySelector(".cell-edit input");
 				if (firstInput) firstInput.focus();
 			}
@@ -622,11 +245,9 @@
 			function cancelEdit(id) {
 				const row = document.getElementById("row-" + id);
 				if (!row) return;
-
 				row.querySelectorAll(".cell-edit input").forEach((inp) => {
 					inp.value = inp.defaultValue;
 				});
-
 				row.classList.remove("is-editing");
 			}
 
@@ -645,67 +266,39 @@
 
 				function getAllPoints() {
 					const pts = [];
-
 					if (Array.isArray(boundary) && boundary.length) {
 						for (const p of boundary) {
-							if (p && typeof p.x === "number" && typeof p.y === "number") {
-								pts.push({ x: p.x, y: p.y });
-							}
+							if (p && typeof p.x === "number" && typeof p.y === "number") pts.push({ x: p.x, y: p.y });
 						}
 					}
-
 					if (Array.isArray(climbs) && climbs.length) {
 						for (const p of climbs) {
-							if (p && typeof p.x === "number" && typeof p.y === "number") {
-								pts.push({ x: p.x, y: p.y });
-							}
+							if (p && typeof p.x === "number" && typeof p.y === "number") pts.push({ x: p.x, y: p.y });
 						}
 					}
-
 					return pts;
 				}
 
 				function calcBounds() {
 					const pts = getAllPoints();
+					if (!pts.length) return { minX: 0, minY: 0, maxX: 100, maxY: 100, hasTarget: false };
 
-					if (!pts.length) {
-						return { minX: 0, minY: 0, maxX: 100, maxY: 100, hasTarget: false };
-					}
-
-					let minX = Infinity;
-					let minY = Infinity;
-					let maxX = -Infinity;
-					let maxY = -Infinity;
-
+					let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
 					for (const p of pts) {
-						minX = Math.min(minX, p.x);
-						minY = Math.min(minY, p.y);
-						maxX = Math.max(maxX, p.x);
-						maxY = Math.max(maxY, p.y);
+						minX = Math.min(minX, p.x); minY = Math.min(minY, p.y);
+						maxX = Math.max(maxX, p.x); maxY = Math.max(maxY, p.y);
 					}
 
 					const width = Math.max(8, maxX - minX);
 					const height = Math.max(8, maxY - minY);
-
 					const padX = Math.max(6, width * 0.18);
 					const padY = Math.max(6, height * 0.18);
 
-					minX = clamp(minX - padX, 0, 100);
-					minY = clamp(minY - padY, 0, 100);
-					maxX = clamp(maxX + padX, 0, 100);
-					maxY = clamp(maxY + padY, 0, 100);
+					minX = clamp(minX - padX, 0, 100); minY = clamp(minY - padY, 0, 100);
+					maxX = clamp(maxX + padX, 0, 100); maxY = clamp(maxY + padY, 0, 100);
 
-					if ((maxX - minX) < 12) {
-						const midX = (minX + maxX) / 2;
-						minX = clamp(midX - 6, 0, 100);
-						maxX = clamp(midX + 6, 0, 100);
-					}
-
-					if ((maxY - minY) < 12) {
-						const midY = (minY + maxY) / 2;
-						minY = clamp(midY - 6, 0, 100);
-						maxY = clamp(midY + 6, 0, 100);
-					}
+					if ((maxX - minX) < 12) { const midX = (minX + maxX) / 2; minX = clamp(midX - 6, 0, 100); maxX = clamp(midX + 6, 0, 100); }
+					if ((maxY - minY) < 12) { const midY = (minY + maxY) / 2; minY = clamp(midY - 6, 0, 100); maxY = clamp(midY + 6, 0, 100); }
 
 					return { minX, minY, maxX, maxY, hasTarget: true };
 				}
@@ -747,19 +340,13 @@
 					const scale = Math.min(viewportW / boxW, viewportH / boxH);
 					const scaledBoxW = boxW * scale;
 					const scaledBoxH = boxH * scale;
-
 					const offsetX = (viewportW - scaledBoxW) / 2 - (boxX * scale);
 					const offsetY = (viewportH - scaledBoxH) / 2 - (boxY * scale);
-
 					stage.style.transform = `translate(${offsetX}px, ${offsetY}px) scale(${scale})`;
 				}
 
-				if (image.complete) {
-					applyFit();
-				} else {
-					image.addEventListener("load", applyFit, { once: true });
-				}
-
+				if (image.complete) applyFit();
+				else image.addEventListener("load", applyFit, { once: true });
 				window.addEventListener("resize", applyFit);
 			}
 

@@ -1,398 +1,12 @@
+<!-- leaderboard.html -->
 <!doctype html>
 <html lang="en">
 <head>
 	<meta charset="utf-8" />
 	<meta name="viewport" content="width=device-width, initial-scale=1" />
-	<title>Leaderboard · Urban Climb Comp</title>
+	<title>Leaderboard · Comp Circuit</title>
 	<link rel="stylesheet" href="/static/app.css" />
-	<style>
-		* { margin: 0; padding: 0; box-sizing: border-box; }
-
-		:root{
-			--app-height: 100vh;
-			--safe-bottom: 16px;
-		}
-		@supports (height: 100dvh) {
-			:root{ --app-height: 100dvh; }
-		}
-		@supports (height: -webkit-fill-available) {
-			:root{ --app-height: -webkit-fill-available; }
-		}
-
-		html{
-			height: 100%;
-			overscroll-behavior-y: none;
-		}
-
-		body {
-			font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-			background: linear-gradient(135deg, #0a1628 0%, #1a2942 100%);
-			min-height: var(--app-height);
-			display: flex;
-			flex-direction: column;
-			color: #fff;
-			overflow-x: hidden;
-			-webkit-overflow-scrolling: touch;
-			overscroll-behavior-y: none;
-			touch-action: pan-y;
-		}
-
-		.nav {
-			padding: 1.25rem 2rem;
-			display: flex;
-			gap: 1.5rem;
-			align-items: center;
-			flex-wrap: wrap;
-		}
-
-		.nav a {
-			color: rgba(255, 255, 255, 0.7);
-			text-decoration: none;
-			font-size: 0.95rem;
-			transition: color 0.2s;
-			font-weight: 600;
-		}
-
-		.nav a.active { color: #5df4a2; font-weight: 800; }
-		.nav a:hover { color: #fff; }
-
-		.container {
-			flex: 1;
-			max-width: 1200px;
-			margin: 0 auto;
-			padding: 2rem;
-			width: 100%;
-			padding-bottom: calc(2rem + env(safe-area-inset-bottom, 0px) + var(--safe-bottom));
-		}
-
-		.page-header { margin-bottom: 2rem; }
-
-		.page-title {
-			font-size: 2.5rem;
-			font-weight: 900;
-			margin-bottom: 0.75rem;
-			background: linear-gradient(135deg, #fff 0%, #5df4a2 100%);
-			-webkit-background-clip: text;
-			-webkit-text-fill-color: transparent;
-			background-clip: text;
-			letter-spacing: -0.02em;
-		}
-
-		.page-subtitle {
-			font-size: 1.1rem;
-			color: rgba(255, 255, 255, 0.75);
-			margin-bottom: 1.5rem;
-		}
-
-		.page-subtitle span { color: #5df4a2; font-weight: 800; }
-
-		.category-tabs {
-			display: flex;
-			gap: 0.75rem;
-			flex-wrap: wrap;
-		}
-
-		.category-tab {
-			padding: 0.75rem 1.5rem;
-			border-radius: 999px;
-			border: 2px solid rgba(255, 255, 255, 0.2);
-			background: rgba(255, 255, 255, 0.05);
-			color: rgba(255, 255, 255, 0.85);
-			font-size: 0.95rem;
-			font-weight: 800;
-			transition: all 0.2s;
-			display: inline-flex;
-			align-items: center;
-			gap: 0.5rem;
-			cursor: pointer;
-			user-select: none;
-			-webkit-tap-highlight-color: transparent;
-		}
-
-		.category-tab:hover {
-			background: rgba(255, 255, 255, 0.1);
-			border-color: rgba(255, 255, 255, 0.4);
-			transform: translateY(-1px);
-		}
-
-		.category-tab.active {
-			background: #5df4a2;
-			color: #0a1628;
-			border-color: #5df4a2;
-			transform: translateY(-1px);
-			box-shadow: 0 10px 20px rgba(93, 244, 162, 0.3);
-		}
-
-		.category-tab:disabled {
-			opacity: 0.6;
-			cursor: not-allowed;
-			transform: none;
-		}
-
-		.loading-dot {
-			display: inline-block;
-			width: 8px;
-			height: 8px;
-			border-radius: 999px;
-			background: currentColor;
-			opacity: 0.85;
-			animation: pulse 1s infinite ease-in-out;
-		}
-		@keyframes pulse {
-			0%, 100% { transform: scale(0.85); opacity: 0.5; }
-			50% { transform: scale(1.05); opacity: 1; }
-		}
-
-		.leaderboard-wrapper {
-			background: rgba(255, 255, 255, 0.05);
-			backdrop-filter: blur(10px);
-			border: 1px solid rgba(255, 255, 255, 0.1);
-			border-radius: 1.5rem;
-			overflow: hidden;
-			transition: opacity .15s ease;
-		}
-		.leaderboard-wrapper.loading { opacity: 0.86; }
-
-		.leaderboard {
-			width: 100%;
-			border-collapse: collapse;
-		}
-
-		.leaderboard thead th {
-			text-align: left;
-			font-weight: 800;
-			padding: 1.25rem 1.5rem;
-			border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-			color: rgba(255, 255, 255, 0.7);
-			font-size: 0.9rem;
-			letter-spacing: 0.05em;
-			text-transform: uppercase;
-			background: rgba(255, 255, 255, 0.02);
-		}
-
-		.leaderboard tbody td {
-			padding: 1.25rem 1.5rem;
-			border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-			color: #fff;
-			font-size: 1rem;
-		}
-
-		.leaderboard tbody tr { transition: background 0.15s; }
-		.leaderboard tbody tr:hover { background: rgba(255, 255, 255, 0.05); }
-
-		#leaderboard-body tr.lb-main.podium-gold {
-			background: rgba(255, 215, 0, 0.08);
-			border-left: 4px solid #FFD700;
-		}
-		#leaderboard-body tr.lb-main.podium-silver {
-			background: rgba(192, 192, 192, 0.08);
-			border-left: 4px solid #C0C0C0;
-		}
-		#leaderboard-body tr.lb-main.podium-bronze {
-			background: rgba(205, 127, 50, 0.08);
-			border-left: 4px solid #CD7F32;
-		}
-
-		.leaderboard tbody td:first-child { font-weight: 950; font-size: 1.1rem; }
-
-		.leaderboard.singles th:nth-child(3),
-		.leaderboard.singles td:nth-child(3),
-		.leaderboard.singles th:nth-child(4),
-		.leaderboard.singles td:nth-child(4),
-		.leaderboard.singles th:nth-child(5),
-		.leaderboard.singles td:nth-child(5) { text-align: center; }
-
-		.leaderboard.doubles th:nth-child(3),
-		.leaderboard.doubles td:nth-child(3),
-		.leaderboard.doubles th:nth-child(4),
-		.leaderboard.doubles td:nth-child(4) { text-align: center; }
-
-		.name-cell { padding: 0 !important; }
-
-		.expander {
-			width: 100%;
-			background: transparent;
-			border: 0;
-			color: inherit;
-			text-align: left;
-			padding: 1.25rem 1.5rem;
-			display: flex;
-			align-items: center;
-			gap: 0.75rem;
-			cursor: pointer;
-			font: inherit;
-		}
-
-		.expander:focus-visible {
-			outline: 2px solid rgba(93, 244, 162, 0.85);
-			outline-offset: 2px;
-			border-radius: 0.75rem;
-		}
-
-		.chev {
-			display: inline-block;
-			transition: transform 160ms ease;
-			opacity: 0.9;
-			transform: translateY(-1px);
-		}
-		.expander.open .chev { transform: rotate(90deg) translateY(-1px); }
-
-		.nm {
-			font-weight: 950;
-			font-size: 1.05rem;
-		}
-
-		.name-stack {
-			display: flex;
-			flex-direction: column;
-			align-items: flex-start;
-			gap: 0.18rem;
-			min-width: 0;
-		}
-
-		.competitor-number {
-			font-size: 0.78rem;
-			font-weight: 800;
-			color: rgba(255, 255, 255, 0.58);
-			line-height: 1;
-		}
-
-		.lb-details td {
-			padding: 0 !important;
-			border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-		}
-		.details-wrap {
-			padding: 0.75rem 1.5rem 1.25rem 3.5rem;
-			background: rgba(255, 255, 255, 0.02);
-			border-top: 1px solid rgba(255, 255, 255, 0.06);
-		}
-		.details-loading {
-			opacity: 0.75;
-			font-weight: 700;
-			padding: 0.4rem 0;
-		}
-		.details-table {
-			width: 100%;
-			border-collapse: collapse;
-			margin-top: 0.5rem;
-		}
-		.details-table th {
-			text-align: left;
-			font-weight: 800;
-			color: rgba(255, 255, 255, 0.65);
-			font-size: 0.85rem;
-			letter-spacing: 0.05em;
-			text-transform: uppercase;
-			padding: 0.5rem 0;
-			border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-		}
-		.details-table td {
-			padding: 0.6rem 0;
-			border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-			font-size: 0.95rem;
-			color: rgba(255, 255, 255, 0.92);
-		}
-		.details-table tr:last-child td { border-bottom: 0; }
-
-		.details-table th:nth-child(2),
-		.details-table td:nth-child(2) { text-align: center; }
-
-		.details-table th:nth-child(3),
-		.details-table td:nth-child(3),
-		.details-table th:nth-child(4),
-		.details-table td:nth-child(4) { text-align: right; }
-
-		.team-members {
-			display: grid;
-			grid-template-columns: repeat(2, minmax(0, 1fr));
-			gap: 1rem;
-			margin-top: 0.5rem;
-		}
-
-		.member-card {
-			background: rgba(255, 255, 255, 0.03);
-			border: 1px solid rgba(255, 255, 255, 0.08);
-			border-radius: 1rem;
-			padding: 1rem;
-		}
-
-		.member-title {
-			font-weight: 900;
-			color: #5df4a2;
-			margin-bottom: 0.5rem;
-			font-size: 0.98rem;
-		}
-
-		.member-empty {
-			opacity: 0.75;
-			font-weight: 700;
-			padding-top: 0.25rem;
-		}
-
-		.pagination {
-			display: flex;
-			align-items: center;
-			justify-content: center;
-			gap: 0.75rem;
-			margin-top: 1.25rem;
-			flex-wrap: wrap;
-		}
-
-		.page-btn {
-			border-radius: 999px;
-			border: 2px solid rgba(255, 255, 255, 0.18);
-			background: rgba(255, 255, 255, 0.06);
-			color: rgba(255, 255, 255, 0.92);
-			font-weight: 900;
-			padding: 0.6rem 1rem;
-			cursor: pointer;
-			transition: transform 0.15s, background 0.15s, border-color 0.15s;
-			user-select: none;
-			-webkit-tap-highlight-color: transparent;
-		}
-
-		.page-btn:hover {
-			transform: translateY(-1px);
-			background: rgba(255, 255, 255, 0.10);
-			border-color: rgba(255, 255, 255, 0.32);
-		}
-
-		.page-btn:disabled {
-			opacity: 0.5;
-			cursor: not-allowed;
-			transform: none;
-		}
-
-		.page-info {
-			opacity: 0.85;
-			font-weight: 800;
-		}
-
-		@media (max-width: 768px) {
-			.nav { padding: 1rem; }
-			.container {
-				padding: 1.5rem 1rem;
-				padding-bottom: calc(1.5rem + env(safe-area-inset-bottom, 0px) + var(--safe-bottom));
-			}
-			.page-title { font-size: 2rem; }
-			.page-subtitle { font-size: 1rem; }
-
-			.leaderboard thead th,
-			.leaderboard tbody td {
-				padding: 1rem 0.75rem;
-				font-size: 0.9rem;
-			}
-
-			.details-wrap { padding: 0.65rem 0.75rem 1rem 1.5rem; }
-			.expander { padding: 1rem 0.75rem; }
-
-			.team-members {
-				grid-template-columns: 1fr;
-			}
-		}
-	</style>
 </head>
-
 <body>
 	{% set is_logged_in = session.get('account_id') %}
 	{% set viewer_id = session.get('competitor_id') %}
@@ -479,12 +93,9 @@
 						{% for r in leaderboard %}
 							{% set podium_class = '' %}
 							{% if current_page_server == 1 %}
-								{% if loop.index0 == 0 %}
-									{% set podium_class = ' podium-gold' %}
-								{% elif loop.index0 == 1 %}
-									{% set podium_class = ' podium-silver' %}
-								{% elif loop.index0 == 2 %}
-									{% set podium_class = ' podium-bronze' %}
+								{% if loop.index0 == 0 %}{% set podium_class = ' podium-gold' %}
+								{% elif loop.index0 == 1 %}{% set podium_class = ' podium-silver' %}
+								{% elif loop.index0 == 2 %}{% set podium_class = ' podium-bronze' %}
 								{% endif %}
 							{% endif %}
 							<tr class="lb-main{{ podium_class }}">
@@ -552,11 +163,8 @@
 
 			function escapeHtml(val) {
 				return String(val ?? "")
-					.replaceAll("&", "&amp;")
-					.replaceAll("<", "&lt;")
-					.replaceAll(">", "&gt;")
-					.replaceAll('"', "&quot;")
-					.replaceAll("'", "&#039;");
+					.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;")
+					.replaceAll('"', "&quot;").replaceAll("'", "&#039;");
 			}
 
 			function getPodiumClass(index, page) {
@@ -577,13 +185,11 @@
 					btn.disabled = isLoading;
 
 					if (isActive) {
-						const baseText = cat.label;
 						btn.innerHTML = isLoading
-							? `${escapeHtml(baseText)} <span class="loading-dot"></span>`
-							: escapeHtml(baseText);
+							? `${escapeHtml(cat.label)} <span class="loading-dot"></span>`
+							: escapeHtml(cat.label);
 					} else {
-						const original = catByKey.get(btn.dataset.cat)?.label || btn.dataset.cat;
-						btn.textContent = original;
+						btn.textContent = catByKey.get(btn.dataset.cat)?.label || btn.dataset.cat;
 					}
 				});
 
@@ -604,76 +210,46 @@
 			}
 
 			function detailsRowHtmlSingle(cid) {
-				return `
-					<tr class="lb-details" data-cid="${cid}" hidden>
-						<td colspan="5">
-							<div class="details-wrap">
-								<div class="details-loading">Loading…</div>
-								<table class="details-table" hidden>
-									<thead>
-										<tr>
-											<th>Climb</th>
-											<th>Attempts</th>
-											<th>Score</th>
-										</tr>
-									</thead>
-									<tbody></tbody>
-								</table>
-							</div>
-						</td>
-					</tr>
-				`;
+				return `<tr class="lb-details" data-cid="${cid}" hidden>
+					<td colspan="5"><div class="details-wrap">
+						<div class="details-loading">Loading…</div>
+						<table class="details-table" hidden>
+							<thead><tr><th>Climb</th><th>Attempts</th><th>Score</th></tr></thead>
+							<tbody></tbody>
+						</table>
+					</div></td></tr>`;
 			}
 
 			function detailsRowHtmlTeam(teamKey, aId, bId, aName, bName) {
-				return `
-					<tr class="lb-details" data-team-key="${teamKey}" data-a-id="${aId}" data-b-id="${bId}" hidden>
-						<td colspan="4">
-							<div class="details-wrap">
-								<div class="details-loading">Loading…</div>
-								<div class="team-members" hidden>
-									<div class="member-card">
-										<div class="member-title">${escapeHtml(aName)}</div>
-										<div class="member-empty" data-empty-a hidden>No contributing climbs found.</div>
-										<table class="details-table" data-table-a hidden>
-											<thead>
-												<tr>
-													<th>Climb</th>
-													<th>Attempts</th>
-													<th>Score</th>
-												</tr>
-											</thead>
-											<tbody data-body-a></tbody>
-										</table>
-									</div>
-									<div class="member-card">
-										<div class="member-title">${escapeHtml(bName)}</div>
-										<div class="member-empty" data-empty-b hidden>No contributing climbs found.</div>
-										<table class="details-table" data-table-b hidden>
-											<thead>
-												<tr>
-													<th>Climb</th>
-													<th>Attempts</th>
-													<th>Score</th>
-												</tr>
-											</thead>
-											<tbody data-body-b></tbody>
-										</table>
-									</div>
-								</div>
+				return `<tr class="lb-details" data-team-key="${teamKey}" data-a-id="${aId}" data-b-id="${bId}" hidden>
+					<td colspan="4"><div class="details-wrap">
+						<div class="details-loading">Loading…</div>
+						<div class="team-members" hidden>
+							<div class="member-card">
+								<div class="member-title">${escapeHtml(aName)}</div>
+								<div class="member-empty" data-empty-a hidden>No contributing climbs found.</div>
+								<table class="details-table" data-table-a hidden>
+									<thead><tr><th>Climb</th><th>Attempts</th><th>Score</th></tr></thead>
+									<tbody data-body-a></tbody>
+								</table>
 							</div>
-						</td>
-					</tr>
-				`;
+							<div class="member-card">
+								<div class="member-title">${escapeHtml(bName)}</div>
+								<div class="member-empty" data-empty-b hidden>No contributing climbs found.</div>
+								<table class="details-table" data-table-b hidden>
+									<thead><tr><th>Climb</th><th>Attempts</th><th>Score</th></tr></thead>
+									<tbody data-body-b></tbody>
+								</table>
+							</div>
+						</div>
+					</div></td></tr>`;
 			}
 
 			function renderRows(key, rows, page) {
 				const cat = catByKey.get(key) || catByKey.get("all");
 
 				if (!rows || !rows.length) {
-					bodyEl.innerHTML = `<tr><td colspan="${cat.isDoubles ? 4 : 5}" style="opacity:.75;">${
-						cat.isDoubles ? "No doubles teams yet." : "No competitors yet."
-					}</td></tr>`;
+					bodyEl.innerHTML = `<tr><td colspan="${cat.isDoubles ? 4 : 5}" style="opacity:.75;">${cat.isDoubles ? "No doubles teams yet." : "No competitors yet."}</td></tr>`;
 					return;
 				}
 
@@ -681,33 +257,24 @@
 					bodyEl.innerHTML = rows.map((r, idx) => {
 						const teamKey = `team-${r.team_id || `${r.a_id}-${r.b_id}`}`;
 						const podiumClass = getPodiumClass(idx, page);
-
-						return `
-							<tr class="lb-main${podiumClass}" data-team-key="${escapeHtml(teamKey)}">
-								<td>${escapeHtml(r.position)}</td>
-								<td class="name-cell">
-									<button class="expander" type="button"
-										data-team-key="${escapeHtml(teamKey)}"
-										data-a-id="${escapeHtml(r.a_id)}"
-										data-b-id="${escapeHtml(r.b_id)}"
-										data-a-name="${escapeHtml(r.a_name || '')}"
-										data-b-name="${escapeHtml(r.b_name || '')}"
-										aria-expanded="false">
-										<span class="chev" aria-hidden="true">▸</span>
-										<span class="nm">${escapeHtml(r.name)}</span>
-									</button>
-								</td>
-								<td>${escapeHtml(r.attempts_on_tops)}</td>
-								<td>${escapeHtml(r.total_points)}</td>
-							</tr>
-							${detailsRowHtmlTeam(
-								escapeHtml(teamKey),
-								escapeHtml(r.a_id),
-								escapeHtml(r.b_id),
-								r.a_name || "",
-								r.b_name || ""
-							)}
-						`;
+						return `<tr class="lb-main${podiumClass}" data-team-key="${escapeHtml(teamKey)}">
+							<td>${escapeHtml(r.position)}</td>
+							<td class="name-cell">
+								<button class="expander" type="button"
+									data-team-key="${escapeHtml(teamKey)}"
+									data-a-id="${escapeHtml(r.a_id)}"
+									data-b-id="${escapeHtml(r.b_id)}"
+									data-a-name="${escapeHtml(r.a_name || '')}"
+									data-b-name="${escapeHtml(r.b_name || '')}"
+									aria-expanded="false">
+									<span class="chev" aria-hidden="true">▸</span>
+									<span class="nm">${escapeHtml(r.name)}</span>
+								</button>
+							</td>
+							<td>${escapeHtml(r.attempts_on_tops)}</td>
+							<td>${escapeHtml(r.total_points)}</td>
+						</tr>
+						${detailsRowHtmlTeam(escapeHtml(teamKey), escapeHtml(r.a_id), escapeHtml(r.b_id), r.a_name || "", r.b_name || "")}`;
 					}).join("");
 					return;
 				}
@@ -718,35 +285,31 @@
 					const podiumClass = getPodiumClass(idx, page);
 
 					if (!hasCid) {
-						return `
-							<tr class="lb-main${podiumClass}">
-								<td>${escapeHtml(r.position)}</td>
-								<td>${escapeHtml(r.name)}</td>
-								<td>${escapeHtml(r.tops)}</td>
-								<td>${escapeHtml(r.attempts_on_tops)}</td>
-								<td>${escapeHtml(r.total_points)}</td>
-							</tr>
-						`;
-					}
-
-					return `
-						<tr class="lb-main${podiumClass}" data-cid="${escapeHtml(cid)}">
+						return `<tr class="lb-main${podiumClass}">
 							<td>${escapeHtml(r.position)}</td>
-							<td class="name-cell">
-								<button class="expander" type="button" data-cid="${escapeHtml(cid)}" aria-expanded="false">
-									<span class="chev" aria-hidden="true">▸</span>
-									<span class="name-stack">
-										<span class="nm">${escapeHtml(r.name)}</span>
-										<span class="competitor-number">#${escapeHtml(cid)}</span>
-									</span>
-								</button>
-							</td>
+							<td>${escapeHtml(r.name)}</td>
 							<td>${escapeHtml(r.tops)}</td>
 							<td>${escapeHtml(r.attempts_on_tops)}</td>
 							<td>${escapeHtml(r.total_points)}</td>
-						</tr>
-						${detailsRowHtmlSingle(escapeHtml(cid))}
-					`;
+						</tr>`;
+					}
+
+					return `<tr class="lb-main${podiumClass}" data-cid="${escapeHtml(cid)}">
+						<td>${escapeHtml(r.position)}</td>
+						<td class="name-cell">
+							<button class="expander" type="button" data-cid="${escapeHtml(cid)}" aria-expanded="false">
+								<span class="chev" aria-hidden="true">▸</span>
+								<span class="name-stack">
+									<span class="nm">${escapeHtml(r.name)}</span>
+									<span class="competitor-number">#${escapeHtml(cid)}</span>
+								</span>
+							</button>
+						</td>
+						<td>${escapeHtml(r.tops)}</td>
+						<td>${escapeHtml(r.attempts_on_tops)}</td>
+						<td>${escapeHtml(r.total_points)}</td>
+					</tr>
+					${detailsRowHtmlSingle(escapeHtml(cid))}`;
 				}).join("");
 			}
 
@@ -758,11 +321,9 @@
 			function setPager(page, totalPages) {
 				currentPage = page || 1;
 				currentTotalPages = totalPages || 1;
-
 				const show = currentTotalPages > 1;
 				pagerEl.hidden = !show;
 				if (!show) return;
-
 				infoEl.textContent = `Page ${currentPage} of ${currentTotalPages}`;
 				prevBtn.disabled = currentPage <= 1;
 				nextBtn.disabled = currentPage >= currentTotalPages;
@@ -782,7 +343,6 @@
 				const parts = (location.pathname || "").split("/").filter(Boolean);
 				const maybe = parts.length >= 2 ? parts[1] : "all";
 				const key = allowed.has(maybe) ? maybe : "all";
-
 				const sp = new URLSearchParams(location.search);
 				const page = parseInt(sp.get("page") || "1", 10);
 				return { key, page: (isNaN(page) || page < 1) ? 1 : page };
@@ -797,67 +357,38 @@
 			}
 
 			function renderClimbRows(climbs) {
-				return climbs.map(c => `
-					<tr>
-						<td>${escapeHtml(c.label)}</td>
-						<td>${escapeHtml(c.attempts)}</td>
-						<td>${escapeHtml(c.score)}</td>
-					</tr>
-				`).join("");
+				return climbs.map(c => `<tr><td>${escapeHtml(c.label)}</td><td>${escapeHtml(c.attempts)}</td><td>${escapeHtml(c.score)}</td></tr>`).join("");
 			}
 
 			async function fetchCompetitorDetails(cid) {
-				const resp = await fetch(`/api/leaderboard/details?competitor_id=${encodeURIComponent(cid)}`, {
-					method: "GET",
-					cache: "no-store",
-					headers: { "Accept": "application/json" },
-				});
+				const resp = await fetch(`/api/leaderboard/details?competitor_id=${encodeURIComponent(cid)}`, { method: "GET", cache: "no-store", headers: { "Accept": "application/json" } });
 				if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
 				return resp.json();
 			}
 
 			async function loadSingleDetails(cid) {
 				const detailsRow = document.querySelector(`.lb-details[data-cid="${CSS.escape(String(cid))}"]`);
-				if (!detailsRow) return;
-				if (detailsRow.dataset.loaded === "1") return;
+				if (!detailsRow || detailsRow.dataset.loaded === "1") return;
 
 				const loading = detailsRow.querySelector(".details-loading");
 				const table = detailsRow.querySelector(".details-table");
 				const tbody = detailsRow.querySelector("tbody");
 
-				loading.textContent = "Loading…";
-				loading.hidden = false;
-				table.hidden = true;
-				tbody.innerHTML = "";
+				loading.textContent = "Loading…"; loading.hidden = false; table.hidden = true; tbody.innerHTML = "";
 
 				try {
 					const data = await fetchCompetitorDetails(cid);
-
-					if (!data.ok) {
-						loading.textContent = data.error || "Could not load details";
-						return;
-					}
-
+					if (!data.ok) { loading.textContent = data.error || "Could not load details"; return; }
 					const climbs = data.climbs || [];
-					if (!climbs.length) {
-						loading.textContent = "No climbs found";
-						return;
-					}
-
+					if (!climbs.length) { loading.textContent = "No climbs found"; return; }
 					tbody.innerHTML = renderClimbRows(climbs);
-
-					loading.hidden = true;
-					table.hidden = false;
-					detailsRow.dataset.loaded = "1";
-				} catch (e) {
-					loading.textContent = "Error loading details";
-				}
+					loading.hidden = true; table.hidden = false; detailsRow.dataset.loaded = "1";
+				} catch (e) { loading.textContent = "Error loading details"; }
 			}
 
 			async function loadTeamDetails(teamKey, aId, bId) {
 				const detailsRow = document.querySelector(`.lb-details[data-team-key="${CSS.escape(String(teamKey))}"]`);
-				if (!detailsRow) return;
-				if (detailsRow.dataset.loaded === "1") return;
+				if (!detailsRow || detailsRow.dataset.loaded === "1") return;
 
 				const loading = detailsRow.querySelector(".details-loading");
 				const membersWrap = detailsRow.querySelector(".team-members");
@@ -868,71 +399,31 @@
 				const emptyA = detailsRow.querySelector("[data-empty-a]");
 				const emptyB = detailsRow.querySelector("[data-empty-b]");
 
-				loading.textContent = "Loading…";
-				loading.hidden = false;
-				membersWrap.hidden = true;
-
-				tableA.hidden = true;
-				tableB.hidden = true;
-				emptyA.hidden = true;
-				emptyB.hidden = true;
-				bodyA.innerHTML = "";
-				bodyB.innerHTML = "";
+				loading.textContent = "Loading…"; loading.hidden = false; membersWrap.hidden = true;
+				tableA.hidden = true; tableB.hidden = true; emptyA.hidden = true; emptyB.hidden = true;
+				bodyA.innerHTML = ""; bodyB.innerHTML = "";
 
 				try {
-					const [dataA, dataB] = await Promise.all([
-						fetchCompetitorDetails(aId),
-						fetchCompetitorDetails(bId),
-					]);
-
-					if (!dataA.ok || !dataB.ok) {
-						loading.textContent = (dataA.error || dataB.error || "Could not load team details");
-						return;
-					}
+					const [dataA, dataB] = await Promise.all([fetchCompetitorDetails(aId), fetchCompetitorDetails(bId)]);
+					if (!dataA.ok || !dataB.ok) { loading.textContent = dataA.error || dataB.error || "Could not load team details"; return; }
 
 					const climbsA = dataA.climbs || [];
 					const climbsB = dataB.climbs || [];
 
-					if (climbsA.length) {
-						bodyA.innerHTML = renderClimbRows(climbsA);
-						tableA.hidden = false;
-					} else {
-						emptyA.hidden = false;
-					}
+					if (climbsA.length) { bodyA.innerHTML = renderClimbRows(climbsA); tableA.hidden = false; } else { emptyA.hidden = false; }
+					if (climbsB.length) { bodyB.innerHTML = renderClimbRows(climbsB); tableB.hidden = false; } else { emptyB.hidden = false; }
 
-					if (climbsB.length) {
-						bodyB.innerHTML = renderClimbRows(climbsB);
-						tableB.hidden = false;
-					} else {
-						emptyB.hidden = false;
-					}
-
-					loading.hidden = true;
-					membersWrap.hidden = false;
-					detailsRow.dataset.loaded = "1";
-				} catch (e) {
-					loading.textContent = "Error loading details";
-				}
+					loading.hidden = true; membersWrap.hidden = false; detailsRow.dataset.loaded = "1";
+				} catch (e) { loading.textContent = "Error loading details"; }
 			}
 
 			function toggleSingleDetails(cid) {
 				const btn = document.querySelector(`.expander[data-cid="${CSS.escape(String(cid))}"]`);
 				const detailsRow = document.querySelector(`.lb-details[data-cid="${CSS.escape(String(cid))}"]`);
 				if (!btn || !detailsRow) return;
-
 				const isOpen = !detailsRow.hidden;
-
-				if (isOpen) {
-					detailsRow.hidden = true;
-					btn.classList.remove("open");
-					btn.setAttribute("aria-expanded", "false");
-					return;
-				}
-
-				detailsRow.hidden = false;
-				btn.classList.add("open");
-				btn.setAttribute("aria-expanded", "true");
-
+				if (isOpen) { detailsRow.hidden = true; btn.classList.remove("open"); btn.setAttribute("aria-expanded", "false"); return; }
+				detailsRow.hidden = false; btn.classList.add("open"); btn.setAttribute("aria-expanded", "true");
 				loadSingleDetails(cid);
 			}
 
@@ -940,27 +431,15 @@
 				const btn = document.querySelector(`.expander[data-team-key="${CSS.escape(String(teamKey))}"]`);
 				const detailsRow = document.querySelector(`.lb-details[data-team-key="${CSS.escape(String(teamKey))}"]`);
 				if (!btn || !detailsRow) return;
-
 				const isOpen = !detailsRow.hidden;
-
-				if (isOpen) {
-					detailsRow.hidden = true;
-					btn.classList.remove("open");
-					btn.setAttribute("aria-expanded", "false");
-					return;
-				}
-
-				detailsRow.hidden = false;
-				btn.classList.add("open");
-				btn.setAttribute("aria-expanded", "true");
-
+				if (isOpen) { detailsRow.hidden = true; btn.classList.remove("open"); btn.setAttribute("aria-expanded", "false"); return; }
+				detailsRow.hidden = false; btn.classList.add("open"); btn.setAttribute("aria-expanded", "true");
 				loadTeamDetails(teamKey, aId, bId);
 			}
 
 			async function load(key, page, { push = true } = {}) {
 				const k = allowed.has(key) ? key : "all";
 				const p = (page && page > 0) ? page : 1;
-
 				currentKey = k;
 
 				const token = ++latestToken;
@@ -979,35 +458,22 @@
 				if (ADMIN_ONLY) params.set("admin", "1");
 
 				try {
-					const resp = await fetch(`/api/leaderboard?${params}`, {
-						method: "GET",
-						cache: "no-store",
-						signal: aborter.signal,
-						headers: { "Accept": "application/json" },
-					});
-
+					const resp = await fetch(`/api/leaderboard?${params}`, { method: "GET", cache: "no-store", signal: aborter.signal, headers: { "Accept": "application/json" } });
 					if (token !== latestToken) return;
 					if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-
 					const data = await resp.json();
 					if (token !== latestToken) return;
-
 					if (data.cat_key && data.cat_key !== k) return;
-
 					closeAllDetails();
 					renderRows(k, data.rows || [], data.page || p);
 					setPager(data.page || p, data.total_pages || 1);
-
 				} catch (err) {
 					if (err.name === "AbortError") return;
 					if (token !== latestToken) return;
 					renderError(k, "Error loading leaderboard. Try again.");
 					setPager(p, 1);
 				} finally {
-					if (token === latestToken) {
-						applyTabState(k, false);
-						wrapEl.classList.remove("loading");
-					}
+					if (token === latestToken) { applyTabState(k, false); wrapEl.classList.remove("loading"); }
 				}
 			}
 
@@ -1020,37 +486,21 @@
 			bodyEl.addEventListener("click", (e) => {
 				const btn = e.target.closest(".expander");
 				if (!btn) return;
-
 				const cid = btn.dataset.cid;
-				if (cid) {
-					toggleSingleDetails(cid);
-					return;
-				}
-
+				if (cid) { toggleSingleDetails(cid); return; }
 				const teamKey = btn.dataset.teamKey;
 				const aId = btn.dataset.aId;
 				const bId = btn.dataset.bId;
-				if (teamKey && aId && bId) {
-					toggleTeamDetails(teamKey, aId, bId);
-				}
+				if (teamKey && aId && bId) toggleTeamDetails(teamKey, aId, bId);
 			});
 
-			prevBtn.addEventListener("click", () => {
-				if (currentPage <= 1) return;
-				load(currentKey, currentPage - 1, { push: true });
-			});
-
-			nextBtn.addEventListener("click", () => {
-				if (currentPage >= currentTotalPages) return;
-				load(currentKey, currentPage + 1, { push: true });
-			});
+			prevBtn.addEventListener("click", () => { if (currentPage <= 1) return; load(currentKey, currentPage - 1, { push: true }); });
+			nextBtn.addEventListener("click", () => { if (currentPage >= currentTotalPages) return; load(currentKey, currentPage + 1, { push: true }); });
 
 			window.addEventListener("popstate", e => {
 				const state = e.state || {};
 				const init = initialFromUrl();
-				const key = state.key || init.key;
-				const page = state.page || init.page;
-				load(key, page, { push: false });
+				load(state.key || init.key, state.page || init.page, { push: false });
 			});
 
 			const init = initialFromUrl();

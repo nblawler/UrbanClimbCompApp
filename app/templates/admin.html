@@ -1,232 +1,17 @@
-<!-- admin.html  -->
+<!-- admin.html -->
 <!doctype html>
 <html lang="en">
 	<head>
 		<meta charset="utf-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-		<title>Admin · Urban Climb Comp</title>
-
-		<!-- match admin_comps -->
+		<title>Admin · Comp Circuit</title>
 		<link rel="stylesheet" href="/static/app.css" />
-
-		<style>
-			* { margin: 0; padding: 0; box-sizing: border-box; }
-
-			body {
-				font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-				background: linear-gradient(135deg, #0a1628 0%, #1a2942 100%);
-				min-height: 100vh;
-				display: flex;
-				flex-direction: column;
-				color: #fff;
-				font-size: 16px;
-			}
-
-			/* ✅ EXACT same nav styling approach as admin_comps (transparent / no overlay) */
-			.top-nav {
-				padding: 1.25rem 2rem;
-				display: flex;
-				gap: 1.5rem;
-				align-items: center;
-				flex-wrap: wrap;
-			}
-
-			.top-nav .nav-links {
-				display: flex;
-				gap: 1.5rem;
-				align-items: center;
-				flex-wrap: wrap;
-			}
-
-			.top-nav a {
-				color: rgba(255, 255, 255, 0.7);
-				text-decoration: none;
-				font-size: 0.95rem;
-				transition: color 0.2s;
-			}
-
-			.top-nav a.active { color: #5df4a2; font-weight: 700; }
-			.top-nav a:hover { color: #fff; }
-
-			/* Main container */
-			.container {
-				flex: 1;
-				display: flex;
-				flex-direction: column;
-				align-items: center;
-				padding: 2rem;
-				max-width: 860px;
-				margin: 0 auto;
-				width: 100%;
-			}
-
-			/* Hero */
-			.hero {
-				text-align: center;
-				margin: 2rem 0 2rem;
-				width: 100%;
-			}
-
-			.hero h1 {
-				font-size: 2.75rem;
-				font-weight: 900;
-				background: linear-gradient(135deg, #fff 0%, #5df4a2 100%);
-				-webkit-background-clip: text;
-				-webkit-text-fill-color: transparent;
-				background-clip: text;
-				letter-spacing: -0.02em;
-				margin-bottom: 0.5rem;
-			}
-
-			/* Glass card */
-			.card {
-				background: rgba(255, 255, 255, 0.05);
-				backdrop-filter: blur(10px);
-				border: 1px solid rgba(255, 255, 255, 0.1);
-				border-radius: 1.5rem;
-				padding: 2rem;
-				width: 100%;
-				margin-bottom: 1.5rem;
-			}
-
-			.card h2 {
-				font-size: 1.3rem;
-				font-weight: 800;
-				margin-bottom: 0.75rem;
-			}
-
-			.muted {
-				color: rgba(255, 255, 255, 0.6);
-				font-size: 0.95rem;
-				line-height: 1.5;
-			}
-
-			/* Alerts */
-			.alert {
-				border-radius: 0.85rem;
-				padding: 0.85rem 1.1rem;
-				margin-bottom: 1.25rem;
-				font-size: 0.95rem;
-				width: 100%;
-			}
-
-			.alert--error {
-				background: rgba(139, 30, 30, 0.3);
-				border: 1px solid rgba(220, 80, 80, 0.4);
-				color: #f88;
-			}
-
-			.alert--ok {
-				background: rgba(93, 244, 162, 0.1);
-				border: 1px solid rgba(93, 244, 162, 0.3);
-				color: #5df4a2;
-			}
-
-			/* Form elements */
-			label {
-				display: block;
-				font-size: 0.875rem;
-				font-weight: 600;
-				color: rgba(255,255,255,0.65);
-				margin-top: 1rem;
-				margin-bottom: 0.35rem;
-				text-transform: uppercase;
-				letter-spacing: 0.04em;
-			}
-
-			input[type="text"],
-			input[type="number"],
-			input[type="password"],
-			select {
-				width: 100%;
-				background: rgba(255,255,255,0.07);
-				border: 1px solid rgba(255,255,255,0.15);
-				border-radius: 0.65rem;
-				padding: 0.7rem 0.9rem;
-				color: #fff;
-				font-size: 1rem;
-				outline: none;
-				transition: border-color 0.2s;
-			}
-
-			input::placeholder { color: rgba(255,255,255,0.3); }
-			input:focus, select:focus { border-color: rgba(93, 244, 162, 0.5); }
-			select option { background: #1a2942; }
-
-			/* Buttons */
-			.btn {
-				display: inline-block;
-				padding: 0.8rem 1.25rem;
-				background: #5df4a2;
-				color: #0a1628;
-				border: none;
-				border-radius: 0.85rem;
-				font-weight: 900;
-				font-size: 0.95rem;
-				cursor: pointer;
-				transition: all 0.2s;
-				text-decoration: none;
-				margin-top: 1rem;
-			}
-
-			.btn:hover { background: #4de392; transform: scale(1.02); }
-
-			.btn--danger {
-				background: rgba(139, 30, 30, 0.85);
-				color: #fff;
-			}
-
-			.btn--danger:hover { background: rgba(180, 40, 40, 0.9); }
-
-			/* Table */
-			.table-wrap { width: 100%; overflow-x: auto; margin-top: 1rem; }
-
-			table {
-				width: 100%;
-				border-collapse: collapse;
-				font-size: 0.9rem;
-			}
-
-			thead th {
-				text-align: left;
-				padding: 0.6rem 0.75rem;
-				color: rgba(255,255,255,0.45);
-				font-size: 0.75rem;
-				font-weight: 700;
-				text-transform: uppercase;
-				letter-spacing: 0.06em;
-				border-bottom: 1px solid rgba(255,255,255,0.08);
-			}
-
-			tbody td {
-				padding: 0.75rem 0.75rem;
-				border-bottom: 1px solid rgba(255,255,255,0.05);
-				color: rgba(255,255,255,0.85);
-			}
-
-			tbody tr:last-child td { border-bottom: none; }
-
-			hr {
-				border: none;
-				border-top: 1px solid rgba(255,255,255,0.08);
-				margin: 1.5rem 0;
-			}
-
-			@media (max-width: 600px) {
-				.top-nav { padding: 1rem; }
-				.container { padding: 1.25rem; }
-				.hero h1 { font-size: 2rem; }
-				.card { padding: 1.25rem; }
-			}
-		</style>
 	</head>
 	<body>
 		<nav class="top-nav">
 			<div class="nav-links">
 				<a href="/">Home</a>
-		
 				<a class="active" href="/admin/comps">Admin</a>
-		
 				{% if current_comp %}
 					<a
 						class="{% if nav_active == 'leaderboard' %}active{% endif %}"
@@ -236,13 +21,12 @@
 						Leaderboard
 					</a>
 				{% endif %}
-		
 				<a href="/logout">Log out</a>
 			</div>
 		</nav>
 
-		<main class="container">
-			<header class="hero">
+		<main class="container container--centered container--medium">
+			<header class="hero" style="margin:2rem 0 2rem;">
 				<h1>Admin</h1>
 			</header>
 
@@ -280,7 +64,7 @@
 						<label>Competitor number</label>
 						<input type="number" name="competitor_id" min="1" required />
 
-						<button type="submit" name="action" value="delete_competitor" class="btn btn--danger">
+						<button type="submit" name="action" value="delete_competitor" class="btn btn--danger" style="margin-top:1rem;">
 							Delete competitor
 						</button>
 					</form>
@@ -299,7 +83,7 @@
 							required
 						/>
 
-						<button type="submit" name="action" value="search_competitor" class="btn">
+						<button type="submit" name="action" value="search_competitor" class="btn" style="margin-top:1rem;">
 							Search
 						</button>
 					</form>
@@ -343,7 +127,7 @@
 
 				<div class="card" id="doubles-lookup-card">
 					<h2>Doubles lookup by competitor number</h2>
-				
+
 					<form method="post" action="/admin#doubles-lookup-card">
 						<label>Competitor number</label>
 						<input
@@ -353,61 +137,30 @@
 							value="{{ lookup_competitor_id or '' }}"
 							required
 						/>
-				
-						<button type="submit" name="action" value="lookup_doubles_status" class="btn">
+
+						<button type="submit" name="action" value="lookup_doubles_status" class="btn" style="margin-top:1rem;">
 							Check doubles status
 						</button>
 					</form>
-				
+
 					{% if doubles_lookup is defined and doubles_lookup %}
 						<hr />
 						<div class="table-wrap">
 							<table>
 								<tbody>
-									<tr>
-										<th style="width: 220px;">Competitor #</th>
-										<td>{{ doubles_lookup.id }}</td>
-									</tr>
-									<tr>
-										<th>Name</th>
-										<td>{{ doubles_lookup.name }}</td>
-									</tr>
-									<tr>
-										<th>Email</th>
-										<td>{{ doubles_lookup.email or "–" }}</td>
-									</tr>
-									<tr>
-										<th>Category</th>
-										<td>{{ doubles_lookup.gender or "–" }}</td>
-									</tr>
+									<tr><th style="width: 220px;">Competitor #</th><td>{{ doubles_lookup.id }}</td></tr>
+									<tr><th>Name</th><td>{{ doubles_lookup.name }}</td></tr>
+									<tr><th>Email</th><td>{{ doubles_lookup.email or "–" }}</td></tr>
+									<tr><th>Category</th><td>{{ doubles_lookup.gender or "–" }}</td></tr>
 									<tr>
 										<th>In doubles team?</th>
-										<td>
-											{% if doubles_lookup.in_team %}
-												Yes
-											{% else %}
-												No
-											{% endif %}
-										</td>
+										<td>{% if doubles_lookup.in_team %}Yes{% else %}No{% endif %}</td>
 									</tr>
-				
 									{% if doubles_lookup.in_team %}
-										<tr>
-											<th>Partner #</th>
-											<td>{{ doubles_lookup.partner_id }}</td>
-										</tr>
-										<tr>
-											<th>Partner name</th>
-											<td>{{ doubles_lookup.partner_name }}</td>
-										</tr>
-										<tr>
-											<th>Partner email</th>
-											<td>{{ doubles_lookup.partner_email or "–" }}</td>
-										</tr>
-										<tr>
-											<th>Team ID</th>
-											<td>{{ doubles_lookup.team_id }}</td>
-										</tr>
+										<tr><th>Partner #</th><td>{{ doubles_lookup.partner_id }}</td></tr>
+										<tr><th>Partner name</th><td>{{ doubles_lookup.partner_name }}</td></tr>
+										<tr><th>Partner email</th><td>{{ doubles_lookup.partner_email or "–" }}</td></tr>
+										<tr><th>Team ID</th><td>{{ doubles_lookup.team_id }}</td></tr>
 									{% endif %}
 								</tbody>
 							</table>
@@ -432,7 +185,7 @@
 						To create competitors, sections, or edit the wall map, first choose a competition:
 						Admin Home → Comps → Manage.
 					</p>
-					<a href="/admin/comps" class="btn">Choose a competition</a>
+					<a href="/admin/comps" class="btn" style="margin-top:1rem;">Choose a competition</a>
 				</div>
 
 			{% endif %}
@@ -445,7 +198,7 @@
 					</p>
 
 					<form method="post">
-						<button type="submit" name="action" value="reset_all" class="btn btn--danger">
+						<button type="submit" name="action" value="reset_all" class="btn btn--danger" style="margin-top:1rem;">
 							Reset all data
 						</button>
 					</form>
