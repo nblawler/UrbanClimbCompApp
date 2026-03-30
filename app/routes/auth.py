@@ -13,6 +13,7 @@ from app.helpers.leaderboard_cache import invalidate_leaderboard_cache
 
 auth_bp = Blueprint("auth", __name__)
 
+
 @auth_bp.route("/signup", methods=["GET", "POST"])
 def signup():
     """
@@ -20,9 +21,11 @@ def signup():
     - Collect name + email
     - If account already exists, send them to login instead (preserving comp context)
     - Otherwise create Account with saved name
-    - Ensure a shell Competitor row exists for legacy linkage (competition_id=None)
     - Send a 6-digit code for verification
     - Redirect to /login/verify while preserving slug/next
+
+    IMPORTANT:
+    - No shell competitor is created here anymore.
     """
     error = None
     message = None
@@ -63,7 +66,6 @@ def signup():
         else:
             existing_acct = Account.query.filter_by(email=email).first()
             if existing_acct:
-                # Optional: backfill missing account name if they typed one and existing account has no name
                 if not getattr(existing_acct, "name", None):
                     existing_acct.name = name
                     db.session.commit()
@@ -87,21 +89,11 @@ def signup():
             db.session.add(acct)
             db.session.commit()
 
-            shell = Competitor(
-                name=name,
-                gender="Inclusive",
-                email=acct.email,
-                competition_id=None,
-                account_id=acct.id,
-            )
-            db.session.add(shell)
-            db.session.commit()
-
             code = f"{secrets.randbelow(1_000_000):06d}"
             now = datetime.utcnow()
 
             login_code = LoginCode(
-                competitor_id=shell.id,
+                competitor_id=None,
                 account_id=acct.id,
                 code=code,
                 created_at=now,
@@ -136,6 +128,7 @@ def signup():
         slug=slug,
         next=session.get("login_next", ""),
     )
+
 
 @auth_bp.route("/login", methods=["GET", "POST"])
 def login_request():
@@ -186,29 +179,8 @@ def login_request():
                 code = f"{secrets.randbelow(1_000_000):06d}"
                 now = datetime.utcnow()
 
-                comp_shell = (
-                    Competitor.query
-                    .filter(
-                        Competitor.account_id == acct.id,
-                        Competitor.competition_id.is_(None),
-                    )
-                    .order_by(Competitor.created_at.desc())
-                    .first()
-                )
-
-                if not comp_shell:
-                    comp_shell = Competitor(
-                        name="Account",
-                        gender="Inclusive",
-                        email=acct.email,
-                        competition_id=None,
-                        account_id=acct.id,
-                    )
-                    db.session.add(comp_shell)
-                    db.session.commit()
-
                 login_code = LoginCode(
-                    competitor_id=comp_shell.id,
+                    competitor_id=None,
                     account_id=acct.id,
                     code=code,
                     created_at=now,
@@ -261,13 +233,6 @@ def login_verify():
             session["login_next"] = next_qs
 
     email = normalize_email(session.get("login_email"))
-
-    def pending_join_matches(comp_slug: str) -> bool:
-        return bool(
-            comp_slug
-            and (session.get("pending_join_slug") or "").strip() == comp_slug
-            and (session.get("pending_join_name") or "").strip()
-        )
 
     def get_next_url_from_request() -> str:
         if request.method == "POST":
@@ -339,49 +304,6 @@ def login_verify():
                     if current_comp and current_comp.slug:
                         session["active_comp_slug"] = current_comp.slug
 
-                        if pending_join_matches(current_comp.slug):
-                            name = (session.get("pending_join_name") or "").strip()
-                            gender = (session.get("pending_join_gender") or "Inclusive").strip()
-                            if gender not in ("Male", "Female", "Inclusive"):
-                                gender = "Inclusive"
-
-                            registered = (
-                                Competitor.query
-                                .filter(
-                                    Competitor.account_id == acct.id,
-                                    Competitor.competition_id == current_comp.id,
-                                )
-                                .first()
-                            )
-
-                            if not registered:
-                                registered = Competitor(
-                                    name=name,
-                                    gender=gender,
-                                    email=acct.email,
-                                    competition_id=current_comp.id,
-                                    account_id=acct.id,
-                                )
-                                db.session.add(registered)
-                                db.session.commit()
-                                invalidate_leaderboard_cache()
-
-                            session["competitor_id"] = registered.id
-
-                            session.pop("pending_join_slug", None)
-                            session.pop("pending_join_name", None)
-                            session.pop("pending_join_gender", None)
-                            session.pop("pending_comp_verify", None)
-
-                            next_url = get_next_url_from_request()
-                            r = safe_redirect(next_url)
-                            if r:
-                                session.pop("login_next", None)
-                                return r
-
-                            session.pop("login_next", None)
-                            return redirect(f"/comp/{current_comp.slug}/competitor/{registered.id}/sections")
-
                         registered = (
                             Competitor.query
                             .filter(
@@ -394,6 +316,9 @@ def login_verify():
                         if registered:
                             session["competitor_id"] = registered.id
                             session.pop("pending_comp_verify", None)
+                            session.pop("pending_join_slug", None)
+                            session.pop("pending_join_name", None)
+                            session.pop("pending_join_gender", None)
 
                             next_url = get_next_url_from_request()
                             r = safe_redirect(next_url)
@@ -412,28 +337,13 @@ def login_verify():
                         session.pop("login_next", None)
                         return redirect(f"/comp/{current_comp.slug}/join")
 
-                    shell = (
-                        Competitor.query
-                        .filter(
-                            Competitor.account_id == acct.id,
-                            Competitor.competition_id.is_(None),
-                        )
-                        .first()
-                    )
-                    if not shell:
-                        shell = Competitor(
-                            name="Account",
-                            gender="Inclusive",
-                            email=acct.email,
-                            competition_id=None,
-                            account_id=acct.id,
-                        )
-                        db.session.add(shell)
-                        db.session.commit()
-
-                    session["competitor_id"] = shell.id
+                    # Non-comp scoped login: account-only session, no shell competitor
+                    session.pop("competitor_id", None)
                     session.pop("active_comp_slug", None)
                     session.pop("pending_comp_verify", None)
+                    session.pop("pending_join_slug", None)
+                    session.pop("pending_join_name", None)
+                    session.pop("pending_join_gender", None)
 
                     next_url = get_next_url_from_request()
                     r = safe_redirect(next_url)

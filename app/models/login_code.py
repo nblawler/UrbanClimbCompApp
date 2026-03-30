@@ -7,9 +7,10 @@ class LoginCode(db.Model):
     id = db.Column(db.Integer, primary_key=True)
 
     # Legacy column still exists in DB — keep it so old rows still load.
-    competitor_id = db.Column(db.Integer, db.ForeignKey("competitor.id"), nullable=False)
+    # It is no longer required for new auth flow.
+    competitor_id = db.Column(db.Integer, db.ForeignKey("competitor.id"), nullable=True)
 
-    # NEW: real identity
+    # Real identity
     account_id = db.Column(db.Integer, db.ForeignKey("account.id"), nullable=False, index=True)
 
     code = db.Column(db.String(6), nullable=False)
