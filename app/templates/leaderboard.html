@@ -31,38 +31,34 @@
 	{% set show_comp_nav = (not admin_only) and (comp_slug and cid_val) %}
 
 	<nav class="nav">
-		<a href="{% if admin_only %}/admin/comps{% elif is_logged_in or is_admin %}/my-comps{% else %}/{% endif %}"
-		   class="{% if nav_active == 'my_comps' %}active{% endif %}">
-			{% if admin_only %}Admin{% else %}Home{% endif %}
-		</a>
-
-		{% if is_admin and (not admin_only) %}
-			<a href="/admin/comps" class="{% if nav_active == 'admin' %}active{% endif %}">Admin</a>
-		{% endif %}
+		<button type="button" class="menu-toggle" onclick="openSidebar()">☰ Menu</button>
 
 		{% if show_comp_nav %}
 			<a href="/comp/{{ comp_slug }}/competitor/{{ cid_val }}/sections"
-			   class="{% if nav_active == 'sections' %}active{% endif %}">Scoring</a>
+			   class="{% if nav_active == 'sections' %}active{% endif %}">
+				Scoring
+			</a>
 
 			<a href="/competitor/{{ cid_val }}/stats/my"
-			   class="{% if nav_active == 'my_stats' %}active{% endif %}">My Stats</a>
-
-			<a href="/leaderboard{{ qs_str }}"
-			   class="{% if nav_active == 'leaderboard' %}active{% endif %}">Leaderboard</a>
-
-			{% if (not admin_only) and comp_slug %}
-				<a class="{% if nav_active == 'doubles' %}active{% endif %}"
-				   href="/comp/{{ comp_slug }}/doubles">Doubles</a>
-			{% endif %}
+			   class="{% if nav_active == 'my_stats' %}active{% endif %}">
+				My Stats
+			</a>
 		{% endif %}
 
-		{% if is_logged_in or is_admin %}
-			<a href="/logout">Log out</a>
-		{% else %}
-			<a href="/login{% if comp_slug %}?slug={{ comp_slug }}{% endif %}"
-			   class="{% if nav_active == 'login' %}active{% endif %}">Log in</a>
+		<a href="/leaderboard{{ qs_str }}"
+		   class="{% if nav_active == 'leaderboard' %}active{% endif %}">
+			Leaderboard
+		</a>
+
+		{% if (not admin_only) and comp_slug %}
+			<a class="{% if nav_active == 'doubles' %}active{% endif %}"
+			   href="/comp/{{ comp_slug }}/doubles">
+				Doubles
+			</a>
 		{% endif %}
 	</nav>
+
+	{% include "sidebar.html" %}
 
 	<main class="container">
 		<header class="page-header">
