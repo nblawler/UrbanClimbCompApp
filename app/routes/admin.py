@@ -5,7 +5,6 @@ from datetime import timezone, datetime
 from zoneinfo import ZoneInfo
 import sys
 
-from app.config import ADMIN_PASSWORD
 from app.extensions import db
 from app.models import Competition, Competitor, Score, Section, SectionClimb, Gym, DoublesTeam
 from app.helpers.admin import admin_can_manage_competition, admin_is_super
@@ -18,235 +17,258 @@ from app.helpers.url import slugify
 admin_bp = Blueprint("admin", __name__)
 
 
+def _is_logged_in():
+    return bool(session.get("account_id"))
+
+
+def _has_any_admin_access():
+    if not _is_logged_in():
+        return False
+
+    if admin_is_super():
+        return True
+
+    gym_ids = get_session_admin_gym_ids() or []
+    return bool(gym_ids)
+
+
+def _require_admin_login():
+    if not _is_logged_in():
+        return redirect("/login")
+    if not _has_any_admin_access():
+        abort(403)
+    return None
+
+
+def _resolve_admin_current_comp():
+    """
+    Admin pages should prefer the admin-selected competition context (session['admin_comp_id']).
+    Only fall back to get_current_comp() if no admin context exists.
+    """
+    admin_comp_id = session.get("admin_comp_id")
+    if admin_comp_id:
+        comp = Competition.query.get(admin_comp_id)
+        if comp:
+            return comp
+        session.pop("admin_comp_id", None)
+
+    return get_current_comp()
+
+
 @admin_bp.route("/admin", methods=["GET", "POST"])
 def admin_page():
+    guard = _require_admin_login()
+    if guard:
+        return guard
+
     message = None
     error = None
     search_results = None
     search_query = ""
     lookup_competitor_id = ""
     doubles_lookup = None
-    is_admin = session.get("admin_ok", False)
+    is_admin = True
+    is_super = admin_is_super()
 
-    def resolve_admin_current_comp():
-        """
-        Admin pages should prefer the admin-selected competition context (session['admin_comp_id']).
-        Only fall back to get_current_comp() if no admin context exists.
-        """
-        admin_comp_id = session.get("admin_comp_id")
-        if admin_comp_id:
-            comp = Competition.query.get(admin_comp_id)
-            if comp:
-                return comp
-            session.pop("admin_comp_id", None)
-        return get_current_comp()
+    current_comp = _resolve_admin_current_comp()
 
-    current_comp = resolve_admin_current_comp()
-    if current_comp and session.get("admin_comp_id"):
-        if not admin_can_manage_competition(current_comp):
+    if current_comp and not admin_can_manage_competition(current_comp):
+        if session.get("admin_comp_id"):
             session.pop("admin_comp_id", None)
+            error = "You don’t have access to manage that competition. Please choose a different competition."
+        current_comp = None
+
+    if request.method == "POST":
+        action = (request.form.get("action") or "").strip()
+
+        current_comp = _resolve_admin_current_comp()
+
+        if current_comp and not admin_can_manage_competition(current_comp):
+            if session.get("admin_comp_id"):
+                session.pop("admin_comp_id", None)
             current_comp = None
             error = "You don’t have access to manage that competition. Please choose a different competition."
 
-    if request.method == "POST":
-        action = request.form.get("action")
+        if action == "reset_all":
+            if not is_super:
+                abort(403)
 
-        if action == "login":
-            password = request.form.get("password", "")
-            if password != ADMIN_PASSWORD:
-                error = "Incorrect admin password."
+            Score.query.delete()
+            SectionClimb.query.delete()
+            Competitor.query.delete()
+            Section.query.delete()
+            db.session.commit()
+            invalidate_leaderboard_cache()
+            message = "All competitors, scores, sections, and section climbs have been deleted."
+
+        elif action == "delete_competitor":
+            if not current_comp:
+                error = "No competition selected. Go to Admin → Comps and click Manage first."
             else:
-                session["admin_ok"] = True
-                session["admin_is_super"] = True
-                session["admin_gym_ids"] = None
-                session.pop("admin_comp_id", None)
-
-                is_admin = True
-                message = "Admin access granted."
-
-        else:
-            if not is_admin:
-                error = "Please enter the admin password first."
-            else:
-                current_comp = resolve_admin_current_comp()
-
-                if action == "reset_all":
-                    if not admin_is_super():
-                        abort(403)
-
-                    password = request.form.get("password", "")
-                    if password != ADMIN_PASSWORD:
-                        error = "Incorrect admin password."
+                raw_id = request.form.get("competitor_id", "").strip()
+                if not raw_id.isdigit():
+                    error = "Please provide a valid competitor number."
+                else:
+                    cid = int(raw_id)
+                    comp = Competitor.query.get(cid)
+                    if not comp:
+                        error = f"Competitor {cid} not found."
+                    elif comp.competition_id != current_comp.id:
+                        error = f"Competitor {cid} is not in the currently selected competition."
                     else:
-                        Score.query.delete()
-                        SectionClimb.query.delete()
-                        Competitor.query.delete()
-                        Section.query.delete()
+                        Score.query.filter_by(competitor_id=cid).delete()
+                        db.session.delete(comp)
                         db.session.commit()
                         invalidate_leaderboard_cache()
-                        message = "All competitors, scores, sections, and section climbs have been deleted."
+                        message = f"Competitor {cid} and their scores have been deleted."
 
-                elif action == "delete_competitor":
-                    if not current_comp:
-                        error = "No competition selected. Go to Admin → Comps and click Manage first."
-                    else:
-                        raw_id = request.form.get("competitor_id", "").strip()
-                        if not raw_id.isdigit():
-                            error = "Please provide a valid competitor number."
-                        else:
-                            cid = int(raw_id)
-                            comp = Competitor.query.get(cid)
-                            if not comp:
-                                error = f"Competitor {cid} not found."
-                            elif comp.competition_id != current_comp.id:
-                                error = f"Competitor {cid} is not in the currently selected competition."
-                            else:
-                                Score.query.filter_by(competitor_id=cid).delete()
-                                db.session.delete(comp)
-                                db.session.commit()
-                                invalidate_leaderboard_cache()
-                                message = f"Competitor {cid} and their scores have been deleted."
+        elif action == "create_competitor":
+            if not current_comp:
+                error = "No competition selected. Go to Admin → Comps and click Manage first."
+            else:
+                name = request.form.get("new_name", "").strip()
+                gender = request.form.get("new_gender", "Inclusive").strip()
 
-                elif action == "create_competitor":
-                    if not current_comp:
-                        error = "No competition selected. Go to Admin → Comps and click Manage first."
-                    else:
-                        name = request.form.get("new_name", "").strip()
-                        gender = request.form.get("new_gender", "Inclusive").strip()
-
-                        if not name:
-                            error = "Competitor name is required."
-                        else:
-                            if gender not in ("Male", "Female", "Inclusive", "Doubles"):
-                                gender = "Inclusive"
-
-                            comp = Competitor(
-                                name=name,
-                                gender=gender,
-                                competition_id=current_comp.id,
-                            )
-                            db.session.add(comp)
-                            db.session.commit()
-                            invalidate_leaderboard_cache()
-                            message = f"Competitor created: {comp.name} (#{comp.id}, {comp.gender})"
-
-                elif action == "create_section":
-                    if not current_comp:
-                        error = "No competition selected. Go to Admin → Comps and click Manage first."
-                    else:
-                        name = request.form.get("section_name", "").strip()
-                        if not name:
-                            error = "Please provide a section name."
-                        else:
-                            slug = slugify(name)
-
-                            existing = (
-                                Section.query
-                                .filter_by(competition_id=current_comp.id, slug=slug)
-                                .first()
-                            )
-                            if existing:
-                                slug = f"{slug}-{int(datetime.utcnow().timestamp())}"
-
-                            s = Section(
-                                name=name,
-                                slug=slug,
-                                start_climb=0,
-                                end_climb=0,
-                                competition_id=current_comp.id,
-                                gym_id=current_comp.gym_id,
-                            )
-
-                            db.session.add(s)
-                            db.session.commit()
-                            message = f"Section created: {name}. You can now add climbs via Edit."
-
-                elif action == "search_competitor":
-                    if not current_comp:
-                        error = "No competition selected. Go to Admin → Comps and click Manage first."
-                    else:
-                        search_query = request.form.get("search_name", "").strip()
-                        if not search_query:
-                            error = "Please enter a name to search."
-                        else:
-                            pattern = f"%{search_query}%"
-                            search_results = (
-                                Competitor.query
-                                .filter(
-                                    Competitor.competition_id == current_comp.id,
-                                    Competitor.name.ilike(pattern),
-                                )
-                                .order_by(Competitor.name, Competitor.id)
-                                .all()
-                            )
-                            if not search_results:
-                                message = f"No competitors found matching '{search_query}'."
-
-                elif action == "lookup_doubles_status":
-                    if not current_comp:
-                        error = "No competition selected. Go to Admin → Comps and click Manage first."
-                    else:
-                        lookup_competitor_id = (request.form.get("lookup_competitor_id") or "").strip()
-
-                        if not lookup_competitor_id:
-                            error = "Please enter a competitor number."
-                        elif not lookup_competitor_id.isdigit():
-                            error = "Competitor number must be a whole number."
-                        else:
-                            cid = int(lookup_competitor_id)
-
-                            comp_row = (
-                                Competitor.query
-                                .filter(
-                                    Competitor.id == cid,
-                                    Competitor.competition_id == current_comp.id,
-                                )
-                                .first()
-                            )
-
-                            if not comp_row:
-                                message = f"No competitor found for number {cid} in this competition."
-                            else:
-                                team = DoublesTeam.query.filter(
-                                    DoublesTeam.competition_id == current_comp.id,
-                                    (
-                                        (DoublesTeam.competitor_a_id == comp_row.id) |
-                                        (DoublesTeam.competitor_b_id == comp_row.id)
-                                    )
-                                ).first()
-
-                                partner = None
-                                if team:
-                                    partner_id = (
-                                        team.competitor_b_id
-                                        if team.competitor_a_id == comp_row.id
-                                        else team.competitor_a_id
-                                    )
-                                    partner = (
-                                        Competitor.query
-                                        .filter(
-                                            Competitor.id == partner_id,
-                                            Competitor.competition_id == current_comp.id,
-                                        )
-                                        .first()
-                                    )
-
-                                doubles_lookup = {
-                                    "id": comp_row.id,
-                                    "name": comp_row.name,
-                                    "email": comp_row.email,
-                                    "gender": comp_row.gender,
-                                    "in_team": bool(team),
-                                    "team_id": team.id if team else None,
-                                    "partner_id": partner.id if partner else None,
-                                    "partner_name": partner.name if partner else None,
-                                    "partner_email": partner.email if partner else None,
-                                }
-
+                if not name:
+                    error = "Competitor name is required."
                 else:
-                    error = "Unknown admin action."
+                    if gender not in ("Male", "Female", "Inclusive", "Doubles"):
+                        gender = "Inclusive"
 
-    current_comp = resolve_admin_current_comp()
+                    comp = Competitor(
+                        name=name,
+                        gender=gender,
+                        competition_id=current_comp.id,
+                    )
+                    db.session.add(comp)
+                    db.session.commit()
+                    invalidate_leaderboard_cache()
+                    message = f"Competitor created: {comp.name} (#{comp.id}, {comp.gender})"
+
+        elif action == "create_section":
+            if not current_comp:
+                error = "No competition selected. Go to Admin → Comps and click Manage first."
+            else:
+                name = request.form.get("section_name", "").strip()
+                if not name:
+                    error = "Please provide a section name."
+                else:
+                    slug = slugify(name)
+
+                    existing = (
+                        Section.query
+                        .filter_by(competition_id=current_comp.id, slug=slug)
+                        .first()
+                    )
+                    if existing:
+                        slug = f"{slug}-{int(datetime.utcnow().timestamp())}"
+
+                    s = Section(
+                        name=name,
+                        slug=slug,
+                        start_climb=0,
+                        end_climb=0,
+                        competition_id=current_comp.id,
+                        gym_id=current_comp.gym_id,
+                    )
+
+                    db.session.add(s)
+                    db.session.commit()
+                    message = f"Section created: {name}. You can now add climbs via Edit."
+
+        elif action == "search_competitor":
+            if not current_comp:
+                error = "No competition selected. Go to Admin → Comps and click Manage first."
+            else:
+                search_query = request.form.get("search_name", "").strip()
+                if not search_query:
+                    error = "Please enter a name to search."
+                else:
+                    pattern = f"%{search_query}%"
+                    search_results = (
+                        Competitor.query
+                        .filter(
+                            Competitor.competition_id == current_comp.id,
+                            Competitor.name.ilike(pattern),
+                        )
+                        .order_by(Competitor.name, Competitor.id)
+                        .all()
+                    )
+                    if not search_results:
+                        message = f"No competitors found matching '{search_query}'."
+
+        elif action == "lookup_doubles_status":
+            if not current_comp:
+                error = "No competition selected. Go to Admin → Comps and click Manage first."
+            else:
+                lookup_competitor_id = (request.form.get("lookup_competitor_id") or "").strip()
+
+                if not lookup_competitor_id:
+                    error = "Please enter a competitor number."
+                elif not lookup_competitor_id.isdigit():
+                    error = "Competitor number must be a whole number."
+                else:
+                    cid = int(lookup_competitor_id)
+
+                    comp_row = (
+                        Competitor.query
+                        .filter(
+                            Competitor.id == cid,
+                            Competitor.competition_id == current_comp.id,
+                        )
+                        .first()
+                    )
+
+                    if not comp_row:
+                        message = f"No competitor found for number {cid} in this competition."
+                    else:
+                        team = DoublesTeam.query.filter(
+                            DoublesTeam.competition_id == current_comp.id,
+                            (
+                                (DoublesTeam.competitor_a_id == comp_row.id) |
+                                (DoublesTeam.competitor_b_id == comp_row.id)
+                            )
+                        ).first()
+
+                        partner = None
+                        if team:
+                            partner_id = (
+                                team.competitor_b_id
+                                if team.competitor_a_id == comp_row.id
+                                else team.competitor_a_id
+                            )
+                            partner = (
+                                Competitor.query
+                                .filter(
+                                    Competitor.id == partner_id,
+                                    Competitor.competition_id == current_comp.id,
+                                )
+                                .first()
+                            )
+
+                        doubles_lookup = {
+                            "id": comp_row.id,
+                            "name": comp_row.name,
+                            "email": comp_row.email,
+                            "gender": comp_row.gender,
+                            "in_team": bool(team),
+                            "team_id": team.id if team else None,
+                            "partner_id": partner.id if partner else None,
+                            "partner_name": partner.name if partner else None,
+                            "partner_email": partner.email if partner else None,
+                        }
+
+        else:
+            error = "Unknown admin action."
+
+    current_comp = _resolve_admin_current_comp()
+
+    if current_comp and not admin_can_manage_competition(current_comp):
+        if session.get("admin_comp_id"):
+            session.pop("admin_comp_id", None)
+        current_comp = None
+        if not error:
+            error = "You don’t have access to manage that competition. Please choose a different competition."
 
     if current_comp:
         sections = (
@@ -269,6 +291,7 @@ def admin_page():
         doubles_lookup=doubles_lookup,
         is_admin=is_admin,
         current_comp=current_comp,
+        is_super=is_super,
     )
 
 
@@ -276,14 +299,10 @@ def admin_page():
 def admin_comp(slug):
     """
     Per-competition admin dashboard.
-
-    - Requires admin session (session["admin_ok"] = True)
-    - Looks up the competition by slug
-    - Loads sections for that competition
-    - Reuses the existing admin.html template
     """
-    if not session.get("admin_ok"):
-        return redirect("/login")
+    guard = _require_admin_login()
+    if guard:
+        return guard
 
     comp = Competition.query.filter_by(slug=slug).first_or_404()
 
@@ -310,6 +329,7 @@ def admin_comp(slug):
         doubles_lookup=None,
         message=None,
         error=None,
+        is_super=admin_is_super(),
     )
 
 
@@ -319,8 +339,9 @@ def admin_api_comp_section_boundaries(comp_id):
     Admin-only: return boundaries for all sections in this comp.
     Works even if the comp isn't live.
     """
-    if not session.get("admin_ok"):
-        return jsonify({"ok": False, "error": "Not admin"}), 403
+    guard = _require_admin_login()
+    if guard:
+        return guard
 
     comp = Competition.query.get_or_404(comp_id)
     if not admin_can_manage_competition(comp):
@@ -338,8 +359,9 @@ def admin_api_comp_section_boundaries(comp_id):
 
 @admin_bp.route("/admin/section/<int:section_id>/edit", methods=["GET", "POST"])
 def edit_section(section_id):
-    if not session.get("admin_ok"):
-        return redirect("/admin")
+    guard = _require_admin_login()
+    if guard:
+        return guard
 
     section = Section.query.get_or_404(section_id)
 
@@ -587,8 +609,9 @@ def admin_map():
     Admin can click the gym map, then fill climb config and save.
     Loads the admin-selected competition, not the public current comp.
     """
-    if not session.get("admin_ok"):
-        return redirect("/admin")
+    guard = _require_admin_login()
+    if guard:
+        return guard
 
     comp_id = request.args.get("comp_id", type=int)
 
@@ -663,8 +686,9 @@ def admin_competitions():
     - Archive a competition
     - Pagination: 10 per page
     """
-    if not session.get("admin_ok"):
-        return redirect("/admin")
+    guard = _require_admin_login()
+    if guard:
+        return guard
 
     is_super = admin_is_super()
 
@@ -848,8 +872,9 @@ def admin_configure_competition(competition_id):
     Set this competition as the active one for editing
     and then send the admin to the main admin page.
     """
-    if not session.get("admin_ok"):
-        return redirect("/admin")
+    guard = _require_admin_login()
+    if guard:
+        return guard
 
     comp = Competition.query.get_or_404(competition_id)
 
@@ -872,10 +897,9 @@ def admin_map_add_climb():
     Handle form submission from the map when admin clicks and adds a climb.
     Uses the admin-selected competition context.
     """
-    if not session.get("admin_ok"):
-        print("[ADMIN MAP ADD] admin_ok missing in session. session keys:", list(session.keys()), file=sys.stderr)
-        flash("Admin session missing — please log in again.", "warning")
-        return redirect("/admin")
+    guard = _require_admin_login()
+    if guard:
+        return guard
 
     def back(comp_id=None):
         return redirect(f"/admin/map?comp_id={comp_id}") if comp_id else redirect("/admin/map")
@@ -1012,8 +1036,9 @@ def admin_map_save_boundary():
     Save polygon boundary for a section.
     Payload can be JSON or form-encoded.
     """
-    if not session.get("admin_ok"):
-        return jsonify({"ok": False, "error": "Not admin"}), 403
+    guard = _require_admin_login()
+    if guard:
+        return guard
 
     data = request.get_json(silent=True) or request.form.to_dict(flat=True)
 

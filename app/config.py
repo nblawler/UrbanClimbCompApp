@@ -1,5 +1,6 @@
 import os
 
+
 class Config:
     raw_db_url = os.getenv("DATABASE_URL")
 
@@ -13,6 +14,6 @@ class Config:
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     SECRET_KEY = os.getenv("SECRET_KEY", "change-me-dev-secret")
 
+
 RESEND_API_KEY = os.getenv("RESEND_API_KEY", None)
 RESEND_FROM_EMAIL = os.getenv("RESEND_FROM_EMAIL", None)
-ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "letmein123")
