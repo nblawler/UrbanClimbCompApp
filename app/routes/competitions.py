@@ -47,17 +47,20 @@ def my_competitions():
     Competitor-facing hub showing all upcoming competitions.
 
     - Shows comps with end_at in the future (or no end_at)
-    - If comp is live (is_active=True):
+    - If comp is live:
         - If competitor is already registered -> "Keep scoring" (go to sections)
-        - Else -> "Register" (go to /comp/<slug>/join)
-    - If comp is not live -> Upcoming (no register link yet)
+        - Else -> registration prompt
+    - If comp is not live -> Upcoming
 
     IMPORTANT:
-    - A single email can be registered in multiple comps (multiple Competitor rows).
-    - So "Keep scoring" must link to the Competitor row for THAT competition,
-      not just the current session competitor_id.
+    - A single account can be registered in multiple comps (multiple Competitor rows).
+    - "Keep scoring" must resolve the Competitor row for THAT competition
+      using account_id, not session competitor_id.
     """
+    account_id = session.get("account_id")
     viewer_id = session.get("competitor_id")
+
+    # Keep this for the page greeting/header if available
     competitor = Competitor.query.get(viewer_id) if viewer_id else None
 
     now_utc_naive = aware_utc_to_naive_utc(melb_now().astimezone(timezone.utc))
@@ -96,9 +99,22 @@ def my_competitions():
             else:
                 status_label = "Comp currently not live – opening time TBC."
 
-        # --- IMPORTANT: resolve the correct competitor row for THIS comp ---
+        # Resolve the correct competitor row for THIS comp using account_id
         my_scoring_url = None
-        if competitor and competitor.email:
+        competitor_for_comp = None
+
+        if account_id:
+            competitor_for_comp = (
+                Competitor.query
+                .filter(
+                    Competitor.account_id == account_id,
+                    Competitor.competition_id == c.id,
+                )
+                .first()
+            )
+
+        # Fallback for older data if needed
+        if not competitor_for_comp and competitor and competitor.email:
             competitor_for_comp = (
                 Competitor.query
                 .filter(
@@ -108,11 +124,11 @@ def my_competitions():
                 .first()
             )
 
-            if competitor_for_comp:
-                if c.slug:
-                    my_scoring_url = f"/comp/{c.slug}/competitor/{competitor_for_comp.id}/sections"
-                else:
-                    my_scoring_url = f"/competitor/{competitor_for_comp.id}/sections"
+        if competitor_for_comp:
+            if c.slug:
+                my_scoring_url = f"/comp/{c.slug}/competitor/{competitor_for_comp.id}/sections"
+            else:
+                my_scoring_url = f"/competitor/{competitor_for_comp.id}/sections"
 
         # clickable pill target
         pill_href = None
