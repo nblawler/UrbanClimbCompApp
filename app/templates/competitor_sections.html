@@ -6,6 +6,17 @@
 	<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
 	<title>{{ competitor.name }} · Enter Scores</title>
 	<link rel="stylesheet" href="/static/app.css" />
+	<style>
+		/* Page-specific layout fix: keep section filters left-aligned under the label */
+		.section-filter-left {
+			width: 100%;
+		}
+
+		.section-filter-left .section-card-grid {
+			width: 100%;
+			justify-items: stretch;
+		}
+	</style>
 </head>
 
 <body>
@@ -87,40 +98,42 @@
 
 			{% if sections %}
 				<div class="section-filter-row">
-					<div class="section-filter-label">Sections (tap to filter by section):</div>
+					<div class="section-filter-left">
+						<div class="section-filter-label">Sections (tap to filter by section):</div>
 
-					<div class="section-card-grid" id="sectionCardGrid">
-						{% for sec in sections %}
-							<button
-								type="button"
-								class="section-card"
-								data-section-id="{{ sec.id }}"
-								aria-pressed="false"
-							>
-								<div class="section-card-top">
-									<div class="section-card-name">{{ sec.name }}</div>
-									<div class="section-card-meta">
-										<span class="sec-done" data-k="done">0</span>/<span class="sec-total" data-k="total">0</span>
-									</div>
-								</div>
-
-								<div class="section-card-stats">
-									<div class="section-stat">
-										<div class="section-stat-label">Done</div>
-										<div class="section-stat-value sec-done" data-k="done">0</div>
+						<div class="section-card-grid" id="sectionCardGrid">
+							{% for sec in sections %}
+								<button
+									type="button"
+									class="section-card"
+									data-section-id="{{ sec.id }}"
+									aria-pressed="false"
+								>
+									<div class="section-card-top">
+										<div class="section-card-name">{{ sec.name }}</div>
+										<div class="section-card-meta">
+											<span class="sec-done" data-k="done">0</span>/<span class="sec-total" data-k="total">0</span>
+										</div>
 									</div>
 
-									<div class="section-stat">
-										<div class="section-stat-label">Left</div>
-										<div class="section-stat-value sec-left" data-k="left">0</div>
-									</div>
-								</div>
+									<div class="section-card-stats">
+										<div class="section-stat">
+											<div class="section-stat-label">Done</div>
+											<div class="section-stat-value sec-done" data-k="done">0</div>
+										</div>
 
-								<div class="section-progress" aria-hidden="true">
-									<div class="sec-bar"></div>
-								</div>
-							</button>
-						{% endfor %}
+										<div class="section-stat">
+											<div class="section-stat-label">Left</div>
+											<div class="section-stat-value sec-left" data-k="left">0</div>
+										</div>
+									</div>
+
+									<div class="section-progress" aria-hidden="true">
+										<div class="sec-bar"></div>
+									</div>
+								</button>
+							{% endfor %}
+						</div>
 					</div>
 				</div>
 			{% endif %}

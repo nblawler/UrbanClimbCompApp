@@ -2099,6 +2099,44 @@
   }
   
   .overview-table td { text-align: right; }
+
+  .climb-status-pill {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.28rem 0.7rem;
+    border-radius: 999px;
+    font-size: 0.78rem;
+    font-weight: 800;
+    letter-spacing: 0.02em;
+    line-height: 1;
+    border: 1px solid transparent;
+    margin: 0 0.35rem;
+    vertical-align: middle;
+    white-space: nowrap;
+    color: #fff;
+  }
+  
+  .climb-status-pill.status-flashed {
+    background: linear-gradient(135deg, #0ea5e9 0%, #2563eb 100%);
+    border-color: rgba(125, 211, 252, 0.65);
+  }
+  
+  .climb-status-pill.status-topped,
+  .climb-status-pill.status-topped-late {
+    background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+    border-color: rgba(134, 239, 172, 0.65);
+  }
+  
+  .climb-status-pill.status-not-topped {
+    background: linear-gradient(135deg, #fb923c 0%, #f97316 100%);
+    border-color: rgba(253, 186, 116, 0.65);
+  }
+  
+  .climb-status-pill.status-skipped {
+    background: linear-gradient(135deg, #4b5563 0%, #374151 100%);
+    border-color: rgba(156, 163, 175, 0.45);
+  }
   
   
   /* ============================================================

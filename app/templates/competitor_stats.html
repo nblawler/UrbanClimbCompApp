@@ -14,6 +14,38 @@
 		{% endif %}
 	</title>
 	<link rel="stylesheet" href="/static/app.css" />
+	<style>
+		/* Page-specific status colour overrides so the legend matches the clickable climb cells */
+		.heat-cell.status-flashed,
+		.legend-box.status-flashed {
+			background: linear-gradient(135deg, #0ea5e9 0%, #2563eb 100%);
+			border-color: rgba(125, 211, 252, 0.65);
+			color: #ffffff;
+		}
+
+		.heat-cell.status-topped-late,
+		.heat-cell.status-topped,
+		.legend-box.status-topped-late,
+		.legend-box.status-topped {
+			background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+			border-color: rgba(134, 239, 172, 0.65);
+			color: #ffffff;
+		}
+
+		.heat-cell.status-not-topped,
+		.legend-box.status-not-topped {
+			background: linear-gradient(135deg, #fb923c 0%, #f97316 100%);
+			border-color: rgba(253, 186, 116, 0.65);
+			color: #ffffff;
+		}
+
+		.heat-cell.status-skipped,
+		.legend-box.status-skipped {
+			background: linear-gradient(135deg, #4b5563 0%, #374151 100%);
+			border-color: rgba(156, 163, 175, 0.45);
+			color: #ffffff;
+		}
+	</style>
 </head>
 <body>
 	{% set viewer_id = viewer_id if viewer_id is defined else session.get('competitor_id') %}
