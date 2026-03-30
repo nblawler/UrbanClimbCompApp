@@ -33,10 +33,13 @@ def _has_any_admin_access():
 
 
 def _require_admin_login():
-    if not _is_logged_in():
+    if not session.get("account_id"):
         return redirect("/login")
+
     if not _has_any_admin_access():
-        abort(403)
+        flash("You don’t have admin access.", "warning")
+        return redirect("/")
+
     return None
 
 
