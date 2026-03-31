@@ -5,6 +5,7 @@
 	<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
 	<title>My Profile · Comp Circuit</title>
 	<link rel="stylesheet" href="/static/app.css" />
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 
 	<style>
 		:root{
@@ -318,112 +319,6 @@
 			line-height: 1.15;
 		}
 
-		.comp-chart {
-			min-height: 260px;
-			padding: 1rem;
-			border-radius: 16px;
-			background: rgba(255,255,255,0.03);
-			border: 1px solid rgba(255,255,255,0.08);
-			display: flex;
-			align-items: end;
-			gap: 0.9rem;
-			overflow-x: auto;
-		}
-
-		.comp-chart-col {
-			min-width: 78px;
-			display: flex;
-			flex-direction: column;
-			align-items: center;
-			justify-content: end;
-			gap: 0.45rem;
-			flex-shrink: 0;
-		}
-
-		.comp-bars {
-			height: 150px;
-			display: flex;
-			align-items: end;
-			justify-content: center;
-			gap: 0.35rem;
-			width: 100%;
-		}
-
-		.comp-bar {
-			width: 22px;
-			min-height: 0;
-			border-radius: 8px 8px 4px 4px;
-		}
-
-		/* Match competitor_stats.html legend colours */
-		.tops-bar {
-			background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
-			border: 1px solid rgba(134, 239, 172, 0.65);
-		}
-
-		.flashes-bar {
-			background: linear-gradient(135deg, #0ea5e9 0%, #2563eb 100%);
-			border: 1px solid rgba(125, 211, 252, 0.65);
-		}
-
-		.comp-chart-values {
-			display: flex;
-			align-items: center;
-			justify-content: center;
-			gap: 0.35rem;
-			width: 100%;
-		}
-
-		.comp-chart-number {
-			width: 22px;
-			text-align: center;
-			font-size: 0.78rem;
-			color: var(--muted);
-			line-height: 1;
-			font-weight: 600;
-		}
-
-		.comp-chart-label {
-			font-size: 0.78rem;
-			color: var(--muted);
-			text-align: center;
-			word-break: break-word;
-			line-height: 1.25;
-			max-width: 76px;
-		}
-
-		.chart-legend {
-			display: flex;
-			gap: 1rem;
-			flex-wrap: wrap;
-			margin-top: 0.85rem;
-			font-size: 0.85rem;
-			color: var(--muted);
-		}
-
-		.legend-item {
-			display: inline-flex;
-			align-items: center;
-			gap: 0.45rem;
-		}
-
-		.legend-swatch {
-			width: 12px;
-			height: 12px;
-			border-radius: 4px;
-			display: inline-block;
-		}
-
-		.tops-swatch {
-			background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
-			border: 1px solid rgba(134, 239, 172, 0.65);
-		}
-
-		.flashes-swatch {
-			background: linear-gradient(135deg, #0ea5e9 0%, #2563eb 100%);
-			border: 1px solid rgba(125, 211, 252, 0.65);
-		}
-
 		.list {
 			display: flex;
 			flex-direction: column;
@@ -563,7 +458,7 @@
 					<div class="stat-card">
 						<div class="stat-label">Competitions Entered</div>
 						<div class="stat-value">{{ comps_entered }}</div>
-						<div class="stat-sub">How many comps you’ve entered</div>
+						<div class="stat-sub">How many comps you've entered</div>
 					</div>
 
 					<div class="stat-card">
@@ -581,7 +476,7 @@
 					<div class="stat-card">
 						<div class="stat-label">Scores Logged</div>
 						<div class="stat-value">{{ total_logged }}</div>
-						<div class="stat-sub">All climbs you’ve entered</div>
+						<div class="stat-sub">All climbs you've entered</div>
 					</div>
 				</div>
 			</section>
@@ -594,7 +489,6 @@
 						<div class="metric-k">Top Rate</div>
 						<div class="metric-v">{{ top_rate }}%</div>
 					</div>
-
 					<div class="metric-box">
 						<div class="metric-k">Flash Rate</div>
 						<div class="metric-v">{{ flash_rate }}%</div>
@@ -602,45 +496,108 @@
 				</div>
 
 				{% if chart_comps %}
-					<div class="comp-chart" aria-label="Tops and flashes by competition">
-						{% for comp in chart_comps %}
-							<div class="comp-chart-col" title="{{ comp.name }} — Tops: {{ comp.tops }}, Flashes: {{ comp.flashes }}">
-								<div class="comp-bars">
-									<div
-										class="comp-bar tops-bar"
-										style="height: {{ comp.tops_height }}px;"
-										aria-label="{{ comp.tops }} tops in {{ comp.name }}"
-									></div>
-									<div
-										class="comp-bar flashes-bar"
-										style="height: {{ comp.flashes_height }}px;"
-										aria-label="{{ comp.flashes }} flashes in {{ comp.name }}"
-									></div>
-								</div>
-								<div class="comp-chart-values">
-									<span class="comp-chart-number">{{ comp.tops }}</span>
-									<span class="comp-chart-number">{{ comp.flashes }}</span>
-								</div>
-								<div class="comp-chart-label">{{ comp.short_label }}</div>
-							</div>
-						{% endfor %}
-					</div>
 
-					<div class="chart-legend">
-						<span class="legend-item">
-							<span class="legend-swatch tops-swatch"></span>
+					<div style="display:flex; gap:16px; margin-bottom:10px; font-size:0.84rem; color:var(--muted);">
+						<span style="display:flex; align-items:center; gap:6px;">
+							<span style="width:10px; height:10px; border-radius:2px; background:#22c55e; display:inline-block;"></span>
 							Tops
 						</span>
-						<span class="legend-item">
-							<span class="legend-swatch flashes-swatch"></span>
+						<span style="display:flex; align-items:center; gap:6px;">
+							<span style="width:10px; height:10px; border-radius:2px; background:#0ea5e9; display:inline-block;"></span>
 							Flashes
 						</span>
 					</div>
+
+					<div style="position:relative; width:100%; height:{{ chart_comps|length * 52 + 24 }}px;">
+						<canvas id="compChart"></canvas>
+					</div>
+
+					<script>
+						(function () {
+							var labels  = [{% for c in chart_comps %}"{{ c.name }}"{% if not loop.last %},{% endif %}{% endfor %}];
+							var tops    = [{% for c in chart_comps %}{{ c.tops }}{% if not loop.last %},{% endif %}{% endfor %}];
+							var flashes = [{% for c in chart_comps %}{{ c.flashes }}{% if not loop.last %},{% endif %}{% endfor %}];
+
+							var maxVal  = Math.max.apply(null, tops.concat(flashes));
+							var xMax    = Math.ceil((maxVal + 1) / 2) * 2;
+
+							var dark      = window.matchMedia('(prefers-color-scheme: dark)').matches;
+							var gridColor = dark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.07)';
+							var tickColor = dark ? '#9fb0c7' : '#6b7280';
+
+							new Chart(document.getElementById('compChart'), {
+								type: 'bar',
+								data: {
+									labels: labels,
+									datasets: [
+										{
+											label: 'Tops',
+											data: tops,
+											backgroundColor: '#22c55e',
+											borderColor: 'rgba(134,239,172,0.5)',
+											borderWidth: 1,
+											borderRadius: 5,
+											barPercentage: 0.5,
+											categoryPercentage: 0.8,
+										},
+										{
+											label: 'Flashes',
+											data: flashes,
+											backgroundColor: '#0ea5e9',
+											borderColor: 'rgba(125,211,252,0.5)',
+											borderWidth: 1,
+											borderRadius: 5,
+											barPercentage: 0.5,
+											categoryPercentage: 0.8,
+										}
+									]
+								},
+								options: {
+									indexAxis: 'y',
+									responsive: true,
+									maintainAspectRatio: false,
+									plugins: {
+										legend: { display: false },
+										tooltip: {
+											callbacks: {
+												label: function(ctx) {
+													return ' ' + ctx.dataset.label + ': ' + ctx.parsed.x;
+												}
+											}
+										}
+									},
+									scales: {
+										x: {
+											beginAtZero: true,
+											max: xMax,
+											ticks: {
+												stepSize: 2,
+												color: tickColor,
+												font: { size: 12 },
+												precision: 0,
+											},
+											grid: { color: gridColor }
+										},
+										y: {
+											ticks: {
+												color: tickColor,
+												font: { size: 13 },
+												maxRotation: 0,
+											},
+											grid: { display: false }
+										}
+									}
+								}
+							});
+						})();
+					</script>
+
 				{% else %}
 					<div class="empty">
 						Competition history charts will appear here once results are available.
 					</div>
 				{% endif %}
+
 			</section>
 
 			<section class="card section">
@@ -671,8 +628,10 @@
 						No competition history yet.
 					</div>
 				{% endif %}
+
 			</section>
 		</div>
 	</main>
+
 </body>
 </html>
