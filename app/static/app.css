@@ -2779,3 +2779,320 @@
       font-size: clamp(3px, calc(6px / var(--marker-scale-squared)), 6px);
     }
   }
+
+  /* ============================================================
+   ADMIN SIDEBAR LAYOUT
+   Append this block to the END of app.css
+   ============================================================ */
+
+:root {
+  --admin-sidebar-width: 270px;
+  --admin-sidebar-bg: rgba(7, 12, 24, 0.94);
+  --admin-sidebar-border: rgba(255, 255, 255, 0.08);
+  --admin-sidebar-hover: rgba(255, 255, 255, 0.08);
+  --admin-sidebar-active: rgba(93, 244, 162, 0.14);
+  --admin-mobile-topbar-height: 64px;
+}
+
+.admin-sidebar-body {
+  min-height: var(--app-height);
+}
+
+.admin-shell {
+  min-height: var(--app-height);
+  display: flex;
+  width: 100%;
+}
+
+.admin-sidebar {
+  width: var(--admin-sidebar-width);
+  background: var(--admin-sidebar-bg);
+  border-right: 1px solid var(--admin-sidebar-border);
+  padding: 1rem 0.9rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  flex-shrink: 0;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
+  backdrop-filter: blur(12px);
+  z-index: 40;
+}
+
+.admin-sidebar__brand {
+  padding: 0.25rem 0.35rem 1rem;
+  border-bottom: 1px solid var(--admin-sidebar-border);
+  margin-bottom: 0.25rem;
+}
+
+.admin-sidebar__brand a {
+  color: var(--text);
+  text-decoration: none;
+  font-size: 1.05rem;
+  font-weight: 900;
+  letter-spacing: -0.01em;
+}
+
+.admin-sidebar__section-label {
+  padding: 0.4rem 0.5rem 0.15rem;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: rgba(255, 255, 255, 0.45);
+  font-weight: 800;
+}
+
+.admin-sidebar__nav,
+.admin-sidebar__footer {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.admin-sidebar__footer {
+  margin-top: auto;
+  padding-top: 0.8rem;
+  border-top: 1px solid var(--admin-sidebar-border);
+}
+
+.admin-sidebar__link,
+.admin-sidebar__toggle,
+.admin-sidebar__sublink {
+  width: 100%;
+  text-decoration: none;
+  border: 0;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.82);
+  font: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+
+.admin-sidebar__link,
+.admin-sidebar__toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.82rem 0.9rem;
+  border-radius: 0.95rem;
+  font-weight: 800;
+  transition: background 0.16s ease, color 0.16s ease, transform 0.16s ease;
+}
+
+.admin-sidebar__link:hover,
+.admin-sidebar__toggle:hover {
+  background: var(--admin-sidebar-hover);
+  color: var(--text);
+}
+
+.admin-sidebar__link.active,
+.admin-sidebar__toggle.active {
+  background: var(--admin-sidebar-active);
+  color: var(--text);
+}
+
+.admin-sidebar__group.open .admin-sidebar__toggle {
+  background: var(--admin-sidebar-active);
+  color: var(--text);
+}
+
+.admin-sidebar__caret {
+  font-size: 0.78rem;
+  opacity: 0.82;
+  transition: transform 0.16s ease;
+}
+
+.admin-sidebar__group.open .admin-sidebar__caret {
+  transform: rotate(90deg);
+}
+
+.admin-sidebar__submenu {
+  display: none;
+  flex-direction: column;
+  gap: 0.3rem;
+  padding: 0.2rem 0 0.35rem 0.85rem;
+}
+
+.admin-sidebar__group.open .admin-sidebar__submenu {
+  display: flex;
+}
+
+.admin-sidebar__sublink {
+  display: block;
+  padding: 0.72rem 0.85rem;
+  border-radius: 0.85rem;
+  color: rgba(255, 255, 255, 0.66);
+  font-size: 0.94rem;
+  font-weight: 700;
+  transition: background 0.16s ease, color 0.16s ease;
+}
+
+.admin-sidebar__sublink:hover {
+  background: var(--admin-sidebar-hover);
+  color: var(--text);
+}
+
+.admin-sidebar__sublink.active {
+  background: rgba(255, 255, 255, 0.09);
+  color: var(--green);
+}
+
+.admin-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.admin-main__container {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.admin-page-title {
+  margin-bottom: 0.35rem;
+}
+
+.admin-page-subtitle {
+  margin-bottom: 0;
+}
+
+.admin-section-title {
+  font-size: 1.4rem;
+}
+
+.admin-mobile-topbar {
+  display: none;
+  position: sticky;
+  top: 0;
+  z-index: 60;
+  height: var(--admin-mobile-topbar-height);
+  background: rgba(7, 12, 24, 0.96);
+  border-bottom: 1px solid var(--admin-sidebar-border);
+  backdrop-filter: blur(10px);
+  padding: 0 1rem;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.admin-mobile-topbar__title {
+  color: var(--text);
+  font-size: 1rem;
+  font-weight: 900;
+}
+
+.admin-mobile-topbar__toggle {
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text);
+  border-radius: 999px;
+  padding: 0.55rem 0.95rem;
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.admin-mobile-topbar__toggle:hover {
+  background: rgba(255, 255, 255, 0.11);
+}
+
+.admin-actions-row {
+  margin-top: 0.75rem;
+}
+
+.admin-btn-spaced {
+  margin-top: 1rem;
+}
+
+.admin-muted-spaced {
+  margin-top: 0.75rem;
+}
+
+.admin-fixed-col {
+  width: 220px;
+}
+
+.admin-table-actions-head {
+  text-align: right;
+}
+
+.admin-inline-form {
+  display: contents;
+}
+
+.admin-empty-state {
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 1rem;
+}
+
+/* Admin pages are better left-aligned rather than centered */
+.admin-main .container--centered {
+  align-items: stretch;
+}
+
+/* Make admin cards feel a little cleaner inside sidebar layout */
+.admin-main .card {
+  margin-bottom: 1.25rem;
+}
+
+/* Let admin tables breathe */
+.admin-main .actions-cell {
+  justify-content: flex-end;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+/* Prevent odd wrapping in create page rows on wide screens */
+.admin-form-row-inline {
+  display: flex;
+  flex-direction: row;
+  gap: 0.75rem;
+}
+
+@media (max-width: 960px) {
+  .admin-mobile-topbar {
+    display: flex;
+  }
+
+  .admin-shell {
+    display: block;
+  }
+
+  .admin-sidebar {
+    position: fixed;
+    top: var(--admin-mobile-topbar-height);
+    left: 0;
+    height: calc(100vh - var(--admin-mobile-topbar-height));
+    transform: translateX(-100%);
+    transition: transform 0.2s ease;
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
+  }
+
+  .admin-sidebar.is-open {
+    transform: translateX(0);
+  }
+
+  .admin-main {
+    width: 100%;
+  }
+
+  .admin-main .container {
+    padding-top: 1.25rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .admin-form-row-inline {
+    flex-direction: column;
+  }
+
+  .admin-main .actions-cell {
+    justify-content: flex-start;
+  }
+
+  .admin-table-actions-head {
+    text-align: left;
+  }
+}

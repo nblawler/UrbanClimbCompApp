@@ -8,7 +8,60 @@
 
 	<nav class="sidebar-nav">
 		<a href="/my-comps" class="sidebar-link">Upcoming Competitions</a>
-		<a href="/admin/comps" class="sidebar-link">Gym Admin</a>
+
+		{% set on_admin_create = request.path == "/admin/comps/create" %}
+		{% set on_admin_manage = request.path == "/admin/comps/manage" %}
+		{% set on_admin_home = request.path == "/admin" %}
+		{% set on_admin_map = request.path == "/admin/map" %}
+		{% set on_admin_section = request.path.startswith("/admin/section/") %}
+		{% set on_admin_configure = request.path.startswith("/admin/comp/") %}
+		{% set on_route_setter_comps = request.path == "/route-setter/comps" %}
+
+		{% set gym_admin_open = on_admin_create or on_admin_manage or on_admin_home or on_admin_configure %}
+		{% set route_setter_open = on_route_setter_comps or on_admin_map or on_admin_section %}
+
+		{% if sidebar_gym_admin_allowed|default(false) %}
+			<div class="sidebar-group {% if gym_admin_open %}open{% endif %}">
+				<button
+					type="button"
+					class="sidebar-link sidebar-dropdown-toggle {% if gym_admin_open %}active{% endif %}"
+					onclick="toggleSidebarGroup(this)"
+					aria-expanded="{% if gym_admin_open %}true{% else %}false{% endif %}"
+				>
+					<span>Gym Admin</span>
+					<span class="sidebar-caret">▾</span>
+				</button>
+
+				<div class="sidebar-submenu">
+					<a href="/admin/comps/create" class="sidebar-sublink {% if on_admin_create %}active{% endif %}">
+						Create Competition
+					</a>
+					<a href="/admin/comps/manage" class="sidebar-sublink {% if on_admin_manage %}active{% endif %}">
+						Competitions
+					</a>
+				</div>
+			</div>
+		{% endif %}
+
+		{% if sidebar_route_setter_allowed|default(false) %}
+			<div class="sidebar-group {% if route_setter_open %}open{% endif %}">
+				<button
+					type="button"
+					class="sidebar-link sidebar-dropdown-toggle {% if route_setter_open %}active{% endif %}"
+					onclick="toggleSidebarGroup(this)"
+					aria-expanded="{% if route_setter_open %}true{% else %}false{% endif %}"
+				>
+					<span>Route Setter</span>
+					<span class="sidebar-caret">▾</span>
+				</button>
+
+				<div class="sidebar-submenu">
+					<a href="/route-setter/comps" class="sidebar-sublink {% if on_route_setter_comps %}active{% endif %}">
+						Competitions
+					</a>
+				</div>
+			</div>
+		{% endif %}
 
 		{% if session.get("competitor_id") or session.get("account_id") %}
 			<a href="/logout" class="sidebar-link">Log out</a>
@@ -93,10 +146,73 @@
 		background: rgba(255,255,255,0.05);
 		transition: background 0.15s ease;
 		font-weight: 500;
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 0.75rem;
+		width: 100%;
+		box-sizing: border-box;
 	}
 
 	.sidebar-link:hover {
 		background: rgba(255,255,255,0.12);
+	}
+
+	.sidebar-link.active {
+		background: rgba(255,255,255,0.16);
+	}
+
+	.sidebar-dropdown-toggle {
+		border: none;
+		cursor: pointer;
+		font: inherit;
+		text-align: left;
+	}
+
+	.sidebar-group {
+		display: flex;
+		flex-direction: column;
+		gap: 0.45rem;
+	}
+
+	.sidebar-submenu {
+		display: none;
+		flex-direction: column;
+		gap: 0.45rem;
+		padding-left: 0.65rem;
+	}
+
+	.sidebar-group.open .sidebar-submenu {
+		display: flex;
+	}
+
+	.sidebar-sublink {
+		color: #fff;
+		text-decoration: none;
+		padding: 0.75rem 0.9rem;
+		border-radius: 10px;
+		background: rgba(255,255,255,0.035);
+		transition: background 0.15s ease;
+		font-weight: 500;
+		font-size: 0.95rem;
+	}
+
+	.sidebar-sublink:hover {
+		background: rgba(255,255,255,0.10);
+	}
+
+	.sidebar-sublink.active {
+		background: rgba(255,255,255,0.16);
+	}
+
+	.sidebar-caret {
+		font-size: 0.9rem;
+		transition: transform 0.18s ease;
+		flex-shrink: 0;
+	}
+
+	.sidebar-group.open .sidebar-caret {
+		transform: rotate(180deg);
 	}
 
 	.menu-toggle {
@@ -129,6 +245,14 @@
 		if (sidebar) sidebar.classList.remove("open");
 		if (overlay) overlay.classList.remove("open");
 		document.body.style.overflow = "";
+	}
+
+	function toggleSidebarGroup(buttonEl) {
+		const group = buttonEl.closest(".sidebar-group");
+		if (!group) return;
+
+		const isOpen = group.classList.toggle("open");
+		buttonEl.setAttribute("aria-expanded", isOpen ? "true" : "false");
 	}
 
 	document.addEventListener("keydown", function (e) {

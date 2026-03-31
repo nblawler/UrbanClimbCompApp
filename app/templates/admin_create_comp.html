@@ -1,0 +1,96 @@
+<!-- admin_create_comp.html -->
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<title>Create Competition · Admin · Comp Circuit</title>
+		<link rel="stylesheet" href="/static/app.css" />
+	</head>
+
+	<body>
+		{% set is_logged_in = session.get('account_id') %}
+		{% set is_admin = session.get('admin_ok', False) %}
+
+		<nav class="nav">
+			<button type="button" class="menu-toggle" onclick="openSidebar()">☰ Menu</button>
+		</nav>
+
+		{% include "sidebar.html" %}
+
+		<main class="container container--wide">
+			<header class="hero" style="margin:2rem 0 2rem;">
+				<h1>Create Competition</h1>
+			</header>
+
+			{% if error %}
+				<div class="alert alert-error">{{ error }}</div>
+			{% endif %}
+
+			{% if message %}
+				<div class="alert alert-success">{{ message }}</div>
+			{% endif %}
+
+			<section class="card">
+				<header class="section-header">
+					<h2 class="section-title" style="font-size:1.4rem;">Create a new competition</h2>
+				</header>
+
+				<form method="post" class="form-grid">
+					<input type="hidden" name="action" value="create_comp" />
+
+					<div class="form-row">
+						<label class="form-label" for="name">Competition name</label>
+						<input
+							type="text"
+							id="name"
+							name="name"
+							class="form-input"
+							required
+							placeholder="e.g. UC Collingwood Boulder Bash"
+						/>
+					</div>
+
+					<div class="form-row">
+						<label class="form-label" for="gym_id">Gym</label>
+						<select id="gym_id" name="gym_id" class="form-input" required>
+							<option value="">Select a gym…</option>
+							{% for g in gyms %}
+								<option value="{{ g.id }}">{{ g.name }}</option>
+							{% endfor %}
+						</select>
+						{% if not gyms %}
+							<p class="form-help">No gyms available for your admin account.</p>
+						{% endif %}
+					</div>
+
+					<div class="form-row form-row-inline admin-form-row-inline">
+						<div class="form-field">
+							<label class="form-label" for="start_date">Start date</label>
+							<input type="date" id="start_date" name="start_date" class="form-input" />
+						</div>
+						<div class="form-field">
+							<label class="form-label" for="start_time">Start time</label>
+							<input type="time" id="start_time" name="start_time" class="form-input" />
+						</div>
+					</div>
+
+					<div class="form-row form-row-inline admin-form-row-inline">
+						<div class="form-field">
+							<label class="form-label" for="end_date">End date</label>
+							<input type="date" id="end_date" name="end_date" class="form-input" />
+						</div>
+						<div class="form-field">
+							<label class="form-label" for="end_time">End time</label>
+							<input type="time" id="end_time" name="end_time" class="form-input" />
+						</div>
+					</div>
+
+					<div class="form-row">
+						<button type="submit" class="btn-primary">Create competition</button>
+					</div>
+				</form>
+			</section>
+		</main>
+	</body>
+</html>

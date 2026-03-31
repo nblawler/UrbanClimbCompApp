@@ -1,0 +1,151 @@
+<!-- admin_manage_comps.html -->
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<title>Competitions · Admin · Comp Circuit</title>
+		<link rel="stylesheet" href="/static/app.css" />
+	</head>
+
+	<body>
+		{% set is_logged_in = session.get('account_id') %}
+		{% set is_admin = session.get('admin_ok', False) %}
+
+		<nav class="nav">
+			<button type="button" class="menu-toggle" onclick="openSidebar()">☰ Menu</button>
+		</nav>
+
+		{% include "sidebar.html" %}
+
+		<main class="container container--wide">
+			<header class="hero" style="margin:2rem 0 2rem;">
+				<h1>Competitions</h1>
+			</header>
+
+			{% if error %}
+				<div class="alert alert-error">{{ error }}</div>
+			{% endif %}
+
+			{% if message %}
+				<div class="alert alert-success">{{ message }}</div>
+			{% endif %}
+
+			<section class="card">
+				<header class="section-header">
+					<h2 class="section-title" style="font-size:1.4rem;">All competitions</h2>
+				</header>
+
+				{% set current_page = (competitions_page.page if competitions_page is defined else 1) %}
+
+				{% if competitions %}
+					<div class="table-wrapper">
+						<table class="data-table">
+							<thead>
+								<tr>
+									<th>ID</th>
+									<th>Name</th>
+									<th>Gym</th>
+									<th>Status</th>
+									<th>Dates</th>
+									<th style="text-align: right;">Actions</th>
+								</tr>
+							</thead>
+							<tbody>
+								{% for comp in competitions %}
+									<tr>
+										<td>#{{ comp.id }}</td>
+										<td><strong>{{ comp.name }}</strong></td>
+										<td>{{ (comp.gym.name if comp.gym else comp.gym_name) or "—" }}</td>
+										<td>
+											{% if comp.is_active %}
+												<span class="pill pill-success">Live</span>
+											{% else %}
+												<span class="pill pill-muted">Not live</span>
+											{% endif %}
+										</td>
+										<td>
+											{% if comp.start_at %}
+												{{ comp.start_at|melb_dt("%d %b %Y %H:%M") }}
+											{% else %}
+												—
+											{% endif %}
+											{% if comp.end_at %}
+												&mdash; {{ comp.end_at|melb_dt("%d %b %Y %H:%M") }}
+											{% endif %}
+										</td>
+										<td>
+											<div class="actions-cell">
+												<a
+													href="/admin/comp/{{ comp.id }}/configure?page={{ current_page }}"
+													class="btn-ghost"
+													title="Switch admin tools to this competition"
+												>
+													Manage
+												</a>
+
+												{% if comp.is_active %}
+													<form method="post" class="admin-inline-form">
+														<input type="hidden" name="action" value="archive" />
+														<input type="hidden" name="competition_id" value="{{ comp.id }}" />
+														<button type="submit" class="live-toggle is-on" title="Click to set Not live">
+															<span class="live-switch"><span class="live-knob"></span></span>
+															<span class="live-label"><b>Live</b> <span>· click to turn off</span></span>
+														</button>
+													</form>
+												{% else %}
+													<form method="post" class="admin-inline-form">
+														<input type="hidden" name="action" value="set_active" />
+														<input type="hidden" name="competition_id" value="{{ comp.id }}" />
+														<button type="submit" class="live-toggle" title="Click to set Live">
+															<span class="live-switch"><span class="live-knob"></span></span>
+															<span class="live-label"><b>Not live</b></span>
+														</button>
+													</form>
+												{% endif %}
+											</div>
+										</td>
+									</tr>
+								{% endfor %}
+							</tbody>
+						</table>
+					</div>
+
+					{% if competitions_page is defined and competitions_page.pages > 1 %}
+						<div class="pager">
+							{% if competitions_page.has_prev %}
+								<a class="btn-ghost" href="/admin/comps/manage?page={{ competitions_page.prev_num }}">← Prev</a>
+							{% else %}
+								<button class="btn-ghost" disabled>← Prev</button>
+							{% endif %}
+
+							<span class="page-meta">Page {{ competitions_page.page }} / {{ competitions_page.pages }}</span>
+
+							{% set start = competitions_page.page - 2 %}
+							{% set end = competitions_page.page + 2 %}
+							{% if start < 1 %}{% set start = 1 %}{% endif %}
+							{% if end > competitions_page.pages %}{% set end = competitions_page.pages %}{% endif %}
+
+							{% for p in range(start, end + 1) %}
+								<a
+									class="page-num {% if p == competitions_page.page %}is-current{% endif %}"
+									href="/admin/comps/manage?page={{ p }}"
+								>{{ p }}</a>
+							{% endfor %}
+
+							{% if competitions_page.has_next %}
+								<a class="btn-ghost" href="/admin/comps/manage?page={{ competitions_page.next_num }}">Next →</a>
+							{% else %}
+								<button class="btn-ghost" disabled>Next →</button>
+							{% endif %}
+						</div>
+					{% endif %}
+				{% else %}
+					<p class="admin-empty-state">
+						No competitions configured yet.
+					</p>
+				{% endif %}
+			</section>
+		</main>
+	</body>
+</html>

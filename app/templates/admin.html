@@ -1,209 +1,233 @@
 <!-- admin.html -->
 <!doctype html>
 <html lang="en">
-	<head>
-		<meta charset="utf-8" />
-		<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-		<title>Admin · Comp Circuit</title>
-		<link rel="stylesheet" href="/static/app.css" />
-	</head>
-	<body>
-		<nav class="top-nav">
-			<div class="nav-links">
-				<a href="/">Home</a>
-				<a class="active" href="/admin/comps">Admin</a>
+<head>
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+
+	<title>
+		{% if current_comp %}
+			Manage {{ current_comp.name }} · Comp Circuit
+		{% else %}
+			Manage Competition · Comp Circuit
+		{% endif %}
+	</title>
+
+	<link rel="stylesheet" href="/static/app.css" />
+</head>
+<body>
+	{% set is_logged_in = session.get('account_id') %}
+	{% set is_admin = session.get('admin_ok', False) %}
+
+	<nav class="nav">
+		<button type="button" class="menu-toggle" onclick="openSidebar()">☰ Menu</button>
+	</nav>
+
+	{% include "sidebar.html" %}
+
+	<main class="container container--medium">
+		<header class="hero" style="margin:2rem 0 2rem;">
+			<h1>
 				{% if current_comp %}
-					<a
-						class="{% if nav_active == 'leaderboard' %}active{% endif %}"
-						href="/leaderboard/comp/{{ current_comp.id }}"
-						title="Leaderboard for the competition you're managing"
-					>
-						Leaderboard
-					</a>
-				{% endif %}
-				<a href="/logout">Log out</a>
-			</div>
-		</nav>
-
-		<main class="container container--centered container--medium">
-			<header class="hero" style="margin:2rem 0 2rem;">
-				<h1>Admin</h1>
-			</header>
-
-			{% if error %}
-				<div class="alert alert--error">{{ error }}</div>
-			{% endif %}
-
-			{% if message %}
-				<div class="alert alert--ok">{{ message }}</div>
-			{% endif %}
-
-			<div class="card">
-				<h2>Manage competition</h2>
-
-				{% if current_comp %}
-					<div style="margin-top:12px;">
-						<a href="/admin/comps" class="btn">Switch competition</a>
-					</div>
+					Manage {{ current_comp.name }}
 				{% else %}
-					<p class="muted" style="margin-top:6px;">
-						No competition selected. Choose one to manage.
-					</p>
-					<div style="margin-top:12px;">
-						<a href="/admin/comps" class="btn">Choose a competition</a>
-					</div>
+					Manage Competition
 				{% endif %}
-			</div>
+			</h1>
+		</header>
+
+		{% if error %}
+			<div class="alert alert--error">{{ error }}</div>
+		{% endif %}
+
+		{% if message %}
+			<div class="alert alert--ok">{{ message }}</div>
+		{% endif %}
+
+		<div class="card">
+			<h2>Manage competition</h2>
 
 			{% if current_comp %}
-
-				<div class="card">
-					<h2>Delete competitor</h2>
-
-					<form method="post">
-						<label>Competitor number</label>
-						<input type="number" name="competitor_id" min="1" required />
-
-						<button type="submit" name="action" value="delete_competitor" class="btn btn--danger" style="margin-top:1rem;">
-							Delete competitor
-						</button>
-					</form>
+				<div style="margin-top:12px;">
+					<a href="/admin/comps/manage" class="btn">Switch competition</a>
 				</div>
+			{% else %}
+				<p class="muted" style="margin-top:6px;">
+					No competition selected. Choose one to manage.
+				</p>
+				<div style="margin-top:12px;">
+					<a href="/admin/comps/manage" class="btn">Choose a competition</a>
+				</div>
+			{% endif %}
+		</div>
 
-				<div class="card" id="search-card">
-					<h2>Find competitor by name</h2>
+		{% if current_comp %}
 
-					<form method="post" action="/admin#search-card">
-						<label>Name (partial OK)</label>
+			<section class="card">
+				<header class="section-header">
+					<h2 class="section-title" style="font-size:1.4rem;">Edit competition details</h2>
+				</header>
+
+				<form method="post" class="form-grid">
+					<input type="hidden" name="action" value="update_competition" />
+					<input type="hidden" name="competition_id" value="{{ current_comp.id }}" />
+
+					<div class="form-row">
+						<label class="form-label" for="name">Competition name</label>
 						<input
 							type="text"
-							name="search_name"
-							placeholder="e.g. John, Smith"
-							value="{{ search_query or '' }}"
+							id="name"
+							name="name"
+							class="form-input"
 							required
+							value="{{ current_comp.name or '' }}"
+							placeholder="e.g. UC Collingwood Boulder Bash"
 						/>
+					</div>
 
-						<button type="submit" name="action" value="search_competitor" class="btn" style="margin-top:1rem;">
-							Search
-						</button>
-					</form>
+					<div class="form-row">
+						<label class="form-label" for="gym_id">Gym</label>
+						<select id="gym_id" name="gym_id" class="form-input" required>
+							<option value="">Select a gym…</option>
+							{% for g in gyms %}
+								<option value="{{ g.id }}" {% if current_comp.gym_id == g.id %}selected{% endif %}>
+									{{ g.name }}
+								</option>
+							{% endfor %}
+						</select>
+						{% if not gyms %}
+							<p class="form-help">No gyms available for your admin account.</p>
+						{% endif %}
+					</div>
 
-					{% if search_results is defined and search_results %}
-						<hr />
-						<div class="table-wrap">
-							<table>
-								<thead>
-									<tr>
-										<th>#</th>
-										<th>Name</th>
-										<th>Category</th>
-										<th>Registered</th>
-									</tr>
-								</thead>
-								<tbody>
-									{% for c in search_results %}
-										<tr>
-											<td>{{ c.id }}</td>
-											<td>{{ c.name }}</td>
-											<td>{{ c.gender }}</td>
-											<td>
-												{% if c.created_at %}
-													{{ c.created_at.strftime("%Y-%m-%d %H:%M") }}
-												{% else %}
-													–
-												{% endif %}
-											</td>
-										</tr>
-									{% endfor %}
-								</tbody>
-							</table>
+					<div class="form-row form-row-inline admin-form-row-inline">
+						<div class="form-field">
+							<label class="form-label" for="start_date">Start date</label>
+							<input
+								type="date"
+								id="start_date"
+								name="start_date"
+								class="form-input"
+								value="{{ current_comp.start_at|melb_dt('%Y-%m-%d') if current_comp.start_at else '' }}"
+							/>
 						</div>
-					{% elif search_results is defined and not search_results and search_query %}
-						<p class="muted" style="margin-top:12px;">
-							No competitors found matching "{{ search_query }}".
-						</p>
-					{% endif %}
-				</div>
-
-				<div class="card" id="doubles-lookup-card">
-					<h2>Doubles lookup by competitor number</h2>
-
-					<form method="post" action="/admin#doubles-lookup-card">
-						<label>Competitor number</label>
-						<input
-							type="number"
-							name="lookup_competitor_id"
-							min="1"
-							value="{{ lookup_competitor_id or '' }}"
-							required
-						/>
-
-						<button type="submit" name="action" value="lookup_doubles_status" class="btn" style="margin-top:1rem;">
-							Check doubles status
-						</button>
-					</form>
-
-					{% if doubles_lookup is defined and doubles_lookup %}
-						<hr />
-						<div class="table-wrap">
-							<table>
-								<tbody>
-									<tr><th style="width: 220px;">Competitor #</th><td>{{ doubles_lookup.id }}</td></tr>
-									<tr><th>Name</th><td>{{ doubles_lookup.name }}</td></tr>
-									<tr><th>Email</th><td>{{ doubles_lookup.email or "–" }}</td></tr>
-									<tr><th>Category</th><td>{{ doubles_lookup.gender or "–" }}</td></tr>
-									<tr>
-										<th>In doubles team?</th>
-										<td>{% if doubles_lookup.in_team %}Yes{% else %}No{% endif %}</td>
-									</tr>
-									{% if doubles_lookup.in_team %}
-										<tr><th>Partner #</th><td>{{ doubles_lookup.partner_id }}</td></tr>
-										<tr><th>Partner name</th><td>{{ doubles_lookup.partner_name }}</td></tr>
-										<tr><th>Partner email</th><td>{{ doubles_lookup.partner_email or "–" }}</td></tr>
-										<tr><th>Team ID</th><td>{{ doubles_lookup.team_id }}</td></tr>
-									{% endif %}
-								</tbody>
-							</table>
+						<div class="form-field">
+							<label class="form-label" for="start_time">Start time</label>
+							<input
+								type="time"
+								id="start_time"
+								name="start_time"
+								class="form-input"
+								value="{{ current_comp.start_at|melb_dt('%H:%M') if current_comp.start_at else '' }}"
+							/>
 						</div>
-					{% elif doubles_lookup is defined and lookup_competitor_id %}
-						<p class="muted" style="margin-top:12px;">
-							No competitor found for number {{ lookup_competitor_id }} in this competition.
-						</p>
-					{% endif %}
-				</div>
+					</div>
 
-				<div class="card">
-					<h2>Wall map</h2>
-					<a href="/admin/map?comp_id={{ current_comp.id }}" class="btn">Open map editor</a>
-				</div>
+					<div class="form-row form-row-inline admin-form-row-inline">
+						<div class="form-field">
+							<label class="form-label" for="end_date">End date</label>
+							<input
+								type="date"
+								id="end_date"
+								name="end_date"
+								class="form-input"
+								value="{{ current_comp.end_at|melb_dt('%Y-%m-%d') if current_comp.end_at else '' }}"
+							/>
+						</div>
+						<div class="form-field">
+							<label class="form-label" for="end_time">End time</label>
+							<input
+								type="time"
+								id="end_time"
+								name="end_time"
+								class="form-input"
+								value="{{ current_comp.end_at|melb_dt('%H:%M') if current_comp.end_at else '' }}"
+							/>
+						</div>
+					</div>
 
-			{% else %}
+					<div class="form-row">
+						<button type="submit" class="btn-primary">Save competition details</button>
+					</div>
+				</form>
+			</section>
 
-				<div class="card">
-					<h2>Competition-scoped tools</h2>
-					<p class="muted">
-						To create competitors, sections, or edit the wall map, first choose a competition:
-						Admin Home → Comps → Manage.
-					</p>
-					<a href="/admin/comps" class="btn" style="margin-top:1rem;">Choose a competition</a>
-				</div>
+			<div class="card" id="search-card">
+				<h2>Find competitor by name</h2>
 
-			{% endif %}
+				<form method="post" action="/admin#search-card">
+					<label>Name (partial OK)</label>
+					<input
+						type="text"
+						name="search_name"
+						placeholder="e.g. John, Smith"
+						value="{{ search_query or '' }}"
+						required
+					/>
 
-			{% if is_super %}
-				<div class="card">
-					<h2>Reset all competitors & scores</h2>
-					<p class="muted">
-						WARNING: This deletes ALL competitors, ALL scores, ALL sections, and ALL climbs.
-					</p>
+					<button type="submit" name="action" value="search_competitor" class="btn" style="margin-top:1rem;">
+						Search
+					</button>
+				</form>
 
-					<form method="post">
-						<button type="submit" name="action" value="reset_all" class="btn btn--danger" style="margin-top:1rem;">
-							Reset all data
-						</button>
-					</form>
-				</div>
-			{% endif %}
-		</main>
-	</body>
+				{% if search_results is defined and search_results %}
+					<hr />
+					<div class="table-wrap">
+						<table>
+							<thead>
+								<tr>
+									<th>#</th>
+									<th>Name</th>
+									<th>Category</th>
+									<th>Registered</th>
+								</tr>
+							</thead>
+							<tbody>
+								{% for c in search_results %}
+									<tr>
+										<td>{{ c.id }}</td>
+										<td>{{ c.name }}</td>
+										<td>{{ c.gender }}</td>
+										<td>
+											{% if c.created_at %}
+												{{ c.created_at.strftime("%Y-%m-%d %H:%M") }}
+											{% else %}
+												–
+											{% endif %}
+										</td>
+									</tr>
+								{% endfor %}
+							</tbody>
+						</table>
+					</div>
+				{% endif %}
+			</div>
+
+			<div class="card">
+				<h2>Delete competitor</h2>
+
+				<form method="post">
+					<label>Competitor number</label>
+					<input type="number" name="competitor_id" min="1" required />
+
+					<button type="submit" name="action" value="delete_competitor" class="btn btn--danger" style="margin-top:1rem;">
+						Delete competitor
+					</button>
+				</form>
+			</div>
+
+		{% else %}
+
+			<div class="card">
+				<h2>Competition-scoped tools</h2>
+				<p class="muted">
+					To edit competition details, competitors, sections, or route setting tools, first choose a competition:
+					Gym Admin → Competitions.
+				</p>
+				<a href="/admin/comps/manage" class="btn" style="margin-top:1rem;">Choose a competition</a>
+			</div>
+
+		{% endif %}
+	</main>
+</body>
 </html>

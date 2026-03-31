@@ -1,233 +1,337 @@
 <!-- admin_comps.html -->
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Admin · Competitions · Urban Climb Comp</title>
-    <link rel="stylesheet" href="/static/app.css" />
-  </head>
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<title>
+			{% if admin_comps_mode == 'create' %}
+				Create Competition · Admin · Comp Circuit
+			{% else %}
+				Manage Competition · Admin · Comp Circuit
+			{% endif %}
+		</title>
+		<link rel="stylesheet" href="/static/app.css" />
+	</head>
 
-  <body>
-    <nav class="top-nav">
-      <div class="nav-links">
-        <a class="{% if nav_active == 'my_comps' %}active{% endif %}" href="/my-comps">Home</a>
+	<body class="admin-sidebar-body">
+		<div class="admin-mobile-topbar">
+			<div class="admin-mobile-topbar__title">Comp Circuit Admin</div>
+			<button
+				type="button"
+				class="admin-mobile-topbar__toggle"
+				id="adminSidebarToggle"
+				aria-label="Open navigation"
+				aria-controls="adminSidebar"
+				aria-expanded="false"
+			>
+				☰ Menu
+			</button>
+		</div>
 
-        {% if session.get('admin_ok') %}
-          <a class="active" href="/admin/comps">Admin</a>
+		<div class="admin-shell">
+			<aside class="admin-sidebar" id="adminSidebar">
+				<div class="admin-sidebar__brand">
+					<a href="/">Comp Circuit</a>
+				</div>
 
-          {% if session.get('admin_comp_id') %}
-            <a
-              class="{% if nav_active == 'leaderboard' %}active{% endif %}"
-              href="/leaderboard/comp/{{ session.get('admin_comp_id') }}"
-              title="Leaderboard for the competition you're managing"
-            >
-              Leaderboard
-            </a>
-          {% endif %}
-        {% endif %}
+				<div class="admin-sidebar__section-label">Main navigation</div>
 
-        {% if session.get('competitor_id') or session.get('admin_ok') %}
-          <a href="/logout">Log out</a>
-        {% else %}
-          <a class="{% if nav_active == 'login' %}active{% endif %}"
-             href="/login{% if comp_slug %}?slug={{ comp_slug }}{% endif %}">
-            Log in
-          </a>
-        {% endif %}
-      </div>
-    </nav>
+				<nav class="admin-sidebar__nav">
+					<a href="/my-comps" class="admin-sidebar__link">
+						<span>Home</span>
+					</a>
 
-    <main class="container container--wide">
-      <header class="page-header">
-        <h1 class="page-title">Competition Management</h1>
-      </header>
+					<div class="admin-sidebar__group open" id="gymAdminGroup">
+						<button
+							type="button"
+							class="admin-sidebar__toggle active"
+							id="gymAdminToggle"
+							aria-expanded="true"
+						>
+							<span>Gym Admin</span>
+							<span class="admin-sidebar__caret">▶</span>
+						</button>
 
-      {% if error %}
-        <div class="alert alert-error">{{ error }}</div>
-      {% endif %}
+						<div class="admin-sidebar__submenu">
+							<a
+								href="/admin/comps/create"
+								class="admin-sidebar__sublink {% if admin_comps_mode == 'create' %}active{% endif %}"
+							>
+								Create Competition
+							</a>
+							<a
+								href="/admin/comps/manage"
+								class="admin-sidebar__sublink {% if admin_comps_mode == 'manage' %}active{% endif %}"
+							>
+								Manage Competition
+							</a>
+						</div>
+					</div>
 
-      {% if message %}
-        <div class="alert alert-success">{{ message }}</div>
-      {% endif %}
+					<a href="/admin" class="admin-sidebar__link">
+						<span>Admin Home</span>
+					</a>
 
-      <section class="card">
-        <header class="section-header">
-          <h2 class="section-title" style="font-size:1.4rem;">Create a new competition</h2>
-        </header>
+					{% if session.get('admin_comp_id') %}
+						<a
+							href="/leaderboard/comp/{{ session.get('admin_comp_id') }}"
+							class="admin-sidebar__link {% if nav_active == 'leaderboard' %}active{% endif %}"
+							title="Leaderboard for the competition you're managing"
+						>
+							<span>Leaderboard</span>
+						</a>
+					{% endif %}
+				</nav>
 
-        <form method="post" class="form-grid">
-          <input type="hidden" name="action" value="create_comp" />
+				<div class="admin-sidebar__footer">
+					{% if session.get('competitor_id') or session.get('admin_ok') %}
+						<a href="/logout" class="admin-sidebar__link">
+							<span>Log out</span>
+						</a>
+					{% else %}
+						<a
+							class="admin-sidebar__link {% if nav_active == 'login' %}active{% endif %}"
+							href="/login{% if comp_slug %}?slug={{ comp_slug }}{% endif %}"
+						>
+							<span>Log in</span>
+						</a>
+					{% endif %}
+				</div>
+			</aside>
 
-          <div class="form-row">
-            <label class="form-label" for="name">Competition name</label>
-            <input
-              type="text"
-              id="name"
-              name="name"
-              class="form-input"
-              required
-              placeholder="e.g. UC Collingwood Boulder Bash"
-            />
-          </div>
+			<main class="admin-main">
+				<div class="container container--wide admin-main__container">
+					<header class="page-header">
+						{% if admin_comps_mode == 'create' %}
+							<h1 class="page-title admin-page-title">Create Competition</h1>
+							<p class="page-subtitle admin-page-subtitle">
+								Create a new competition for one of your gyms.
+							</p>
+						{% else %}
+							<h1 class="page-title admin-page-title">Manage Competition</h1>
+							<p class="page-subtitle admin-page-subtitle">
+								Choose an existing competition to edit and manage.
+							</p>
+						{% endif %}
+					</header>
 
-          <div class="form-row">
-            <label class="form-label" for="gym_id">Gym</label>
-            <select id="gym_id" name="gym_id" class="form-input" required>
-              <option value="">Select a gym…</option>
-              {% for g in gyms %}
-                <option value="{{ g.id }}">{{ g.name }}</option>
-              {% endfor %}
-            </select>
-            {% if not gyms %}
-              <p class="form-help">No gyms available for your admin account.</p>
-            {% endif %}
-          </div>
+					{% if error %}
+						<div class="alert alert-error">{{ error }}</div>
+					{% endif %}
 
-          <div class="form-row form-row-inline">
-            <div class="form-field">
-              <label class="form-label" for="start_date">Start date</label>
-              <input type="date" id="start_date" name="start_date" class="form-input" />
-            </div>
-            <div class="form-field">
-              <label class="form-label" for="start_time">Start time</label>
-              <input type="time" id="start_time" name="start_time" class="form-input" />
-            </div>
-          </div>
+					{% if message %}
+						<div class="alert alert-success">{{ message }}</div>
+					{% endif %}
 
-          <div class="form-row form-row-inline">
-            <div class="form-field">
-              <label class="form-label" for="end_date">End date</label>
-              <input type="date" id="end_date" name="end_date" class="form-input" />
-            </div>
-            <div class="form-field">
-              <label class="form-label" for="end_time">End time</label>
-              <input type="time" id="end_time" name="end_time" class="form-input" />
-            </div>
-          </div>
+					{% if admin_comps_mode == 'create' %}
 
-          <div class="form-row">
-            <button type="submit" class="btn-primary">Create competition</button>
-          </div>
-        </form>
-      </section>
+						<section class="card">
+							<header class="section-header">
+								<h2 class="section-title admin-section-title">Create a new competition</h2>
+							</header>
 
-      <section class="card">
-        <header class="section-header">
-          <h2 class="section-title" style="font-size:1.4rem;">All competitions</h2>
-        </header>
+							<form method="post" class="form-grid">
+								<input type="hidden" name="action" value="create_comp" />
 
-        {% set current_page = (competitions_page.page if competitions_page is defined else 1) %}
+								<div class="form-row">
+									<label class="form-label" for="name">Competition name</label>
+									<input
+										type="text"
+										id="name"
+										name="name"
+										class="form-input"
+										required
+										placeholder="e.g. UC Collingwood Boulder Bash"
+									/>
+								</div>
 
-        {% if competitions %}
-          <div class="table-wrapper">
-            <table class="data-table">
-              <thead>
-                <tr>
-                  <th>ID</th>
-                  <th>Name</th>
-                  <th>Gym</th>
-                  <th>Status</th>
-                  <th>Dates</th>
-                  <th style="text-align: right;">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {% for comp in competitions %}
-                  <tr>
-                    <td>#{{ comp.id }}</td>
-                    <td><strong>{{ comp.name }}</strong></td>
-                    <td>{{ (comp.gym.name if comp.gym else comp.gym_name) or "—" }}</td>
-                    <td>
-                      {% if comp.is_active %}
-                        <span class="pill pill-success">Live</span>
-                      {% else %}
-                        <span class="pill pill-muted">Not live</span>
-                      {% endif %}
-                    </td>
-                    <td>
-                      {% if comp.start_at %}
-                        {{ comp.start_at|melb_dt("%d %b %Y %H:%M") }}
-                      {% else %}
-                        —
-                      {% endif %}
-                      {% if comp.end_at %}
-                        &mdash; {{ comp.end_at|melb_dt("%d %b %Y %H:%M") }}
-                      {% endif %}
-                    </td>
-                    <td>
-                      <div class="actions-cell">
-                        <a
-                          href="/admin/comp/{{ comp.id }}/configure?page={{ current_page }}"
-                          class="btn-ghost"
-                          title="Switch admin tools to this competition"
-                        >
-                          Manage
-                        </a>
+								<div class="form-row">
+									<label class="form-label" for="gym_id">Gym</label>
+									<select id="gym_id" name="gym_id" class="form-input" required>
+										<option value="">Select a gym…</option>
+										{% for g in gyms %}
+											<option value="{{ g.id }}">{{ g.name }}</option>
+										{% endfor %}
+									</select>
+									{% if not gyms %}
+										<p class="form-help">No gyms available for your admin account.</p>
+									{% endif %}
+								</div>
 
-                        {% if comp.is_active %}
-                          <form method="post" style="display: contents;">
-                            <input type="hidden" name="action" value="archive" />
-                            <input type="hidden" name="competition_id" value="{{ comp.id }}" />
-                            <button type="submit" class="live-toggle is-on" title="Click to set Not live">
-                              <span class="live-switch"><span class="live-knob"></span></span>
-                              <span class="live-label"><b>Live</b> <span>· click to turn off</span></span>
-                            </button>
-                          </form>
-                        {% else %}
-                          <form method="post" style="display: contents;">
-                            <input type="hidden" name="action" value="set_active" />
-                            <input type="hidden" name="competition_id" value="{{ comp.id }}" />
-                            <button type="submit" class="live-toggle" title="Click to set Live">
-                              <span class="live-switch"><span class="live-knob"></span></span>
-                              <span class="live-label"><b>Not live</b></span>
-                            </button>
-                          </form>
-                        {% endif %}
-                      </div>
-                    </td>
-                  </tr>
-                {% endfor %}
-              </tbody>
-            </table>
-          </div>
+								<div class="form-row form-row-inline admin-form-row-inline">
+									<div class="form-field">
+										<label class="form-label" for="start_date">Start date</label>
+										<input type="date" id="start_date" name="start_date" class="form-input" />
+									</div>
+									<div class="form-field">
+										<label class="form-label" for="start_time">Start time</label>
+										<input type="time" id="start_time" name="start_time" class="form-input" />
+									</div>
+								</div>
 
-          {% if competitions_page is defined and competitions_page.pages > 1 %}
-            <div class="pager">
-              {% if competitions_page.has_prev %}
-                <a class="btn-ghost" href="/admin/comps?page={{ competitions_page.prev_num }}">← Prev</a>
-              {% else %}
-                <button class="btn-ghost" disabled>← Prev</button>
-              {% endif %}
+								<div class="form-row form-row-inline admin-form-row-inline">
+									<div class="form-field">
+										<label class="form-label" for="end_date">End date</label>
+										<input type="date" id="end_date" name="end_date" class="form-input" />
+									</div>
+									<div class="form-field">
+										<label class="form-label" for="end_time">End time</label>
+										<input type="time" id="end_time" name="end_time" class="form-input" />
+									</div>
+								</div>
 
-              <span class="page-meta">Page {{ competitions_page.page }} / {{ competitions_page.pages }}</span>
+								<div class="form-row">
+									<button type="submit" class="btn-primary">Create competition</button>
+								</div>
+							</form>
+						</section>
 
-              {% set start = competitions_page.page - 2 %}
-              {% set end = competitions_page.page + 2 %}
-              {% if start < 1 %}{% set start = 1 %}{% endif %}
-              {% if end > competitions_page.pages %}{% set end = competitions_page.pages %}{% endif %}
+					{% else %}
 
-              {% for p in range(start, end + 1) %}
-                <a
-                  class="page-num {% if p == competitions_page.page %}is-current{% endif %}"
-                  href="/admin/comps?page={{ p }}"
-                >{{ p }}</a>
-              {% endfor %}
+						<section class="card">
+							<header class="section-header">
+								<h2 class="section-title admin-section-title">All competitions</h2>
+							</header>
 
-              {% if competitions_page.has_next %}
-                <a class="btn-ghost" href="/admin/comps?page={{ competitions_page.next_num }}">Next →</a>
-              {% else %}
-                <button class="btn-ghost" disabled>Next →</button>
-              {% endif %}
-            </div>
-          {% endif %}
+							{% set current_page = (competitions_page.page if competitions_page is defined else 1) %}
 
-        {% else %}
-          <p style="color: rgba(255,255,255,0.55); font-size: 1rem;">
-            No competitions configured yet. Create your first competition above.
-          </p>
-        {% endif %}
-      </section>
-    </main>
-  </body>
+							{% if competitions %}
+								<div class="table-wrapper">
+									<table class="data-table">
+										<thead>
+											<tr>
+												<th>ID</th>
+												<th>Name</th>
+												<th>Gym</th>
+												<th>Status</th>
+												<th>Dates</th>
+												<th class="admin-table-actions-head">Actions</th>
+											</tr>
+										</thead>
+										<tbody>
+											{% for comp in competitions %}
+												<tr>
+													<td>#{{ comp.id }}</td>
+													<td><strong>{{ comp.name }}</strong></td>
+													<td>{{ (comp.gym.name if comp.gym else comp.gym_name) or "—" }}</td>
+													<td>
+														{% if comp.is_active %}
+															<span class="pill pill-success">Live</span>
+														{% else %}
+															<span class="pill pill-muted">Not live</span>
+														{% endif %}
+													</td>
+													<td>
+														{% if comp.start_at %}
+															{{ comp.start_at|melb_dt("%d %b %Y %H:%M") }}
+														{% else %}
+															—
+														{% endif %}
+														{% if comp.end_at %}
+															&mdash; {{ comp.end_at|melb_dt("%d %b %Y %H:%M") }}
+														{% endif %}
+													</td>
+													<td>
+														<div class="actions-cell">
+															<a
+																href="/admin/comp/{{ comp.id }}/configure?page={{ current_page }}"
+																class="btn-ghost"
+																title="Switch admin tools to this competition"
+															>
+																Edit
+															</a>
+
+															{% if comp.is_active %}
+																<form method="post" class="admin-inline-form">
+																	<input type="hidden" name="action" value="archive" />
+																	<input type="hidden" name="competition_id" value="{{ comp.id }}" />
+																	<button type="submit" class="live-toggle is-on" title="Click to set Not live">
+																		<span class="live-switch"><span class="live-knob"></span></span>
+																		<span class="live-label"><b>Live</b> <span>· click to turn off</span></span>
+																	</button>
+																</form>
+															{% else %}
+																<form method="post" class="admin-inline-form">
+																	<input type="hidden" name="action" value="set_active" />
+																	<input type="hidden" name="competition_id" value="{{ comp.id }}" />
+																	<button type="submit" class="live-toggle" title="Click to set Live">
+																		<span class="live-switch"><span class="live-knob"></span></span>
+																		<span class="live-label"><b>Not live</b></span>
+																	</button>
+																</form>
+															{% endif %}
+														</div>
+													</td>
+												</tr>
+											{% endfor %}
+										</tbody>
+									</table>
+								</div>
+
+								{% if competitions_page is defined and competitions_page.pages > 1 %}
+									<div class="pager">
+										{% if competitions_page.has_prev %}
+											<a class="btn-ghost" href="/admin/comps/manage?page={{ competitions_page.prev_num }}">← Prev</a>
+										{% else %}
+											<button class="btn-ghost" disabled>← Prev</button>
+										{% endif %}
+
+										<span class="page-meta">Page {{ competitions_page.page }} / {{ competitions_page.pages }}</span>
+
+										{% set start = competitions_page.page - 2 %}
+										{% set end = competitions_page.page + 2 %}
+										{% if start < 1 %}{% set start = 1 %}{% endif %}
+										{% if end > competitions_page.pages %}{% set end = competitions_page.pages %}{% endif %}
+
+										{% for p in range(start, end + 1) %}
+											<a
+												class="page-num {% if p == competitions_page.page %}is-current{% endif %}"
+												href="/admin/comps/manage?page={{ p }}"
+											>{{ p }}</a>
+										{% endfor %}
+
+										{% if competitions_page.has_next %}
+											<a class="btn-ghost" href="/admin/comps/manage?page={{ competitions_page.next_num }}">Next →</a>
+										{% else %}
+											<button class="btn-ghost" disabled>Next →</button>
+										{% endif %}
+									</div>
+								{% endif %}
+
+							{% else %}
+								<p class="admin-empty-state">
+									No competitions configured yet. Create your first competition first.
+								</p>
+							{% endif %}
+						</section>
+
+					{% endif %}
+				</div>
+			</main>
+		</div>
+
+		<script>
+			(function () {
+				const sidebar = document.getElementById("adminSidebar");
+				const sidebarToggle = document.getElementById("adminSidebarToggle");
+				const gymAdminGroup = document.getElementById("gymAdminGroup");
+				const gymAdminToggle = document.getElementById("gymAdminToggle");
+
+				if (sidebarToggle && sidebar) {
+					sidebarToggle.addEventListener("click", function () {
+						const isOpen = sidebar.classList.toggle("is-open");
+						sidebarToggle.setAttribute("aria-expanded", isOpen ? "true" : "false");
+					});
+				}
+
+				if (gymAdminToggle && gymAdminGroup) {
+					gymAdminToggle.addEventListener("click", function () {
+						const isOpen = gymAdminGroup.classList.toggle("open");
+						gymAdminToggle.setAttribute("aria-expanded", isOpen ? "true" : "false");
+					});
+				}
+			})();
+		</script>
+	</body>
 </html>
