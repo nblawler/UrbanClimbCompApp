@@ -517,131 +517,101 @@ def competitor_section_climbs(competitor_id, section_slug):
 
 @competitors_bp.route("/my-profile")
 def my_profile():
-    competitor_id = session.get("competitor_id")
     account_id = session.get("account_id")
+    competitor_id = session.get("competitor_id")
 
-    if not competitor_id:
+    if not account_id:
         flash("Please log in to view your profile.", "warning")
         return redirect("/login")
 
-    competitor = Competitor.query.get(competitor_id)
+    competitor = None
+
+    # Prefer the session competitor if it belongs to this account
+    if competitor_id:
+        competitor = (
+            Competitor.query
+            .filter(
+                Competitor.id == competitor_id,
+                Competitor.account_id == account_id,
+            )
+            .first()
+        )
+
+    # Fallback: use the most recent competitor row for this account
     if not competitor:
-        flash("Could not find your competitor profile.", "warning")
-        return redirect("/")
+        competitor = (
+            Competitor.query
+            .filter(Competitor.account_id == account_id)
+            .order_by(Competitor.id.desc())
+            .first()
+        )
+
+    if not competitor:
+        flash("Could not find a competitor profile for your account yet.", "warning")
+        return redirect("/my-comps")
 
     profile_image_url = None
 
-    if account_id:
-        competitor_ids_subq = (
-            db.session.query(Competitor.id)
-            .filter(Competitor.account_id == account_id)
-            .subquery()
+    competitor_ids_subq = (
+        db.session.query(Competitor.id)
+        .filter(Competitor.account_id == account_id)
+        .subquery()
+    )
+
+    comps_entered = (
+        db.session.query(func.count(distinct(Competitor.competition_id)))
+        .filter(
+            Competitor.account_id == account_id,
+            Competitor.competition_id.isnot(None),
         )
+        .scalar()
+        or 0
+    )
 
-        comps_entered = (
-            db.session.query(func.count(distinct(Competitor.competition_id)))
-            .filter(
-                Competitor.account_id == account_id,
-                Competitor.competition_id.isnot(None),
-            )
-            .scalar()
-            or 0
+    total_tops = (
+        db.session.query(func.count(Score.id))
+        .filter(
+            Score.competitor_id.in_(competitor_ids_subq),
+            Score.topped.is_(True),
         )
+        .scalar()
+        or 0
+    )
 
-        total_tops = (
-            db.session.query(func.count(Score.id))
-            .filter(
-                Score.competitor_id.in_(competitor_ids_subq),
-                Score.topped.is_(True),
-            )
-            .scalar()
-            or 0
+    total_flashes = (
+        db.session.query(func.count(Score.id))
+        .filter(
+            Score.competitor_id.in_(competitor_ids_subq),
+            Score.flashed.is_(True),
         )
+        .scalar()
+        or 0
+    )
 
-        total_flashes = (
-            db.session.query(func.count(Score.id))
-            .filter(
-                Score.competitor_id.in_(competitor_ids_subq),
-                Score.flashed.is_(True),
-            )
-            .scalar()
-            or 0
+    total_logged = (
+        db.session.query(func.count(Score.id))
+        .filter(Score.competitor_id.in_(competitor_ids_subq))
+        .scalar()
+        or 0
+    )
+
+    recent_comps = (
+        db.session.query(
+            Competition.id,
+            Competition.name,
+            Competition.slug,
+            Competition.start_at,
+            func.count(Score.id).label("scores_logged"),
+            func.sum(case((Score.topped.is_(True), 1), else_=0)).label("tops"),
+            func.sum(case((Score.flashed.is_(True), 1), else_=0)).label("flashes"),
         )
-
-        total_logged = (
-            db.session.query(func.count(Score.id))
-            .filter(Score.competitor_id.in_(competitor_ids_subq))
-            .scalar()
-            or 0
-        )
-
-        recent_comps = (
-            db.session.query(
-                Competition.id,
-                Competition.name,
-                Competition.slug,
-                Competition.start_at,
-                func.count(Score.id).label("scores_logged"),
-                func.sum(case((Score.topped.is_(True), 1), else_=0)).label("tops"),
-                func.sum(case((Score.flashed.is_(True), 1), else_=0)).label("flashes"),
-            )
-            .join(Competitor, Competitor.competition_id == Competition.id)
-            .outerjoin(Score, Score.competitor_id == Competitor.id)
-            .filter(Competitor.account_id == account_id)
-            .group_by(Competition.id, Competition.name, Competition.slug, Competition.start_at)
-            .order_by(Competition.start_at.asc().nullslast(), Competition.id.asc())
-            .all()
-        )
-
-    else:
-        comps_entered = 1 if competitor.competition_id else 0
-
-        total_tops = (
-            db.session.query(func.count(Score.id))
-            .filter(
-                Score.competitor_id == competitor.id,
-                Score.topped.is_(True),
-            )
-            .scalar()
-            or 0
-        )
-
-        total_flashes = (
-            db.session.query(func.count(Score.id))
-            .filter(
-                Score.competitor_id == competitor.id,
-                Score.flashed.is_(True),
-            )
-            .scalar()
-            or 0
-        )
-
-        total_logged = (
-            db.session.query(func.count(Score.id))
-            .filter(Score.competitor_id == competitor.id)
-            .scalar()
-            or 0
-        )
-
-        recent_comps = []
-        if competitor.competition_id:
-            recent_comps = (
-                db.session.query(
-                    Competition.id,
-                    Competition.name,
-                    Competition.slug,
-                    Competition.start_at,
-                    func.count(Score.id).label("scores_logged"),
-                    func.sum(case((Score.topped.is_(True), 1), else_=0)).label("tops"),
-                    func.sum(case((Score.flashed.is_(True), 1), else_=0)).label("flashes"),
-                )
-                .join(Competitor, Competitor.competition_id == Competition.id)
-                .outerjoin(Score, Score.competitor_id == Competitor.id)
-                .filter(Competitor.id == competitor.id)
-                .group_by(Competition.id, Competition.name, Competition.slug, Competition.start_at)
-                .order_by(Competition.start_at.asc().nullslast(), Competition.id.asc())
-                .all()
-            )
+        .join(Competitor, Competitor.competition_id == Competition.id)
+        .outerjoin(Score, Score.competitor_id == Competitor.id)
+        .filter(Competitor.account_id == account_id)
+        .group_by(Competition.id, Competition.name, Competition.slug, Competition.start_at)
+        .order_by(Competition.start_at.asc().nullslast(), Competition.id.asc())
+        .all()
+    )
 
     top_rate = round((total_tops / total_logged) * 100) if total_logged else 0
     flash_rate = round((total_flashes / total_logged) * 100) if total_logged else 0
@@ -653,7 +623,7 @@ def my_profile():
         suffix = {1: "st", 2: "nd", 3: "rd"}.get(n if n < 20 else n % 10, "th")
         return f"{n}{suffix}"
 
-    stats = CompetitorStats.query.filter_by(account_id=account_id).first() if account_id else None
+    stats = CompetitorStats.query.filter_by(account_id=account_id).first()
 
     best_place = ordinal(stats.best_place) if stats else None
 
