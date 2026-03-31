@@ -3,6 +3,7 @@ from .gym import Gym
 from .gym_admin import GymAdmin
 from .competition import Competition
 from .competitor import Competitor
+from .competitor_stats import CompetitorStats
 from .score import Score
 from .section import Section
 from .section_climb import SectionClimb

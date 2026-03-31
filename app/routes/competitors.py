@@ -21,7 +21,7 @@ from flask import render_template, session, redirect, url_for, flash
 from sqlalchemy import func, distinct, case
 
 from app.extensions import db
-from app.models import Competitor, Competition, Score, SectionClimb, Section
+from app.models import Competition, Competitor, CompetitorStats, Score, Section, SectionClimb
 
 competitors_bp = Blueprint("competitors", __name__)
 
@@ -592,6 +592,7 @@ def my_profile():
             .order_by(Competition.start_at.asc().nullslast(), Competition.id.asc())
             .all()
         )
+
     else:
         comps_entered = 1 if competitor.competition_id else 0
 
@@ -645,6 +646,36 @@ def my_profile():
     top_rate = round((total_tops / total_logged) * 100) if total_logged else 0
     flash_rate = round((total_flashes / total_logged) * 100) if total_logged else 0
 
+    # --- Load precomputed stats (fast single row read) ---
+    def ordinal(n):
+        if n is None:
+            return None
+        n = int(n)
+        suffix = {1: "st", 2: "nd", 3: "rd"}.get(n if n < 20 else n % 10, "th")
+        return f"{n}{suffix}"
+
+    stats = CompetitorStats.query.filter_by(account_id=account_id).first() if account_id else None
+
+    best_place = ordinal(stats.best_place) if stats else None
+
+    medals = []
+    if stats:
+        if stats.medals_gold:
+            medals.append({"icon": "🥇", "label": "1st Place", "count": stats.medals_gold})
+        if stats.medals_silver:
+            medals.append({"icon": "🥈", "label": "2nd Place", "count": stats.medals_silver})
+        if stats.medals_bronze:
+            medals.append({"icon": "🥉", "label": "3rd Place", "count": stats.medals_bronze})
+        if stats.medals_finalist:
+            medals.append({"icon": "🏅", "label": "Finalist", "count": stats.medals_finalist})
+        if stats.milestone_50:
+            medals.append({"icon": "🏆", "label": "50 Comps", "count": None})
+        elif stats.milestone_25:
+            medals.append({"icon": "💪", "label": "25 Comps", "count": None})
+        elif stats.milestone_10:
+            medals.append({"icon": "🔟", "label": "10 Comps", "count": None})
+
+    # --- Chart data ---
     chart_comps = []
     max_chart_value = 0
 
@@ -691,4 +722,6 @@ def my_profile():
         recent_comps=recent_comps,
         chart_comps=chart_comps,
         profile_image_url=profile_image_url,
+        best_place=best_place,
+        medals=medals,
     )

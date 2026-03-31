@@ -250,6 +250,12 @@
 			font-weight: 700;
 		}
 
+		.section-divider {
+			border: none;
+			border-top: 1px solid var(--line);
+			margin: 1.1rem 0;
+		}
+
 		.stats-grid {
 			display: grid;
 			grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -317,6 +323,48 @@
 			font-size: 1.45rem;
 			font-weight: 700;
 			line-height: 1.15;
+		}
+
+		.medals-grid {
+			display: flex;
+			flex-wrap: wrap;
+			gap: 0.8rem 1rem;
+			align-items: center;
+		}
+
+		.medal-item {
+			display: inline-flex;
+			align-items: center;
+			gap: 0.38rem;
+			color: #eef4fb;
+			font-size: 0.92rem;
+			line-height: 1.2;
+		}
+
+		.medal-icon {
+			font-size: 1.2rem;
+			line-height: 1;
+			flex: 0 0 auto;
+		}
+
+		.medal-label {
+			font-size: 0.88rem;
+			font-weight: 600;
+			color: #eef4fb;
+			line-height: 1.2;
+		}
+
+		.medal-count {
+			font-size: 0.82rem;
+			color: var(--muted);
+			margin-left: 0.2rem;
+			font-weight: 600;
+		}
+
+		.medals-empty {
+			font-size: 0.9rem;
+			color: var(--muted);
+			line-height: 1.5;
 		}
 
 		.list {
@@ -423,23 +471,17 @@
 									class="photo-input"
 									onchange="this.form.submit()"
 								>
-								<div class="photo-help">Choose a JPG, PNG, or WebP image</div>
 							</form>
 						</div>
 
 						<div class="profile-meta">
 							<h1 class="profile-name">{{ competitor.name or "Climber" }}</h1>
-							<div class="profile-sub">Comp Circuit competitor</div>
-
-							<div class="profile-bio">
-								Your climbing profile, competition stats, and recent activity all in one place.
-							</div>
 
 							<div class="badge-row">
 								<span class="badge">{{ comps_entered }} competitions</span>
 								<span class="badge">{{ total_tops }} tops</span>
 								<span class="badge">{{ total_flashes }} flashes</span>
-								<span class="badge">{{ top_rate }}% top rate</span>
+								<span class="badge">{{ best_place or '—' }} best place</span>
 							</div>
 
 							<div class="profile-actions">
@@ -479,6 +521,28 @@
 						<div class="stat-sub">All climbs you've entered</div>
 					</div>
 				</div>
+
+				<hr class="section-divider">
+
+				<h2 class="section-title">Recent Medals</h2>
+
+				{% if medals %}
+					<div class="medals-grid">
+						{% for medal in medals %}
+							<div class="medal-item">
+								<span class="medal-icon">{{ medal.icon }}</span>
+								<span class="medal-label">
+									{{ medal.label }}{% if medal.count and medal.count > 1 %}<span class="medal-count">×{{ medal.count }}</span>{% endif %}
+								</span>
+							</div>
+						{% endfor %}
+					</div>
+				{% else %}
+					<div class="medals-empty">
+						Medals will appear here once results are finalised for your competitions.
+					</div>
+				{% endif %}
+
 			</section>
 
 			<section class="card section">
@@ -486,8 +550,8 @@
 
 				<div class="metric-grid">
 					<div class="metric-box">
-						<div class="metric-k">Top Rate</div>
-						<div class="metric-v">{{ top_rate }}%</div>
+						<div class="metric-k">Best Place</div>
+						<div class="metric-v">{{ best_place or '—' }}</div>
 					</div>
 					<div class="metric-box">
 						<div class="metric-k">Flash Rate</div>
