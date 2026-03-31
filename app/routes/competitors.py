@@ -17,6 +17,12 @@ from app.helpers.gym import get_gym_map_url_for_competition
 from app.helpers.leaderboard import build_leaderboard
 from app.helpers.scoring import points_for, competitor_total_points
 
+from flask import render_template, session, redirect, url_for, flash
+from sqlalchemy import func, distinct, case
+
+from app.extensions import db
+from app.models import Competitor, Competition, Score, SectionClimb, Section
+
 competitors_bp = Blueprint("competitors", __name__)
 
 
@@ -507,4 +513,182 @@ def competitor_section_climbs(competitor_id, section_slug):
         section_climbs=section_climbs,
         sections=all_sections,
         gym_map_url=None,
+    )
+
+@competitors_bp.route("/my-profile")
+def my_profile():
+    competitor_id = session.get("competitor_id")
+    account_id = session.get("account_id")
+
+    if not competitor_id:
+        flash("Please log in to view your profile.", "warning")
+        return redirect(url_for("auth.login"))
+
+    competitor = Competitor.query.get(competitor_id)
+    if not competitor:
+        flash("Could not find your competitor profile.", "warning")
+        return redirect("/")
+
+    profile_image_url = None
+
+    if account_id:
+        competitor_ids_subq = (
+            db.session.query(Competitor.id)
+            .filter(Competitor.account_id == account_id)
+            .subquery()
+        )
+
+        comps_entered = (
+            db.session.query(func.count(distinct(Competitor.competition_id)))
+            .filter(
+                Competitor.account_id == account_id,
+                Competitor.competition_id.isnot(None),
+            )
+            .scalar()
+            or 0
+        )
+
+        total_tops = (
+            db.session.query(func.count(Score.id))
+            .filter(
+                Score.competitor_id.in_(competitor_ids_subq),
+                Score.topped.is_(True),
+            )
+            .scalar()
+            or 0
+        )
+
+        total_flashes = (
+            db.session.query(func.count(Score.id))
+            .filter(
+                Score.competitor_id.in_(competitor_ids_subq),
+                Score.flashed.is_(True),
+            )
+            .scalar()
+            or 0
+        )
+
+        total_logged = (
+            db.session.query(func.count(Score.id))
+            .filter(Score.competitor_id.in_(competitor_ids_subq))
+            .scalar()
+            or 0
+        )
+
+        recent_comps = (
+            db.session.query(
+                Competition.id,
+                Competition.name,
+                Competition.slug,
+                Competition.start_at,
+                func.count(Score.id).label("scores_logged"),
+                func.sum(case((Score.topped.is_(True), 1), else_=0)).label("tops"),
+                func.sum(case((Score.flashed.is_(True), 1), else_=0)).label("flashes"),
+            )
+            .join(Competitor, Competitor.competition_id == Competition.id)
+            .outerjoin(Score, Score.competitor_id == Competitor.id)
+            .filter(Competitor.account_id == account_id)
+            .group_by(Competition.id, Competition.name, Competition.slug, Competition.start_at)
+            .order_by(Competition.start_at.asc().nullslast(), Competition.id.asc())
+            .all()
+        )
+    else:
+        comps_entered = 1 if competitor.competition_id else 0
+
+        total_tops = (
+            db.session.query(func.count(Score.id))
+            .filter(
+                Score.competitor_id == competitor.id,
+                Score.topped.is_(True),
+            )
+            .scalar()
+            or 0
+        )
+
+        total_flashes = (
+            db.session.query(func.count(Score.id))
+            .filter(
+                Score.competitor_id == competitor.id,
+                Score.flashed.is_(True),
+            )
+            .scalar()
+            or 0
+        )
+
+        total_logged = (
+            db.session.query(func.count(Score.id))
+            .filter(Score.competitor_id == competitor.id)
+            .scalar()
+            or 0
+        )
+
+        recent_comps = []
+        if competitor.competition_id:
+            recent_comps = (
+                db.session.query(
+                    Competition.id,
+                    Competition.name,
+                    Competition.slug,
+                    Competition.start_at,
+                    func.count(Score.id).label("scores_logged"),
+                    func.sum(case((Score.topped.is_(True), 1), else_=0)).label("tops"),
+                    func.sum(case((Score.flashed.is_(True), 1), else_=0)).label("flashes"),
+                )
+                .join(Competitor, Competitor.competition_id == Competition.id)
+                .outerjoin(Score, Score.competitor_id == Competitor.id)
+                .filter(Competitor.id == competitor.id)
+                .group_by(Competition.id, Competition.name, Competition.slug, Competition.start_at)
+                .order_by(Competition.start_at.asc().nullslast(), Competition.id.asc())
+                .all()
+            )
+
+    top_rate = round((total_tops / total_logged) * 100) if total_logged else 0
+    flash_rate = round((total_flashes / total_logged) * 100) if total_logged else 0
+
+    chart_comps = []
+    max_chart_value = 0
+
+    for comp in recent_comps:
+        tops_val = int(comp.tops or 0)
+        flashes_val = int(comp.flashes or 0)
+        max_chart_value = max(max_chart_value, tops_val, flashes_val)
+
+    for comp in recent_comps:
+        label = comp.name or "Competition"
+        if len(label) > 12:
+            label = label[:12].rstrip() + "…"
+
+        tops_val = int(comp.tops or 0)
+        flashes_val = int(comp.flashes or 0)
+
+        if max_chart_value > 0:
+            tops_height = max(12, round((tops_val / max_chart_value) * 140)) if tops_val > 0 else 0
+            flashes_height = max(12, round((flashes_val / max_chart_value) * 140)) if flashes_val > 0 else 0
+        else:
+            tops_height = 0
+            flashes_height = 0
+
+        chart_comps.append(
+            {
+                "name": comp.name,
+                "short_label": label,
+                "tops": tops_val,
+                "flashes": flashes_val,
+                "tops_height": tops_height,
+                "flashes_height": flashes_height,
+            }
+        )
+
+    return render_template(
+        "my_profile.html",
+        competitor=competitor,
+        comps_entered=comps_entered,
+        total_tops=total_tops,
+        total_flashes=total_flashes,
+        total_logged=total_logged,
+        top_rate=top_rate,
+        flash_rate=flash_rate,
+        recent_comps=recent_comps,
+        chart_comps=chart_comps,
+        profile_image_url=profile_image_url,
     )

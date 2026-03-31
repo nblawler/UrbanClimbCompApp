@@ -1,0 +1,678 @@
+<!doctype html>
+<html lang="en">
+<head>
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+	<title>My Profile · Comp Circuit</title>
+	<link rel="stylesheet" href="/static/app.css" />
+
+	<style>
+		:root{
+			--bg:#0f172a;
+			--card:#132238;
+			--muted:#9fb0c7;
+			--text:#ffffff;
+			--line:rgba(255,255,255,0.10);
+			--green:#2e7d32;
+			--green-hover:#256628;
+			--shadow:0 16px 36px rgba(0,0,0,0.22);
+			--radius:18px;
+		}
+
+		* { box-sizing: border-box; }
+
+		body {
+			margin: 0;
+			font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+			background: #0f172a;
+			color: var(--text);
+			min-height: 100vh;
+		}
+
+		a { color: inherit; text-decoration: none; }
+
+		.page-wrap {
+			max-width: 1100px;
+			margin: 0 auto;
+			padding: 1rem 1rem 2rem;
+		}
+
+		.profile-layout {
+			display: grid;
+			grid-template-columns: 1.35fr 0.95fr;
+			gap: 1rem;
+		}
+
+		@media (max-width: 920px) {
+			.profile-layout {
+				grid-template-columns: 1fr;
+			}
+		}
+
+		.card {
+			background: #132238;
+			border: 1px solid var(--line);
+			border-radius: var(--radius);
+			box-shadow: var(--shadow);
+			overflow: hidden;
+		}
+
+		.profile-hero {
+			position: relative;
+			padding-top: 2.8rem;
+			overflow: visible;
+		}
+
+		.profile-top-strip {
+			height: 68px;
+			background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01));
+			border-bottom: 1px solid rgba(255,255,255,0.08);
+		}
+
+		.profile-main {
+			position: relative;
+			padding: 0 1.25rem 1.25rem;
+		}
+
+		.avatar-row {
+			display: flex;
+			align-items: flex-start;
+			gap: 1rem;
+			flex-wrap: wrap;
+			margin-top: -54px;
+		}
+
+		.avatar-stack {
+			display: flex;
+			flex-direction: column;
+			align-items: center;
+			gap: 0.75rem;
+			flex: 0 0 auto;
+		}
+
+		.avatar {
+			width: 120px;
+			height: 120px;
+			border-radius: 999px;
+			border: 4px solid #132238;
+			background: #20324d;
+			box-shadow: 0 10px 24px rgba(0,0,0,0.28);
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			overflow: hidden;
+			color: #d8e3f1;
+			font-size: 2rem;
+			font-weight: 700;
+		}
+
+		.avatar img {
+			width: 100%;
+			height: 100%;
+			object-fit: cover;
+			display: block;
+		}
+
+		.avatar-placeholder {
+			width: 100%;
+			height: 100%;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			background: linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02));
+		}
+
+		.photo-form {
+			width: 100%;
+			display: flex;
+			flex-direction: column;
+			gap: 0.45rem;
+			align-items: center;
+		}
+
+		.photo-label {
+			display: inline-flex;
+			align-items: center;
+			justify-content: center;
+			padding: 0.6rem 0.9rem;
+			border-radius: 10px;
+			background: var(--green);
+			color: #fff;
+			font-weight: 600;
+			cursor: pointer;
+			border: none;
+			transition: background 0.15s ease;
+			text-align: center;
+			font-size: 0.92rem;
+		}
+
+		.photo-label:hover {
+			background: var(--green-hover);
+		}
+
+		.photo-input {
+			display: none;
+		}
+
+		.photo-help {
+			font-size: 0.8rem;
+			color: var(--muted);
+			text-align: center;
+			line-height: 1.35;
+		}
+
+		.profile-meta {
+			flex: 1 1 360px;
+			min-width: 0;
+			padding-top: 0.55rem;
+		}
+
+		.profile-name {
+			margin: 0 0 0.3rem;
+			font-size: 1.7rem;
+			font-weight: 700;
+			line-height: 1.1;
+		}
+
+		.profile-sub {
+			color: var(--muted);
+			font-size: 0.98rem;
+			margin-bottom: 0.75rem;
+		}
+
+		.profile-bio {
+			color: #d9e3ef;
+			font-size: 0.97rem;
+			line-height: 1.5;
+			max-width: 700px;
+		}
+
+		.badge-row {
+			display: flex;
+			flex-wrap: wrap;
+			gap: 0.55rem;
+			margin-top: 0.95rem;
+		}
+
+		.badge {
+			padding: 0.45rem 0.75rem;
+			border-radius: 999px;
+			background: rgba(255,255,255,0.06);
+			border: 1px solid rgba(255,255,255,0.10);
+			font-size: 0.88rem;
+			font-weight: 600;
+			color: #eef4fb;
+		}
+
+		.profile-actions {
+			display: flex;
+			gap: 0.65rem;
+			margin-top: 1rem;
+			flex-wrap: wrap;
+		}
+
+		.action-btn {
+			display: inline-flex;
+			align-items: center;
+			justify-content: center;
+			padding: 0.78rem 1rem;
+			border-radius: 10px;
+			background: var(--green);
+			color: #fff;
+			font-weight: 600;
+			border: none;
+			cursor: pointer;
+			transition: background 0.15s ease;
+		}
+
+		.action-btn:hover {
+			background: var(--green-hover);
+		}
+
+		.action-btn.secondary {
+			background: rgba(255,255,255,0.06);
+			border: 1px solid rgba(255,255,255,0.10);
+			color: #fff;
+		}
+
+		.action-btn.secondary:hover {
+			background: rgba(255,255,255,0.10);
+		}
+
+		.section {
+			padding: 1.15rem;
+		}
+
+		.section-title {
+			margin: 0 0 0.95rem;
+			font-size: 1rem;
+			font-weight: 700;
+		}
+
+		.stats-grid {
+			display: grid;
+			grid-template-columns: repeat(2, minmax(0, 1fr));
+			gap: 0.8rem;
+		}
+
+		@media (max-width: 560px) {
+			.stats-grid {
+				grid-template-columns: 1fr;
+			}
+		}
+
+		.stat-card {
+			background: rgba(255,255,255,0.04);
+			border: 1px solid rgba(255,255,255,0.08);
+			border-radius: 14px;
+			padding: 1rem;
+		}
+
+		.stat-label {
+			font-size: 0.84rem;
+			color: var(--muted);
+			margin-bottom: 0.45rem;
+		}
+
+		.stat-value {
+			font-size: 1.75rem;
+			font-weight: 700;
+			line-height: 1;
+		}
+
+		.stat-sub {
+			font-size: 0.85rem;
+			color: #d4deea;
+			margin-top: 0.45rem;
+		}
+
+		.metric-grid {
+			display: grid;
+			grid-template-columns: repeat(2, minmax(0, 1fr));
+			gap: 0.8rem;
+			margin-bottom: 1rem;
+		}
+
+		@media (max-width: 700px) {
+			.metric-grid {
+				grid-template-columns: 1fr;
+			}
+		}
+
+		.metric-box {
+			background: rgba(255,255,255,0.04);
+			border: 1px solid rgba(255,255,255,0.08);
+			border-radius: 14px;
+			padding: 0.95rem;
+		}
+
+		.metric-k {
+			font-size: 0.82rem;
+			color: var(--muted);
+			margin-bottom: 0.35rem;
+		}
+
+		.metric-v {
+			font-size: 1.45rem;
+			font-weight: 700;
+			line-height: 1.15;
+		}
+
+		.comp-chart {
+			min-height: 260px;
+			padding: 1rem;
+			border-radius: 16px;
+			background: rgba(255,255,255,0.03);
+			border: 1px solid rgba(255,255,255,0.08);
+			display: flex;
+			align-items: end;
+			gap: 0.9rem;
+			overflow-x: auto;
+		}
+
+		.comp-chart-col {
+			min-width: 78px;
+			display: flex;
+			flex-direction: column;
+			align-items: center;
+			justify-content: end;
+			gap: 0.45rem;
+			flex-shrink: 0;
+		}
+
+		.comp-bars {
+			height: 150px;
+			display: flex;
+			align-items: end;
+			justify-content: center;
+			gap: 0.35rem;
+			width: 100%;
+		}
+
+		.comp-bar {
+			width: 22px;
+			min-height: 0;
+			border-radius: 8px 8px 4px 4px;
+		}
+
+		/* Match competitor_stats.html legend colours */
+		.tops-bar {
+			background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+			border: 1px solid rgba(134, 239, 172, 0.65);
+		}
+
+		.flashes-bar {
+			background: linear-gradient(135deg, #0ea5e9 0%, #2563eb 100%);
+			border: 1px solid rgba(125, 211, 252, 0.65);
+		}
+
+		.comp-chart-values {
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			gap: 0.35rem;
+			width: 100%;
+		}
+
+		.comp-chart-number {
+			width: 22px;
+			text-align: center;
+			font-size: 0.78rem;
+			color: var(--muted);
+			line-height: 1;
+			font-weight: 600;
+		}
+
+		.comp-chart-label {
+			font-size: 0.78rem;
+			color: var(--muted);
+			text-align: center;
+			word-break: break-word;
+			line-height: 1.25;
+			max-width: 76px;
+		}
+
+		.chart-legend {
+			display: flex;
+			gap: 1rem;
+			flex-wrap: wrap;
+			margin-top: 0.85rem;
+			font-size: 0.85rem;
+			color: var(--muted);
+		}
+
+		.legend-item {
+			display: inline-flex;
+			align-items: center;
+			gap: 0.45rem;
+		}
+
+		.legend-swatch {
+			width: 12px;
+			height: 12px;
+			border-radius: 4px;
+			display: inline-block;
+		}
+
+		.tops-swatch {
+			background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+			border: 1px solid rgba(134, 239, 172, 0.65);
+		}
+
+		.flashes-swatch {
+			background: linear-gradient(135deg, #0ea5e9 0%, #2563eb 100%);
+			border: 1px solid rgba(125, 211, 252, 0.65);
+		}
+
+		.list {
+			display: flex;
+			flex-direction: column;
+			gap: 0.75rem;
+		}
+
+		.list-item {
+			padding: 0.95rem 1rem;
+			border-radius: 14px;
+			background: rgba(255,255,255,0.04);
+			border: 1px solid rgba(255,255,255,0.08);
+		}
+
+		.list-top {
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			gap: 0.75rem;
+			margin-bottom: 0.3rem;
+		}
+
+		.list-title {
+			font-weight: 700;
+			font-size: 0.98rem;
+		}
+
+		.list-meta {
+			font-size: 0.86rem;
+			color: var(--muted);
+		}
+
+		.list-pill-group {
+			display: flex;
+			gap: 0.45rem;
+			flex-wrap: wrap;
+			justify-content: flex-end;
+		}
+
+		.list-pill {
+			padding: 0.3rem 0.65rem;
+			border-radius: 999px;
+			font-size: 0.8rem;
+			font-weight: 700;
+			white-space: nowrap;
+			color: #ffffff;
+		}
+
+		.list-pill.tops {
+			background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+			border: 1px solid rgba(134, 239, 172, 0.65);
+		}
+
+		.list-pill.flashes {
+			background: linear-gradient(135deg, #0ea5e9 0%, #2563eb 100%);
+			border: 1px solid rgba(125, 211, 252, 0.65);
+		}
+
+		.empty {
+			color: var(--muted);
+			font-size: 0.95rem;
+			line-height: 1.5;
+		}
+	</style>
+</head>
+<body>
+	{% include "sidebar.html" %}
+
+	<header class="nav">
+		<button type="button" class="menu-toggle" onclick="openSidebar()">☰ Menu</button>
+	</header>
+
+	<main class="page-wrap">
+		<div class="profile-layout">
+			<section class="card profile-hero">
+				<div class="profile-top-strip"></div>
+
+				<div class="profile-main">
+					<div class="avatar-row">
+						<div class="avatar-stack">
+							<div class="avatar">
+								{% if profile_image_url %}
+									<img src="{{ profile_image_url }}" alt="Profile photo for {{ competitor.name or 'Climber' }}">
+								{% else %}
+									<div class="avatar-placeholder">
+										{{ (competitor.name[0] if competitor and competitor.name else "C")|upper }}
+									</div>
+								{% endif %}
+							</div>
+
+							<form
+								class="photo-form"
+								method="POST"
+								action="/my-profile/photo"
+								enctype="multipart/form-data"
+							>
+								<label class="photo-label" for="profile_photo">Upload Photo</label>
+								<input
+									id="profile_photo"
+									name="profile_photo"
+									type="file"
+									accept="image/*"
+									class="photo-input"
+									onchange="this.form.submit()"
+								>
+								<div class="photo-help">Choose a JPG, PNG, or WebP image</div>
+							</form>
+						</div>
+
+						<div class="profile-meta">
+							<h1 class="profile-name">{{ competitor.name or "Climber" }}</h1>
+							<div class="profile-sub">Comp Circuit competitor</div>
+
+							<div class="profile-bio">
+								Your climbing profile, competition stats, and recent activity all in one place.
+							</div>
+
+							<div class="badge-row">
+								<span class="badge">{{ comps_entered }} competitions</span>
+								<span class="badge">{{ total_tops }} tops</span>
+								<span class="badge">{{ total_flashes }} flashes</span>
+								<span class="badge">{{ top_rate }}% top rate</span>
+							</div>
+
+							<div class="profile-actions">
+								<button type="button" class="action-btn">Edit Profile</button>
+								<a href="/my-comps" class="action-btn secondary">Upcoming Competitions</a>
+							</div>
+						</div>
+					</div>
+				</div>
+			</section>
+
+			<section class="card section">
+				<h2 class="section-title">Climber Snapshot</h2>
+
+				<div class="stats-grid">
+					<div class="stat-card">
+						<div class="stat-label">Competitions Entered</div>
+						<div class="stat-value">{{ comps_entered }}</div>
+						<div class="stat-sub">How many comps you’ve entered</div>
+					</div>
+
+					<div class="stat-card">
+						<div class="stat-label">Tops Logged</div>
+						<div class="stat-value">{{ total_tops }}</div>
+						<div class="stat-sub">Total topped climbs recorded</div>
+					</div>
+
+					<div class="stat-card">
+						<div class="stat-label">Flashes</div>
+						<div class="stat-value">{{ total_flashes }}</div>
+						<div class="stat-sub">First-attempt sends</div>
+					</div>
+
+					<div class="stat-card">
+						<div class="stat-label">Scores Logged</div>
+						<div class="stat-value">{{ total_logged }}</div>
+						<div class="stat-sub">All climbs you’ve entered</div>
+					</div>
+				</div>
+			</section>
+
+			<section class="card section">
+				<h2 class="section-title">Competition Performance</h2>
+
+				<div class="metric-grid">
+					<div class="metric-box">
+						<div class="metric-k">Top Rate</div>
+						<div class="metric-v">{{ top_rate }}%</div>
+					</div>
+
+					<div class="metric-box">
+						<div class="metric-k">Flash Rate</div>
+						<div class="metric-v">{{ flash_rate }}%</div>
+					</div>
+				</div>
+
+				{% if chart_comps %}
+					<div class="comp-chart" aria-label="Tops and flashes by competition">
+						{% for comp in chart_comps %}
+							<div class="comp-chart-col" title="{{ comp.name }} — Tops: {{ comp.tops }}, Flashes: {{ comp.flashes }}">
+								<div class="comp-bars">
+									<div
+										class="comp-bar tops-bar"
+										style="height: {{ comp.tops_height }}px;"
+										aria-label="{{ comp.tops }} tops in {{ comp.name }}"
+									></div>
+									<div
+										class="comp-bar flashes-bar"
+										style="height: {{ comp.flashes_height }}px;"
+										aria-label="{{ comp.flashes }} flashes in {{ comp.name }}"
+									></div>
+								</div>
+								<div class="comp-chart-values">
+									<span class="comp-chart-number">{{ comp.tops }}</span>
+									<span class="comp-chart-number">{{ comp.flashes }}</span>
+								</div>
+								<div class="comp-chart-label">{{ comp.short_label }}</div>
+							</div>
+						{% endfor %}
+					</div>
+
+					<div class="chart-legend">
+						<span class="legend-item">
+							<span class="legend-swatch tops-swatch"></span>
+							Tops
+						</span>
+						<span class="legend-item">
+							<span class="legend-swatch flashes-swatch"></span>
+							Flashes
+						</span>
+					</div>
+				{% else %}
+					<div class="empty">
+						Competition history charts will appear here once results are available.
+					</div>
+				{% endif %}
+			</section>
+
+			<section class="card section">
+				<h2 class="section-title">Recent Competitions</h2>
+
+				{% if recent_comps %}
+					<div class="list">
+						{% for comp in recent_comps %}
+							<div class="list-item">
+								<div class="list-top">
+									<div class="list-title">{{ comp.name }}</div>
+									<div class="list-pill-group">
+										<div class="list-pill tops">{{ comp.tops or 0 }} tops</div>
+										<div class="list-pill flashes">{{ comp.flashes or 0 }} flashes</div>
+									</div>
+								</div>
+								<div class="list-meta">
+									{{ comp.scores_logged or 0 }} scores logged
+									{% if comp.start_at %}
+										· {{ comp.start_at.strftime('%d %b %Y') }}
+									{% endif %}
+								</div>
+							</div>
+						{% endfor %}
+					</div>
+				{% else %}
+					<div class="empty">
+						No competition history yet.
+					</div>
+				{% endif %}
+			</section>
+		</div>
+	</main>
+</body>
+</html>

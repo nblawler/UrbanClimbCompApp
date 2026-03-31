@@ -7,7 +7,16 @@
 	</div>
 
 	<nav class="sidebar-nav">
-		<a href="/my-comps" class="sidebar-link">Upcoming Competitions</a>
+		{% set on_my_comps = request.path == "/my-comps" %}
+		{% set on_my_profile = request.path == "/my-profile" %}
+
+		<a href="/my-profile" class="sidebar-link {% if on_my_profile %}active{% endif %}">
+			My Profile
+		</a>
+
+		<a href="/my-comps" class="sidebar-link {% if on_my_comps %}active{% endif %}">
+			Upcoming Competitions
+		</a>
 
 		{% set on_admin_create = request.path == "/admin/comps/create" %}
 		{% set on_admin_manage = request.path == "/admin/comps/manage" %}
