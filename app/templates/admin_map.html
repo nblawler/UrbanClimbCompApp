@@ -11,32 +11,11 @@
   <link rel="stylesheet" href="/static/app.css" />
 </head>
 <body>
-  <nav class="top-nav">
-    <div class="nav-links">
-      <a href="/admin/comps{% if session.get('admin_comp_id') %}?comp_id={{ session.get('admin_comp_id') }}{% endif %}">
-        Admin Home
-      </a>
-
-      {% if session.get('admin_comp_id') %}
-        <a href="/admin/map?comp_id={{ session.get('admin_comp_id') }}">
-          Refresh map
-        </a>
-
-        <a
-          href="/leaderboard/comp/{{ session.get('admin_comp_id') }}"
-          title="Leaderboard for the competition you're managing"
-        >
-          Leaderboard
-        </a>
-      {% endif %}
-
-      {% if session.get('competitor_id') or session.get('admin_ok') %}
-        <a href="/logout">Log out</a>
-      {% else %}
-        <a href="/admin">Admin login</a>
-      {% endif %}
-    </div>
+  <nav class="nav">
+    <button type="button" class="menu-toggle" onclick="openSidebar()">☰ Menu</button>
   </nav>
+
+  {% include "sidebar.html" %}
 
   <main class="admin-map-page" id="pageRoot">
     <section class="map-card" style="background:rgba(255,255,255,0.05);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,0.1);border-radius:1.5rem;padding:2rem;">

@@ -610,23 +610,26 @@ def leaderboard_by_category(category):
 
 
 @scores_bp.route("/leaderboard/comp/<int:comp_id>")
-def leaderboard_for_comp_id(comp_id):
+def leaderboard_for_comp(comp_id):
     comp = Competition.query.get_or_404(comp_id)
 
-    is_admin = admin_can_manage_competition(comp)
-    if not is_admin and not comp_is_live(comp):
-        return render_template("leaderboard.html", comp=None, not_live=True)
+    from_route_setter = (request.args.get("from") or "").strip() == "route_setter"
+
+    # whatever permission/admin logic you already use here
+    if admin_can_manage_competition(comp):
+        session["admin_comp_id"] = comp.id
+
+        target = "/leaderboard?admin=1"
+        if from_route_setter:
+            target += "&from=route_setter"
+        return redirect(target)
 
     session["active_comp_slug"] = comp.slug
 
-    admin_q = (request.args.get("admin") or "").strip()
-    if is_admin:
-        admin_q = "1"
-
-    if admin_q == "1":
-        return redirect("/leaderboard?admin=1")
-
-    return redirect("/leaderboard")
+    target = "/leaderboard"
+    if from_route_setter:
+        target += "?from=route_setter"
+    return redirect(target)
 
 
 @scores_bp.route("/api/leaderboard")

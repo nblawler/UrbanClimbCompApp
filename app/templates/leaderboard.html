@@ -23,38 +23,43 @@
 		{% set cid_val = (cid_q if cid_q else (viewer_id if viewer_id else '')) %}
 	{% endif %}
 
+	{% set from_route_setter = ((request.args.get('from') or '').strip() == 'route_setter') %}
+
 	{% set qs = [] %}
 	{% if cid_val %}{% set _ = qs.append('cid=' ~ cid_val) %}{% endif %}
 	{% if admin_only %}{% set _ = qs.append('admin=1') %}{% endif %}
+	{% if from_route_setter %}{% set _ = qs.append('from=route_setter') %}{% endif %}
 	{% set qs_str = ('?' ~ (qs|join('&'))) if qs|length else '' %}
 
 	{% set show_comp_nav = (not admin_only) and (comp_slug and cid_val) %}
 
 	<nav class="nav">
 		<button type="button" class="menu-toggle" onclick="openSidebar()">☰ Menu</button>
-
-		{% if show_comp_nav %}
-			<a href="/comp/{{ comp_slug }}/competitor/{{ cid_val }}/sections"
-			   class="{% if nav_active == 'sections' %}active{% endif %}">
-				Scoring
+	
+		{% if not from_route_setter %}
+			{% if show_comp_nav %}
+				<a href="/comp/{{ comp_slug }}/competitor/{{ cid_val }}/sections"
+				   class="{% if nav_active == 'sections' %}active{% endif %}">
+					Scoring
+				</a>
+	
+				<a href="/competitor/{{ cid_val }}/stats/my"
+				   class="{% if nav_active == 'my_stats' %}active{% endif %}">
+					My Stats
+				</a>
+			{% endif %}
+	
+			<a href="/leaderboard{{ qs_str }}"
+			   class="{% if nav_active == 'leaderboard' %}active{% endif %}">
+				Leaderboard
 			</a>
-
-			<a href="/competitor/{{ cid_val }}/stats/my"
-			   class="{% if nav_active == 'my_stats' %}active{% endif %}">
-				My Stats
-			</a>
-		{% endif %}
-
-		<a href="/leaderboard{{ qs_str }}"
-		   class="{% if nav_active == 'leaderboard' %}active{% endif %}">
-			Leaderboard
-		</a>
-
-		{% if (not admin_only) and comp_slug %}
-			<a class="{% if nav_active == 'doubles' %}active{% endif %}"
-			   href="/comp/{{ comp_slug }}/doubles">
-				Doubles
-			</a>
+	
+			{% if (not admin_only) and comp_slug %}
+				<a class="{% if nav_active == 'doubles' %}active{% endif %}"
+				   href="/comp/{{ comp_slug }}/doubles">
+					Doubles
+				</a>
+			{% endif %}
 		{% endif %}
 	</nav>
 
@@ -149,6 +154,7 @@
 			const CID = "{{ cid_val }}";
 			const ADMIN_ONLY = {{ 'true' if admin_only else 'false' }};
 			const PER_PAGE = {{ per_page if per_page is defined else 10 }};
+			const FROM_ROUTE_SETTER = {{ 'true' if from_route_setter else 'false' }};
 
 			let latestToken = 0;
 			let aborter     = null;
@@ -326,11 +332,17 @@
 			}
 
 			function urlFor(key, page) {
-				const path = (key && key !== "all") ? `/leaderboard/${encodeURIComponent(key)}` : "/leaderboard";
+				const path = (key && key !== "all")
+					? `/leaderboard/${encodeURIComponent(key)}`
+					: "/leaderboard";
+
 				const params = new URLSearchParams();
+
 				if (CID) params.set("cid", CID);
 				if (ADMIN_ONLY) params.set("admin", "1");
+				if (FROM_ROUTE_SETTER) params.set("from", "route_setter");
 				if (page && page > 1) params.set("page", String(page));
+
 				const qs = params.toString();
 				return qs ? `${path}?${qs}` : path;
 			}
@@ -357,7 +369,13 @@
 			}
 
 			async function fetchCompetitorDetails(cid) {
-				const resp = await fetch(`/api/leaderboard/details?competitor_id=${encodeURIComponent(cid)}`, { method: "GET", cache: "no-store", headers: { "Accept": "application/json" } });
+				const base = `/api/leaderboard/details?competitor_id=${encodeURIComponent(cid)}`;
+				const url = FROM_ROUTE_SETTER ? `${base}&from=route_setter` : base;
+				const resp = await fetch(url, {
+					method: "GET",
+					cache: "no-store",
+					headers: { "Accept": "application/json" }
+				});
 				if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
 				return resp.json();
 			}
@@ -370,16 +388,29 @@
 				const table = detailsRow.querySelector(".details-table");
 				const tbody = detailsRow.querySelector("tbody");
 
-				loading.textContent = "Loading…"; loading.hidden = false; table.hidden = true; tbody.innerHTML = "";
+				loading.textContent = "Loading…";
+				loading.hidden = false;
+				table.hidden = true;
+				tbody.innerHTML = "";
 
 				try {
 					const data = await fetchCompetitorDetails(cid);
-					if (!data.ok) { loading.textContent = data.error || "Could not load details"; return; }
+					if (!data.ok) {
+						loading.textContent = data.error || "Could not load details";
+						return;
+					}
 					const climbs = data.climbs || [];
-					if (!climbs.length) { loading.textContent = "No climbs found"; return; }
+					if (!climbs.length) {
+						loading.textContent = "No climbs found";
+						return;
+					}
 					tbody.innerHTML = renderClimbRows(climbs);
-					loading.hidden = true; table.hidden = false; detailsRow.dataset.loaded = "1";
-				} catch (e) { loading.textContent = "Error loading details"; }
+					loading.hidden = true;
+					table.hidden = false;
+					detailsRow.dataset.loaded = "1";
+				} catch (e) {
+					loading.textContent = "Error loading details";
+				}
 			}
 
 			async function loadTeamDetails(teamKey, aId, bId) {
@@ -395,31 +426,68 @@
 				const emptyA = detailsRow.querySelector("[data-empty-a]");
 				const emptyB = detailsRow.querySelector("[data-empty-b]");
 
-				loading.textContent = "Loading…"; loading.hidden = false; membersWrap.hidden = true;
-				tableA.hidden = true; tableB.hidden = true; emptyA.hidden = true; emptyB.hidden = true;
-				bodyA.innerHTML = ""; bodyB.innerHTML = "";
+				loading.textContent = "Loading…";
+				loading.hidden = false;
+				membersWrap.hidden = true;
+				tableA.hidden = true;
+				tableB.hidden = true;
+				emptyA.hidden = true;
+				emptyB.hidden = true;
+				bodyA.innerHTML = "";
+				bodyB.innerHTML = "";
 
 				try {
-					const [dataA, dataB] = await Promise.all([fetchCompetitorDetails(aId), fetchCompetitorDetails(bId)]);
-					if (!dataA.ok || !dataB.ok) { loading.textContent = dataA.error || dataB.error || "Could not load team details"; return; }
+					const [dataA, dataB] = await Promise.all([
+						fetchCompetitorDetails(aId),
+						fetchCompetitorDetails(bId)
+					]);
+
+					if (!dataA.ok || !dataB.ok) {
+						loading.textContent = dataA.error || dataB.error || "Could not load team details";
+						return;
+					}
 
 					const climbsA = dataA.climbs || [];
 					const climbsB = dataB.climbs || [];
 
-					if (climbsA.length) { bodyA.innerHTML = renderClimbRows(climbsA); tableA.hidden = false; } else { emptyA.hidden = false; }
-					if (climbsB.length) { bodyB.innerHTML = renderClimbRows(climbsB); tableB.hidden = false; } else { emptyB.hidden = false; }
+					if (climbsA.length) {
+						bodyA.innerHTML = renderClimbRows(climbsA);
+						tableA.hidden = false;
+					} else {
+						emptyA.hidden = false;
+					}
 
-					loading.hidden = true; membersWrap.hidden = false; detailsRow.dataset.loaded = "1";
-				} catch (e) { loading.textContent = "Error loading details"; }
+					if (climbsB.length) {
+						bodyB.innerHTML = renderClimbRows(climbsB);
+						tableB.hidden = false;
+					} else {
+						emptyB.hidden = false;
+					}
+
+					loading.hidden = true;
+					membersWrap.hidden = false;
+					detailsRow.dataset.loaded = "1";
+				} catch (e) {
+					loading.textContent = "Error loading details";
+				}
 			}
 
 			function toggleSingleDetails(cid) {
 				const btn = document.querySelector(`.expander[data-cid="${CSS.escape(String(cid))}"]`);
 				const detailsRow = document.querySelector(`.lb-details[data-cid="${CSS.escape(String(cid))}"]`);
 				if (!btn || !detailsRow) return;
+
 				const isOpen = !detailsRow.hidden;
-				if (isOpen) { detailsRow.hidden = true; btn.classList.remove("open"); btn.setAttribute("aria-expanded", "false"); return; }
-				detailsRow.hidden = false; btn.classList.add("open"); btn.setAttribute("aria-expanded", "true");
+				if (isOpen) {
+					detailsRow.hidden = true;
+					btn.classList.remove("open");
+					btn.setAttribute("aria-expanded", "false");
+					return;
+				}
+
+				detailsRow.hidden = false;
+				btn.classList.add("open");
+				btn.setAttribute("aria-expanded", "true");
 				loadSingleDetails(cid);
 			}
 
@@ -427,9 +495,18 @@
 				const btn = document.querySelector(`.expander[data-team-key="${CSS.escape(String(teamKey))}"]`);
 				const detailsRow = document.querySelector(`.lb-details[data-team-key="${CSS.escape(String(teamKey))}"]`);
 				if (!btn || !detailsRow) return;
+
 				const isOpen = !detailsRow.hidden;
-				if (isOpen) { detailsRow.hidden = true; btn.classList.remove("open"); btn.setAttribute("aria-expanded", "false"); return; }
-				detailsRow.hidden = false; btn.classList.add("open"); btn.setAttribute("aria-expanded", "true");
+				if (isOpen) {
+					detailsRow.hidden = true;
+					btn.classList.remove("open");
+					btn.setAttribute("aria-expanded", "false");
+					return;
+				}
+
+				detailsRow.hidden = false;
+				btn.classList.add("open");
+				btn.setAttribute("aria-expanded", "true");
 				loadTeamDetails(teamKey, aId, bId);
 			}
 
@@ -439,7 +516,10 @@
 				currentKey = k;
 
 				const token = ++latestToken;
-				if (aborter) { aborter.abort(); aborter = null; }
+				if (aborter) {
+					aborter.abort();
+					aborter = null;
+				}
 				aborter = new AbortController();
 
 				applyTabState(k, true);
@@ -447,19 +527,35 @@
 				setPager(p, 1);
 				wrapEl.classList.add("loading");
 
-				if (push) history.pushState({ key: k, page: p }, "", urlFor(k, p));
+				if (push) {
+					history.pushState({ key: k, page: p }, "", urlFor(k, p));
+				}
 
-				const params = new URLSearchParams({ category: k, page: String(p), per_page: String(PER_PAGE) });
+				const params = new URLSearchParams({
+					category: k,
+					page: String(p),
+					per_page: String(PER_PAGE)
+				});
+
 				if (CID) params.set("cid", CID);
 				if (ADMIN_ONLY) params.set("admin", "1");
+				if (FROM_ROUTE_SETTER) params.set("from", "route_setter");
 
 				try {
-					const resp = await fetch(`/api/leaderboard?${params}`, { method: "GET", cache: "no-store", signal: aborter.signal, headers: { "Accept": "application/json" } });
+					const resp = await fetch(`/api/leaderboard?${params}`, {
+						method: "GET",
+						cache: "no-store",
+						signal: aborter.signal,
+						headers: { "Accept": "application/json" }
+					});
+
 					if (token !== latestToken) return;
 					if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+
 					const data = await resp.json();
 					if (token !== latestToken) return;
 					if (data.cat_key && data.cat_key !== k) return;
+
 					closeAllDetails();
 					renderRows(k, data.rows || [], data.page || p);
 					setPager(data.page || p, data.total_pages || 1);
@@ -469,7 +565,10 @@
 					renderError(k, "Error loading leaderboard. Try again.");
 					setPager(p, 1);
 				} finally {
-					if (token === latestToken) { applyTabState(k, false); wrapEl.classList.remove("loading"); }
+					if (token === latestToken) {
+						applyTabState(k, false);
+						wrapEl.classList.remove("loading");
+					}
 				}
 			}
 
@@ -482,16 +581,30 @@
 			bodyEl.addEventListener("click", (e) => {
 				const btn = e.target.closest(".expander");
 				if (!btn) return;
+
 				const cid = btn.dataset.cid;
-				if (cid) { toggleSingleDetails(cid); return; }
+				if (cid) {
+					toggleSingleDetails(cid);
+					return;
+				}
+
 				const teamKey = btn.dataset.teamKey;
 				const aId = btn.dataset.aId;
 				const bId = btn.dataset.bId;
-				if (teamKey && aId && bId) toggleTeamDetails(teamKey, aId, bId);
+				if (teamKey && aId && bId) {
+					toggleTeamDetails(teamKey, aId, bId);
+				}
 			});
 
-			prevBtn.addEventListener("click", () => { if (currentPage <= 1) return; load(currentKey, currentPage - 1, { push: true }); });
-			nextBtn.addEventListener("click", () => { if (currentPage >= currentTotalPages) return; load(currentKey, currentPage + 1, { push: true }); });
+			prevBtn.addEventListener("click", () => {
+				if (currentPage <= 1) return;
+				load(currentKey, currentPage - 1, { push: true });
+			});
+
+			nextBtn.addEventListener("click", () => {
+				if (currentPage >= currentTotalPages) return;
+				load(currentKey, currentPage + 1, { push: true });
+			});
 
 			window.addEventListener("popstate", e => {
 				const state = e.state || {};
