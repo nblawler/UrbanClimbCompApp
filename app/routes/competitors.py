@@ -522,7 +522,7 @@ def my_profile():
 
     if not competitor_id:
         flash("Please log in to view your profile.", "warning")
-        return redirect(url_for("auth.login"))
+        return redirect("/login")
 
     competitor = Competitor.query.get(competitor_id)
     if not competitor:
@@ -646,7 +646,6 @@ def my_profile():
     top_rate = round((total_tops / total_logged) * 100) if total_logged else 0
     flash_rate = round((total_flashes / total_logged) * 100) if total_logged else 0
 
-    # --- Load precomputed stats (fast single row read) ---
     def ordinal(n):
         if n is None:
             return None
@@ -675,7 +674,6 @@ def my_profile():
         elif stats.milestone_10:
             medals.append({"icon": "🔟", "label": "10 Comps", "count": None})
 
-    # --- Chart data ---
     chart_comps = []
     max_chart_value = 0
 
