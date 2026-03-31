@@ -16,9 +16,10 @@
 		{% set on_admin_section = request.path.startswith("/admin/section/") %}
 		{% set on_admin_configure = request.path.startswith("/admin/comp/") %}
 		{% set on_route_setter_comps = request.path == "/route-setter/comps" %}
+		{% set on_route_setter_leaderboards = request.path == "/route-setter/leaderboards" %}
 
 		{% set gym_admin_open = on_admin_create or on_admin_manage or on_admin_home or on_admin_configure %}
-		{% set route_setter_open = on_route_setter_comps or on_admin_map or on_admin_section %}
+		{% set route_setter_open = on_route_setter_comps or on_route_setter_leaderboards or on_admin_map or on_admin_section %}
 
 		{% if sidebar_gym_admin_allowed|default(false) %}
 			<div class="sidebar-group {% if gym_admin_open %}open{% endif %}">
@@ -58,6 +59,9 @@
 				<div class="sidebar-submenu">
 					<a href="/route-setter/comps" class="sidebar-sublink {% if on_route_setter_comps %}active{% endif %}">
 						Competitions
+					</a>
+					<a href="/route-setter/leaderboards" class="sidebar-sublink {% if on_route_setter_leaderboards %}active{% endif %}">
+						Leaderboards
 					</a>
 				</div>
 			</div>

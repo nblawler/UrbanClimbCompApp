@@ -984,7 +984,30 @@ def route_setter_competitions():
         "route_setter_competitions.html",
         competitions=competitions,
     )
+    
+@admin_bp.route("/route-setter/leaderboards")
+def route_setter_leaderboards():
+    guard = _require_admin_login()
+    if guard:
+        return guard
 
+    is_super = admin_is_super()
+
+    comps_query = Competition.query
+
+    if not is_super:
+        allowed_gym_ids = get_session_admin_gym_ids() or []
+        if allowed_gym_ids:
+            comps_query = comps_query.filter(Competition.gym_id.in_(allowed_gym_ids))
+        else:
+            comps_query = comps_query.filter(False)
+
+    competitions = comps_query.order_by(Competition.start_at.desc()).all()
+
+    return render_template(
+        "route_setter_leaderboards.html",
+        competitions=competitions,
+    )
 
 @admin_bp.route("/admin/comp/<int:competition_id>/configure")
 def admin_configure_competition(competition_id):
