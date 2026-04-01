@@ -154,69 +154,69 @@ def get_top_climbs_for_competitor(competition_id: int, competitor_id: int, limit
 
 def build_leaderboard(category=None, competition_id=None, slug=None):
     """
-    Fast singles-only leaderboard using precomputed Leaderboard rows.
+    Build the singles leaderboard using precomputed rows from the Leaderboard table.
 
-    Ranking:
-    - total_points desc
-    - attempts_on_tops asc
-    - name asc
+    Ranking order:
+    1. Highest total_points
+    2. Lowest attempts_on_tops
+    3. Competitor name alphabetically
 
-    Returns rows shaped like:
-        {
-          "competitor_id", "name", "gender",
-          "tops", "attempts_on_tops",
-          "total_points", "last_update",
-          "position"
-        }
+    Returns:
+    - a list of leaderboard row dictionaries
+    - a category label string
     """
 
-    # --- resolve competition scope ---
-    current_comp = None
+    # Work out which competition we are building the leaderboard for
+    current_competition = None
     if competition_id:
-        current_comp = Competition.query.get(competition_id)
+        current_competition = Competition.query.get(competition_id)
     elif slug:
-        current_comp = Competition.query.filter_by(slug=slug).first()
+        current_competition = Competition.query.filter_by(slug=slug).first()
     else:
-        current_comp = get_current_comp()
+        current_competition = get_current_comp()
 
-    if not current_comp:
+    if not current_competition:
         return [], "No active competition"
 
-    # --- normalise category once ---
-    cat_key = normalize_leaderboard_category(category)
-    cache_key = (current_comp.id, cat_key)
+    # Clean the category value so only allowed categories are used
+    category_key = normalize_leaderboard_category(category)
 
-    now = time.time()
-    cached = LEADERBOARD_CACHE.get(cache_key)
-    if cached:
-        rows, category_label, ts = cached
-        if now - ts <= LEADERBOARD_CACHE_TTL:
-            return rows, category_label
+    # Cache leaderboard results per competition + category
+    cache_key = (current_competition.id, category_key)
 
-    # --- singles only ---
-    q = (
+    current_time = time.time()
+    cached_result = LEADERBOARD_CACHE.get(cache_key)
+    if cached_result:
+        cached_rows, cached_category_label, cached_time = cached_result
+        if current_time - cached_time <= LEADERBOARD_CACHE_TTL:
+            return cached_rows, cached_category_label
+
+    # Start building the query using the precomputed leaderboard table
+    leaderboard_query = (
         db.session.query(Leaderboard, Competitor)
         .join(Competitor, Competitor.id == Leaderboard.competitor_id)
         .filter(
-            Leaderboard.competition_id == current_comp.id,
-            Competitor.competition_id == current_comp.id,
+            Leaderboard.competition_id == current_competition.id,
+            Competitor.competition_id == current_competition.id,
         )
     )
 
-    if cat_key == "male":
-        q = q.filter(Competitor.gender == "Male")
+    # Apply category filtering
+    if category_key == "male":
+        leaderboard_query = leaderboard_query.filter(Competitor.gender == "Male")
         category_label = "Male"
-    elif cat_key == "female":
-        q = q.filter(Competitor.gender == "Female")
+    elif category_key == "female":
+        leaderboard_query = leaderboard_query.filter(Competitor.gender == "Female")
         category_label = "Female"
-    elif cat_key == "inclusive":
-        q = q.filter(Competitor.gender == "Inclusive")
+    elif category_key == "inclusive":
+        leaderboard_query = leaderboard_query.filter(Competitor.gender == "Inclusive")
         category_label = "Gender Inclusive"
     else:
         category_label = "All"
 
-    results = (
-        q.order_by(
+    # Order the results in leaderboard ranking order
+    leaderboard_results = (
+        leaderboard_query.order_by(
             Leaderboard.total_points.desc(),
             Leaderboard.attempts_on_tops.asc(),
             Competitor.name.asc(),
@@ -224,37 +224,42 @@ def build_leaderboard(category=None, competition_id=None, slug=None):
         .all()
     )
 
-    if not results:
-        rows = []
-        LEADERBOARD_CACHE[cache_key] = (rows, category_label, now)
-        return rows, category_label
+    # If there are no matching competitors, return an empty leaderboard
+    if not leaderboard_results:
+        leaderboard_rows = []
+        LEADERBOARD_CACHE[cache_key] = (leaderboard_rows, category_label, current_time)
+        return leaderboard_rows, category_label
 
-    rows = []
-    position = 0
-    previous_rank_key = None
+    leaderboard_rows = []
+    current_position = 0
+    previous_rank_values = None
 
-    for leaderboard_row, competitor in results:
-        total_points = int(leaderboard_row.total_points or 0)
-        attempts_on_tops = int(leaderboard_row.attempts_on_tops or 0)
+    # Turn DB results into the dictionary structure the templates/API expect
+    for leaderboard_record, competitor in leaderboard_results:
+        total_points = int(leaderboard_record.total_points or 0)
+        attempts_on_tops = int(leaderboard_record.attempts_on_tops or 0)
 
-        current_rank_key = (total_points, attempts_on_tops)
-        if current_rank_key != previous_rank_key:
-            position += 1
-        previous_rank_key = current_rank_key
+        # Competitors with the same points and attempts share the same position
+        current_rank_values = (total_points, attempts_on_tops)
+        if current_rank_values != previous_rank_values:
+            current_position += 1
+        previous_rank_values = current_rank_values
 
-        rows.append({
+        leaderboard_rows.append({
             "competitor_id": competitor.id,
             "name": competitor.name,
             "gender": competitor.gender,
-            "tops": int(leaderboard_row.tops or 0),
+            "tops": int(leaderboard_record.tops or 0),
             "attempts_on_tops": attempts_on_tops,
             "total_points": total_points,
-            "last_update": leaderboard_row.last_update,
-            "position": position,
+            "last_update": leaderboard_record.last_update,
+            "position": current_position,
         })
 
-    LEADERBOARD_CACHE[cache_key] = (rows, category_label, now)
-    return rows, category_label
+    # Save the result in cache so repeated requests are faster
+    LEADERBOARD_CACHE[cache_key] = (leaderboard_rows, category_label, current_time)
+
+    return leaderboard_rows, category_label
 
 
 def build_doubles_leaderboard(competition_id):
