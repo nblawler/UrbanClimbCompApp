@@ -4,7 +4,10 @@ import time
 from typing import Optional
 from collections import defaultdict
 
-from app.models import Competition, Competitor, Score, DoublesTeam, SectionClimb, Section
+from app.models import Competition, Competitor, Score, DoublesTeam, SectionClimb, Section, Leaderboard
+from app.extensions import db
+from app.helpers.competition import get_current_comp
+from app.helpers.new_leaderboard import normalize_leaderboard_category
 from app.helpers.competition import get_current_comp
 from app.helpers.scoring import points_for
 from app.helpers.leaderboard_cache import LEADERBOARD_CACHE, LEADERBOARD_CACHE_TTL
@@ -151,47 +154,21 @@ def get_top_climbs_for_competitor(competition_id: int, competitor_id: int, limit
 
 def build_leaderboard(category=None, competition_id=None, slug=None):
     """
-    Build leaderboard rows.
+    Fast singles-only leaderboard using precomputed Leaderboard rows.
 
-    NEW SCORING / RANKING RULES:
-    - Each climb has fixed base_points (no per-attempt penalty)
-    - A competitor's leaderboard score is the SUM of their TOP 8 TOPPED climbs (by points)
-    - Untopped climbs do NOT count toward total_points
-    - Tie-break: if total_points equal, LOWEST attempts_on_tops ranks higher
-      (attempts summed only over the selected top 8 topped climbs)
-    - Stable final tie-break: name asc
+    Ranking:
+    - total_points desc
+    - attempts_on_tops asc
+    - name asc
 
-    Modes:
-    - Singles (default): All / Male / Female / Gender Inclusive
-      Returns rows shaped like:
+    Returns rows shaped like:
         {
           "competitor_id", "name", "gender",
           "tops", "attempts_on_tops",
           "total_points", "last_update",
           "position"
         }
-
-    - Doubles (category == "doubles"):
-      Returns rows shaped like:
-        {
-          "team_id",
-          "a_id", "b_id",
-          "a_name", "b_name",
-          "name",
-          "total_points",
-          "attempts_on_tops",
-          "position"
-        }
-
-    Scoping:
-    - If competition_id is provided -> use that competition
-    - Else if slug is provided -> look up that competition by slug
-    - Else -> fall back to get_current_comp()
-
-    Cache is per (competition_id, cat_key).
     """
-
-    TOP_N = 8
 
     # --- resolve competition scope ---
     current_comp = None
@@ -205,7 +182,7 @@ def build_leaderboard(category=None, competition_id=None, slug=None):
     if not current_comp:
         return [], "No active competition"
 
-    # --- normalise category ONCE ---
+    # --- normalise category once ---
     cat_key = normalize_leaderboard_category(category)
     cache_key = (current_comp.id, cat_key)
 
@@ -216,62 +193,15 @@ def build_leaderboard(category=None, competition_id=None, slug=None):
         if now - ts <= LEADERBOARD_CACHE_TTL:
             return rows, category_label
 
-    # --- doubles mode ---
-    if cat_key == "doubles":
-        # Build singles "all" first so doubles inherits the same topped-only rule
-        singles_rows, _ = build_leaderboard("all", competition_id=current_comp.id)
-
-        points_by_id = {r["competitor_id"]: r.get("total_points", 0) for r in singles_rows}
-        attempts_by_id = {r["competitor_id"]: r.get("attempts_on_tops", 0) for r in singles_rows}
-        name_by_id = {r["competitor_id"]: r.get("name", "") for r in singles_rows}
-
-        teams = DoublesTeam.query.filter_by(competition_id=current_comp.id).all()
-        if not teams:
-            rows = []
-            category_label = "Doubles"
-            LEADERBOARD_CACHE[cache_key] = (rows, category_label, now)
-            return rows, category_label
-
-        rows = []
-        for t in teams:
-            a_id = t.competitor_a_id
-            b_id = t.competitor_b_id
-
-            a_name = name_by_id.get(a_id, f"#{a_id}")
-            b_name = name_by_id.get(b_id, f"#{b_id}")
-
-            total_points = int(points_by_id.get(a_id, 0) or 0) + int(points_by_id.get(b_id, 0) or 0)
-            team_attempts = int(attempts_by_id.get(a_id, 0) or 0) + int(attempts_by_id.get(b_id, 0) or 0)
-
-            rows.append({
-                "team_id": t.id,
-                "a_id": a_id,
-                "b_id": b_id,
-                "a_name": a_name,
-                "b_name": b_name,
-                "name": f"{a_name} and {b_name}",
-                "total_points": total_points,
-                "attempts_on_tops": team_attempts,
-            })
-
-        # Rank: points desc, attempts asc, name asc
-        rows.sort(key=lambda r: (-r["total_points"], r.get("attempts_on_tops", 0), (r.get("name") or "").lower()))
-
-        pos = 0
-        prev_key = None
-        for row in rows:
-            k = (row["total_points"], row.get("attempts_on_tops", 0))
-            if k != prev_key:
-                pos += 1
-            prev_key = k
-            row["position"] = pos
-
-        category_label = "Doubles"
-        LEADERBOARD_CACHE[cache_key] = (rows, category_label, now)
-        return rows, category_label
-
-    # --- singles mode ---
-    q = Competitor.query.filter(Competitor.competition_id == current_comp.id)
+    # --- singles only ---
+    q = (
+        db.session.query(Leaderboard, Competitor)
+        .join(Competitor, Competitor.id == Leaderboard.competitor_id)
+        .filter(
+            Leaderboard.competition_id == current_comp.id,
+            Competitor.competition_id == current_comp.id,
+        )
+    )
 
     if cat_key == "male":
         q = q.filter(Competitor.gender == "Male")
@@ -285,82 +215,43 @@ def build_leaderboard(category=None, competition_id=None, slug=None):
     else:
         category_label = "All"
 
-    competitors = q.all()
-    if not competitors:
+    results = (
+        q.order_by(
+            Leaderboard.total_points.desc(),
+            Leaderboard.attempts_on_tops.asc(),
+            Competitor.name.asc(),
+        )
+        .all()
+    )
+
+    if not results:
         rows = []
         LEADERBOARD_CACHE[cache_key] = (rows, category_label, now)
         return rows, category_label
 
-    competitor_ids = [c.id for c in competitors]
-
-    all_scores = (
-        Score.query
-        .filter(Score.competitor_id.in_(competitor_ids))
-        .all()
-        if competitor_ids else []
-    )
-
-    by_competitor = defaultdict(list)
-    for s in all_scores:
-        by_competitor[s.competitor_id].append(s)
-
     rows = []
-    for c in competitors:
-        scores = by_competitor.get(c.id, [])
+    position = 0
+    previous_rank_key = None
 
-        topped_scored = []
-        last_update = None
+    for leaderboard_row, competitor in results:
+        total_points = int(leaderboard_row.total_points or 0)
+        attempts_on_tops = int(leaderboard_row.attempts_on_tops or 0)
 
-        for s in scores:
-            if s.updated_at is not None:
-                if last_update is None or s.updated_at > last_update:
-                    last_update = s.updated_at
-
-            # IMPORTANT: only topped climbs are allowed into leaderboard scoring
-            if not bool(s.topped):
-                continue
-
-            p = points_for(s.climb_number, s.attempts, s.topped, current_comp.id)
-
-            topped_scored.append({
-                "climb_number": s.climb_number,
-                "points": int(p or 0),
-                "attempts": int(s.attempts or 0),
-                "topped": True,
-                "updated_at": s.updated_at,
-            })
-
-        # Sort topped climbs by points desc, then attempts asc
-        topped_scored.sort(key=lambda x: (-x["points"], x["attempts"], x.get("climb_number") or 0))
-
-        # Take top N topped climbs only
-        topN = topped_scored[:TOP_N]
-
-        total_points = sum(x["points"] for x in topN)
-        tops = len(topN)
-        attempts_on_tops = sum(x["attempts"] for x in topN)
+        current_rank_key = (total_points, attempts_on_tops)
+        if current_rank_key != previous_rank_key:
+            position += 1
+        previous_rank_key = current_rank_key
 
         rows.append({
-            "competitor_id": c.id,
-            "name": c.name,
-            "gender": c.gender,
-            "tops": tops,
+            "competitor_id": competitor.id,
+            "name": competitor.name,
+            "gender": competitor.gender,
+            "tops": int(leaderboard_row.tops or 0),
             "attempts_on_tops": attempts_on_tops,
             "total_points": total_points,
-            "last_update": last_update,
+            "last_update": leaderboard_row.last_update,
+            "position": position,
         })
-
-    # Rank: points desc, attempts asc, name asc
-    rows.sort(key=lambda r: (-r["total_points"], r["attempts_on_tops"], (r["name"] or "").lower()))
-
-    pos = 0
-    prev_key = None
-    for row in rows:
-        k = (row["total_points"], row["attempts_on_tops"])
-        if k != prev_key:
-            pos += 1
-        prev_key = k
-        row["position"] = pos
 
     LEADERBOARD_CACHE[cache_key] = (rows, category_label, now)
     return rows, category_label

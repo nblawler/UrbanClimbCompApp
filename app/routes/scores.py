@@ -27,6 +27,7 @@ from app.helpers.leaderboard import (
 )
 from app.helpers.scoring import points_for
 from app.helpers.leaderboard_cache import invalidate_leaderboard_cache
+from app.helpers.new_leaderboard import refresh_leaderboard_row
 
 scores_bp = Blueprint("scores", __name__)
 
@@ -406,8 +407,10 @@ def api_save_score():
         sc = matches[0]
 
     score = (
-        Score.query.filter_by(competitor_id=competitor_id, section_climb_id=sc.id)
-        .first()
+        Score.query.filter_by(
+            competitor_id=competitor_id,
+            section_climb_id=sc.id,
+        ).first()
     )
 
     if not score:
@@ -425,6 +428,12 @@ def api_save_score():
         score.attempts = attempts
         score.topped = topped
         score.flashed = flashed
+
+    refresh_leaderboard_row(
+        competitor_id=competitor_id,
+        competition_id=current_comp.id,
+        top_n=8,
+    )
 
     db.session.commit()
     invalidate_leaderboard_cache()
