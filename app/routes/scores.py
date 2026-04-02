@@ -624,9 +624,9 @@ def leaderboard_for_comp(comp_id):
 
     from_route_setter = (request.args.get("from") or "").strip() == "route_setter"
 
-    # whatever permission/admin logic you already use here
     if admin_can_manage_competition(comp):
         session["admin_comp_id"] = comp.id
+        session["active_comp_slug"] = comp.slug
 
         target = "/leaderboard?admin=1"
         if from_route_setter:
