@@ -1,6 +1,6 @@
 /* ============================================================
-   app.css — Comp Circuit / Urban Climb Comp
-   Consolidated stylesheet for all 19 templates.
+ File 1 
+
    ============================================================ */
 
 /* ── Reset ── */
@@ -3095,4 +3095,47 @@
   .admin-table-actions-head {
     text-align: left;
   }
+}
+
+/* ===== MAP FIX (FINAL) ===== */
+
+.map-card {
+	padding: 0 !important;
+	background: transparent !important;
+	overflow: hidden;
+}
+
+.map-wrapper {
+	width: 100%;
+	height: clamp(300px, 60vh, 800px);
+	position: relative;
+	overflow: hidden;
+	background: transparent;
+}
+
+.map-viewport {
+	width: 100%;
+	height: 100% !important;
+	position: relative;
+	overflow: hidden;
+}
+
+/* overrides old aspect-ratio behaviour */
+.map-viewport {
+	aspect-ratio: unset !important;
+}
+
+.map-layer {
+	position: absolute;
+	inset: 0;
+	transform-origin: top left;
+}
+
+/* MOST IMPORTANT PART */
+.gym-map-image {
+	width: 100% !important;
+	height: 100% !important;
+	display: block;
+	object-fit: cover !important;
+	object-position: center;
 }
