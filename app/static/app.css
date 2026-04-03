@@ -3161,3 +3161,27 @@
 	-webkit-user-drag: none;
 	user-select: none;
 }
+
+/* ===== COMPETITOR MAP: USE REAL IMAGE RATIO, NO LETTERBOXING ===== */
+
+#mapViewportSections {
+	min-height: 0 !important;
+	max-height: none !important;
+	height: auto !important;
+	aspect-ratio: var(--map-ar) !important;
+}
+
+#mapWrapperSections {
+	background: transparent !important;
+}
+
+#mapWrapperSections .map-layer {
+	left: 0 !important;
+	top: 0 !important;
+}
+
+#mapWrapperSections .gym-map-image {
+	width: 100% !important;
+	height: auto !important;
+	object-fit: unset !important;
+}
