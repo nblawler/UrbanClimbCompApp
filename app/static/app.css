@@ -3097,40 +3097,62 @@
   }
 }
 
-/* ===== MAP FIX (CORRECT SIZING) ===== */
+/* ===== MAP FIX — MATCH ADMIN PAGE ===== */
 
 .map-card {
-	padding: 0;
-	background: transparent;
+	padding: 1rem !important;
+	background: transparent !important;
 	overflow: hidden;
 }
 
-/* wrapper controls width only */
 .map-wrapper {
-	width: 100%;
-	max-width: 100%;
-	background: transparent;
+	position: relative !important;
+	width: 100% !important;
+	border-radius: 1rem;
+	overflow: hidden !important;
+	border: 1px solid rgba(255, 255, 255, 0.08);
+	background: #000 !important;
 }
 
-/* let the image define the height naturally */
 .map-viewport {
-	width: 100%;
-	height: auto;
-	overflow: hidden;
+	position: relative !important;
+	width: 100% !important;
+	height: auto !important;
+	aspect-ratio: var(--map-ar, 4 / 3) !important;
+	overflow: hidden !important;
+	background: #000 !important;
+	touch-action: none;
+	-webkit-user-select: none;
+	user-select: none;
+	-webkit-tap-highlight-color: transparent;
+	overscroll-behavior: none;
+	min-height: 240px;
+	max-height: 70svh;
 }
 
-/* layer should NOT force sizing */
+@supports (height: 70dvh) {
+	.map-viewport {
+		max-height: 70dvh;
+	}
+}
+
 .map-layer {
-	position: relative;
-	width: 100%;
-	height: auto;
-	transform-origin: top left;
+	position: absolute !important;
+	left: 0 !important;
+	top: 0 !important;
+	width: auto !important;
+	height: auto !important;
+	transform-origin: 0 0 !important;
+	will-change: transform;
 }
 
-/* keep natural proportions */
 .gym-map-image {
-	width: 100%;
-	height: auto;   /* ← IMPORTANT */
-	display: block;
-	object-fit: contain; /* safe now because height is auto */
+	display: block !important;
+	width: 100% !important;
+	height: auto !important;
+	max-width: none !important;
+	pointer-events: none;
+	-webkit-user-drag: none;
+	user-select: none;
+	object-fit: unset !important;
 }
