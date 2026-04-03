@@ -9,7 +9,7 @@ File Overview
 3. templates/competitor.html
    This is the competitor dashboard where the competitor can enter their scores
 4. templates/admin.html
-   This is the page for admin control over removing competitors from the db. To remove competitors from the database go to http://127.0.0.1:5001/admin
+   This is the page for admin control over removing competitors from the db. To remove competitors from the database go to http://127.0.0.1:5000/admin
    Then using the password found in app.py under ADMIN_PASSORD remove one-by-one or all competitors at once to fully reset the db.
 5. static/app.css
    This is the style sheet for all of the pages
@@ -30,8 +30,8 @@ SETUP
 For Local Development
 
 1. Run App
-   python project.py --port 5001
+   python project.py --port 5000
 
-   python -m app.run --port 5001
+   python -m app.run --port 5000
 
-2. Access at http://127.0.0.1:5001
+2. Access at http://127.0.0.1:5000
