@@ -3097,45 +3097,40 @@
   }
 }
 
-/* ===== MAP FIX (FINAL) ===== */
+/* ===== MAP FIX (CORRECT SIZING) ===== */
 
 .map-card {
-	padding: 0 !important;
-	background: transparent !important;
+	padding: 0;
+	background: transparent;
 	overflow: hidden;
 }
 
+/* wrapper controls width only */
 .map-wrapper {
 	width: 100%;
-	height: clamp(300px, 60vh, 800px);
-	position: relative;
-	overflow: hidden;
+	max-width: 100%;
 	background: transparent;
 }
 
+/* let the image define the height naturally */
 .map-viewport {
 	width: 100%;
-	height: 100% !important;
-	position: relative;
+	height: auto;
 	overflow: hidden;
 }
 
-/* overrides old aspect-ratio behaviour */
-.map-viewport {
-	aspect-ratio: unset !important;
-}
-
+/* layer should NOT force sizing */
 .map-layer {
-	position: absolute;
-	inset: 0;
+	position: relative;
+	width: 100%;
+	height: auto;
 	transform-origin: top left;
 }
 
-/* MOST IMPORTANT PART */
+/* keep natural proportions */
 .gym-map-image {
-	width: 100% !important;
-	height: 100% !important;
+	width: 100%;
+	height: auto;   /* ← IMPORTANT */
 	display: block;
-	object-fit: cover !important;
-	object-position: center;
+	object-fit: contain; /* safe now because height is auto */
 }
