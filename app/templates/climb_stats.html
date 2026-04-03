@@ -28,10 +28,10 @@
 			letter-spacing: 0.02em;
 			line-height: 1;
 			border: 1px solid transparent;
-			margin: 0 0.35rem;
 			vertical-align: middle;
 			white-space: nowrap;
 			color: #fff;
+			max-width: 100%;
 		}
 
 		.climb-status-pill.status-flashed {
@@ -63,6 +63,117 @@
 			margin-top: 0.35rem;
 			margin-bottom: 1rem;
 			font-size: 1rem;
+		}
+
+		.personal-result-wrap {
+			display: flex;
+			flex-wrap: wrap;
+			align-items: center;
+			gap: 0.55rem;
+			margin-top: 0.35rem;
+			margin-bottom: 1rem;
+			min-width: 0;
+		}
+
+		.personal-result-name {
+			font-weight: 700;
+			overflow-wrap: anywhere;
+		}
+
+		.personal-result-attempts {
+			color: rgba(255,255,255,0.8);
+			overflow-wrap: anywhere;
+		}
+
+		.overview-section-line {
+			margin-bottom: 1rem;
+			color: rgba(255,255,255,0.7);
+			overflow-wrap: anywhere;
+		}
+
+		.overview-table {
+			width: 100%;
+			table-layout: fixed;
+		}
+
+		.overview-table th,
+		.overview-table td {
+			vertical-align: top;
+			overflow-wrap: anywhere;
+			word-break: break-word;
+		}
+
+		.overview-table th {
+			width: 68%;
+		}
+
+		.overview-table td {
+			width: 32%;
+			text-align: right;
+			font-weight: 700;
+		}
+
+		@media (max-width: 640px) {
+			.stats-card {
+				overflow: hidden;
+			}
+
+			.result-overview-heading {
+				font-size: 1.2rem;
+				line-height: 1.25;
+			}
+
+			.personal-result-wrap {
+				flex-direction: column;
+				align-items: flex-start;
+				gap: 0.45rem;
+			}
+
+			.personal-result-name,
+			.personal-result-attempts,
+			.overview-section-line {
+				font-size: 0.95rem;
+				line-height: 1.45;
+			}
+
+			.overview-table,
+			.overview-table tbody,
+			.overview-table tr,
+			.overview-table th,
+			.overview-table td {
+				display: block;
+				width: 100%;
+			}
+
+			.overview-table tr {
+				padding: 0.8rem 0;
+				border-bottom: 1px solid rgba(255,255,255,0.08);
+			}
+
+			.overview-table tr:last-child {
+				border-bottom: 0;
+				padding-bottom: 0;
+			}
+
+			.overview-table th {
+				margin-bottom: 0.28rem;
+				padding: 0;
+				font-size: 0.92rem;
+				line-height: 1.35;
+				font-weight: 700;
+				text-align: left;
+			}
+
+			.overview-table td {
+				padding: 0;
+				text-align: left;
+				font-size: 1rem;
+				line-height: 1.35;
+			}
+
+			.climb-status-pill {
+				margin: 0;
+			}
 		}
 	</style>
 </head>
@@ -186,8 +297,8 @@
 
 				{% if competitor and mode == "personal" %}
 					{% if personal_row %}
-						<p class="personal-result-line">
-							<strong>{{ competitor.name }}:</strong>
+						<div class="personal-result-wrap">
+							<div class="personal-result-name">{{ competitor.name }}:</div>
 
 							{% if personal_row.topped %}
 								{% if personal_row.attempts == 1 %}
@@ -199,10 +310,10 @@
 								<span class="climb-status-pill status-not-topped">Not topped</span>
 							{% endif %}
 
-							<span style="margin-left: 0.5rem; color: rgba(255,255,255,0.8);">
+							<div class="personal-result-attempts">
 								{{ personal_row.attempts }} attempt{% if personal_row.attempts != 1 %}s{% endif %}
-							</span>
-						</p>
+							</div>
+						</div>
 					{% else %}
 						<p style="margin-bottom: 1rem; color: rgba(255,255,255,0.7);">
 							<strong>{{ competitor.name }} has not logged this climb yet.</strong>
@@ -210,7 +321,7 @@
 					{% endif %}
 				{% endif %}
 
-				<p style="margin-bottom: 1rem; color: rgba(255,255,255,0.7);">
+				<p class="overview-section-line">
 					<strong>Section:</strong>
 					{% if sections %}
 						{% for s in sections %}
@@ -351,7 +462,7 @@
 				const totalPages    = Math.max(1, Math.ceil(totalFiltered / pageSize));
 
 				if (currentPage > totalPages) currentPage = totalPages;
-				if (currentPage < 1)          currentPage = 1;
+				if (currentPage < 1) currentPage = 1;
 
 				const startIndex = (currentPage - 1) * pageSize;
 				const endIndex   = startIndex + pageSize;
@@ -359,10 +470,10 @@
 				rows.forEach(row => { row.style.display = "none"; });
 				filteredRows.slice(startIndex, endIndex).forEach(row => { row.style.display = ""; });
 
-				if (btnPrev)    btnPrev.disabled    = currentPage <= 1;
-				if (btnNext)    btnNext.disabled    = currentPage >= totalPages;
-				if (pageInfo)   pageInfo.textContent = `Page ${currentPage} of ${totalPages}`;
-				if (pagination) pagination.hidden    = totalFiltered <= pageSize;
+				if (btnPrev) btnPrev.disabled = currentPage <= 1;
+				if (btnNext) btnNext.disabled = currentPage >= totalPages;
+				if (pageInfo) pageInfo.textContent = `Page ${currentPage} of ${totalPages}`;
+				if (pagination) pagination.hidden = totalFiltered <= pageSize;
 
 				if (summary) {
 					if (totalFiltered === 0) {
@@ -406,7 +517,7 @@
 			if (btnNext) {
 				btnNext.addEventListener("click", () => {
 					const totalFiltered = getFilteredRows().length;
-					const totalPages    = Math.max(1, Math.ceil(totalFiltered / pageSize));
+					const totalPages = Math.max(1, Math.ceil(totalFiltered / pageSize));
 					if (currentPage >= totalPages) return;
 					currentPage++;
 					applyState();
