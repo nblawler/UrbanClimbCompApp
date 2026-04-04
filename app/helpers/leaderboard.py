@@ -254,6 +254,7 @@ def build_leaderboard(category=None, competition_id=None, slug=None):
             "total_points": total_points,
             "last_update": leaderboard_record.last_update,
             "position": current_position,
+            "top_climbs": [],
         })
 
     # Save the result in cache so repeated requests are faster
