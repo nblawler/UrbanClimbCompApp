@@ -19,9 +19,9 @@ Instead of paper scorecards and manual rankings, competitors can log climbs quic
 
 ### Leaderboard
 
-![Leaderboard Main](docs/images/leaderboard_std.png)
+![Leaderboard Main](Docs/Images/leaderboard_std.png)
 
-![Leaderboard Dropdown](docs/images/leaderboard_dropdown.png)
+![Leaderboard Dropdown](Docs/Images/leaderboard_dropdown.png)
 
 ## | Map View | Stats |
 ## |---------|------|
