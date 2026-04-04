@@ -1,20 +1,68 @@
-# Urban Climb Comp App
+# Comp Circuit  
+## A real-time climbing competition platform
 
-File Overview
+Comp Circuit is a mobile-first web app designed for indoor climbing competitions.  
+It enables live scoring, dynamic leaderboards, and competitor tracking all in one streamlined system.
 
-1. app.py
-   This is the main Flask application that handles the routes, scoring etc.
-2. templates/index.html
-   This is the homepage when competitors enter their competitor number
-3. templates/competitor.html
-   This is the competitor dashboard where the competitor can enter their scores
-4. templates/admin.html
-   This is the page for admin control over removing competitors from the db. To remove competitors from the database go to http://127.0.0.1:5001/admin
-   Then using the password found in app.py under ADMIN_PASSORD remove one-by-one or all competitors at once to fully reset the db.
-5. static/app.css
-   This is the style sheet for all of the pages
-6. requirments.txt
-   This is the dependency list for pip instalation
+## Overview
+
+Running climbing comps is challenging. Keeping track of points for competitors,
+how much climbs are worth, the amount of attempts each competitor takes, and then 
+adding in the laborious task of entering all of that information into a speadsheet or 
+calulating by hand to find the finalists can be exhausting.  
+
+Comp Circuit fixes that.
+
+Instead of paper scorecards and manual rankings, competitors can log climbs quickly and easily while organisers get instant results and insights.
+
+## Screenshots
+
+| Leaderboard | Scoring |
+|------------|--------|
+| ![Leaderboard](docs/images/leaderboard.png) | ![Scoring](docs/images/scoring.png) |
+
+| Map View | Stats |
+|---------|------|
+| ![Map](docs/images/map.png) | ![Stats](docs/images/stats.png) |
+
+
+### Live Competition Scoring
+
+- Log climbs instantly from your phone  
+- Designed for efficient logging and instant leaderboard updates 
+
+### Interactive Climb Map
+
+- Visualise climbs by section  
+- Filter by colour / category  
+- Click on a climb represented on the map → scrolls directly to scoring card  
+
+### Dynamic Leaderboards
+
+- Categories: All, Male, Female, Inclusive, Doubles  
+- Score based on top-N climbs  
+- Attempts used as tie-breaker  
+
+### Competitor Stats
+
+- Track performance throughout the competition
+- Shows the competitors what they have and have not attempted
+
+### Admin + Route Setter Tools
+
+- Manage competitions  
+- Edit climbs and sections  
+- Control scoring behaviour  
+
+##  Tech Stack
+
+Backend:       Python (Flask) 
+Database:     PostgreSQL 
+Frontend:      HTML, CSS, JavaScript 
+
+## Local Setup
+
+git clone https://github.com/nblawler/UrbanClimbCompApp.git
 
 SETUP
 
@@ -30,8 +78,7 @@ SETUP
 For Local Development
 
 1. Run App
-   python project.py --port 5001
 
-   python -m app.run --port 5001
+   python -m app.run --port 5000
 
-2. Access at http://127.0.0.1:5001
+2. Access at http://127.0.0.1:5000
