@@ -58,9 +58,9 @@ Instead of paper scorecards and manual rankings, competitors can log climbs quic
 
 ##  Tech Stack
 
-Backend:       Python (Flask) 
-Database:     PostgreSQL 
-Frontend:      HTML, CSS, JavaScript 
+Backend:       Python (Flask)  
+Database:     PostgreSQL  
+Frontend:      HTML, CSS, JavaScript   
 
 ## Local Setup
 
