@@ -89,7 +89,7 @@ def get_top_climbs_for_competitor(competition_id: int, competitor_id: int, limit
           "section_climb_id": 123,
           "climb_number": 12,
           "colour": "Yellow",
-          "label": "Yellow #12",
+          "label": "Yellow",
           "attempts": 4,
           "topped": True,
           "score": 1012,
