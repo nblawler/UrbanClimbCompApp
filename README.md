@@ -17,7 +17,7 @@ Instead of paper scorecards and manual rankings, competitors can log climbs quic
 
 ## Demo
 
-![Demo](docs/images/demo.gif)
+![Demo](Docs/Images/demo.gif)
 
 ## Screenshots
 
