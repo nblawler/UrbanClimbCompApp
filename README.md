@@ -15,6 +15,10 @@ Comp Circuit fixes that.
 
 Instead of paper scorecards and manual rankings, competitors can log climbs quickly and easily while organisers get instant results and insights.
 
+## Demo
+
+![Demo](docs/images/demo.gif)
+
 ## Screenshots
 
 ### Leaderboard
