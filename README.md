@@ -15,22 +15,13 @@ Comp Circuit fixes that.
 
 Instead of paper scorecards and manual rankings, competitors can log climbs quickly and easily while organisers get instant results and insights.
 
-## Demo
+## Competitor View Demo
 
-![Demo](Docs/Images/demo.gif)
+![Competitor View Demo](Docs/Images/competitor_view_demo.gif)
 
-## Screenshots
+## Admin Map Setup
 
-### Leaderboard
-
-![Leaderboard Main](Docs/Images/leaderboard_std.png)
-
-![Leaderboard Dropdown](Docs/Images/leaderboard_dropdown.png)
-
-## | Map View | Stats |
-## |---------|------|
-## | ![Map](docs/images/map.png) | ![Stats](docs/images/stats.png) |
-
+![Admin Map Setup Demo](Docs/Images/admin_map_setup.gif)
 
 ### Live Competition Scoring
 
