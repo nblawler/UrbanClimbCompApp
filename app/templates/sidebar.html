@@ -10,11 +10,13 @@
 		{% set on_my_comps = request.path == "/my-comps" %}
 		{% set on_my_profile = request.path == "/my-profile" %}
 
+		{#
 		{% if session.get("account_id") %}
 			<a href="/my-profile" class="sidebar-link {% if on_my_profile %}active{% endif %}">
 				My Profile
 			</a>
 		{% endif %}
+		#}
 
 		<a href="/my-comps" class="sidebar-link {% if on_my_comps %}active{% endif %}">
 			Upcoming Competitions
