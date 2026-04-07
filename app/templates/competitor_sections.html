@@ -6,130 +6,57 @@
 	<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
 	<title>{{ competitor.name }} · Enter Scores</title>
 	<link rel="stylesheet" href="/static/app.css" />
-	<style>
-		.section-filter-left {
-			width: 100%;
-		}
-	
-		.section-filter-left .section-card-grid {
-			width: 100%;
-			justify-items: stretch;
-		}
-	
-		/* Strip card chrome from comp header */
-		.comp-header {
-			background: transparent !important;
-			border: none !important;
-			box-shadow: none !important;
-			padding: 0.75rem 0 0.5rem !important;
-			margin-bottom: 1rem !important;
-		}
-	
-		.comp-header::before {
-			display: none !important;
-		}
-	
-		/* Inline compact pills */
-		.comp-meta-row {
-			display: flex;
-			flex-direction: row;
-			flex-wrap: nowrap;
-			gap: 0 !important;
-			align-items: center;
-			margin-top: 0.3rem;
-		}
-	
-		.comp-pill {
-			background: none !important;
-			border: none !important;
-			box-shadow: none !important;
-			padding: 0 !important;
-			min-width: 0 !important;
-			flex-direction: row !important;
-			align-items: center !important;
-			gap: 0.3rem !important;
-			flex: none !important;
-		}
-	
-		.comp-pill + .comp-pill::before {
-			content: "·";
-			color: rgba(255, 255, 255, 0.35);
-			margin: 0 0.5rem;
-			font-size: 0.75rem;
-		}
-	
-		.comp-pill-label {
-			font-size: 0.72rem !important;
-			color: rgba(255, 255, 255, 0.55) !important;
-			text-transform: uppercase;
-			letter-spacing: 0.04em;
-			font-weight: 700;
-		}
-	
-		.comp-pill-value {
-			font-size: 0.82rem !important;
-			font-weight: 800 !important;
-			color: rgba(255, 255, 255, 0.90) !important;
-		}
-	
-		.comp-name {
-			font-size: 1.6rem !important;
-			margin-bottom: 0 !important;
-		}
-	</style>
 </head>
 
-<body>
+<body class="page-sections">
 	{% set viewer_id = session.get('competitor_id') %}
 	{% set comp_slug = comp_slug if comp_slug is defined else session.get('active_comp_slug') %}
 
-	<nav class="nav">
-		<button type="button" class="menu-toggle" onclick="openSidebar()">☰ Menu</button>
-
-		<a class="{% if nav_active == 'sections' %}active{% endif %}"
-		   href="/comp/{{ comp_slug }}/competitor/{{ viewer_id }}/sections">
-			Scoring
-		</a>
-
-		<a class="{% if nav_active == 'my_stats' %}active{% endif %}"
-		   href="/competitor/{{ viewer_id }}/stats/my">
-			My Stats
-		</a>
-
-		<a class="{% if nav_active == 'leaderboard' %}active{% endif %}"
-		   href="/leaderboard?cid={{ viewer_id }}">
-			Leaderboard
-		</a>
-
-		{% if comp_slug %}
-			<a class="{% if nav_active == 'doubles' %}active{% endif %}"
-			   href="/comp/{{ comp_slug }}/doubles">
-				Doubles
+	<!-- Scrollable nav: flat menu button pinned left, links scroll right -->
+	<nav class="nav-scroll">
+		<button type="button" class="menu-toggle" onclick="openSidebar()">☰</button>
+		<div class="nav-scroll-track">
+			<a class="{% if nav_active == 'sections' %}active{% endif %}"
+			   href="/comp/{{ comp_slug }}/competitor/{{ viewer_id }}/sections">
+				Scoring
 			</a>
-		{% endif %}
+			<a class="{% if nav_active == 'my_stats' %}active{% endif %}"
+			   href="/competitor/{{ viewer_id }}/stats/my">
+				My Stats
+			</a>
+			<a class="{% if nav_active == 'leaderboard' %}active{% endif %}"
+			   href="/leaderboard?cid={{ viewer_id }}">
+				Leaderboard
+			</a>
+			{% if comp_slug %}
+				<a class="{% if nav_active == 'doubles' %}active{% endif %}"
+				   href="/comp/{{ comp_slug }}/doubles">
+					Doubles
+				</a>
+			{% endif %}
+		</div>
 	</nav>
 
 	{% include "sidebar.html" %}
 
 	<main class="container" style="max-width:1280px;">
+
+		<!-- Hero: big name + inline stats -->
 		<header class="comp-header">
 			<h1 class="comp-name">{{ competitor.name }}</h1>
-
 			<div class="comp-meta-row">
 				<div class="comp-pill">
-					<span class="comp-pill-label">Competitor</span>
+					<span class="comp-pill-label">#</span>
 					<span class="comp-pill-value">{{ competitor.id }}</span>
 				</div>
-
 				<div class="comp-pill">
-					<span class="comp-pill-label">Points</span>
 					<span class="comp-pill-value" id="total-points">{{ total_points }}</span>
+					<span class="comp-pill-label">pts</span>
 				</div>
-
 				{% if position is not none %}
 					<div class="comp-pill">
-						<span class="comp-pill-label">Position</span>
 						<span class="comp-pill-value">{{ position }}</span>
+						<span class="comp-pill-label">place</span>
 					</div>
 				{% endif %}
 			</div>
@@ -142,31 +69,24 @@
 			</div>
 		{% endif %}
 
+		<div class="section-divider"></div>
+
+		<!-- Filters -->
 		<section class="filter-card">
+			<div class="filter-heading">Filter Climbs</div>
+
 			{% if sections %}
 				<div class="section-filter-row">
 					<div class="section-filter-left">
-						<div class="browser-title-wrap">
-							<h2 class="browser-title">Filter Climbs</h2>
-						</div>
 						<div class="section-filter-label">Sections</div>
-
 						<div class="filter-scroll-wrapper" id="sectionScrollWrapper">
 							<div class="filter-scroll-track" id="sectionChipTrack">
 								{% for sec in sections %}
-									<button
-										type="button"
-										class="section-chip"
-										data-section-id="{{ sec.id }}"
-										aria-pressed="false"
-									>
+									<button type="button" class="section-chip" data-section-id="{{ sec.id }}" aria-pressed="false">
 										<span class="chip-progress-ring">
 											<svg viewBox="0 0 20 20">
 												<circle class="ring-bg" cx="10" cy="10" r="8" />
-												<circle class="ring-fill" cx="10" cy="10" r="8"
-													stroke-dasharray="50.27"
-													stroke-dashoffset="50.27"
-													data-k="ring" />
+												<circle class="ring-fill" cx="10" cy="10" r="8" stroke-dasharray="50.27" stroke-dashoffset="50.27" data-k="ring" />
 											</svg>
 										</span>
 										<span class="section-chip-name">{{ sec.name }}</span>
@@ -189,6 +109,7 @@
 			</div>
 		</section>
 
+		<div class="section-divider"></div>
 		<section class="map-card">
 			<header class="section-header">
 				<h2 class="section-title">{{ gym_name }} Map</h2>
@@ -235,6 +156,8 @@
 				</div>
 			{% endif %}
 		</section>
+
+		<div class="section-divider"></div>
 
 		<section class="climb-browser-card">
 			<header class="browser-header">
@@ -1037,13 +960,8 @@
 	
 				const statusPill = card.querySelector('[data-role="status-pill"]');
 				if (statusPill) {
-					if (state.topped) {
-						statusPill.textContent = "✓";
-						statusPill.classList.add("is-done");
-					} else {
-						statusPill.textContent = "";
-						statusPill.classList.remove("is-done");
-					}
+					statusPill.textContent = state.topped ? "Topped" : "Not topped";
+					statusPill.classList.toggle("is-done", !!state.topped);
 				}
 	
 				const attemptValueEl = card.querySelector('[data-role="attempt-value"]');

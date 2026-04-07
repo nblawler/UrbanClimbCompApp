@@ -3563,27 +3563,198 @@ object-fit: unset !important;
   opacity: 0;
 }
 
-.score-status-pill {
-  min-width: 28px;
-  height: 28px;
-  border-radius: 999px;
+
+/* ============================================================
+   SCROLLABLE NAV — OPTION 3
+   ============================================================ */
+
+/* Flat menu button pinned left, scrollable links right */
+.nav-scroll {
   display: flex;
   align-items: center;
-  justify-content: center;
-  font-weight: 900;
-  font-size: 16px;
-  background: transparent;
-  border: none;
-  color: transparent;
+  background: rgba(255, 255, 255, 0.06);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  overflow: hidden;
 }
 
-/* bold green tick */
-.score-status-pill.is-done {
-  background: #5df4a2;
-  border: 2px solid #5df4a2;
-  color: #0b2b1c;
+.nav-scroll .menu-toggle {
+  flex: 0 0 auto;
+  padding: 0.7rem 0.85rem;
+  border: none;
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
+  background: transparent;
+  color: rgba(255, 255, 255, 0.75);
+  font-size: 1.1rem;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.15s, color 0.15s;
+  line-height: 1;
+}
+
+.nav-scroll .menu-toggle:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text);
+}
+
+.nav-scroll .menu-toggle:active {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.nav-scroll-track {
+  flex: 1;
+  display: flex;
+  gap: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.nav-scroll-track::-webkit-scrollbar {
+  display: none;
+}
+
+.nav-scroll-track a {
+  flex: 0 0 auto;
+  padding: 0.75rem 1rem;
+  color: rgba(255, 255, 255, 0.50);
+  text-decoration: none;
+  font-size: 0.88rem;
+  font-weight: 700;
+  white-space: nowrap;
+  transition: color 0.15s, background 0.15s;
+  border-bottom: 2px solid transparent;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.nav-scroll-track a:hover {
+  color: rgba(255, 255, 255, 0.80);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.nav-scroll-track a.active {
+  color: #a8d8f0;
+  border-bottom-color: #a8d8f0;
+  font-weight: 800;
+}
+
+
+/* ============================================================
+   COMPETITOR SECTIONS — PAGE-SPECIFIC OVERRIDES
+   ============================================================ */
+
+/* Strip card chrome from comp header */
+.page-sections .comp-header {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  margin-bottom: 0.5rem !important;
+  overflow: visible;
+}
+
+.page-sections .comp-header::before {
+  display: none !important;
+}
+
+/* Big hero name — larger than any section heading */
+.page-sections .comp-name {
+  font-size: 2.2rem !important;
+  margin-bottom: 0.15rem !important;
+  letter-spacing: -0.03em;
+  line-height: 1.05;
+}
+
+/* Inline compact meta: #42 · 385 pts · 3rd place */
+.page-sections .comp-meta-row {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  gap: 0 !important;
+  align-items: baseline;
+  margin-top: 0.2rem;
+}
+
+.page-sections .comp-pill {
+  background: none !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  min-width: 0 !important;
+  flex-direction: row !important;
+  align-items: baseline !important;
+  gap: 0.3rem !important;
+  flex: none !important;
+  border-radius: 0 !important;
+}
+
+.page-sections .comp-pill + .comp-pill::before {
+  content: "·";
+  color: rgba(255, 255, 255, 0.25);
+  margin: 0 0.55rem;
+  font-size: 0.85rem;
+  font-weight: 400;
+}
+
+.page-sections .comp-pill-label {
+  font-size: 0.78rem !important;
+  color: rgba(255, 255, 255, 0.45) !important;
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 600;
+}
+
+.page-sections .comp-pill-value {
+  font-size: 0.88rem !important;
+  font-weight: 800 !important;
+  color: #a8d8f0 !important;
+}
+
+/* Section dividers — breathing room between page zones */
+.page-sections .section-divider {
+  height: 1px;
+  background: rgba(255, 255, 255, 0.07);
+  margin: 1.25rem 0;
+}
+
+/* Filter Climbs heading */
+.page-sections .filter-heading {
+  font-size: 1.15rem;
   font-weight: 900;
-  box-shadow:
-    0 0 0 2px rgba(93,244,162,0.25),
-    0 4px 12px rgba(93,244,162,0.35);
+  color: var(--text);
+  margin-bottom: 0.65rem;
+}
+
+/* Section headers should be smaller than the hero name */
+.page-sections .section-title {
+  font-size: 1.2rem;
+  font-weight: 800;
+}
+
+.page-sections .browser-title {
+  font-size: 1.2rem;
+}
+
+@media (max-width: 768px) {
+  .page-sections .comp-name {
+    font-size: 1.85rem !important;
+  }
+
+  .nav-scroll-track a {
+    padding: 0.65rem 0.85rem;
+    font-size: 0.82rem;
+  }
+
+  .nav-scroll .menu-toggle {
+    padding: 0.6rem 0.75rem;
+    font-size: 1rem;
+  }
+}
+
+@media (max-width: 520px) {
+  .page-sections .comp-name {
+    font-size: 1.7rem !important;
+  }
 }
