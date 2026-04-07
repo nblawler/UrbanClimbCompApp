@@ -6,17 +6,6 @@
 	<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
 	<title>{{ competitor.name }} · Enter Scores</title>
 	<link rel="stylesheet" href="/static/app.css" />
-	<style>
-		/* Page-specific layout fix: keep section filters left-aligned under the label */
-		.section-filter-left {
-			width: 100%;
-		}
-
-		.section-filter-left .section-card-grid {
-			width: 100%;
-			justify-items: stretch;
-		}
-	</style>
 </head>
 
 <body>
@@ -51,21 +40,20 @@
 
 	{% include "sidebar.html" %}
 
-	<main class="container" style="max-width:1280px;">
+	<main class="container scoring-page" style="max-width:1280px;">
+
+		<!-- ── Competitor header ── -->
 		<header class="comp-header">
 			<h1 class="comp-name">{{ competitor.name }}</h1>
-
 			<div class="comp-meta-row">
 				<div class="comp-pill">
 					<span class="comp-pill-label">Competitor</span>
 					<span class="comp-pill-value">{{ competitor.id }}</span>
 				</div>
-
 				<div class="comp-pill">
 					<span class="comp-pill-label">Points</span>
 					<span class="comp-pill-value" id="total-points">{{ total_points }}</span>
 				</div>
-
 				{% if position is not none %}
 					<div class="comp-pill">
 						<span class="comp-pill-label">Position</span>
@@ -82,71 +70,48 @@
 			</div>
 		{% endif %}
 
-		<section class="filter-card">
-			<header class="section-header">
-				<h2 class="section-title">Filter Climbs</h2>
-				<p class="section-subtitle">
-					Filter by section and/or colour. The map is shown below in its own larger card.
-				</p>
-			</header>
+		<!-- ── Filters: sections + colours ── -->
+		<div class="filter-zone">
 
 			{% if sections %}
-				<div class="section-filter-row">
-					<div class="section-filter-left">
-						<div class="section-filter-label">Sections (tap to filter by section):</div>
-
-						<div class="section-card-grid" id="sectionCardGrid">
-							{% for sec in sections %}
-								<button
-									type="button"
-									class="section-card"
-									data-section-id="{{ sec.id }}"
-									aria-pressed="false"
-								>
-									<div class="section-card-top">
-										<div class="section-card-name">{{ sec.name }}</div>
-										<div class="section-card-meta">
-											<span class="sec-done" data-k="done">0</span>/<span class="sec-total" data-k="total">0</span>
-										</div>
-									</div>
-
-									<div class="section-card-stats">
-										<div class="section-stat">
-											<div class="section-stat-label">Done</div>
-											<div class="section-stat-value sec-done" data-k="done">0</div>
-										</div>
-
-										<div class="section-stat">
-											<div class="section-stat-label">Left</div>
-											<div class="section-stat-value sec-left" data-k="left">0</div>
-										</div>
-									</div>
-
-									<div class="section-progress" aria-hidden="true">
-										<div class="sec-bar"></div>
-									</div>
-								</button>
-							{% endfor %}
-						</div>
+				<div class="filter-zone__block">
+					<div class="filter-zone__label">Sections</div>
+					<div class="section-strip" id="sectionCardGrid">
+						{% for sec in sections %}
+							<button
+								type="button"
+								class="section-strip__tab"
+								data-section-id="{{ sec.id }}"
+								aria-pressed="false"
+							>
+								<span class="section-strip__name">{{ sec.name }}</span>
+								<span class="section-strip__prog">
+									<span class="sec-done" data-k="done">0</span>/<span class="sec-total" data-k="total">0</span>
+								</span>
+								<span class="section-strip__bar-wrap" aria-hidden="true">
+									<span class="sec-bar"></span>
+								</span>
+							</button>
+						{% endfor %}
 					</div>
 				</div>
 			{% endif %}
 
-			<div class="colour-filter-row">
-				<div class="colour-filter-label">Colours (tap to filter by colour):</div>
-				<div class="colour-card-grid" id="colourCardGrid"></div>
+			<div class="filter-zone__block">
+				<div class="filter-zone__label">Colours</div>
+				<div class="colour-strip" id="colourCardGrid"></div>
 			</div>
-		</section>
 
-		<section class="map-card">
-			<header class="section-header">
-				<h2 class="section-title">{{ gym_name }} Map</h2>
-				<p class="section-subtitle">
-					Use two fingers to move or zoom the map. Tap a marker to jump to that climb's score card.
-				</p>
-			</header>
+		</div>
 
-			{% if gym_map_path %}
+		<!-- ── Map ── -->
+		{% if gym_map_path %}
+			<div class="map-zone">
+				<div class="map-zone__header">
+					<span class="map-zone__title">{{ gym_name }} Map</span>
+					<span class="map-zone__hint">Two fingers to pan/zoom · tap a marker to jump to its score card</span>
+				</div>
+
 				<div class="map-wrapper" id="mapWrapperSections">
 					<div class="map-viewport" id="mapViewportSections">
 						<div class="map-layer" id="mapLayerSections">
@@ -178,36 +143,23 @@
 						</div>
 					</div>
 				</div>
-			{% else %}
-				<div class="map-missing">
-					<strong>No map set for this gym yet</strong>
-					<div>
-						Ask an admin to set <code>gym.map_image_path</code> (e.g. <code>/static/Collingwood_Gym_Map.png</code>).
-					</div>
-				</div>
-			{% endif %}
-		</section>
+			</div>
+		{% endif %}
 
-		<section class="climb-browser-card">
-			<header class="browser-header">
-				<div class="browser-title-wrap">
-					<h2 class="browser-title">Filtered Climbs</h2>
-					<p class="browser-subtitle">
-						All matching climbs appear here as full score cards.
-					</p>
+		<!-- ── Score cards ── -->
+		{% if map_climbs %}
+			<div class="climb-list-zone">
+				<div class="climb-list-zone__header">
+					<span class="climb-list-zone__summary" id="filteredClimbSummary">0 climbs shown</span>
 				</div>
-				<div class="browser-summary" id="filteredClimbSummary">0 climbs shown</div>
-			</header>
 
-			{% if map_climbs %}
 				<div class="climb-groups" id="climbGroups">
 					{% for sec in sections %}
 						<div class="climb-group" data-section-group="{{ sec.id }}">
-							<div class="climb-group-header">
-								<div class="climb-group-title">{{ sec.name }}</div>
-								<div class="climb-group-meta">
-									<span class="group-visible-count">0</span> shown
-								</div>
+
+							<div class="climb-group__divider">
+								<span class="climb-group__name">{{ sec.name }}</span>
+								<span class="climb-group__count"><span class="group-visible-count">0</span> shown</span>
 							</div>
 
 							<div class="score-card-grid">
@@ -243,7 +195,6 @@
 															{% if c.colour %}{{ c.colour }}{% else %}Unknown colour{% endif %}
 														</div>
 													</div>
-
 													<div class="score-status-pill" data-role="status-pill">Not topped</div>
 												</div>
 
@@ -252,14 +203,12 @@
 														<div class="score-meta-label">Max Points</div>
 														<div class="score-meta-value" data-role="base-points">{{ base_points }}</div>
 													</div>
-
 													<div class="score-meta-item">
 														<div class="score-meta-label">Current Points</div>
 														<div class="score-meta-value" data-role="current-points">0</div>
 													</div>
-
 													<div class="score-meta-item">
-														<div class="score-meta-label">Climb Colour</div>
+														<div class="score-meta-label">Colour</div>
 														<div class="score-meta-value">{{ c.colour or "Unknown" }}</div>
 													</div>
 												</div>
@@ -272,7 +221,6 @@
 															<button type="button" class="topped-btn is-active" data-topped-value="false">No</button>
 														</div>
 													</div>
-
 													<div class="score-control-block">
 														<div class="score-control-label">Attempts</div>
 														<div class="attempt-control">
@@ -296,6 +244,7 @@
 									{% endif %}
 								{% endfor %}
 							</div>
+
 						</div>
 					{% endfor %}
 				</div>
@@ -304,15 +253,17 @@
 					<strong>No climbs match those filters</strong>
 					<div>Clear one of the active filters and the matching climbs will come back.</div>
 				</div>
-			{% else %}
-				<div class="browser-empty">
-					<strong>No climbs available</strong>
-					<div>Once climbs are added to the map, they'll appear here grouped by section.</div>
-				</div>
-			{% endif %}
-		</section>
+			</div>
+		{% else %}
+			<div class="browser-empty">
+				<strong>No climbs available</strong>
+				<div>Once climbs are added to the map, they'll appear here grouped by section.</div>
+			</div>
+		{% endif %}
+
 	</main>
 
+	<!-- ── Map pan/zoom script (unchanged logic) ── -->
 	<script>
 	(function () {
 		const wrapper  = document.getElementById("mapWrapperSections");
@@ -363,77 +314,54 @@
 			const vr = viewport.getBoundingClientRect();
 			const viewW = vr.width;
 			const viewH = vr.height;
-
 			const scaledW = baseW * scale;
 			const scaledH = baseH * scale;
-
 			const minTx = viewW - scaledW;
 			const minTy = viewH - scaledH;
-
-			if (scaledW <= viewW) {
-				translateX = (viewW - scaledW) / 2;
-			} else {
-				translateX = clamp(translateX, minTx, 0);
-			}
-
-			if (scaledH <= viewH) {
-				translateY = (viewH - scaledH) / 2;
-			} else {
-				translateY = clamp(translateY, minTy, 0);
-			}
+			if (scaledW <= viewW) { translateX = (viewW - scaledW) / 2; }
+			else { translateX = clamp(translateX, minTx, 0); }
+			if (scaledH <= viewH) { translateY = (viewH - scaledH) / 2; }
+			else { translateY = clamp(translateY, minTy, 0); }
 		}
 
 		function zoomAroundClientPoint(nextScale, clientX, clientY) {
 			const rect = viewport.getBoundingClientRect();
 			const px = clientX - rect.left;
 			const py = clientY - rect.top;
-
 			const imageX = (px - translateX) / currentScale;
 			const imageY = (py - translateY) / currentScale;
-
 			currentScale = clamp(nextScale, minScale, maxScale);
 			translateX = px - imageX * currentScale;
 			translateY = py - imageY * currentScale;
-
 			clampPan(currentScale);
 			applyTransform();
 		}
 
 		function getDistance(p1, p2) {
-			const dx = p2.clientX - p1.clientX;
-			const dy = p2.clientY - p1.clientY;
-			return Math.hypot(dx, dy);
+			return Math.hypot(p2.clientX - p1.clientX, p2.clientY - p1.clientY);
 		}
 
 		function getMidpoint(p1, p2) {
-			return {
-				x: (p1.clientX + p2.clientX) / 2,
-				y: (p1.clientY + p2.clientY) / 2
-			};
+			return { x: (p1.clientX + p2.clientX) / 2, y: (p1.clientY + p2.clientY) / 2 };
 		}
 
 		async function loadBoundariesOnce() {
 			if (boundariesCache) return boundariesCache;
 			if (!compSlug) return null;
-
 			try {
 				const res = await fetch(`/api/comp/${compSlug}/section-boundaries`, { credentials: "same-origin" });
 				const data = await res.json();
 				if (!data || !data.ok) return null;
 				boundariesCache = data.boundaries || {};
 				return boundariesCache;
-			} catch (_) {
-				return null;
-			}
+			} catch (_) { return null; }
 		}
 
 		async function ensureImageReady() {
 			if (!img.complete) {
 				await new Promise((resolve) => img.addEventListener("load", resolve, { once: true }));
 			}
-			if (img.decode) {
-				try { await img.decode(); } catch (_) {}
-			}
+			if (img.decode) { try { await img.decode(); } catch (_) {} }
 			await new Promise(requestAnimationFrame);
 			await new Promise(requestAnimationFrame);
 		}
@@ -441,16 +369,11 @@
 		function updateLayerSizeFromImage() {
 			let w = img.offsetWidth || img.clientWidth || 0;
 			let h = img.offsetHeight || img.clientHeight || 0;
-
 			if ((!w || !h) && img.naturalWidth && img.naturalHeight) {
 				const vr = viewport.getBoundingClientRect();
 				const vw = vr.width || 0;
-				if (vw > 0) {
-					w = vw;
-					h = vw * (img.naturalHeight / img.naturalWidth);
-				}
+				if (vw > 0) { w = vw; h = vw * (img.naturalHeight / img.naturalWidth); }
 			}
-
 			if (w > 0 && h > 0) {
 				baseW = Math.max(1, Math.round(w));
 				baseH = Math.max(1, Math.round(h));
@@ -463,104 +386,64 @@
 			return false;
 		}
 
-		function pctToPx(pt) {
-			return { x: (pt.x / 100) * baseW, y: (pt.y / 100) * baseH };
-		}
+		function pctToPx(pt) { return { x: (pt.x / 100) * baseW, y: (pt.y / 100) * baseH }; }
 
 		function computeBoundsPxFromPercentPts(ptsPercent) {
 			const pxPts = (ptsPercent || []).map(pctToPx);
 			if (!pxPts.length) return null;
-
 			let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
 			for (const p of pxPts) {
-				minX = Math.min(minX, p.x);
-				minY = Math.min(minY, p.y);
-				maxX = Math.max(maxX, p.x);
-				maxY = Math.max(maxY, p.y);
+				minX = Math.min(minX, p.x); minY = Math.min(minY, p.y);
+				maxX = Math.max(maxX, p.x); maxY = Math.max(maxY, p.y);
 			}
 			return { minX, minY, maxX, maxY };
 		}
 
 		function unionBounds(a, b) {
-			if (!a) return b;
-			if (!b) return a;
-			return {
-				minX: Math.min(a.minX, b.minX),
-				minY: Math.min(a.minY, b.minY),
-				maxX: Math.max(a.maxX, b.maxX),
-				maxY: Math.max(a.maxY, b.maxY),
-			};
+			if (!a) return b; if (!b) return a;
+			return { minX: Math.min(a.minX,b.minX), minY: Math.min(a.minY,b.minY), maxX: Math.max(a.maxX,b.maxX), maxY: Math.max(a.maxY,b.maxY) };
 		}
 
 		function expandRectToMatchAspect(rect, targetAspect) {
 			const w = Math.max(1, rect.maxX - rect.minX);
 			const h = Math.max(1, rect.maxY - rect.minY);
 			const rectAspect = w / h;
-
-			let minX = rect.minX, minY = rect.minY, maxX = rect.maxX, maxY = rect.maxY;
-
-			if (rectAspect > targetAspect) {
-				const newH = w / targetAspect;
-				const extra = (newH - h) / 2;
-				minY -= extra;
-				maxY += extra;
-			} else {
-				const newW = h * targetAspect;
-				const extra = (newW - w) / 2;
-				minX -= extra;
-				maxX += extra;
-			}
+			let { minX, minY, maxX, maxY } = rect;
+			if (rectAspect > targetAspect) { const newH = w / targetAspect; const extra = (newH - h) / 2; minY -= extra; maxY += extra; }
+			else { const newW = h * targetAspect; const extra = (newW - w) / 2; minX -= extra; maxX += extra; }
 			return { minX, minY, maxX, maxY };
 		}
 
 		function resetFit() {
 			const vr = viewport.getBoundingClientRect();
-			const viewW = vr.width || 0;
-			const viewH = vr.height || 0;
+			const viewW = vr.width || 0; const viewH = vr.height || 0;
 			if (!viewW || !viewH) return;
-
 			minScale = Math.min(viewW / baseW, viewH / baseH);
 			currentScale = minScale;
-
 			translateX = (viewW - baseW * currentScale) / 2;
 			translateY = (viewH - baseH * currentScale) / 2;
-
-			clampPan(currentScale);
-			applyTransform();
+			clampPan(currentScale); applyTransform();
 		}
 
 		function fitRectToViewport(rect, paddingPx = 12) {
 			const vr = viewport.getBoundingClientRect();
-			const viewW = vr.width;
-			const viewH = vr.height;
+			const viewW = vr.width; const viewH = vr.height;
 			if (!viewW || !viewH) return false;
-
 			const targetAspect = viewW / viewH;
 			const expanded = expandRectToMatchAspect(rect, targetAspect);
-
 			const rectW = Math.max(1, expanded.maxX - expanded.minX);
 			const rectH = Math.max(1, expanded.maxY - expanded.minY);
-
 			const availW = Math.max(1, viewW - paddingPx * 2);
 			const availH = Math.max(1, viewH - paddingPx * 2);
-
 			let scale = Math.min(availW / rectW, availH / rectH);
 			scale *= 1.04;
 			scale = clamp(scale, minScale, maxScale);
-
 			const cxImg = expanded.minX + rectW / 2;
 			const cyImg = expanded.minY + rectH / 2;
-
-			const cxView = viewW / 2;
-			const cyView = viewH / 2;
-
-			translateX = cxView - (cxImg * scale);
-			translateY = cyView - (cyImg * scale);
+			translateX = viewW / 2 - (cxImg * scale);
+			translateY = viewH / 2 - (cyImg * scale);
 			currentScale = scale;
-
-			clampPan(currentScale);
-			applyTransform();
-
+			clampPan(currentScale); applyTransform();
 			return true;
 		}
 
@@ -573,41 +456,26 @@
 
 		async function applyZoomForSectionIds(sectionIds) {
 			currentSectionIds = Array.isArray(sectionIds) ? [...sectionIds] : [];
-
 			await ensureImageReady();
-
 			let ok = updateLayerSizeFromImage();
-			for (let i = 0; i < 6 && !ok; i++) {
-				await sleep(60);
-				ok = updateLayerSizeFromImage();
-			}
+			for (let i = 0; i < 6 && !ok; i++) { await sleep(60); ok = updateLayerSizeFromImage(); }
 			if (!ok) return;
-
 			if (img.naturalWidth && img.naturalHeight) {
 				viewport.style.setProperty("--map-ar", `${img.naturalWidth} / ${img.naturalHeight}`);
 			}
-
 			const vr = viewport.getBoundingClientRect();
 			minScale = Math.min(vr.width / baseW, vr.height / baseH);
-
-			if (!sectionIds || !sectionIds.length) {
-				animateTransform(() => resetFit(), 220);
-				return;
-			}
-
+			if (!sectionIds || !sectionIds.length) { animateTransform(() => resetFit(), 220); return; }
 			const boundaries = await loadBoundariesOnce();
 			if (!boundaries) return;
-
 			let union = null;
 			for (const sid of sectionIds) {
 				const pts = boundaries[String(sid)] || [];
 				if (!pts || pts.length < 3) continue;
-
 				const b = computeBoundsPxFromPercentPts(pts);
 				if (b) union = unionBounds(union, b);
 			}
 			if (!union) return;
-
 			animateTransform(() => fitRectToViewport(union, 12), 280);
 		}
 
@@ -616,28 +484,15 @@
 
 		viewport.addEventListener("pointerdown", (e) => {
 			activePointers.set(e.pointerId, { clientX: e.clientX, clientY: e.clientY });
-
 			const now = Date.now();
-			const dx = e.clientX - lastTapX;
-			const dy = e.clientY - lastTapY;
-			const dt = now - lastTapTime;
-
+			const dx = e.clientX - lastTapX; const dy = e.clientY - lastTapY; const dt = now - lastTapTime;
 			if (dt < 280 && Math.hypot(dx, dy) < 24) {
 				if (activePointers.size === 1) {
-					if (currentSectionIds.length) {
-						applyZoomForSectionIds(currentSectionIds);
-					} else {
-						resetFit();
-					}
-					lastTapTime = 0;
-					return;
+					if (currentSectionIds.length) { applyZoomForSectionIds(currentSectionIds); } else { resetFit(); }
+					lastTapTime = 0; return;
 				}
 			}
-
-			lastTapTime = now;
-			lastTapX = e.clientX;
-			lastTapY = e.clientY;
-
+			lastTapTime = now; lastTapX = e.clientX; lastTapY = e.clientY;
 			if (activePointers.size === 2) {
 				const pts = Array.from(activePointers.values());
 				pinchStartDistance = getDistance(pts[0], pts[1]);
@@ -650,41 +505,27 @@
 		viewport.addEventListener("pointermove", (e) => {
 			if (!activePointers.has(e.pointerId)) return;
 			activePointers.set(e.pointerId, { clientX: e.clientX, clientY: e.clientY });
-
 			if (activePointers.size !== 2) return;
-
 			e.preventDefault();
-
 			const pts = Array.from(activePointers.values());
 			const dist = getDistance(pts[0], pts[1]);
 			const mid = getMidpoint(pts[0], pts[1]);
-
 			if (pinchStartDistance > 0) {
 				const nextScale = clamp(pinchStartScale * (dist / pinchStartDistance), minScale, maxScale);
-
 				const rect = viewport.getBoundingClientRect();
-				const px = pinchCenterStart.x - rect.left;
-				const py = pinchCenterStart.y - rect.top;
-
+				const px = pinchCenterStart.x - rect.left; const py = pinchCenterStart.y - rect.top;
 				const imageX = (px - pinchPanStart.x) / pinchStartScale;
 				const imageY = (py - pinchPanStart.y) / pinchStartScale;
-
 				currentScale = nextScale;
 				translateX = (mid.x - rect.left) - imageX * currentScale;
 				translateY = (mid.y - rect.top) - imageY * currentScale;
-
-				clampPan(currentScale);
-				applyTransform();
+				clampPan(currentScale); applyTransform();
 			}
 		}, { passive: false });
 
 		function endPointer(e) {
 			activePointers.delete(e.pointerId);
-
-			if (activePointers.size < 2) {
-				pinchStartDistance = 0;
-			}
-
+			if (activePointers.size < 2) pinchStartDistance = 0;
 			if (activePointers.size === 2) {
 				const pts = Array.from(activePointers.values());
 				pinchStartDistance = getDistance(pts[0], pts[1]);
@@ -701,7 +542,6 @@
 		viewport.addEventListener("wheel", (e) => {
 			if (!e.ctrlKey && Math.abs(e.deltaY) < Math.abs(e.deltaX)) return;
 			e.preventDefault();
-
 			const factor = e.deltaY < 0 ? 1.12 : 0.9;
 			zoomAroundClientPoint(currentScale * factor, e.clientX, e.clientY);
 		}, { passive: false });
@@ -720,23 +560,20 @@
 			clearTimeout(resizeTimer);
 			resizeTimer = setTimeout(() => {
 				updateLayerSizeFromImage();
-				if (currentSectionIds.length) {
-					applyZoomForSectionIds(currentSectionIds);
-				} else {
-					resetFit();
-				}
+				if (currentSectionIds.length) { applyZoomForSectionIds(currentSectionIds); } else { resetFit(); }
 			}, 160);
 		}, { passive: true });
 	})();
 	</script>
 
+	<!-- ── Scoring logic script (unchanged logic) ── -->
 	<script>
 		(function () {
 			const competitorId = {{ competitor.id }};
 			const canEdit = {{ 'true' if can_edit else 'false' }};
 
 			const mapWrapper = document.getElementById("mapWrapperSections");
-			const cards = Array.from(document.querySelectorAll(".section-card"));
+			const cards = Array.from(document.querySelectorAll(".section-strip__tab"));
 			const markers = Array.from(document.querySelectorAll(".map-marker"));
 			const colourCardGrid = document.getElementById("colourCardGrid");
 			const climbGroups = Array.from(document.querySelectorAll(".climb-group"));
@@ -784,8 +621,7 @@
 			}
 
 			function statesEqual(a, b) {
-				const aa = normalizeState(a);
-				const bb = normalizeState(b);
+				const aa = normalizeState(a); const bb = normalizeState(b);
 				return aa.topped === bb.topped && aa.attempts === bb.attempts;
 			}
 
@@ -829,9 +665,9 @@
 					saveBtn.style.borderColor = "rgba(93,244,162,0.58)";
 					saveBtn.style.color = "#f2fff8";
 				} else {
-					saveBtn.style.background = "rgba(255,255,255,0.06)";
-					saveBtn.style.borderColor = "rgba(255,255,255,0.12)";
-					saveBtn.style.color = "#fff";
+					saveBtn.style.background = "";
+					saveBtn.style.borderColor = "";
+					saveBtn.style.color = "";
 				}
 			}
 
@@ -855,27 +691,22 @@
 				const showingNumbers = !!(mapWrapper && mapWrapper.classList.contains("show-marker-numbers"));
 
 				let repelDistance, maxOffset, pushFactor;
-
 				if (isMobile) {
 					repelDistance = showingNumbers ? Math.max(8, 10 / Math.sqrt(safeScale)) : Math.max(5, 6 / Math.sqrt(safeScale));
-					maxOffset = showingNumbers ? 5 : 3.5;
-					pushFactor = 0.18;
+					maxOffset = showingNumbers ? 5 : 3.5; pushFactor = 0.18;
 				} else {
 					repelDistance = showingNumbers ? Math.max(13, 16 / Math.sqrt(safeScale)) : Math.max(8, 10 / Math.sqrt(safeScale));
-					maxOffset = showingNumbers ? 10 : 7;
-					pushFactor = 0.24;
+					maxOffset = showingNumbers ? 10 : 7; pushFactor = 0.24;
 				}
 
 				const nodes = visibleMarkers.map((marker) => ({
 					el: marker,
 					baseX: parseFloat(marker.style.left || "0") / 100 * baseW,
 					baseY: parseFloat(marker.style.top  || "0") / 100 * baseH,
-					ox: 0,
-					oy: 0
+					ox: 0, oy: 0
 				}));
 
 				const ITERATIONS = isMobile ? 7 : 9;
-
 				for (let iter = 0; iter < ITERATIONS; iter++) {
 					for (let i = 0; i < nodes.length; i++) {
 						for (let j = i + 1; j < nodes.length; j++) {
@@ -883,21 +714,14 @@
 							let dx = (b.baseX + b.ox) - (a.baseX + a.ox);
 							let dy = (b.baseY + b.oy) - (a.baseY + a.oy);
 							let dist = Math.hypot(dx, dy);
-
-							if (dist === 0) {
-								const angle = ((i + j + iter) % 12) * (Math.PI / 6);
-								dx = Math.cos(angle) * 0.01; dy = Math.sin(angle) * 0.01; dist = 0.01;
-							}
-
+							if (dist === 0) { const angle = ((i + j + iter) % 12) * (Math.PI / 6); dx = Math.cos(angle) * 0.01; dy = Math.sin(angle) * 0.01; dist = 0.01; }
 							if (dist >= repelDistance) continue;
-
 							const push = (repelDistance - dist) * pushFactor;
 							const nx = dx / dist, ny = dy / dist;
 							a.ox -= nx * push; a.oy -= ny * push;
 							b.ox += nx * push; b.oy += ny * push;
 						}
 					}
-
 					for (const node of nodes) {
 						const mag = Math.hypot(node.ox, node.oy);
 						if (mag > maxOffset) { const s = maxOffset / mag; node.ox *= s; node.oy *= s; }
@@ -955,8 +779,7 @@
 					return false;
 				}
 				if (saveStateEl && saveStateEl.classList.contains("is-warning")) {
-					saveStateEl.textContent = "";
-					saveStateEl.classList.remove("is-warning");
+					saveStateEl.textContent = ""; saveStateEl.classList.remove("is-warning");
 				}
 				return true;
 			}
@@ -1056,8 +879,7 @@
 				const initial = { topped: false, attempts: 0 };
 				scoreState.set(key, cloneState(initial));
 				savedScoreState.set(key, cloneState(initial));
-				updateCardUI(card);
-				validateCard(card);
+				updateCardUI(card); validateCard(card);
 			});
 
 			cards.forEach((card) => {
@@ -1074,30 +896,23 @@
 						if (!r) return;
 						const cn = r.climb_number;
 						if (cn === undefined || cn === null) return;
-
 						let sid = r.section_id;
 						if (sid === undefined || sid === null) {
 							sid = r.section?.id ?? r.section_climb?.section_id ?? null;
 						}
-
 						let key = null;
-						if (sid !== undefined && sid !== null) {
-							key = getScoreKeyFromValues(sid, cn);
-						} else {
+						if (sid !== undefined && sid !== null) { key = getScoreKeyFromValues(sid, cn); }
+						else {
 							const matches = cardsByClimbNumber.get(String(cn)) || [];
 							if (matches.length === 1) key = getScoreKeyFromCard(matches[0]);
 						}
-
 						if (!key || !cardsByKey.has(key)) return;
-
 						const loadedState = { topped: !!r.topped, attempts: Math.max(0, parseIntSafe(r.attempts, 0)) };
 						scoreState.set(key, cloneState(loadedState));
 						savedScoreState.set(key, cloneState(loadedState));
 					});
 
-					updateAllCardsUI();
-					recomputeSectionProgress();
-					recomputeTotalPoints();
+					updateAllCardsUI(); recomputeSectionProgress(); recomputeTotalPoints();
 				} catch (_) {}
 			}
 
@@ -1109,10 +924,10 @@
 				entries.forEach(([key, meta]) => {
 					const btn = document.createElement("button");
 					btn.type = "button";
-					btn.className = "colour-card";
+					btn.className = "colour-chip";
 					btn.dataset.colour = key;
 					btn.setAttribute("aria-pressed", "false");
-					btn.innerHTML = `<span class="colour-swatch" style="--swatch: ${meta.swatch};"></span><span class="colour-name">${meta.label}</span><span class="colour-count">${meta.count}</span>`;
+					btn.innerHTML = `<span class="colour-chip__swatch" style="--swatch: ${meta.swatch};"></span><span class="colour-chip__name">${meta.label}</span><span class="colour-chip__count">${meta.count}</span>`;
 
 					btn.addEventListener("click", async () => {
 						const isActive = btn.classList.contains("is-active");

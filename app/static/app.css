@@ -3185,3 +3185,272 @@
 	height: auto !important;
 	object-fit: unset !important;
 }
+
+/* ── Filter zone: no card wrapper, lives directly on the page bg ── */
+
+.filter-zone {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+}
+
+.filter-zone__block {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.filter-zone__label {
+  font-size: 0.75rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: rgba(255, 255, 255, 0.45);
+}
+
+/* ── Section strip: pill tabs ── */
+
+.section-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.section-strip__tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.55rem 1rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.05);
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 0.88rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+  position: relative;
+  overflow: hidden;
+}
+
+.section-strip__tab:hover {
+  background: rgba(255, 255, 255, 0.09);
+  border-color: rgba(255, 255, 255, 0.22);
+}
+
+.section-strip__tab.is-active {
+  background: rgba(93, 244, 162, 0.14);
+  border-color: rgba(93, 244, 162, 0.5);
+  color: #caffdf;
+}
+
+.section-strip__name {
+  font-weight: 900;
+}
+
+.section-strip__prog {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.45);
+  white-space: nowrap;
+}
+
+.section-strip__tab.is-active .section-strip__prog {
+  color: rgba(93, 244, 162, 0.75);
+}
+
+/* Hide progress bar track inside the pill (it's redundant at this size) */
+.section-strip__bar-wrap {
+  display: none;
+}
+
+/* ── Colour strip: compact chips ── */
+
+.colour-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.colour-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.42rem 0.75rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.04);
+  color: rgba(255, 255, 255, 0.82);
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.colour-chip:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.colour-chip.is-active {
+  background: rgba(93, 244, 162, 0.13);
+  border-color: rgba(93, 244, 162, 0.45);
+  color: #caffdf;
+}
+
+.colour-chip__swatch {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.4);
+  background: var(--swatch, #ff4081);
+}
+
+.colour-chip__count {
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.4);
+  font-weight: 700;
+}
+
+/* ── Map zone: borderless, just the map ── */
+
+.map-zone {
+  margin-bottom: 1.75rem;
+}
+
+.map-zone__header {
+  display: flex;
+  align-items: baseline;
+  gap: 0.75rem;
+  margin-bottom: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.map-zone__title {
+  font-size: 0.95rem;
+  font-weight: 900;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.map-zone__hint {
+  font-size: 0.78rem;
+  color: rgba(255, 255, 255, 0.38);
+}
+
+/* Map wrapper/viewport/layer/image: reuse existing .map-wrapper etc. — no overrides needed */
+
+/* ── Climb list zone: no outer card ── */
+
+.climb-list-zone {
+  /* intentionally unstyled — just a container */
+}
+
+.climb-list-zone__header {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  margin-bottom: 1rem;
+}
+
+.climb-list-zone__summary {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.45rem 0.85rem;
+  border-radius: 999px;
+  background: rgba(93, 244, 162, 0.1);
+  border: 1px solid rgba(93, 244, 162, 0.24);
+  color: #caffdf;
+  font-size: 0.8rem;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+/* ── Climb groups: divider line, no box ── */
+
+.climb-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.climb-group {
+  /* no background, no border, no padding — groups are pure layout */
+  margin-bottom: 0.5rem;
+}
+
+.climb-group__divider {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.climb-group__name {
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: rgba(255, 255, 255, 0.45);
+  white-space: nowrap;
+}
+
+.climb-group__count {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.3);
+  white-space: nowrap;
+}
+
+.climb-group__divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.07);
+}
+
+/* ── Score card grid: unchanged, already good ── */
+/* (all .score-card styles remain exactly as they were) */
+
+/* ── Responsive ── */
+
+@media (max-width: 768px) {
+  .filter-zone {
+    gap: 0.65rem;
+    margin-bottom: 1.25rem;
+  }
+
+  .section-strip {
+    gap: 0.4rem;
+  }
+
+  .section-strip__tab {
+    padding: 0.48rem 0.85rem;
+    font-size: 0.84rem;
+  }
+
+  .colour-chip {
+    padding: 0.38rem 0.65rem;
+    font-size: 0.78rem;
+  }
+
+  .map-zone {
+    margin-bottom: 1.25rem;
+  }
+
+  .map-zone__header {
+    margin-bottom: 0.45rem;
+  }
+}
+
+@media (max-width: 520px) {
+  .section-strip__tab {
+    padding: 0.44rem 0.75rem;
+    font-size: 0.82rem;
+  }
+
+  .climb-group__divider {
+    margin-bottom: 0.6rem;
+  }
+}
