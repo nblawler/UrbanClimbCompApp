@@ -3472,3 +3472,37 @@ object-fit: unset !important;
       margin: 0;
     }
   }
+
+  /* ============================================================
+   COMPETITOR SECTIONS — FULL-WIDTH SCORE CARDS
+   ============================================================ */
+
+.climb-browser-card .score-card-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem;
+  width: 100%;
+}
+
+.climb-browser-card .score-card {
+  width: 100%;
+  max-width: none;
+  margin: 0;
+}
+
+/* ============================================================
+   COMPETITOR SECTIONS — FULL-WIDTH SCORE CARDS
+   ============================================================ */
+
+   .climb-browser-card .score-card-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1rem;
+    width: 100%;
+  }
+  
+  .climb-browser-card .score-card {
+    width: 100%;
+    max-width: none;
+    margin: 0;
+  }
