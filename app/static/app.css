@@ -3402,3 +3402,17 @@ object-fit: unset !important;
     }
   
   }
+
+  /* ============================================================
+   SCORE CARDS — USE FULL OUTER CARD WIDTH
+   ============================================================ */
+
+.score-card-grid {
+  grid-template-columns: 1fr;
+}
+
+.score-card {
+  width: 100%;
+  max-width: none;
+  margin: 0;
+}
