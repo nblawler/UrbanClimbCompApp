@@ -3254,11 +3254,25 @@ object-fit: unset !important;
 
 /* save button */
 .save-score-btn {
-  transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, color 0.2s ease, transform 0.12s ease;
+  transition: all 0.18s ease;
   -webkit-tap-highlight-color: transparent;
 }
 
 .save-score-btn:active {
+  background: linear-gradient(
+    180deg,
+    rgba(72, 149, 239, 0.48),
+    rgba(42, 109, 214, 0.34)
+  );
+  border-color: rgba(120, 190, 255, 1);
+  color: #ffffff;
+  box-shadow:
+    0 0 0 1px rgba(120, 190, 255, 0.4),
+    0 8px 18px rgba(21, 62, 130, 0.28);
+  transform: scale(0.97);
+}
+
+.save-score-btn:focus-visible {
   background: linear-gradient(
     180deg,
     rgba(72, 149, 239, 0.42),
@@ -3266,245 +3280,68 @@ object-fit: unset !important;
   );
   border-color: rgba(120, 190, 255, 0.9);
   color: #ffffff;
-  box-shadow:
-    0 0 0 1px rgba(120, 190, 255, 0.35),
-    0 8px 20px rgba(21, 62, 130, 0.28),
-    inset 0 1px 0 rgba(255, 255, 255, 0.22);
-  transform: scale(0.98);
-}
-
-/* ============================================================
-   SAVE BUTTON BLUE ACTIVE STATE
-   ============================================================ */
-
-   .save-score-btn {
-    transition: all 0.18s ease;
-    -webkit-tap-highlight-color: transparent;
-  }
-  
-  /* pressed on phone */
-  .save-score-btn:active {
-    background: linear-gradient(
-      180deg,
-      rgba(72,149,239,0.48),
-      rgba(42,109,214,0.34)
-    );
-    border-color: rgba(120,190,255,1);
-    color: #ffffff;
-    box-shadow:
-      0 0 0 1px rgba(120,190,255,0.4),
-      0 8px 18px rgba(21,62,130,0.28);
-    transform: scale(0.97);
-  }
-  
-  /* after tap (brief visual hold) */
-  .save-score-btn:focus-visible {
-    background: linear-gradient(
-      180deg,
-      rgba(72,149,239,0.42),
-      rgba(42,109,214,0.30)
-    );
-    border-color: rgba(120,190,255,0.9);
-    color: #ffffff;
-  }
-
-  /* ============================================================
-   SAVE BUTTON DIRTY STATE
-   ============================================================ */
-
-.save-score-btn {
-  transition: all 0.18s ease;
 }
 
 /* when card has unsaved changes */
 .save-score-btn.is-dirty {
   background: linear-gradient(
     180deg,
-    rgba(72,149,239,0.48),
-    rgba(42,109,214,0.34)
+    rgba(72, 149, 239, 0.48),
+    rgba(42, 109, 214, 0.34)
   );
-  border-color: rgba(120,190,255,1);
+  border-color: rgba(120, 190, 255, 1);
   color: #ffffff;
   box-shadow:
-    0 0 0 1px rgba(120,190,255,0.35),
-    0 8px 18px rgba(21,62,130,0.28);
-}
-
-/* optional pulse */
-.save-score-btn.is-dirty {
+    0 0 0 1px rgba(120, 190, 255, 0.35),
+    0 8px 18px rgba(21, 62, 130, 0.28);
   animation: saveDirtyPulse 1.2s ease infinite alternate;
 }
 
 @keyframes saveDirtyPulse {
-  from { box-shadow: 0 0 0 rgba(120,190,255,0); }
-  to   { box-shadow: 0 0 16px rgba(120,190,255,0.35); }
+  from { box-shadow: 0 0 0 rgba(120, 190, 255, 0); }
+  to   { box-shadow: 0 0 16px rgba(120, 190, 255, 0.35); }
 }
 
-@media (max-width: 520px) {
-  .climb-browser-card {
-    padding-left: 0.75rem;
-    padding-right: 0.75rem;
-  }
 
-  .score-card-grid {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 0.85rem;
-  }
+/* ============================================================
+   COMPETITOR SECTIONS — CLIMB BROWSER OVERRIDES
+   ============================================================ */
 
-  .score-card {
-    width: 100%;
-    max-width: none;
-    margin: 0;
-  }
-}
-
-/* remove outer score-card container styling */
+/* Strip glass-card chrome from the outer browser wrapper */
 .climb-browser-card {
   background: transparent;
   border: none;
   box-shadow: none;
   padding: 0;
-  margin: 0;
+  margin-bottom: 1.5rem;
 }
 
-/* remove the glass highlight line */
 .climb-browser-card::before {
   display: none;
 }
 
-/* ============================================================
-   COMPETITOR SECTIONS  -  Reduce tab space between header and cards
-   ============================================================ */
-
-/* tighten space under "Filtered Climbs" */
-.browser-header {
-  margin-bottom: 0.5rem;
+/* Tighten vertical spacing: header → groups → cards */
+.climb-browser-card .browser-header {
+  margin-bottom: 0.35rem;
 }
 
-/* remove extra gap above first section */
-.climb-groups {
-  margin-top: 0;
+.climb-browser-card .climb-groups {
+  gap: 0.5rem;
 }
 
-/* reduce section header spacing */
-.climb-group {
-  margin-top: 0.5rem;
+.climb-browser-card .climb-group {
+  padding: 0;
 }
 
-/* reduce space inside group header */
-.climb-group-header {
+.climb-browser-card .climb-group-header {
   margin-bottom: 0.4rem;
 }
 
-/* ============================================================
-   COMPETITOR SECTIONS — WIDER SCORE CARDS
-   ============================================================ */
-
-   .climb-browser-card {
-    padding: 1rem 1rem 1.25rem;
-  }
-  
-  .score-card-grid {
-    padding: 0;
-  }
-  
-  .score-card {
-    max-width: 480px;
-    margin: 0 auto;
-  }
-  
-  @media (max-width: 520px) {
-  
-    .climb-browser-card {
-      padding-left: 0.75rem;
-      padding-right: 0.75rem;
-    }
-  
-    .score-card {
-      max-width: 520px;
-    }
-  
-  }
-
-  /* ============================================================
-   SCORE CARDS — USE FULL OUTER CARD WIDTH
-   ============================================================ */
-
-.score-card-grid {
-  grid-template-columns: 1fr;
-}
-
-.score-card {
-  width: 100%;
-  max-width: none;
-  margin: 0;
-}
-
-/* ============================================================
-   MAKE SCORE CARDS WIDER
-   ============================================================ */
-
-/* reduce outer padding */
-.climb-browser-card {
-  padding: 1rem;
-}
-
-/* allow cards to use full width */
-.score-card-grid {
-  grid-template-columns: 1fr;
-}
-
-/* remove width restriction */
-.score-card {
-  width: 100%;
-  max-width: none;
-  margin: 0;
-}
-
-/* ============================================================
-   COMPETITOR SECTIONS — WIDER SCORE CARDS ON PHONE
-   ============================================================ */
-
-   .climb-browser-card {
-    padding: 1rem;
-  }
-  
-  .score-card-grid {
-    grid-template-columns: 1fr;
-  }
-  
-  .score-card {
-    width: 100%;
-    max-width: none;
-    margin: 0;
-  }
-  
-  @media (max-width: 520px) {
-    .climb-browser-card {
-      padding-left: 0.5rem;
-      padding-right: 0.5rem;
-    }
-  
-    .score-card-grid {
-      grid-template-columns: 1fr;
-    }
-  
-    .score-card {
-      width: 100%;
-      max-width: none;
-      margin: 0;
-    }
-  }
-
-  /* ============================================================
-   COMPETITOR SECTIONS — FULL-WIDTH SCORE CARDS
-   ============================================================ */
-
+/* Full-width single-column score cards everywhere */
 .climb-browser-card .score-card-grid {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 1rem;
+  gap: 0.85rem;
   width: 100%;
 }
 
@@ -3513,20 +3350,3 @@ object-fit: unset !important;
   max-width: none;
   margin: 0;
 }
-
-/* ============================================================
-   COMPETITOR SECTIONS — FULL-WIDTH SCORE CARDS
-   ============================================================ */
-
-   .climb-browser-card .score-card-grid {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 1rem;
-    width: 100%;
-  }
-  
-  .climb-browser-card .score-card {
-    width: 100%;
-    max-width: none;
-    margin: 0;
-  }
