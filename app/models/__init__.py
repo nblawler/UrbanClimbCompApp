@@ -10,3 +10,4 @@ from .section_climb import SectionClimb
 from .login_code import LoginCode
 from .doubles_team import DoublesTeam
 from .doubles_invite import DoublesInvite
+from .leaderboard import Leaderboard
