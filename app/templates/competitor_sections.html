@@ -187,7 +187,6 @@
 				<div class="browser-title-wrap">
 					<h2 class="browser-title">Filtered Climbs</h2>
 				</div>
-				<div class="browser-summary" id="filteredClimbSummary">0 climbs shown</div>
 			</header>
 
 			{% if map_climbs %}
@@ -733,7 +732,6 @@
 			const climbGroups = Array.from(document.querySelectorAll(".climb-group"));
 			const scoreCards = Array.from(document.querySelectorAll(".score-card"));
 			const emptyState = document.getElementById("filteredClimbEmpty");
-			const summary = document.getElementById("filteredClimbSummary");
 			const totalPointsEl = document.getElementById("total-points");
 	
 			if (!markers.length && !scoreCards.length) return;
@@ -1201,13 +1199,7 @@
 					group.style.display = groupVisible ? "" : "none";
 					if (groupVisible) visibleGroupCount++;
 				});
-	
-				if (summary) {
-					const groupsText = visibleGroupCount === 1 ? "section" : "sections";
-					const climbsText = visibleCardCount === 1 ? "climb" : "climbs";
-					summary.textContent = `${visibleCardCount} ${climbsText} in ${visibleGroupCount} ${groupsText}`;
-				}
-	
+
 				if (emptyState) emptyState.style.display = visibleCardCount ? "none" : "";
 			}
 	
