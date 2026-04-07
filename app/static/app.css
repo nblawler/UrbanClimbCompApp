@@ -3339,3 +3339,22 @@ object-fit: unset !important;
   from { box-shadow: 0 0 0 rgba(120,190,255,0); }
   to   { box-shadow: 0 0 16px rgba(120,190,255,0.35); }
 }
+
+@media (max-width: 520px) {
+  .climb-browser-card {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+
+  .score-card-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0.85rem;
+  }
+
+  .score-card {
+    width: 100%;
+    max-width: none;
+    margin: 0;
+  }
+}
