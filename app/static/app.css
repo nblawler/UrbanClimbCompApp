@@ -3374,6 +3374,30 @@ object-fit: unset !important;
 }
 
 /* ============================================================
+   COMPETITOR SECTIONS  -  Reduce tab space between header and cards
+   ============================================================ */
+
+/* tighten space under "Filtered Climbs" */
+.browser-header {
+  margin-bottom: 0.5rem;
+}
+
+/* remove extra gap above first section */
+.climb-groups {
+  margin-top: 0;
+}
+
+/* reduce section header spacing */
+.climb-group {
+  margin-top: 0.5rem;
+}
+
+/* reduce space inside group header */
+.climb-group-header {
+  margin-bottom: 0.4rem;
+}
+
+/* ============================================================
    COMPETITOR SECTIONS — WIDER SCORE CARDS
    ============================================================ */
 
