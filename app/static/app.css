@@ -3358,3 +3358,47 @@ object-fit: unset !important;
     margin: 0;
   }
 }
+
+/* remove outer score-card container styling */
+.climb-browser-card {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  padding: 0;
+  margin: 0;
+}
+
+/* remove the glass highlight line */
+.climb-browser-card::before {
+  display: none;
+}
+
+/* ============================================================
+   COMPETITOR SECTIONS — WIDER SCORE CARDS
+   ============================================================ */
+
+   .climb-browser-card {
+    padding: 1rem 1rem 1.25rem;
+  }
+  
+  .score-card-grid {
+    padding: 0;
+  }
+  
+  .score-card {
+    max-width: 480px;
+    margin: 0 auto;
+  }
+  
+  @media (max-width: 520px) {
+  
+    .climb-browser-card {
+      padding-left: 0.75rem;
+      padding-right: 0.75rem;
+    }
+  
+    .score-card {
+      max-width: 520px;
+    }
+  
+  }
