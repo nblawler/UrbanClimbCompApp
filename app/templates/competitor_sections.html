@@ -83,55 +83,46 @@
 		{% endif %}
 
 		<section class="filter-card">
-			<header class="section-header">
-				<h2 class="section-title">Filter Climbs</h2>
-			</header>
-
 			{% if sections %}
 				<div class="section-filter-row">
 					<div class="section-filter-left">
-						<div class="section-filter-label">Sections (tap to filter by section):</div>
+						<div class="section-filter-label">Sections</div>
 
-						<div class="section-card-grid" id="sectionCardGrid">
-							{% for sec in sections %}
-								<button
-									type="button"
-									class="section-card"
-									data-section-id="{{ sec.id }}"
-									aria-pressed="false"
-								>
-									<div class="section-card-top">
-										<div class="section-card-name">{{ sec.name }}</div>
-										<div class="section-card-meta">
+						<div class="filter-scroll-wrapper" id="sectionScrollWrapper">
+							<div class="filter-scroll-track" id="sectionChipTrack">
+								{% for sec in sections %}
+									<button
+										type="button"
+										class="section-chip"
+										data-section-id="{{ sec.id }}"
+										aria-pressed="false"
+									>
+										<span class="chip-progress-ring">
+											<svg viewBox="0 0 20 20">
+												<circle class="ring-bg" cx="10" cy="10" r="8" />
+												<circle class="ring-fill" cx="10" cy="10" r="8"
+													stroke-dasharray="50.27"
+													stroke-dashoffset="50.27"
+													data-k="ring" />
+											</svg>
+										</span>
+										<span class="section-chip-name">{{ sec.name }}</span>
+										<span class="chip-fraction">
 											<span class="sec-done" data-k="done">0</span>/<span class="sec-total" data-k="total">0</span>
-										</div>
-									</div>
-
-									<div class="section-card-stats">
-										<div class="section-stat">
-											<div class="section-stat-label">Done</div>
-											<div class="section-stat-value sec-done" data-k="done">0</div>
-										</div>
-
-										<div class="section-stat">
-											<div class="section-stat-label">Left</div>
-											<div class="section-stat-value sec-left" data-k="left">0</div>
-										</div>
-									</div>
-
-									<div class="section-progress" aria-hidden="true">
-										<div class="sec-bar"></div>
-									</div>
-								</button>
-							{% endfor %}
+										</span>
+									</button>
+								{% endfor %}
+							</div>
 						</div>
 					</div>
 				</div>
 			{% endif %}
 
 			<div class="colour-filter-row">
-				<div class="colour-filter-label">Colours (tap to filter by colour):</div>
-				<div class="colour-card-grid" id="colourCardGrid"></div>
+				<div class="colour-filter-label">Colours</div>
+				<div class="filter-scroll-wrapper" id="colourScrollWrapper">
+					<div class="colour-card-grid" id="colourCardGrid"></div>
+				</div>
 			</div>
 		</section>
 
@@ -726,7 +717,7 @@
 			const canEdit = {{ 'true' if can_edit else 'false' }};
 	
 			const mapWrapper = document.getElementById("mapWrapperSections");
-			const cards = Array.from(document.querySelectorAll(".section-card"));
+			const chips = Array.from(document.querySelectorAll(".section-chip"));
 			const markers = Array.from(document.querySelectorAll(".map-marker"));
 			const colourCardGrid = document.getElementById("colourCardGrid");
 			const climbGroups = Array.from(document.querySelectorAll(".climb-group"));
@@ -736,6 +727,7 @@
 	
 			if (!markers.length && !scoreCards.length) return;
 	
+			const RING_CIRCUMFERENCE = 2 * Math.PI * 8; // r=8 from the SVG
 			const totalsBySection = new Map();
 			const colourMeta = new Map();
 			const scoreState = new Map();
@@ -920,14 +912,20 @@
 				});
 			}
 	
-			function setCardProgress(card, done, total) {
+			function setChipProgress(chip, done, total) {
 				const left = Math.max(0, total - done);
-				card.querySelectorAll(".sec-done").forEach(el => el.textContent = String(done));
-				card.querySelectorAll(".sec-total").forEach(el => el.textContent = String(total));
-				const leftEl = card.querySelector(".sec-left");
+				chip.querySelectorAll(".sec-done").forEach(el => el.textContent = String(done));
+				chip.querySelectorAll(".sec-total").forEach(el => el.textContent = String(total));
+				const leftEl = chip.querySelector(".sec-left");
 				if (leftEl) leftEl.textContent = String(left);
-				const bar = card.querySelector(".sec-bar");
-				if (bar) bar.style.width = (total ? Math.round((done / total) * 100) : 0) + "%";
+
+				/* Update progress ring */
+				const ring = chip.querySelector('[data-k="ring"]');
+				if (ring) {
+					const pct = total > 0 ? done / total : 0;
+					const offset = RING_CIRCUMFERENCE * (1 - pct);
+					ring.setAttribute("stroke-dashoffset", String(offset));
+				}
 			}
 	
 			function computePoints(basePoints, penaltyPerAttempt, attemptCap, topped, attempts) {
@@ -1014,9 +1012,9 @@
 					doneBySection.set(sid, (doneBySection.get(sid) || 0) + 1);
 				});
 	
-				cards.forEach((card) => {
-					const sid = card.dataset.sectionId;
-					setCardProgress(card, doneBySection.get(sid) || 0, totalsBySection.get(sid) || 0);
+				chips.forEach((chip) => {
+					const sid = chip.dataset.sectionId;
+					setChipProgress(chip, doneBySection.get(sid) || 0, totalsBySection.get(sid) || 0);
 				});
 			}
 	
@@ -1080,8 +1078,8 @@
 				validateCard(card);
 			});
 	
-			cards.forEach((card) => {
-				setCardProgress(card, 0, totalsBySection.get(card.dataset.sectionId) || 0);
+			chips.forEach((chip) => {
+				setChipProgress(chip, 0, totalsBySection.get(chip.dataset.sectionId) || 0);
 			});
 	
 			async function loadProgress() {
@@ -1244,23 +1242,23 @@
 				marker.addEventListener("click", () => scrollToTargetCard(marker.dataset.targetId));
 			});
 	
-			cards.forEach((card) => {
-				card.addEventListener("click", async () => {
-					const sid = card.dataset.sectionId;
+			chips.forEach((chip) => {
+				chip.addEventListener("click", async () => {
+					const sid = chip.dataset.sectionId;
 					if (!sid) return;
 	
-					const isActive = card.classList.contains("is-active");
+					const isActive = chip.classList.contains("is-active");
 					if (isActive) {
-						card.classList.remove("is-active");
-						card.setAttribute("aria-pressed", "false");
+						chip.classList.remove("is-active");
+						chip.setAttribute("aria-pressed", "false");
 						activeSectionIds.delete(sid);
 					} else {
-						card.classList.add("is-active");
-						card.setAttribute("aria-pressed", "true");
+						chip.classList.add("is-active");
+						chip.setAttribute("aria-pressed", "true");
 						activeSectionIds.add(sid);
 					}
 	
-					if (!cards.some((c) => c.classList.contains("is-active"))) activeSectionIds.clear();
+					if (!chips.some((c) => c.classList.contains("is-active"))) activeSectionIds.clear();
 	
 					applyMapFilter();
 					applyScoreCardFilter();
@@ -1419,10 +1417,30 @@
 					}
 				}
 			}
+
+			/* ── Scroll-fade hint for filter tracks ── */
+			function initScrollFade(wrapperId, trackSelector) {
+				const wrapper = document.getElementById(wrapperId);
+				if (!wrapper) return;
+				const track = wrapper.querySelector(trackSelector) || wrapper.querySelector('.filter-scroll-track') || wrapper.querySelector('.colour-card-grid');
+				if (!track) return;
+
+				function check() {
+					const atEnd = track.scrollLeft + track.clientWidth >= track.scrollWidth - 4;
+					wrapper.classList.toggle("scrolled-end", atEnd);
+				}
+				track.addEventListener("scroll", check, { passive: true });
+				/* Check on load and after content is built */
+				requestAnimationFrame(check);
+				setTimeout(check, 500);
+			}
 	
 			buildColourCards();
 			applyAllFilters();
 			loadProgress();
+
+			initScrollFade("sectionScrollWrapper", ".filter-scroll-track");
+			initScrollFade("colourScrollWrapper", ".colour-card-grid");
 	
 			window.addEventListener("resize", () => {
 				rerunMarkerSeparationAfterZoom();

@@ -3351,3 +3351,214 @@ object-fit: unset !important;
   max-width: none;
   margin: 0;
 }
+
+
+/* ============================================================
+   FILTER SECTION — HORIZONTAL SCROLL CHIPS
+   ============================================================ */
+
+/* Strip glass-card chrome from filter wrapper */
+.filter-card {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  padding: 0;
+  margin-bottom: 1rem;
+  overflow: visible;
+}
+
+.filter-card::before {
+  display: none;
+}
+
+.filter-card .section-header {
+  margin-bottom: 0.65rem;
+}
+
+/* Hide old grid layout */
+.filter-card .section-filter-row {
+  margin-bottom: 0.75rem;
+}
+
+.filter-card .section-filter-left {
+  width: 100%;
+}
+
+/* ── Shared horizontal scroll track ── */
+.filter-scroll-track {
+  display: flex;
+  gap: 0.55rem;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  scroll-snap-type: x proximity;
+  scrollbar-width: none;           /* Firefox */
+  padding-bottom: 4px;             /* breathing room for box-shadow */
+}
+
+.filter-scroll-track::-webkit-scrollbar {
+  display: none;                   /* Chrome / Safari */
+}
+
+/* ── Section chip — compact pill with inline progress ── */
+.section-chip {
+  scroll-snap-align: start;
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.55rem 0.85rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.20);
+  background: rgba(255, 255, 255, 0.10);
+  color: rgba(255, 255, 255, 0.92);
+  cursor: pointer;
+  font-weight: 800;
+  font-size: 0.88rem;
+  white-space: nowrap;
+  transition: background 0.15s, border-color 0.15s, box-shadow 0.15s;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+
+.section-chip:hover {
+  background: rgba(255, 255, 255, 0.16);
+  border-color: rgba(255, 255, 255, 0.35);
+}
+
+.section-chip:active {
+  transform: scale(0.97);
+}
+
+.section-chip.is-active {
+  background: linear-gradient(
+    180deg,
+    rgba(72, 149, 239, 0.34),
+    rgba(42, 109, 214, 0.24)
+  );
+  border-color: rgba(120, 190, 255, 0.85);
+  color: #ffffff;
+  box-shadow:
+    0 0 0 1px rgba(120, 190, 255, 0.35),
+    0 6px 16px rgba(21, 62, 130, 0.28);
+}
+
+.section-chip-name {
+  line-height: 1.1;
+}
+
+/* progress ring — tiny donut chart inside chip */
+.chip-progress-ring {
+  width: 20px;
+  height: 20px;
+  flex: 0 0 20px;
+  border-radius: 999px;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.chip-progress-ring svg {
+  width: 20px;
+  height: 20px;
+  transform: rotate(-90deg);
+}
+
+.chip-progress-ring .ring-bg {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.15);
+  stroke-width: 3;
+}
+
+.chip-progress-ring .ring-fill {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.80);
+  stroke-width: 3;
+  stroke-linecap: round;
+  transition: stroke-dashoffset 0.3s ease;
+}
+
+.section-chip.is-active .ring-fill {
+  stroke: #8fd3ff;
+}
+
+/* fraction text next to ring */
+.chip-fraction {
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: rgba(255, 255, 255, 0.60);
+  letter-spacing: -0.01em;
+}
+
+.section-chip.is-active .chip-fraction {
+  color: rgba(255, 255, 255, 0.85);
+}
+
+/* ── Colour chips — same track, simpler ── */
+.colour-filter-row {
+  margin-top: 0.25rem;
+}
+
+/* ── Filter labels ── */
+.filter-card .section-filter-label,
+.filter-card .colour-filter-label {
+  font-size: 0.82rem;
+  color: rgba(255, 255, 255, 0.55);
+  margin-bottom: 0.45rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* Hide the old section-card-grid on this page */
+.filter-card .section-card-grid {
+  display: none;
+}
+
+/* Hide the old colour-card-grid (we replace it) */
+.filter-card .colour-card-grid {
+  display: flex;
+  gap: 0.55rem;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  scroll-snap-type: x proximity;
+  scrollbar-width: none;
+  padding-bottom: 4px;
+  flex-wrap: nowrap;
+}
+
+.filter-card .colour-card-grid::-webkit-scrollbar {
+  display: none;
+}
+
+/* Make colour cards non-wrapping scroll chips */
+.filter-card .colour-card {
+  flex: 0 0 auto;
+  scroll-snap-align: start;
+  white-space: nowrap;
+}
+
+/* ── Fade hints on scroll edges ── */
+.filter-scroll-wrapper {
+  position: relative;
+}
+
+.filter-scroll-wrapper::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 32px;
+  height: 100%;
+  pointer-events: none;
+  background: linear-gradient(to right, transparent, rgba(26, 74, 138, 0.65));
+  border-radius: 0 999px 999px 0;
+  opacity: 1;
+  transition: opacity 0.2s;
+}
+
+.filter-scroll-wrapper.scrolled-end::after {
+  opacity: 0;
+}
