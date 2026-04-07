@@ -3437,3 +3437,38 @@ object-fit: unset !important;
   max-width: none;
   margin: 0;
 }
+
+/* ============================================================
+   COMPETITOR SECTIONS — WIDER SCORE CARDS ON PHONE
+   ============================================================ */
+
+   .climb-browser-card {
+    padding: 1rem;
+  }
+  
+  .score-card-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .score-card {
+    width: 100%;
+    max-width: none;
+    margin: 0;
+  }
+  
+  @media (max-width: 520px) {
+    .climb-browser-card {
+      padding-left: 0.5rem;
+      padding-right: 0.5rem;
+    }
+  
+    .score-card-grid {
+      grid-template-columns: 1fr;
+    }
+  
+    .score-card {
+      width: 100%;
+      max-width: none;
+      margin: 0;
+    }
+  }
