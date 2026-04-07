@@ -3562,3 +3562,28 @@ object-fit: unset !important;
 .filter-scroll-wrapper.scrolled-end::after {
   opacity: 0;
 }
+
+.score-status-pill {
+  min-width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 900;
+  font-size: 16px;
+  background: transparent;
+  border: none;
+  color: transparent;
+}
+
+/* bold green tick */
+.score-status-pill.is-done {
+  background: #5df4a2;
+  border: 2px solid #5df4a2;
+  color: #0b2b1c;
+  font-weight: 900;
+  box-shadow:
+    0 0 0 2px rgba(93,244,162,0.25),
+    0 4px 12px rgba(93,244,162,0.35);
+}

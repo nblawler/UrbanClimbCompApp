@@ -1037,8 +1037,13 @@
 	
 				const statusPill = card.querySelector('[data-role="status-pill"]');
 				if (statusPill) {
-					statusPill.textContent = state.topped ? "Topped" : "Not topped";
-					statusPill.classList.toggle("is-done", !!state.topped);
+					if (state.topped) {
+						statusPill.textContent = "✓";
+						statusPill.classList.add("is-done");
+					} else {
+						statusPill.textContent = "";
+						statusPill.classList.remove("is-done");
+					}
 				}
 	
 				const attemptValueEl = card.querySelector('[data-role="attempt-value"]');
