@@ -3416,3 +3416,24 @@ object-fit: unset !important;
   max-width: none;
   margin: 0;
 }
+
+/* ============================================================
+   MAKE SCORE CARDS WIDER
+   ============================================================ */
+
+/* reduce outer padding */
+.climb-browser-card {
+  padding: 1rem;
+}
+
+/* allow cards to use full width */
+.score-card-grid {
+  grid-template-columns: 1fr;
+}
+
+/* remove width restriction */
+.score-card {
+  width: 100%;
+  max-width: none;
+  margin: 0;
+}
