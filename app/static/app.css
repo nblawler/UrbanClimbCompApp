@@ -3314,6 +3314,7 @@ object-fit: unset !important;
   box-shadow: none;
   padding: 0;
   margin-bottom: 1.5rem;
+  overflow: visible;
 }
 
 .climb-browser-card::before {
