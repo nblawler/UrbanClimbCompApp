@@ -12,68 +12,12 @@
 	{% set viewer_id = session.get('competitor_id') %}
 	{% set comp_slug = comp_slug if comp_slug is defined else session.get('active_comp_slug') %}
 
-	<!-- Scrollable nav: flat menu button pinned left, links scroll right -->
-	<nav class="nav-scroll">
-		<button type="button" class="menu-toggle" onclick="openSidebar()">☰</button>
-		<div class="nav-scroll-track">
-			<a class="{% if nav_active == 'sections' %}active{% endif %}"
-			   href="/comp/{{ comp_slug }}/competitor/{{ viewer_id }}/sections">
-				Scoring
-			</a>
-			<a class="{% if nav_active == 'my_stats' %}active{% endif %}"
-			   href="/competitor/{{ viewer_id }}/stats/my">
-				My Stats
-			</a>
-			<a class="{% if nav_active == 'leaderboard' %}active{% endif %}"
-			   href="/leaderboard?cid={{ viewer_id }}">
-				Leaderboard
-			</a>
-			{% if comp_slug %}
-				<a class="{% if nav_active == 'doubles' %}active{% endif %}"
-				   href="/comp/{{ comp_slug }}/doubles">
-					Doubles
-				</a>
-			{% endif %}
-		</div>
-	</nav>
-
+	{% include "nav_scroll.html" %}
 	{% include "sidebar.html" %}
 
 	<main class="container" style="max-width:1280px;">
 
-		<!-- Hero: name + stats, labels top row, values bottom row -->
-		<header class="comp-header">
-			<div class="comp-hero-row">
-				<div class="comp-hero-name">
-					<div class="comp-name-label">{{ competitor.name }}</div>
-					<div class="comp-name-value">#{{ competitor.id }}</div>
-				</div>
-				<div class="comp-hero-stats">
-					<div class="comp-hero-stat">
-						<div class="comp-hero-label">Points</div>
-						<div class="comp-hero-value" id="total-points">{{ total_points }}</div>
-					</div>
-					{% if position is not none %}
-						{% set p = position|int %}
-						{% if p % 100 in [11, 12, 13] %}
-							{% set suffix = 'th' %}
-						{% elif p % 10 == 1 %}
-							{% set suffix = 'st' %}
-						{% elif p % 10 == 2 %}
-							{% set suffix = 'nd' %}
-						{% elif p % 10 == 3 %}
-							{% set suffix = 'rd' %}
-						{% else %}
-							{% set suffix = 'th' %}
-						{% endif %}
-						<div class="comp-hero-stat">
-							<div class="comp-hero-label">Place</div>
-							<div class="comp-hero-value">{{ p }}{{ suffix }}</div>
-						</div>
-					{% endif %}
-				</div>
-			</div>
-		</header>
+		{% include "comp_hero.html" %}
 
 		{% if not can_edit %}
 			<div class="view-only-note">
