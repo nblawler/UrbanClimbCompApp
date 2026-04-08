@@ -3387,67 +3387,62 @@ object-fit: unset !important;
 /* ── Shared horizontal scroll track ── */
 .filter-scroll-track {
   display: flex;
-  gap: 0.55rem;
+  gap: 0;
   overflow-x: auto;
   overflow-y: hidden;
   -webkit-overflow-scrolling: touch;
   scroll-snap-type: x proximity;
   scrollbar-width: none;           /* Firefox */
-  padding-bottom: 4px;             /* breathing room for box-shadow */
+  border-bottom: 1px solid rgba(255, 255, 255, 0.10);
 }
 
 .filter-scroll-track::-webkit-scrollbar {
   display: none;                   /* Chrome / Safari */
 }
 
-/* ── Section chip — compact pill with inline progress ── */
+/* ── Section chip — underline tab with inline progress ring ── */
 .section-chip {
   scroll-snap-align: start;
   flex: 0 0 auto;
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.55rem 0.85rem;
-  border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.20);
-  background: rgba(255, 255, 255, 0.10);
-  color: rgba(255, 255, 255, 0.92);
+  gap: 0.45rem;
+  padding: 0.5rem 0.85rem 0.65rem;
+  margin-bottom: -1px;
+  border: none;
+  border-bottom: 2.5px solid transparent;
+  border-radius: 0;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.70);
   cursor: pointer;
-  font-weight: 800;
+  font-weight: 700;
   font-size: 0.88rem;
   white-space: nowrap;
-  transition: background 0.15s, border-color 0.15s, box-shadow 0.15s;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
   -webkit-tap-highlight-color: transparent;
   user-select: none;
 }
 
 .section-chip:hover {
-  background: rgba(255, 255, 255, 0.16);
-  border-color: rgba(255, 255, 255, 0.35);
+  color: rgba(255, 255, 255, 0.90);
+  background: rgba(255, 255, 255, 0.04);
 }
 
 .section-chip:active {
-  transform: scale(0.97);
+  background: rgba(255, 255, 255, 0.08);
 }
 
 .section-chip.is-active {
-  background: linear-gradient(
-    180deg,
-    rgba(72, 149, 239, 0.34),
-    rgba(42, 109, 214, 0.24)
-  );
-  border-color: rgba(120, 190, 255, 0.85);
-  color: #ffffff;
-  box-shadow:
-    0 0 0 1px rgba(120, 190, 255, 0.35),
-    0 6px 16px rgba(21, 62, 130, 0.28);
+  color: #fff;
+  border-bottom-color: #a8d8f0;
+  font-weight: 800;
 }
 
 .section-chip-name {
   line-height: 1.1;
 }
 
-/* progress ring — tiny donut chart inside chip */
+/* progress ring — tiny donut chart inside tab */
 .chip-progress-ring {
   width: 20px;
   height: 20px;
@@ -3467,45 +3462,45 @@ object-fit: unset !important;
 
 .chip-progress-ring .ring-bg {
   fill: none;
-  stroke: rgba(255, 255, 255, 0.15);
-  stroke-width: 3;
+  stroke: rgba(255, 255, 255, 0.12);
+  stroke-width: 2.5;
 }
 
 .chip-progress-ring .ring-fill {
   fill: none;
-  stroke: rgba(255, 255, 255, 0.80);
-  stroke-width: 3;
+  stroke: rgba(255, 255, 255, 0.65);
+  stroke-width: 2.5;
   stroke-linecap: round;
   transition: stroke-dashoffset 0.3s ease;
 }
 
 .section-chip.is-active .ring-fill {
-  stroke: #8fd3ff;
+  stroke: #a8d8f0;
 }
 
 /* fraction text next to ring */
 .chip-fraction {
   font-size: 0.72rem;
   font-weight: 800;
-  color: rgba(255, 255, 255, 0.60);
+  color: rgba(255, 255, 255, 0.55);
   letter-spacing: -0.01em;
 }
 
 .section-chip.is-active .chip-fraction {
-  color: rgba(255, 255, 255, 0.85);
+  color: rgba(255, 255, 255, 0.75);
 }
 
 /* ── Colour chips — same track, simpler ── */
 .colour-filter-row {
-  margin-top: 0.25rem;
+  margin-top: 0.75rem;
 }
 
-/* ── Filter labels ── */
+/* ── Filter labels — clear and readable ── */
 .filter-card .section-filter-label,
 .filter-card .colour-filter-label {
   font-size: 0.82rem;
-  color: rgba(255, 255, 255, 0.55);
-  margin-bottom: 0.45rem;
+  color: #a8d8f0;
+  margin-bottom: 0.35rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.04em;
@@ -3516,28 +3511,69 @@ object-fit: unset !important;
   display: none;
 }
 
-/* Hide the old colour-card-grid (we replace it) */
+/* Colour card grid — underline tab track style */
 .filter-card .colour-card-grid {
   display: flex;
-  gap: 0.55rem;
+  gap: 0;
   overflow-x: auto;
   overflow-y: hidden;
   -webkit-overflow-scrolling: touch;
   scroll-snap-type: x proximity;
   scrollbar-width: none;
-  padding-bottom: 4px;
+  padding-bottom: 0;
   flex-wrap: nowrap;
+  border-bottom: none;
 }
 
 .filter-card .colour-card-grid::-webkit-scrollbar {
   display: none;
 }
 
-/* Make colour cards non-wrapping scroll chips */
+/* Colour cards as underline tabs */
 .filter-card .colour-card {
   flex: 0 0 auto;
   scroll-snap-align: start;
   white-space: nowrap;
+  border-radius: 0;
+  border: none;
+  border-bottom: 2.5px solid transparent;
+  margin-bottom: -1px;
+  background: transparent;
+  padding: 0.5rem 0.85rem 0.65rem;
+  color: rgba(255, 255, 255, 0.70);
+  font-weight: 700;
+  font-size: 0.88rem;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
+  gap: 0.45rem;
+}
+
+.filter-card .colour-card:hover {
+  color: rgba(255, 255, 255, 0.90);
+  background: rgba(255, 255, 255, 0.04);
+  border-color: transparent;
+  box-shadow: none;
+}
+
+.filter-card .colour-card.is-active {
+  color: #fff;
+  border-bottom-color: #a8d8f0;
+  background: transparent;
+  border-left: none;
+  border-right: none;
+  border-top: none;
+  box-shadow: none;
+}
+
+.filter-card .colour-card .colour-count {
+  color: rgba(255, 255, 255, 0.50);
+}
+
+.filter-card .colour-card.is-active .colour-count {
+  color: rgba(255, 255, 255, 0.70);
+}
+
+.filter-card .colour-card .colour-name {
+  color: inherit;
 }
 
 /* ── Fade hints on scroll edges ── */
@@ -3550,11 +3586,11 @@ object-fit: unset !important;
   position: absolute;
   top: 0;
   right: 0;
-  width: 32px;
+  width: 40px;
   height: 100%;
   pointer-events: none;
-  background: linear-gradient(to right, transparent, rgba(26, 74, 138, 0.65));
-  border-radius: 0 999px 999px 0;
+  background: linear-gradient(to right, transparent, rgba(26, 74, 138, 0.85));
+  border-radius: 0;
   opacity: 1;
   transition: opacity 0.2s;
 }
@@ -3645,13 +3681,14 @@ object-fit: unset !important;
    COMPETITOR SECTIONS — PAGE-SPECIFIC OVERRIDES
    ============================================================ */
 
-/* Strip card chrome from comp header */
+/* Strip card chrome from comp header, add subtle background panel */
 .page-sections .comp-header {
-  background: transparent !important;
-  border: none !important;
+  background: rgba(255, 255, 255, 0.06) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
   box-shadow: none !important;
-  padding: 0 !important;
-  margin-bottom: 0.5rem !important;
+  padding: 1.25rem 1.25rem 1rem !important;
+  margin-bottom: 1.25rem !important;
+  border-radius: 1.25rem !important;
   overflow: visible;
 }
 
@@ -3662,7 +3699,7 @@ object-fit: unset !important;
 /* Big hero name — larger than any section heading */
 .page-sections .comp-name {
   font-size: 2.2rem !important;
-  margin-bottom: 0.15rem !important;
+  margin-bottom: 0.35rem !important;
   letter-spacing: -0.03em;
   line-height: 1.05;
 }
@@ -3674,7 +3711,7 @@ object-fit: unset !important;
   flex-wrap: nowrap;
   gap: 0 !important;
   align-items: baseline;
-  margin-top: 0.2rem;
+  margin-top: 0;
 }
 
 .page-sections .comp-pill {
@@ -3685,41 +3722,35 @@ object-fit: unset !important;
   min-width: 0 !important;
   flex-direction: row !important;
   align-items: baseline !important;
-  gap: 0.3rem !important;
+  gap: 0.25rem !important;
   flex: none !important;
   border-radius: 0 !important;
 }
 
 .page-sections .comp-pill + .comp-pill::before {
   content: "·";
-  color: rgba(255, 255, 255, 0.25);
-  margin: 0 0.55rem;
+  color: rgba(255, 255, 255, 0.20);
+  margin: 0 0.6rem;
   font-size: 0.85rem;
   font-weight: 400;
 }
 
 .page-sections .comp-pill-label {
-  font-size: 0.78rem !important;
+  font-size: 0.82rem !important;
   color: rgba(255, 255, 255, 0.45) !important;
   text-transform: none;
   letter-spacing: 0;
   font-weight: 600;
 }
 
+/* Points and position values are prominent */
 .page-sections .comp-pill-value {
-  font-size: 0.88rem !important;
-  font-weight: 800 !important;
-  color: #a8d8f0 !important;
+  font-size: 1.05rem !important;
+  font-weight: 900 !important;
+  color: #fff !important;
 }
 
-/* Section dividers — breathing room between page zones */
-.page-sections .section-divider {
-  height: 1px;
-  background: rgba(255, 255, 255, 0.07);
-  margin: 1.25rem 0;
-}
-
-/* Filter Climbs heading */
+/* Filter Climbs heading — smaller than hero */
 .page-sections .filter-heading {
   font-size: 1.15rem;
   font-weight: 900;
@@ -3727,7 +3758,7 @@ object-fit: unset !important;
   margin-bottom: 0.65rem;
 }
 
-/* Section headers should be smaller than the hero name */
+/* Section headers subordinate to hero name */
 .page-sections .section-title {
   font-size: 1.2rem;
   font-weight: 800;
@@ -3737,9 +3768,42 @@ object-fit: unset !important;
   font-size: 1.2rem;
 }
 
+/* ── Score card status pill: hidden when not topped, green check when topped ── */
+.score-status-pill {
+  min-width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 900;
+  font-size: 16px;
+  background: transparent;
+  border: none;
+  color: transparent;
+  padding: 0;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.score-status-pill.is-done {
+  background: #5df4a2;
+  border: 2px solid #5df4a2;
+  color: #0b2b1c;
+  font-weight: 900;
+  box-shadow:
+    0 0 0 2px rgba(93, 244, 162, 0.25),
+    0 4px 12px rgba(93, 244, 162, 0.35);
+}
+
 @media (max-width: 768px) {
   .page-sections .comp-name {
     font-size: 1.85rem !important;
+  }
+
+  .page-sections .comp-header {
+    padding: 1rem !important;
+    margin-bottom: 1rem !important;
   }
 
   .nav-scroll-track a {
@@ -3756,5 +3820,9 @@ object-fit: unset !important;
 @media (max-width: 520px) {
   .page-sections .comp-name {
     font-size: 1.7rem !important;
+  }
+
+  .page-sections .comp-pill-value {
+    font-size: 0.95rem !important;
   }
 }

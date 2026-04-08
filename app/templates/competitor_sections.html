@@ -54,8 +54,20 @@
 					<span class="comp-pill-label">pts</span>
 				</div>
 				{% if position is not none %}
+					{% set p = position|int %}
+					{% if p % 100 in [11, 12, 13] %}
+						{% set suffix = 'th' %}
+					{% elif p % 10 == 1 %}
+						{% set suffix = 'st' %}
+					{% elif p % 10 == 2 %}
+						{% set suffix = 'nd' %}
+					{% elif p % 10 == 3 %}
+						{% set suffix = 'rd' %}
+					{% else %}
+						{% set suffix = 'th' %}
+					{% endif %}
 					<div class="comp-pill">
-						<span class="comp-pill-value">{{ position }}</span>
+						<span class="comp-pill-value">{{ p }}{{ suffix }}</span>
 						<span class="comp-pill-label">place</span>
 					</div>
 				{% endif %}
@@ -69,7 +81,7 @@
 			</div>
 		{% endif %}
 
-		<div class="section-divider"></div>
+		
 
 		<!-- Filters -->
 		<section class="filter-card">
@@ -109,7 +121,7 @@
 			</div>
 		</section>
 
-		<div class="section-divider"></div>
+		
 		<section class="map-card">
 			<header class="section-header">
 				<h2 class="section-title">{{ gym_name }} Map</h2>
@@ -157,7 +169,7 @@
 			{% endif %}
 		</section>
 
-		<div class="section-divider"></div>
+		
 
 		<section class="climb-browser-card">
 			<header class="browser-header">
@@ -211,7 +223,7 @@
 														</div>
 													</div>
 
-													<div class="score-status-pill" data-role="status-pill">Not topped</div>
+													<div class="score-status-pill" data-role="status-pill"></div>
 												</div>
 
 												<div class="score-meta">
@@ -960,8 +972,14 @@
 	
 				const statusPill = card.querySelector('[data-role="status-pill"]');
 				if (statusPill) {
-					statusPill.textContent = state.topped ? "Topped" : "Not topped";
-					statusPill.classList.toggle("is-done", !!state.topped);
+					const saved = getSavedCardState(card);
+					if (saved.topped) {
+						statusPill.textContent = "✓";
+						statusPill.classList.add("is-done");
+					} else {
+						statusPill.textContent = "";
+						statusPill.classList.remove("is-done");
+					}
 				}
 	
 				const attemptValueEl = card.querySelector('[data-role="attempt-value"]');
@@ -972,7 +990,7 @@
 				if (minusBtn) minusBtn.disabled = state.attempts <= 0;
 				if (plusBtn) plusBtn.disabled = state.attempts >= attemptCap;
 	
-				card.classList.toggle("is-done", !!state.topped);
+				card.classList.toggle("is-done", !!getSavedCardState(card).topped);
 	
 				card.querySelectorAll(".topped-btn").forEach((btn) => {
 					btn.classList.toggle("is-active", (btn.dataset.toppedValue === "true") === !!state.topped);
