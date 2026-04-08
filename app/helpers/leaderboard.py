@@ -201,7 +201,15 @@ def build_leaderboard(category=None, competition_id=None, slug=None):
         )
     )
 
-    # Apply category filtering
+    # Handle doubles separately — completely different logic
+    if category_key == "doubles":
+        # First get all singles rows to feed into doubles calculation
+        all_singles, _ = build_leaderboard(None, competition_id=current_competition.id)
+        doubles_rows = build_doubles_rows(all_singles, current_competition.id)
+        LEADERBOARD_CACHE[cache_key] = (doubles_rows, "Doubles", current_time)
+        return doubles_rows, "Doubles"
+
+    # Apply category filtering for singles
     if category_key == "male":
         leaderboard_query = leaderboard_query.filter(Competitor.gender == "Male")
         category_label = "Male"
