@@ -3323,11 +3323,11 @@ object-fit: unset !important;
 
 /* Tighten vertical spacing: header → groups → cards */
 .climb-browser-card .browser-header {
-  margin-bottom: 0.35rem;
+  margin-bottom: 0.85rem;
 }
 
 .climb-browser-card .climb-groups {
-  gap: 0.5rem;
+  gap: 1.25rem;
 }
 
 .climb-browser-card .climb-group {
@@ -3335,14 +3335,14 @@ object-fit: unset !important;
 }
 
 .climb-browser-card .climb-group-header {
-  margin-bottom: 0.4rem;
+  margin-bottom: 0.6rem;
 }
 
 /* Full-width single-column score cards everywhere */
 .climb-browser-card .score-card-grid {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 0.85rem;
+  gap: 1rem;
   width: 100%;
 }
 
@@ -3363,7 +3363,7 @@ object-fit: unset !important;
   border: none;
   box-shadow: none;
   padding: 0;
-  margin-bottom: 1rem;
+  margin-bottom: 1.75rem;
   overflow: visible;
 }
 
@@ -3377,7 +3377,7 @@ object-fit: unset !important;
 
 /* Hide old grid layout */
 .filter-card .section-filter-row {
-  margin-bottom: 0.75rem;
+  margin-bottom: 1rem;
 }
 
 .filter-card .section-filter-left {
@@ -3492,7 +3492,7 @@ object-fit: unset !important;
 
 /* ── Colour chips — same track, simpler ── */
 .colour-filter-row {
-  margin-top: 0.75rem;
+  margin-top: 0.25rem;
 }
 
 /* ── Filter labels — clear and readable ── */
@@ -3681,14 +3681,14 @@ object-fit: unset !important;
    COMPETITOR SECTIONS — PAGE-SPECIFIC OVERRIDES
    ============================================================ */
 
-/* Strip card chrome from comp header, add subtle background panel */
+/* Strip all card chrome — flush with page content */
 .page-sections .comp-header {
-  background: rgba(255, 255, 255, 0.06) !important;
-  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  background: transparent !important;
+  border: none !important;
   box-shadow: none !important;
-  padding: 1.25rem !important;
-  margin-bottom: 1.25rem !important;
-  border-radius: 1.25rem !important;
+  padding: 0 !important;
+  margin-bottom: 2rem !important;
+  border-radius: 0 !important;
   overflow: visible;
 }
 
@@ -3709,13 +3709,13 @@ object-fit: unset !important;
   flex: 1;
 }
 
-/* Top row text: name and labels — same visual weight */
+/* Top row text: name and labels — bigger than section headings */
 .comp-name-label {
-  font-size: 0.78rem;
-  font-weight: 700;
+  font-size: 1.1rem;
+  font-weight: 800;
   color: #a8d8f0;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.03em;
   line-height: 1;
   margin-bottom: 0.3rem;
   white-space: nowrap;
@@ -3723,13 +3723,13 @@ object-fit: unset !important;
   text-overflow: ellipsis;
 }
 
-/* Bottom row text: competitor # and stat values — big and bold */
+/* Bottom row text: competitor # and stat values — big hero numbers */
 .comp-name-value {
-  font-size: 1.6rem;
+  font-size: 2.2rem;
   font-weight: 900;
   color: #fff;
   line-height: 1.05;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.03em;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -3742,7 +3742,7 @@ object-fit: unset !important;
 
 .comp-hero-stats {
   display: flex;
-  gap: 1.25rem;
+  gap: 1.5rem;
   flex: 0 0 auto;
 }
 
@@ -3751,21 +3751,21 @@ object-fit: unset !important;
 }
 
 .comp-hero-label {
-  font-size: 0.78rem;
-  font-weight: 700;
+  font-size: 1.1rem;
+  font-weight: 800;
   color: #a8d8f0;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.03em;
   line-height: 1;
   margin-bottom: 0.3rem;
 }
 
 .comp-hero-value {
-  font-size: 1.6rem;
+  font-size: 2.2rem;
   font-weight: 900;
   color: #fff;
   line-height: 1.05;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.03em;
 }
 
 /* Filter Climbs heading — smaller than hero */
@@ -3773,13 +3773,18 @@ object-fit: unset !important;
   font-size: 1.15rem;
   font-weight: 900;
   color: var(--text);
-  margin-bottom: 0.65rem;
+  margin-bottom: 0.85rem;
 }
 
 /* Section headers subordinate to hero name */
 .page-sections .section-title {
   font-size: 1.2rem;
   font-weight: 800;
+}
+
+/* More space between map and Filtered Climbs */
+.page-sections .map-card {
+  margin-bottom: 2rem;
 }
 
 .page-sections .browser-title {
@@ -3817,16 +3822,20 @@ object-fit: unset !important;
 @media (max-width: 768px) {
   .comp-name-value,
   .comp-hero-value {
-    font-size: 1.35rem;
+    font-size: 1.8rem;
+  }
+
+  .comp-name-label,
+  .comp-hero-label {
+    font-size: 0.95rem;
   }
 
   .page-sections .comp-header {
-    padding: 1rem !important;
-    margin-bottom: 1rem !important;
+    margin-bottom: 1.5rem !important;
   }
 
   .comp-hero-stats {
-    gap: 1rem;
+    gap: 1.25rem;
   }
 
   .nav-scroll-track a {
@@ -3843,15 +3852,19 @@ object-fit: unset !important;
 @media (max-width: 520px) {
   .comp-name-value,
   .comp-hero-value {
-    font-size: 1.15rem;
+    font-size: 1.45rem;
   }
 
   .comp-name-label,
   .comp-hero-label {
-    font-size: 0.68rem;
+    font-size: 0.82rem;
   }
 
   .comp-hero-stats {
+    gap: 0.85rem;
+  }
+
+  .comp-hero-row {
     gap: 0.75rem;
   }
 }
