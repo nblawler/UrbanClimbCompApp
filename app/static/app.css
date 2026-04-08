@@ -2099,33 +2099,39 @@ code {
 .filter-controls {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: 0;
   margin-bottom: 1rem;
-  flex-wrap: wrap;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.10);
 }
 
 .filter-btn {
-  padding: 0.65rem 1.25rem;
-  border-radius: 999px;
-  border: 1px solid rgba(255,255,255,0.25);
-  background: rgba(255,255,255,0.10);
-  color: rgba(255,255,255,0.88);
-  font-size: 0.9rem;
-  font-weight: 800;
+  flex: 0 0 auto;
+  padding: 0.55rem 0.9rem 0.65rem;
+  margin-bottom: -1px;
+  border: none;
+  border-bottom: 2.5px solid transparent;
+  border-radius: 0;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.65);
+  font-size: 0.88rem;
+  font-weight: 700;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
+  -webkit-tap-highlight-color: transparent;
+  white-space: nowrap;
 }
 
 .filter-btn:hover {
-  background: rgba(255,255,255,0.18);
-  border-color: rgba(255,255,255,0.42);
+  color: rgba(255, 255, 255, 0.90);
+  background: rgba(255, 255, 255, 0.04);
 }
 
 .filter-btn.active {
-  background: rgba(168, 216, 240, 0.14);
-  color: #a8d8f0;
-  border-color: rgba(168, 216, 240, 0.45);
-  box-shadow: 0 8px 16px rgba(0,0,0,0.18);
+  color: #fff;
+  border-bottom-color: #a8d8f0;
+  font-weight: 800;
+  background: transparent;
+  box-shadow: none;
 }
 
 .overview-table td { text-align: right; }
@@ -3841,6 +3847,80 @@ object-fit: unset !important;
   box-shadow:
     0 0 0 2px rgba(93, 244, 162, 0.25),
     0 4px 12px rgba(93, 244, 162, 0.35);
+}
+
+/* ============================================================
+   PAGE-SECTIONS — STRIP CARD CHROME FROM ALL CONTENT CARDS
+   ============================================================ */
+
+/* Remove glass background/border from stats cards, form cards, etc */
+.page-sections .stats-card,
+.page-sections .card {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  border-radius: 0;
+  padding: 0;
+  margin-bottom: 2rem;
+  overflow: visible;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.page-sections .stats-card::before,
+.page-sections .card::before {
+  display: none;
+}
+
+/* Stats title — subordinate to hero */
+.page-sections .stats-title {
+  font-size: 1.25rem;
+  font-weight: 900;
+  margin-bottom: 1rem;
+}
+
+/* Heatmap section titles */
+.page-sections .heatmap-section-title {
+  font-size: 1.05rem;
+  margin: 1.25rem 0 0.75rem;
+}
+
+.page-sections .heatmap-section-title:first-child {
+  margin-top: 0;
+}
+
+/* Heatmap legend — no card, just subtle background */
+.page-sections .heatmap-legend {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+/* Table wrappers inside stripped cards */
+.page-sections .stats-table-wrapper,
+.page-sections .table-scroll {
+  border-radius: 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.10);
+}
+
+/* Climb colour badge */
+.page-sections .climb-colour-badge {
+  margin-bottom: 1.5rem;
+}
+
+/* Back button spacing */
+.page-sections .back-btn {
+  margin-bottom: 1rem;
+}
+
+/* Page title — smaller than hero values */
+.page-sections .page-title {
+  font-size: 1.4rem;
+  margin-bottom: 0.5rem;
+}
+
+/* Section spacing between cards */
+.page-sections .stats-card + .stats-card {
+  margin-top: 0.5rem;
 }
 
 @media (max-width: 768px) {

@@ -55,125 +55,28 @@
 			border-color: rgba(156, 163, 175, 0.45);
 		}
 
-		.result-overview-heading {
-			margin-bottom: 0.85rem;
-		}
-
-		.personal-result-line {
-			margin-top: 0.35rem;
-			margin-bottom: 1rem;
-			font-size: 1rem;
-		}
-
-		.personal-result-wrap {
-			display: flex;
-			flex-wrap: wrap;
-			align-items: center;
-			gap: 0.55rem;
-			margin-top: 0.35rem;
-			margin-bottom: 1rem;
-			min-width: 0;
-		}
-
-		.personal-result-name {
-			font-weight: 700;
-			overflow-wrap: anywhere;
-		}
-
-		.personal-result-attempts {
-			color: rgba(255,255,255,0.8);
-			overflow-wrap: anywhere;
-		}
-
-		.overview-section-line {
-			margin-bottom: 1rem;
-			color: rgba(255,255,255,0.7);
-			overflow-wrap: anywhere;
-		}
-
-		.overview-table {
-			width: 100%;
-			table-layout: fixed;
-		}
-
-		.overview-table th,
-		.overview-table td {
-			vertical-align: top;
-			overflow-wrap: anywhere;
-			word-break: break-word;
-		}
-
-		.overview-table th {
-			width: 68%;
-		}
-
-		.overview-table td {
-			width: 32%;
-			text-align: right;
-			font-weight: 700;
-		}
+		.result-overview-heading { margin-bottom: 0.85rem; }
+		.personal-result-line { margin-top: 0.35rem; margin-bottom: 1rem; font-size: 1rem; }
+		.personal-result-wrap { display: flex; flex-wrap: wrap; align-items: center; gap: 0.55rem; margin-top: 0.35rem; margin-bottom: 1rem; min-width: 0; }
+		.personal-result-name { font-weight: 700; overflow-wrap: anywhere; }
+		.personal-result-attempts { color: rgba(255,255,255,0.8); overflow-wrap: anywhere; }
+		.overview-section-line { margin-bottom: 1rem; color: rgba(255,255,255,0.7); overflow-wrap: anywhere; }
+		.overview-table { width: 100%; table-layout: fixed; }
+		.overview-table th, .overview-table td { vertical-align: top; overflow-wrap: anywhere; word-break: break-word; }
+		.overview-table th { width: 68%; }
+		.overview-table td { width: 32%; text-align: right; font-weight: 700; }
 
 		@media (max-width: 640px) {
-			.stats-card {
-				overflow: hidden;
-			}
-
-			.result-overview-heading {
-				font-size: 1.2rem;
-				line-height: 1.25;
-			}
-
-			.personal-result-wrap {
-				flex-direction: column;
-				align-items: flex-start;
-				gap: 0.45rem;
-			}
-
-			.personal-result-name,
-			.personal-result-attempts,
-			.overview-section-line {
-				font-size: 0.95rem;
-				line-height: 1.45;
-			}
-
-			.overview-table,
-			.overview-table tbody,
-			.overview-table tr,
-			.overview-table th,
-			.overview-table td {
-				display: block;
-				width: 100%;
-			}
-
-			.overview-table tr {
-				padding: 0.8rem 0;
-				border-bottom: 1px solid rgba(255,255,255,0.08);
-			}
-
-			.overview-table tr:last-child {
-				border-bottom: 0;
-				padding-bottom: 0;
-			}
-
-			.overview-table th {
-				margin-bottom: 0.28rem;
-				padding: 0;
-				font-size: 0.92rem;
-				line-height: 1.35;
-				font-weight: 700;
-				text-align: left;
-			}
-
-			.overview-table td {
-				padding: 0;
-				text-align: left;
-				font-size: 1rem;
-				line-height: 1.35;
-			}
-
-			.climb-status-pill {
-				margin: 0;
-			}
+			.stats-card { overflow: hidden; }
+			.result-overview-heading { font-size: 1.2rem; line-height: 1.25; }
+			.personal-result-wrap { flex-direction: column; align-items: flex-start; gap: 0.45rem; }
+			.personal-result-name, .personal-result-attempts, .overview-section-line { font-size: 0.95rem; line-height: 1.45; }
+			.overview-table, .overview-table tbody, .overview-table tr, .overview-table th, .overview-table td { display: block; width: 100%; }
+			.overview-table tr { padding: 0.8rem 0; border-bottom: 1px solid rgba(255,255,255,0.08); }
+			.overview-table tr:last-child { border-bottom: 0; padding-bottom: 0; }
+			.overview-table th { margin-bottom: 0.28rem; padding: 0; font-size: 0.92rem; line-height: 1.35; font-weight: 700; text-align: left; }
+			.overview-table td { padding: 0; text-align: left; font-size: 1rem; line-height: 1.35; }
+			.climb-status-pill { margin: 0; }
 		}
 	</style>
 </head>
@@ -181,12 +84,9 @@
 <body class="page-sections">
 	{% set viewer_id = session.get('competitor_id') %}
 	{% set comp_slug = comp_slug if comp_slug is defined else session.get('active_comp_slug') %}
-
 	{% set view_from = request.args.get('view_from', '') %}
-	{% set is_climb_context = view_from in ('climber', 'overall') %}
 
 	{% include "nav_scroll.html" %}
-
 	{% include "sidebar.html" %}
 
 	<main class="container" style="max-width:1000px;">
@@ -243,7 +143,6 @@
 					{% if personal_row %}
 						<div class="personal-result-wrap">
 							<div class="personal-result-name">{{ competitor.name }}:</div>
-
 							{% if personal_row.topped %}
 								{% if personal_row.attempts == 1 %}
 									<span class="climb-status-pill status-flashed">Flashed</span>
@@ -253,7 +152,6 @@
 							{% else %}
 								<span class="climb-status-pill status-not-topped">Not topped</span>
 							{% endif %}
-
 							<div class="personal-result-attempts">
 								{{ personal_row.attempts }} attempt{% if personal_row.attempts != 1 %}s{% endif %}
 							</div>
@@ -268,9 +166,7 @@
 				<p class="overview-section-line">
 					<strong>Section:</strong>
 					{% if sections %}
-						{% for s in sections %}
-							{{ s.name }}{% if not loop.last %}, {% endif %}
-						{% endfor %}
+						{% for s in sections %}{{ s.name }}{% if not loop.last %}, {% endif %}{% endfor %}
 					{% else %}
 						Unknown
 					{% endif %}
@@ -282,26 +178,8 @@
 						<tr><th>Total attempts</th><td>{{ total_attempts }}</td></tr>
 						<tr><th>Tops</th><td>{{ tops }}</td></tr>
 						<tr><th>Flashes</th><td>{{ flashes }}</td></tr>
-						<tr>
-							<th>Flash rate</th>
-							<td>
-								{% if num_competitors %}
-									{{ (flash_rate * 100) | round(1) }}%
-								{% else %}
-									–
-								{% endif %}
-							</td>
-						</tr>
-						<tr>
-							<th>Avg attempts per competitor</th>
-							<td>
-								{% if num_competitors %}
-									{{ avg_attempts_per_comp | round(2) }}
-								{% else %}
-									–
-								{% endif %}
-							</td>
-						</tr>
+						<tr><th>Flash rate</th><td>{% if num_competitors %}{{ (flash_rate * 100) | round(1) }}%{% else %}–{% endif %}</td></tr>
+						<tr><th>Avg attempts per competitor</th><td>{% if num_competitors %}{{ avg_attempts_per_comp | round(2) }}{% else %}–{% endif %}</td></tr>
 					</tbody>
 				</table>
 			</section>
@@ -311,7 +189,6 @@
 
 				{% if per_competitor %}
 					{% set total_rows = per_competitor|length %}
-
 					<p id="competitor-summary" style="margin-bottom: 0.75rem; font-size: 0.9rem; color: rgba(255,255,255,0.7);">
 						{{ total_rows }} competitor{% if total_rows != 1 %}s{% endif %} logged
 					</p>
@@ -324,19 +201,11 @@
 					<div class="table-scroll">
 						<table class="stats-table">
 							<thead>
-								<tr>
-									<th>Competitor</th>
-									<th>Attempts</th>
-									<th>Status</th>
-								</tr>
+								<tr><th>Competitor</th><th>Attempts</th><th>Status</th></tr>
 							</thead>
 							<tbody id="per-comp-body">
 								{% for row in per_competitor %}
-									<tr
-										class="comp-row"
-										data-topped="{{ 1 if row.topped else 0 }}"
-										data-flash="{{ 1 if row.topped and row.attempts == 1 else 0 }}"
-									>
+									<tr class="comp-row" data-topped="{{ 1 if row.topped else 0 }}" data-flash="{{ 1 if row.topped and row.attempts == 1 else 0 }}">
 										<td>{{ row.name }} (#{{ row.competitor_id }})</td>
 										<td>{{ row.attempts }}</td>
 										<td>
@@ -361,7 +230,6 @@
 						<div class="page-info" id="page-info">Page 1 of 1</div>
 						<button id="next-page-btn" type="button" class="page-btn">Next</button>
 					</div>
-
 				{% else %}
 					<p style="color: rgba(255,255,255,0.7);">
 						No competitors have logged attempts on this climb yet.
@@ -404,10 +272,8 @@
 				const filteredRows  = getFilteredRows();
 				const totalFiltered = filteredRows.length;
 				const totalPages    = Math.max(1, Math.ceil(totalFiltered / pageSize));
-
 				if (currentPage > totalPages) currentPage = totalPages;
 				if (currentPage < 1) currentPage = 1;
-
 				const startIndex = (currentPage - 1) * pageSize;
 				const endIndex   = startIndex + pageSize;
 
@@ -430,43 +296,10 @@
 				}
 			}
 
-			if (btnTopped) {
-				btnTopped.addEventListener("click", () => {
-					filterMode = (filterMode === "topped") ? "none" : "topped";
-					btnTopped.classList.toggle("active", filterMode === "topped");
-					if (btnFlashed) btnFlashed.classList.remove("active");
-					currentPage = 1;
-					applyState();
-				});
-			}
-
-			if (btnFlashed) {
-				btnFlashed.addEventListener("click", () => {
-					filterMode = (filterMode === "flashed") ? "none" : "flashed";
-					btnFlashed.classList.toggle("active", filterMode === "flashed");
-					if (btnTopped) btnTopped.classList.remove("active");
-					currentPage = 1;
-					applyState();
-				});
-			}
-
-			if (btnPrev) {
-				btnPrev.addEventListener("click", () => {
-					if (currentPage <= 1) return;
-					currentPage--;
-					applyState();
-				});
-			}
-
-			if (btnNext) {
-				btnNext.addEventListener("click", () => {
-					const totalFiltered = getFilteredRows().length;
-					const totalPages = Math.max(1, Math.ceil(totalFiltered / pageSize));
-					if (currentPage >= totalPages) return;
-					currentPage++;
-					applyState();
-				});
-			}
+			if (btnTopped) btnTopped.addEventListener("click", () => { filterMode = (filterMode === "topped") ? "none" : "topped"; btnTopped.classList.toggle("active", filterMode === "topped"); if (btnFlashed) btnFlashed.classList.remove("active"); currentPage = 1; applyState(); });
+			if (btnFlashed) btnFlashed.addEventListener("click", () => { filterMode = (filterMode === "flashed") ? "none" : "flashed"; btnFlashed.classList.toggle("active", filterMode === "flashed"); if (btnTopped) btnTopped.classList.remove("active"); currentPage = 1; applyState(); });
+			if (btnPrev) btnPrev.addEventListener("click", () => { if (currentPage <= 1) return; currentPage--; applyState(); });
+			if (btnNext) btnNext.addEventListener("click", () => { const tp = Math.max(1, Math.ceil(getFilteredRows().length / pageSize)); if (currentPage >= tp) return; currentPage++; applyState(); });
 
 			applyState();
 		})();
