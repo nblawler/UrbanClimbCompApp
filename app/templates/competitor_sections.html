@@ -41,36 +41,37 @@
 
 	<main class="container" style="max-width:1280px;">
 
-		<!-- Hero: big name + inline stats -->
+		<!-- Hero: name + stats, labels top row, values bottom row -->
 		<header class="comp-header">
-			<h1 class="comp-name">{{ competitor.name }}</h1>
-			<div class="comp-meta-row">
-				<div class="comp-pill">
-					<span class="comp-pill-label">#</span>
-					<span class="comp-pill-value">{{ competitor.id }}</span>
+			<div class="comp-hero-row">
+				<div class="comp-hero-name">
+					<div class="comp-name-label">{{ competitor.name }}</div>
+					<div class="comp-name-value">#{{ competitor.id }}</div>
 				</div>
-				<div class="comp-pill">
-					<span class="comp-pill-value" id="total-points">{{ total_points }}</span>
-					<span class="comp-pill-label">pts</span>
-				</div>
-				{% if position is not none %}
-					{% set p = position|int %}
-					{% if p % 100 in [11, 12, 13] %}
-						{% set suffix = 'th' %}
-					{% elif p % 10 == 1 %}
-						{% set suffix = 'st' %}
-					{% elif p % 10 == 2 %}
-						{% set suffix = 'nd' %}
-					{% elif p % 10 == 3 %}
-						{% set suffix = 'rd' %}
-					{% else %}
-						{% set suffix = 'th' %}
-					{% endif %}
-					<div class="comp-pill">
-						<span class="comp-pill-value">{{ p }}{{ suffix }}</span>
-						<span class="comp-pill-label">place</span>
+				<div class="comp-hero-stats">
+					<div class="comp-hero-stat">
+						<div class="comp-hero-label">Points</div>
+						<div class="comp-hero-value" id="total-points">{{ total_points }}</div>
 					</div>
-				{% endif %}
+					{% if position is not none %}
+						{% set p = position|int %}
+						{% if p % 100 in [11, 12, 13] %}
+							{% set suffix = 'th' %}
+						{% elif p % 10 == 1 %}
+							{% set suffix = 'st' %}
+						{% elif p % 10 == 2 %}
+							{% set suffix = 'nd' %}
+						{% elif p % 10 == 3 %}
+							{% set suffix = 'rd' %}
+						{% else %}
+							{% set suffix = 'th' %}
+						{% endif %}
+						<div class="comp-hero-stat">
+							<div class="comp-hero-label">Place</div>
+							<div class="comp-hero-value">{{ p }}{{ suffix }}</div>
+						</div>
+					{% endif %}
+				</div>
 			</div>
 		</header>
 

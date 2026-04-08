@@ -3686,7 +3686,7 @@ object-fit: unset !important;
   background: rgba(255, 255, 255, 0.06) !important;
   border: 1px solid rgba(255, 255, 255, 0.08) !important;
   box-shadow: none !important;
-  padding: 1.25rem 1.25rem 1rem !important;
+  padding: 1.25rem !important;
   margin-bottom: 1.25rem !important;
   border-radius: 1.25rem !important;
   overflow: visible;
@@ -3696,58 +3696,76 @@ object-fit: unset !important;
   display: none !important;
 }
 
-/* Big hero name — larger than any section heading */
-.page-sections .comp-name {
-  font-size: 2.2rem !important;
-  margin-bottom: 0.35rem !important;
-  letter-spacing: -0.03em;
-  line-height: 1.05;
-}
-
-/* Inline compact meta: #42 · 385 pts · 3rd place */
-.page-sections .comp-meta-row {
+/* Hero row: two visual rows via flex columns per item */
+.comp-hero-row {
   display: flex;
-  flex-direction: row;
-  flex-wrap: nowrap;
-  gap: 0 !important;
-  align-items: baseline;
-  margin-top: 0;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
 }
 
-.page-sections .comp-pill {
-  background: none !important;
-  border: none !important;
-  box-shadow: none !important;
-  padding: 0 !important;
-  min-width: 0 !important;
-  flex-direction: row !important;
-  align-items: baseline !important;
-  gap: 0.25rem !important;
-  flex: none !important;
-  border-radius: 0 !important;
+.comp-hero-name {
+  min-width: 0;
+  flex: 1;
 }
 
-.page-sections .comp-pill + .comp-pill::before {
-  content: "·";
-  color: rgba(255, 255, 255, 0.20);
-  margin: 0 0.6rem;
-  font-size: 0.85rem;
-  font-weight: 400;
+/* Top row text: name and labels — same visual weight */
+.comp-name-label {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #a8d8f0;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  line-height: 1;
+  margin-bottom: 0.3rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.page-sections .comp-pill-label {
-  font-size: 0.82rem !important;
-  color: rgba(255, 255, 255, 0.45) !important;
-  text-transform: none;
-  letter-spacing: 0;
-  font-weight: 600;
+/* Bottom row text: competitor # and stat values — big and bold */
+.comp-name-value {
+  font-size: 1.6rem;
+  font-weight: 900;
+  color: #fff;
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-/* Points and position values are prominent */
-.page-sections .comp-pill-value {
-  font-size: 1.05rem !important;
-  font-weight: 900 !important;
-  color: #fff !important;
+/* Hide the old h1 comp-name if still rendered */
+.page-sections .comp-name {
+  display: none !important;
+}
+
+.comp-hero-stats {
+  display: flex;
+  gap: 1.25rem;
+  flex: 0 0 auto;
+}
+
+.comp-hero-stat {
+  text-align: right;
+}
+
+.comp-hero-label {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #a8d8f0;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  line-height: 1;
+  margin-bottom: 0.3rem;
+}
+
+.comp-hero-value {
+  font-size: 1.6rem;
+  font-weight: 900;
+  color: #fff;
+  line-height: 1.05;
+  letter-spacing: -0.02em;
 }
 
 /* Filter Climbs heading — smaller than hero */
@@ -3797,13 +3815,18 @@ object-fit: unset !important;
 }
 
 @media (max-width: 768px) {
-  .page-sections .comp-name {
-    font-size: 1.85rem !important;
+  .comp-name-value,
+  .comp-hero-value {
+    font-size: 1.35rem;
   }
 
   .page-sections .comp-header {
     padding: 1rem !important;
     margin-bottom: 1rem !important;
+  }
+
+  .comp-hero-stats {
+    gap: 1rem;
   }
 
   .nav-scroll-track a {
@@ -3818,11 +3841,17 @@ object-fit: unset !important;
 }
 
 @media (max-width: 520px) {
-  .page-sections .comp-name {
-    font-size: 1.7rem !important;
+  .comp-name-value,
+  .comp-hero-value {
+    font-size: 1.15rem;
   }
 
-  .page-sections .comp-pill-value {
-    font-size: 0.95rem !important;
+  .comp-name-label,
+  .comp-hero-label {
+    font-size: 0.68rem;
+  }
+
+  .comp-hero-stats {
+    gap: 0.75rem;
   }
 }
