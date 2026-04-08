@@ -174,12 +174,10 @@
 
 				<table class="stats-table overview-table">
 					<tbody>
-						<tr><th>Competitors who logged this climb</th><td>{{ num_competitors }}</td></tr>
-						<tr><th>Total attempts</th><td>{{ total_attempts }}</td></tr>
 						<tr><th>Tops</th><td>{{ tops }}</td></tr>
 						<tr><th>Flashes</th><td>{{ flashes }}</td></tr>
 						<tr><th>Flash rate</th><td>{% if num_competitors %}{{ (flash_rate * 100) | round(1) }}%{% else %}–{% endif %}</td></tr>
-						<tr><th>Avg attempts per competitor</th><td>{% if num_competitors %}{{ avg_attempts_per_comp | round(2) }}{% else %}–{% endif %}</td></tr>
+						<tr><th>Avg attempts per competitor</th><td>{% if num_competitors %}{{ avg_attempts_per_comp | round(0) | int }}{% else %}–{% endif %}</td></tr>
 					</tbody>
 				</table>
 			</section>
@@ -189,9 +187,6 @@
 
 				{% if per_competitor %}
 					{% set total_rows = per_competitor|length %}
-					<p id="competitor-summary" style="margin-bottom: 0.75rem; font-size: 0.9rem; color: rgba(255,255,255,0.7);">
-						{{ total_rows }} competitor{% if total_rows != 1 %}s{% endif %} logged
-					</p>
 
 					<div class="filter-controls">
 						<button id="btn-topped" class="filter-btn" type="button">Only Topped</button>
@@ -201,14 +196,13 @@
 					<div class="table-scroll">
 						<table class="stats-table">
 							<thead>
-								<tr><th>Competitor</th><th>Attempts</th><th>Status</th></tr>
+								<tr><th>Competitor</th><th>Attempts</th></tr>
 							</thead>
 							<tbody id="per-comp-body">
 								{% for row in per_competitor %}
 									<tr class="comp-row" data-topped="{{ 1 if row.topped else 0 }}" data-flash="{{ 1 if row.topped and row.attempts == 1 else 0 }}">
-										<td>{{ row.name }} (#{{ row.competitor_id }})</td>
-										<td>{{ row.attempts }}</td>
 										<td>
+											{{ row.name }}
 											{% if row.topped %}
 												{% if row.attempts == 1 %}
 													<span class="climb-status-pill status-flashed">Flashed</span>
@@ -219,6 +213,7 @@
 												<span class="climb-status-pill status-not-topped">Not topped</span>
 											{% endif %}
 										</td>
+										<td>{{ row.attempts }}</td>
 									</tr>
 								{% endfor %}
 							</tbody>
