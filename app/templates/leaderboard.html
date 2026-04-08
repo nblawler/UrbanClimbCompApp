@@ -145,7 +145,7 @@
 
 			function applyTabState(key, isLoading) {
 				const cat = catByKey.get(key) || catByKey.get("all");
-				labelEl.textContent = cat.label;
+				if (labelEl) labelEl.textContent = cat.label;
 
 				[...tabsEl.querySelectorAll(".category-tab")].forEach(btn => {
 					const isActive = btn.dataset.cat === key;

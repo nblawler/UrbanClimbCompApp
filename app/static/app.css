@@ -2175,42 +2175,56 @@ code {
 
 .category-tabs {
   display: flex;
-  gap: 0.75rem;
-  flex-wrap: wrap;
+  gap: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.10);
+  margin-bottom: 1.25rem;
+}
+
+.category-tabs::-webkit-scrollbar {
+  display: none;
 }
 
 .category-tab {
-  padding: 0.75rem 1.5rem;
-  border-radius: 999px;
-  border: 1px solid rgba(255,255,255,0.25);
-  background: rgba(255,255,255,0.10);
-  color: rgba(255,255,255,0.88);
-  font-size: 0.95rem;
-  font-weight: 800;
-  transition: all 0.2s;
+  flex: 0 0 auto;
+  padding: 0.6rem 1rem 0.7rem;
+  margin-bottom: -1px;
+  border: none;
+  border-bottom: 2.5px solid transparent;
+  border-radius: 0;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.65);
+  font-size: 0.9rem;
+  font-weight: 700;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
   display: inline-flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.4rem;
   cursor: pointer;
   user-select: none;
   -webkit-tap-highlight-color: transparent;
+  white-space: nowrap;
 }
 
 .category-tab:hover {
-  background: rgba(255,255,255,0.18);
-  border-color: rgba(255,255,255,0.42);
-  transform: translateY(-1px);
+  color: rgba(255, 255, 255, 0.90);
+  background: rgba(255, 255, 255, 0.04);
+  transform: none;
 }
 
 .category-tab.active {
-  background: rgba(255,255,255,0.25);
   color: #fff;
-  border-color: rgba(255,255,255,0.60);
-  transform: translateY(-1px);
-  box-shadow: 0 10px 20px rgba(0,0,0,0.18);
+  border-bottom-color: #a8d8f0;
+  font-weight: 800;
+  background: transparent;
+  transform: none;
+  box-shadow: none;
 }
 
-.category-tab:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+.category-tab:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
 
 .loading-dot {
   display: inline-block;
@@ -2734,9 +2748,11 @@ tr.is-editing .btn-edit   { display: none; }
   }
 
   .leaderboard thead th,
-  .leaderboard tbody td { padding: 1rem 0.75rem; font-size: 0.9rem; }
-  .details-wrap { padding: 0.65rem 0.75rem 1rem 1.5rem; }
-  .expander { padding: 1rem 0.75rem; }
+  .leaderboard tbody td { padding: 0.75rem 0.5rem; font-size: 0.82rem; }
+  .leaderboard tbody td:first-child { font-size: 0.95rem; }
+  .leaderboard-wrapper { border-radius: 1rem; margin-left: -0.25rem; margin-right: -0.25rem; }
+  .details-wrap { padding: 0.65rem 0.5rem 1rem 1rem; }
+  .expander { padding: 0.75rem 0.5rem; gap: 0.5rem; }
   .team-members { grid-template-columns: 1fr; }
 
   .heatmap-grid { grid-template-columns: repeat(auto-fill, minmax(38px, 1fr)); }
@@ -2808,6 +2824,14 @@ tr.is-editing .btn-edit   { display: none; }
   #mapWrapperSections.show-marker-numbers .map-marker::before {
     font-size: clamp(3px, calc(6px / var(--marker-scale-squared)), 6px);
   }
+
+  .leaderboard thead th,
+  .leaderboard tbody td { padding: 0.6rem 0.35rem; font-size: 0.78rem; }
+  .leaderboard thead th { font-size: 0.68rem; letter-spacing: 0.03em; }
+  .leaderboard tbody td:first-child { font-size: 0.88rem; padding-left: 0.5rem; }
+  .leaderboard-wrapper { margin-left: -0.5rem; margin-right: -0.5rem; border-radius: 0.85rem; }
+
+  .category-tab { padding: 0.5rem 0.75rem 0.6rem; font-size: 0.82rem; }
 }
 
 /* ============================================================
