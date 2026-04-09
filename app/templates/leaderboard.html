@@ -6,7 +6,7 @@
 	<title>Leaderboard · Comp Circuit</title>
 	<link rel="stylesheet" href="/static/app.css" />
 </head>
-<body>
+<body class="page-sections">
 	{% set is_logged_in = session.get('account_id') %}
 	{% set viewer_id = session.get('competitor_id') %}
 	{% set is_admin = session.get('admin_ok', False) %}
@@ -32,55 +32,21 @@
 
 	{% set show_comp_nav = (not admin_only) and (comp_slug and cid_val) %}
 
-	<nav class="nav">
-		<button type="button" class="menu-toggle" onclick="openSidebar()">☰ Menu</button>
-
-		{% if not from_route_setter %}
-			{% if show_comp_nav %}
-				<a href="/comp/{{ comp_slug }}/competitor/{{ cid_val }}/sections"
-				   class="{% if nav_active == 'sections' %}active{% endif %}">
-					Scoring
-				</a>
-
-				<a href="/competitor/{{ cid_val }}/stats/my"
-				   class="{% if nav_active == 'my_stats' %}active{% endif %}">
-					My Stats
-				</a>
-			{% endif %}
-
-			<a href="/leaderboard{{ qs_str }}"
-			   class="{% if nav_active == 'leaderboard' %}active{% endif %}">
-				Leaderboard
-			</a>
-
-			{% if (not admin_only) and comp_slug %}
-				<a class="{% if nav_active == 'doubles' %}active{% endif %}"
-				   href="/comp/{{ comp_slug }}/doubles">
-					Doubles
-				</a>
-			{% endif %}
-		{% endif %}
-	</nav>
-
+	{% include "nav_scroll.html" %}
 	{% include "sidebar.html" %}
 
 	<main class="container">
-		<header class="page-header">
-			<h1 class="page-title">Leaderboard</h1>
-			<p class="page-subtitle">
-				Category: <span id="category-label">{{ category if category is defined and category else 'All' }}</span>
-				<span style="opacity:.55; font-weight:700;"> · </span>
-				<span style="opacity:.75;">Score = top 8 climbs</span>
-			</p>
+		{% if not admin_only and competitor %}
+			{% include "comp_hero.html" %}
+		{% endif %}
 
-			<div class="category-tabs" id="category-tabs">
-				<button type="button" class="category-tab" data-cat="all">All</button>
-				<button type="button" class="category-tab" data-cat="male">Male</button>
-				<button type="button" class="category-tab" data-cat="female">Female</button>
-				<button type="button" class="category-tab" data-cat="inclusive">Inclusive</button>
-				<button type="button" class="category-tab" data-cat="doubles">Doubles</button>
-			</div>
-		</header>
+		<div class="category-tabs" id="category-tabs">
+			<button type="button" class="category-tab" data-cat="all">All</button>
+			<button type="button" class="category-tab" data-cat="male">Male</button>
+			<button type="button" class="category-tab" data-cat="female">Female</button>
+			<button type="button" class="category-tab" data-cat="inclusive">Inclusive</button>
+			<button type="button" class="category-tab" data-cat="doubles">Doubles</button>
+		</div>
 
 		<div class="leaderboard-wrapper" id="lb-wrap">
 			<table class="leaderboard singles" id="leaderboard-table">
@@ -178,7 +144,7 @@
 
 			function applyTabState(key, isLoading) {
 				const cat = catByKey.get(key) || catByKey.get("all");
-				labelEl.textContent = cat.label;
+				if (labelEl) labelEl.textContent = cat.label;
 
 				[...tabsEl.querySelectorAll(".category-tab")].forEach(btn => {
 					const isActive = btn.dataset.cat === key;

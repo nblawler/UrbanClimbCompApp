@@ -4,6 +4,7 @@ from app.models import Competitor, Score, Section, SectionClimb
 from app.helpers.leaderboard import build_leaderboard
 from app.helpers.scoring import points_for, competitor_total_points
 from app.helpers.competition import get_current_comp, get_viewer_comp, comp_is_live
+from app.routes.scores import _load_competitor_hero
 
 
 climbs_bp = Blueprint("climbs", __name__)
@@ -32,19 +33,7 @@ def climb_stats(climb_number):
     from_climber = (request.args.get("from_climber", "0") == "1")
 
     cid_raw = request.args.get("cid", "").strip()
-    competitor = None
-    total_points = None
-    position = None
-
-    if cid_raw.isdigit():
-        competitor = Competitor.query.get(int(cid_raw))
-        if competitor:
-            total_points = competitor_total_points(competitor.id, comp.id)
-            rows, _ = build_leaderboard(None, competition_id=comp.id)
-            for r in rows:
-                if r["competitor_id"] == competitor.id:
-                    position = r["position"]
-                    break
+    competitor, total_points, position = _load_competitor_hero(cid_raw, comp.id)
 
     comp_sections = Section.query.filter(Section.competition_id == comp.id).all()
     section_ids_for_comp = {s.id for s in comp_sections}

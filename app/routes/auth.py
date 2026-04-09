@@ -34,6 +34,7 @@ def signup():
 
     slug = (request.args.get("slug") or "").strip()
     current_comp = Competition.query.filter_by(slug=slug).first() if slug else None
+    
     if slug and not current_comp:
         slug = ""
         current_comp = None

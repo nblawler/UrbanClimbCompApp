@@ -66,14 +66,14 @@ git clone https://github.com/nblawler/UrbanClimbCompApp.git
 
 SETUP
 
-1. Clone Git
-   git clone https://github.com/nblawler/UrbanClimbCompApp.git
-2. Setup Environment
-   python3 -m venv .venv
-   source .venv/bin/activate
+1. Clone Git  
+   git clone https://github.com/nblawler/UrbanClimbCompApp.git  
+2. Setup Environment  
+   python3 -m venv .venv  
+   source .venv/bin/activate  
 
-3. Install Dependencies
-   pip install -r requirements.txt
+3. Install Dependencies  
+   pip install -r requirements.txt  
 
 For Local Development
 
