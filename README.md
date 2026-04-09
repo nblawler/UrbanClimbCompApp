@@ -15,6 +15,7 @@ Comp Circuit fixes that.
 
 Instead of paper scorecards and manual rankings, competitors can log climbs quickly and easily while organisers get instant results and insights.
 
+<<<<<<< HEAD
 ## Screenshots
 
 | Leaderboard | Scoring |
@@ -25,6 +26,15 @@ Instead of paper scorecards and manual rankings, competitors can log climbs quic
 |---------|------|
 | ![Map](docs/images/map.png) | ![Stats](docs/images/stats.png) |
 
+=======
+## Competitor View Demo
+
+![Competitor View Demo](Docs/Images/competitor_view_demo.gif)
+
+## Admin Map Setup
+
+![Admin Map Setup Demo](Docs/Images/admin_map_setup.gif)
+>>>>>>> origin/main
 
 ### Live Competition Scoring
 
@@ -56,9 +66,15 @@ Instead of paper scorecards and manual rankings, competitors can log climbs quic
 
 ##  Tech Stack
 
+<<<<<<< HEAD
 Backend:       Python (Flask) 
 Database:     PostgreSQL 
 Frontend:      HTML, CSS, JavaScript 
+=======
+Backend:       Python (Flask)  
+Database:     PostgreSQL  
+Frontend:      HTML, CSS, JavaScript   
+>>>>>>> origin/main
 
 ## Local Setup
 
@@ -66,14 +82,14 @@ git clone https://github.com/nblawler/UrbanClimbCompApp.git
 
 SETUP
 
-1. Clone Git
-   git clone https://github.com/nblawler/UrbanClimbCompApp.git
-2. Setup Environment
-   python3 -m venv .venv
-   source .venv/bin/activate
+1. Clone Git  
+   git clone https://github.com/nblawler/UrbanClimbCompApp.git  
+2. Setup Environment  
+   python3 -m venv .venv  
+   source .venv/bin/activate  
 
-3. Install Dependencies
-   pip install -r requirements.txt
+3. Install Dependencies  
+   pip install -r requirements.txt  
 
 For Local Development
 

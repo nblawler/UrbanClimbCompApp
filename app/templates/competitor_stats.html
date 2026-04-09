@@ -15,7 +15,6 @@
 	</title>
 	<link rel="stylesheet" href="/static/app.css" />
 	<style>
-		/* Page-specific status colour overrides so the legend matches the clickable climb cells */
 		.heat-cell.status-flashed,
 		.legend-box.status-flashed {
 			background: linear-gradient(135deg, #0ea5e9 0%, #2563eb 100%);
@@ -47,49 +46,11 @@
 		}
 	</style>
 </head>
-<body>
+<body class="page-sections">
 	{% set viewer_id = viewer_id if viewer_id is defined else session.get('competitor_id') %}
 	{% set comp_slug = comp_slug if comp_slug is defined else session.get('active_comp_slug') %}
-	{% set show_comp_nav = (viewer_id and comp_slug) %}
 
-	<nav class="nav">
-		<button type="button" class="menu-toggle" onclick="openSidebar()">☰ Menu</button>
-
-		{% if show_comp_nav %}
-			<a href="/comp/{{ comp_slug }}/competitor/{{ viewer_id }}/sections"
-			   class="{% if nav_active == 'sections' %}active{% endif %}">
-				Scoring
-			</a>
-
-			<a href="/competitor/{{ viewer_id }}/stats/my"
-			   class="{% if nav_active == 'my_stats' %}active{% endif %}">
-				My Stats
-			</a>
-
-			{% if mode == "climber" %}
-				<a href="/competitor/{{ competitor.id }}/stats/climber"
-				   class="{% if nav_active == 'climber_stats' %}active{% endif %}">
-					Climber Stats
-				</a>
-			{% endif %}
-
-			<a href="/leaderboard?cid={{ viewer_id }}"
-			   class="{% if nav_active == 'leaderboard' %}active{% endif %}">
-				Leaderboard
-			</a>
-
-			<a href="/comp/{{ comp_slug }}/doubles"
-			   class="{% if nav_active == 'doubles' %}active{% endif %}">
-				Doubles
-			</a>
-		{% else %}
-			<a href="/leaderboard"
-			   class="{% if nav_active == 'leaderboard' %}active{% endif %}">
-				Leaderboard
-			</a>
-		{% endif %}
-	</nav>
-
+	{% include "nav_scroll.html" %}
 	{% include "sidebar.html" %}
 
 	<main class="container">
@@ -98,28 +59,7 @@
 		{% endif %}
 
 		{% if mode in ("my", "climber") %}
-			<header class="comp-header">
-				<h1 class="comp-name">{{ competitor.name }}</h1>
-
-				<div class="comp-meta-row">
-					<div class="comp-pill">
-						<span class="comp-pill-label">Competitor</span>
-						<span class="comp-pill-value">{{ competitor.id }}</span>
-					</div>
-
-					<div class="comp-pill">
-						<span class="comp-pill-label">Points</span>
-						<span class="comp-pill-value">{{ total_points }}</span>
-					</div>
-
-					{% if position is defined and position is not none %}
-						<div class="comp-pill">
-							<span class="comp-pill-label">Position</span>
-							<span class="comp-pill-value">{{ position }}</span>
-						</div>
-					{% endif %}
-				</div>
-			</header>
+			{% include "comp_hero.html" %}
 		{% endif %}
 
 		{% if mode in ("my", "climber") %}

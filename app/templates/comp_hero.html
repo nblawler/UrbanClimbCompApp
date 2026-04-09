@@ -1,0 +1,37 @@
+<!-- comp_hero.html — Competitor name + points + place hero row -->
+{% if competitor is defined and competitor %}
+<header class="comp-header">
+	<div class="comp-hero-row">
+		<div class="comp-hero-name">
+			<div class="comp-name-label">{{ competitor.name }}</div>
+			<div class="comp-name-value">#{{ competitor.id }}</div>
+		</div>
+		<div class="comp-hero-stats">
+			{% if total_points is defined %}
+				<div class="comp-hero-stat">
+					<div class="comp-hero-label">Points</div>
+					<div class="comp-hero-value" id="total-points">{{ total_points }}</div>
+				</div>
+			{% endif %}
+			{% if position is defined and position is not none %}
+				{% set p = position|int %}
+				{% if p % 100 in [11, 12, 13] %}
+					{% set suffix = 'th' %}
+				{% elif p % 10 == 1 %}
+					{% set suffix = 'st' %}
+				{% elif p % 10 == 2 %}
+					{% set suffix = 'nd' %}
+				{% elif p % 10 == 3 %}
+					{% set suffix = 'rd' %}
+				{% else %}
+					{% set suffix = 'th' %}
+				{% endif %}
+				<div class="comp-hero-stat">
+					<div class="comp-hero-label">Place</div>
+					<div class="comp-hero-value">{{ p }}{{ suffix }}</div>
+				</div>
+			{% endif %}
+		</div>
+	</div>
+</header>
+{% endif %}

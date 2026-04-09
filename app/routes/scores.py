@@ -80,6 +80,58 @@ def _category_label(category):
         return "Doubles"
     return category.title()
 
+# Add this function near the top of your scores route file (after imports),
+# or put it in a helpers file and import it.
+
+def _load_competitor_hero(cid_raw, competition_id):
+    """
+    Load competitor, total_points, and position for the hero section.
+    Returns (competitor, total_points, position) — all None-safe.
+    """
+    from app.models import Competitor, Leaderboard
+
+    competitor = None
+    total_points = None
+    position = None
+
+    cid = None
+    if cid_raw:
+        try:
+            cid = int(cid_raw)
+        except (TypeError, ValueError):
+            pass
+
+    if not cid:
+        return None, None, None
+
+    competitor = Competitor.query.get(cid)
+    if not competitor or competitor.competition_id != competition_id:
+        return None, None, None
+
+    lb_row = Leaderboard.query.filter_by(
+        competitor_id=cid,
+        competition_id=competition_id,
+    ).first()
+
+    total_points = lb_row.total_points if lb_row else 0
+
+    if lb_row:
+        position = (
+            Leaderboard.query
+            .filter(
+                Leaderboard.competition_id == competition_id,
+                db.or_(
+                    Leaderboard.total_points > lb_row.total_points,
+                    db.and_(
+                        Leaderboard.total_points == lb_row.total_points,
+                        Leaderboard.attempts_on_tops < lb_row.attempts_on_tops,
+                    ),
+                ),
+            )
+            .count()
+        ) + 1
+
+    return competitor, total_points, position
 
 def build_final_results_rows_all(comp):
     """
@@ -457,27 +509,38 @@ def api_save_score():
 @scores_bp.route("/api/score/<int:competitor_id>")
 def api_get_scores(competitor_id):
     competitor = Competitor.query.get_or_404(competitor_id)
+    comp_id = competitor.competition_id
 
-    scores = (
-        Score.query.filter_by(competitor_id=competitor_id)
-        .order_by(Score.climb_number.asc(), Score.section_climb_id.asc())
+    rows = (
+        db.session.query(
+            Score.climb_number,
+            Score.section_climb_id,
+            Score.attempts,
+            Score.topped,
+            Score.flashed,
+            SectionClimb.base_points,
+        )
+        .join(SectionClimb, SectionClimb.id == Score.section_climb_id)
+        .join(Section, Section.id == SectionClimb.section_id)
+        .filter(
+            Score.competitor_id == competitor_id,
+            Section.competition_id == comp_id,
+        )
+        .order_by(Score.climb_number.asc())
         .all()
     )
 
-    comp_id = competitor.competition_id
-
     out = []
-    for s in scores:
-        out.append(
-            {
-                "climb_number": s.climb_number,
-                "section_climb_id": s.section_climb_id,
-                "attempts": s.attempts,
-                "topped": s.topped,
-                "flashed": getattr(s, "flashed", False),
-                "points": points_for(s.climb_number, s.attempts, s.topped, comp_id),
-            }
-        )
+    for r in rows:
+        pts = int(r.base_points or 0) if r.topped else 0
+        out.append({
+            "climb_number": r.climb_number,
+            "section_climb_id": r.section_climb_id,
+            "attempts": r.attempts,
+            "topped": r.topped,
+            "flashed": r.flashed or False,
+            "points": pts,
+        })
 
     return jsonify(out)
 
@@ -536,11 +599,15 @@ def _paginate(rows, page, per_page):
     return rows[start:end], page, per_page, total, total_pages
 
 
+# ============================================================
+# Replace your existing leaderboard_all and leaderboard_by_category
+# with these two functions.
+#
+# Changes marked with # ← NEW
+# ============================================================
+
 @scores_bp.route("/leaderboard")
 def leaderboard_all():
-    cid_raw = (request.args.get("cid") or "").strip()
-    competitor = Competitor.query.get(int(cid_raw)) if cid_raw.isdigit() else None  # noqa: F841
-
     comp = get_viewer_comp()
 
     if not comp:
@@ -551,8 +618,12 @@ def leaderboard_all():
 
     if not comp_is_live(comp) and not is_admin:
         session.pop("active_comp_slug", None)
-        flash("That competition isn’t live right now — leaderboard is unavailable.", "warning")
+        flash("That competition isn't live right now — leaderboard is unavailable.", "warning")
         return redirect("/my-comps")
+
+    # ← NEW: load competitor hero data
+    cid_raw = (request.args.get("cid") or str(session.get("competitor_id") or "")).strip()
+    competitor, total_points, position = _load_competitor_hero(cid_raw, comp.id)
 
     page = request.args.get("page", 1, type=int)
     per_page = DEFAULT_LB_PER_PAGE
@@ -567,6 +638,9 @@ def leaderboard_all():
         leaderboard=page_rows,
         category=category_label,
         current_competitor_id=session.get("competitor_id"),
+        competitor=competitor,       
+        total_points=total_points,      
+        position=position,              
         nav_active="leaderboard",
         comp=comp,
         comp_slug=comp.slug,
@@ -579,9 +653,6 @@ def leaderboard_all():
 
 @scores_bp.route("/leaderboard/<category>")
 def leaderboard_by_category(category):
-    cid_raw = (request.args.get("cid") or "").strip()
-    competitor = Competitor.query.get(int(cid_raw)) if cid_raw.isdigit() else None  # noqa: F841
-
     comp = get_viewer_comp()
 
     if not comp:
@@ -592,8 +663,12 @@ def leaderboard_by_category(category):
 
     if not comp_is_live(comp) and not is_admin:
         session.pop("active_comp_slug", None)
-        flash("That competition isn’t live right now — leaderboard is unavailable.", "warning")
+        flash("That competition isn't live right now — leaderboard is unavailable.", "warning")
         return redirect("/my-comps")
+
+    # ← NEW: load competitor hero data
+    cid_raw = (request.args.get("cid") or str(session.get("competitor_id") or "")).strip()
+    competitor, total_points, position = _load_competitor_hero(cid_raw, comp.id)
 
     page = request.args.get("page", 1, type=int)
     per_page = DEFAULT_LB_PER_PAGE
@@ -608,6 +683,9 @@ def leaderboard_by_category(category):
         leaderboard=page_rows,
         category=category_label,
         current_competitor_id=session.get("competitor_id"),
+        competitor=competitor,          
+        total_points=total_points,     
+        position=position,             
         nav_active="leaderboard",
         comp=comp,
         comp_slug=comp.slug,
