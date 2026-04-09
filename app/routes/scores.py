@@ -509,27 +509,38 @@ def api_save_score():
 @scores_bp.route("/api/score/<int:competitor_id>")
 def api_get_scores(competitor_id):
     competitor = Competitor.query.get_or_404(competitor_id)
+    comp_id = competitor.competition_id
 
-    scores = (
-        Score.query.filter_by(competitor_id=competitor_id)
-        .order_by(Score.climb_number.asc(), Score.section_climb_id.asc())
+    rows = (
+        db.session.query(
+            Score.climb_number,
+            Score.section_climb_id,
+            Score.attempts,
+            Score.topped,
+            Score.flashed,
+            SectionClimb.base_points,
+        )
+        .join(SectionClimb, SectionClimb.id == Score.section_climb_id)
+        .join(Section, Section.id == SectionClimb.section_id)
+        .filter(
+            Score.competitor_id == competitor_id,
+            Section.competition_id == comp_id,
+        )
+        .order_by(Score.climb_number.asc())
         .all()
     )
 
-    comp_id = competitor.competition_id
-
     out = []
-    for s in scores:
-        out.append(
-            {
-                "climb_number": s.climb_number,
-                "section_climb_id": s.section_climb_id,
-                "attempts": s.attempts,
-                "topped": s.topped,
-                "flashed": getattr(s, "flashed", False),
-                "points": points_for(s.climb_number, s.attempts, s.topped, comp_id),
-            }
-        )
+    for r in rows:
+        pts = int(r.base_points or 0) if r.topped else 0
+        out.append({
+            "climb_number": r.climb_number,
+            "section_climb_id": r.section_climb_id,
+            "attempts": r.attempts,
+            "topped": r.topped,
+            "flashed": r.flashed or False,
+            "points": pts,
+        })
 
     return jsonify(out)
 
