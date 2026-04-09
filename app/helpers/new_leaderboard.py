@@ -1,6 +1,6 @@
 from app.extensions import db
 from app.models import Competitor, Score, Section, SectionClimb, Leaderboard
-
+from app.helpers.scoring import points_for
 
 def normalize_leaderboard_category(category):
     """
@@ -113,3 +113,84 @@ def refresh_leaderboard_row(competitor_id: int, competition_id: int, top_n: int)
     leaderboard_row.attempts_on_tops = attempts_on_tops
     leaderboard_row.tops = tops
     leaderboard_row.last_update = last_update
+    
+def attach_top_climbs_to_rows(competition_id, rows, limit=8):
+    """
+    Attach top_climbs to already-paginated singles leaderboard rows
+    using one batched query for all visible competitors.
+    """
+    if not competition_id or not rows:
+        return rows
+
+    competitor_ids = [
+        row.get("competitor_id")
+        for row in rows
+        if row.get("competitor_id")
+    ]
+
+    if not competitor_ids:
+        return rows
+
+    score_rows = (
+        db.session.query(
+            Score.competitor_id,
+            Score.climb_number,
+            Score.section_climb_id,
+            Score.attempts,
+            Score.topped,
+            Score.flashed,
+            Section.name.label("section_name"),
+        )
+        .join(SectionClimb, SectionClimb.id == Score.section_climb_id)
+        .join(Section, Section.id == SectionClimb.section_id)
+        .filter(
+            Score.competitor_id.in_(competitor_ids),
+            Section.competition_id == competition_id,
+            Score.topped == True,
+        )
+        .all()
+    )
+
+    climbs_by_competitor = {}
+
+    for score_row in score_rows:
+        competitor_id = score_row.competitor_id
+        climb_number = int(score_row.climb_number or 0)
+        attempts = int(score_row.attempts or 0)
+
+        score_value = int(
+            points_for(climb_number, attempts, True, competition_id) or 0
+        )
+
+        label = (
+            f"{score_row.section_name} Climb #{climb_number}"
+            if score_row.section_name
+            else f"Climb {climb_number}"
+        )
+
+        climb_info = {
+            "climb_number": climb_number,
+            "section_climb_id": score_row.section_climb_id,
+            "attempts": attempts,
+            "score": score_value,
+            "label": label,
+            "flashed": bool(score_row.flashed),
+        }
+
+        climbs_by_competitor.setdefault(competitor_id, []).append(climb_info)
+
+    for competitor_id, climbs in climbs_by_competitor.items():
+        climbs.sort(
+            key=lambda climb: (
+                -int(climb["score"] or 0),
+                int(climb["attempts"] or 0),
+                int(climb["climb_number"] or 0),
+            )
+        )
+        climbs_by_competitor[competitor_id] = climbs[:limit]
+
+    for row in rows:
+        competitor_id = row.get("competitor_id")
+        row["top_climbs"] = climbs_by_competitor.get(competitor_id, [])
+
+    return rows

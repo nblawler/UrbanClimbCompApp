@@ -27,7 +27,7 @@ from app.helpers.leaderboard import (
 )
 from app.helpers.scoring import points_for
 from app.helpers.leaderboard_cache import invalidate_leaderboard_cache
-from app.helpers.new_leaderboard import refresh_leaderboard_row
+from app.helpers.new_leaderboard import refresh_leaderboard_row, attach_top_climbs_to_rows
 
 scores_bp = Blueprint("scores", __name__)
 
@@ -785,6 +785,13 @@ def api_leaderboard():
 
     rows, category_label = build_leaderboard(cat, competition_id=comp.id)
     page_rows, page, per_page, total, total_pages = _paginate(rows, page, per_page)
+    
+    if cat != "doubles":
+        page_rows = attach_top_climbs_to_rows(
+        competition_id=comp.id,
+        rows=page_rows,
+        limit=8,
+    )
 
     resp = make_response(jsonify({
         "category": category_label,

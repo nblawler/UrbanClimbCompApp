@@ -1,4 +1,3 @@
-<!-- leaderboard.html -->
 <!doctype html>
 <html lang="en">
 <head>
@@ -33,6 +32,41 @@
 
 	{% set show_comp_nav = (not admin_only) and (comp_slug and cid_val) %}
 
+<<<<<<< HEAD
+<<<<<<< HEAD
+	<nav class="nav">
+		<button type="button" class="menu-toggle" onclick="openSidebar()">☰ Menu</button>
+
+		{% if not from_route_setter %}
+			{% if show_comp_nav %}
+				<a href="/comp/{{ comp_slug }}/competitor/{{ cid_val }}/sections"
+				   class="{% if nav_active == 'sections' %}active{% endif %}">
+					Scoring
+				</a>
+
+				<a href="/competitor/{{ cid_val }}/stats/my"
+				   class="{% if nav_active == 'my_stats' %}active{% endif %}">
+					My Stats
+				</a>
+			{% endif %}
+
+			<a href="/leaderboard{{ qs_str }}"
+			   class="{% if nav_active == 'leaderboard' %}active{% endif %}">
+				Leaderboard
+			</a>
+
+			{% if (not admin_only) and comp_slug %}
+				<a class="{% if nav_active == 'doubles' %}active{% endif %}"
+				   href="/comp/{{ comp_slug }}/doubles">
+					Doubles
+				</a>
+			{% endif %}
+		{% endif %}
+	</nav>
+
+=======
+	{% include "nav_scroll.html" %}
+>>>>>>> origin/main
 	{% include "nav_scroll.html" %}
 	{% include "sidebar.html" %}
 
@@ -177,15 +211,33 @@
 				bodyEl.innerHTML = `<tr><td colspan="${cat.isDoubles ? 4 : 5}" style="opacity:.75;">Loading…</td></tr>`;
 			}
 
-			function detailsRowHtmlSingle(cid) {
+			function renderClimbRows(climbs) {
+				return climbs.map(c => `<tr><td>${escapeHtml(c.label)}</td><td>${escapeHtml(c.attempts)}</td><td>${escapeHtml(c.score)}</td></tr>`).join("");
+			}
+
+			function detailsRowHtmlSingle(cid, topClimbs) {
+				const climbs = Array.isArray(topClimbs) ? topClimbs : [];
+
+				if (!climbs.length) {
+					return `<tr class="lb-details" data-cid="${cid}" hidden>
+						<td colspan="5">
+							<div class="details-wrap">
+								<div class="details-loading">No climbs found</div>
+							</div>
+						</td>
+					</tr>`;
+				}
+
 				return `<tr class="lb-details" data-cid="${cid}" hidden>
-					<td colspan="5"><div class="details-wrap">
-						<div class="details-loading">Loading…</div>
-						<table class="details-table" hidden>
-							<thead><tr><th>Climb</th><th>Attempts</th><th>Score</th></tr></thead>
-							<tbody></tbody>
-						</table>
-					</div></td></tr>`;
+					<td colspan="5">
+						<div class="details-wrap">
+							<table class="details-table">
+								<thead><tr><th>Climb</th><th>Attempts</th><th>Score</th></tr></thead>
+								<tbody>${renderClimbRows(climbs)}</tbody>
+							</table>
+						</div>
+					</td>
+				</tr>`;
 			}
 
 			function detailsRowHtmlTeam(teamKey, aId, bId, aName, bName) {
@@ -277,7 +329,7 @@
 						<td>${escapeHtml(r.attempts_on_tops)}</td>
 						<td>${escapeHtml(r.total_points)}</td>
 					</tr>
-					${detailsRowHtmlSingle(escapeHtml(cid))}`;
+					${detailsRowHtmlSingle(escapeHtml(cid), r.top_climbs || [])}`;
 				}).join("");
 			}
 
@@ -330,10 +382,6 @@
 				});
 			}
 
-			function renderClimbRows(climbs) {
-				return climbs.map(c => `<tr><td>${escapeHtml(c.label)}</td><td>${escapeHtml(c.attempts)}</td><td>${escapeHtml(c.score)}</td></tr>`).join("");
-			}
-
 			async function fetchCompetitorDetails(cid) {
 				const base = `/api/leaderboard/details?competitor_id=${encodeURIComponent(cid)}`;
 				const url = FROM_ROUTE_SETTER ? `${base}&from=route_setter` : base;
@@ -344,39 +392,6 @@
 				});
 				if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
 				return resp.json();
-			}
-
-			async function loadSingleDetails(cid) {
-				const detailsRow = document.querySelector(`.lb-details[data-cid="${CSS.escape(String(cid))}"]`);
-				if (!detailsRow || detailsRow.dataset.loaded === "1") return;
-
-				const loading = detailsRow.querySelector(".details-loading");
-				const table = detailsRow.querySelector(".details-table");
-				const tbody = detailsRow.querySelector("tbody");
-
-				loading.textContent = "Loading…";
-				loading.hidden = false;
-				table.hidden = true;
-				tbody.innerHTML = "";
-
-				try {
-					const data = await fetchCompetitorDetails(cid);
-					if (!data.ok) {
-						loading.textContent = data.error || "Could not load details";
-						return;
-					}
-					const climbs = data.climbs || [];
-					if (!climbs.length) {
-						loading.textContent = "No climbs found";
-						return;
-					}
-					tbody.innerHTML = renderClimbRows(climbs);
-					loading.hidden = true;
-					table.hidden = false;
-					detailsRow.dataset.loaded = "1";
-				} catch (e) {
-					loading.textContent = "Error loading details";
-				}
 			}
 
 			async function loadTeamDetails(teamKey, aId, bId) {
@@ -454,7 +469,6 @@
 				detailsRow.hidden = false;
 				btn.classList.add("open");
 				btn.setAttribute("aria-expanded", "true");
-				loadSingleDetails(cid);
 			}
 
 			function toggleTeamDetails(teamKey, aId, bId) {

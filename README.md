@@ -23,6 +23,16 @@ Instead of paper scorecards and manual rankings, competitors can log climbs quic
 
 ![Admin Map Setup Demo](Docs/Images/admin_map_setup.gif)
 
+## Screenshots
+
+| Leaderboard | Scoring |
+|------------|--------|
+| ![Leaderboard](docs/images/leaderboard.png) | ![Scoring](docs/images/scoring.png) |
+
+| Map View | Stats |
+|---------|------|
+| ![Map](docs/images/map.png) | ![Stats](docs/images/stats.png) |
+
 ### Live Competition Scoring
 
 - Log climbs instantly from your phone  
@@ -51,11 +61,11 @@ Instead of paper scorecards and manual rankings, competitors can log climbs quic
 - Edit climbs and sections  
 - Control scoring behaviour  
 
-##  Tech Stack
+## Tech Stack
 
-Backend:       Python (Flask)  
-Database:     PostgreSQL  
-Frontend:      HTML, CSS, JavaScript   
+Backend: Python (Flask)  
+Database: PostgreSQL  
+Frontend: HTML, CSS, JavaScript  
 
 ## Local Setup
 
@@ -65,6 +75,7 @@ SETUP
 
 1. Clone Git  
    git clone https://github.com/nblawler/UrbanClimbCompApp.git  
+
 2. Setup Environment  
    python3 -m venv .venv  
    source .venv/bin/activate  
