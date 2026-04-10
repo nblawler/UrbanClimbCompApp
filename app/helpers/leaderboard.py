@@ -217,3 +217,29 @@ def build_doubles_rows(_singles_rows, competition_id: int):
         })
 
     return doubles_rows
+
+def get_competitor_position(competitor_id: int, competition_id: int):
+    """
+    Return the leaderboard position for a single competitor.
+    Uses a COUNT query instead of fetching all rows.
+    """
+    lb_row = Leaderboard.query.filter_by(
+        competitor_id=competitor_id,
+        competition_id=competition_id,
+    ).first()
+
+    if not lb_row:
+        return None
+
+    above = Leaderboard.query.filter(
+        Leaderboard.competition_id == competition_id,
+        db.or_(
+            Leaderboard.total_points > lb_row.total_points,
+            db.and_(
+                Leaderboard.total_points == lb_row.total_points,
+                Leaderboard.attempts_on_tops < lb_row.attempts_on_tops,
+            )
+        )
+    ).count()
+
+    return above + 1
