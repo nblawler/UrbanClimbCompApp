@@ -27,7 +27,7 @@ from app.helpers.leaderboard import (
 )
 from app.helpers.scoring import points_for
 from app.helpers.leaderboard_cache import invalidate_leaderboard_cache
-from app.helpers.new_leaderboard import refresh_leaderboard_row
+from app.helpers.new_leaderboard import refresh_leaderboard_row, refresh_doubles_leaderboard_row
 
 scores_bp = Blueprint("scores", __name__)
 
@@ -80,14 +80,8 @@ def _category_label(category):
         return "Doubles"
     return category.title()
 
-# Add this function near the top of your scores route file (after imports),
-# or put it in a helpers file and import it.
 
 def _load_competitor_hero(cid_raw, competition_id):
-    """
-    Load competitor, total_points, and position for the hero section.
-    Returns (competitor, total_points, position) — all None-safe.
-    """
     from app.models import Competitor, Leaderboard
 
     competitor = None
@@ -133,16 +127,8 @@ def _load_competitor_hero(cid_raw, competition_id):
 
     return competitor, total_points, position
 
-def build_final_results_rows_all(comp):
-    """
-    This is the WORKING score calculation logic:
 
-    - topped climbs only
-    - fixed base_points from section_climb
-    - no attempt penalty in score
-    - top 8 topped climbs summed
-    - tie-break by lowest attempts on those top 8
-    """
+def build_final_results_rows_all(comp):
     TOP_N = 8
 
     competitors = (
@@ -255,35 +241,47 @@ def build_final_results_csv_rows_for_category(comp, category):
 
 
 def build_export_rows_from_leaderboard(comp, category):
-    """
-    Use the existing build_leaderboard helper for export.
+    result, category_label = build_leaderboard(category, competition_id=comp.id)
 
-    This is especially useful for doubles, since doubles logic already lives there.
-    """
-    rows, category_label = build_leaderboard(category, competition_id=comp.id)
-    rows = rows or []
-    total_competitors = len(rows)
+    # Doubles returns a list of dicts already
+    if category == "doubles":
+        rows = result or []
+        total_competitors = len(rows)
+        return [
+            {
+                "category":          category_label,
+                "position":          row.get("position", ""),
+                "total_competitors": total_competitors,
+                "team_name":         row.get("name", ""),
+                "score":             row.get("total_points", 0),
+            }
+            for row in rows
+        ]
+
+    # Singles returns a query — execute it and build row dicts
+    all_records = result.all() if result is not None else []
+    total_competitors = len(all_records)
 
     output_rows = []
+    current_position = 0
+    previous_rank_values = None
 
-    if category == "doubles":
-        for row in rows:
-            output_rows.append({
-                "category": category_label,
-                "position": row.get("position", ""),
-                "total_competitors": total_competitors,
-                "team_name": row.get("name", ""),
-                "score": row.get("total_points", 0),
-            })
-    else:
-        for row in rows:
-            output_rows.append({
-                "category": category_label,
-                "position": row.get("position", ""),
-                "total_competitors": total_competitors,
-                "competitor_name": row.get("name", ""),
-                "score": row.get("total_points", 0),
-            })
+    for leaderboard_record, competitor in all_records:
+        total_points = int(leaderboard_record.total_points or 0)
+        attempts_on_tops = int(leaderboard_record.attempts_on_tops or 0)
+
+        current_rank_values = (total_points, attempts_on_tops)
+        if current_rank_values != previous_rank_values:
+            current_position += 1
+        previous_rank_values = current_rank_values
+
+        output_rows.append({
+            "category":          category_label,
+            "position":          current_position,
+            "total_competitors": total_competitors,
+            "competitor_name":   competitor.name,
+            "score":             total_points,
+        })
 
     return output_rows
 
@@ -316,6 +314,31 @@ def _rows_to_csv_string(rows, category="singles"):
     csv_data = buffer.getvalue()
     buffer.close()
     return csv_data
+
+
+def _paginate(query, page, per_page):
+    page = page if isinstance(page, int) and page > 0 else 1
+    per_page = per_page if isinstance(per_page, int) and per_page > 0 else DEFAULT_LB_PER_PAGE
+
+    total = query.count()
+    total_pages = max(1, (total + per_page - 1) // per_page)
+    if page > total_pages:
+        page = total_pages
+
+    rows = query.offset((page - 1) * per_page).limit(per_page).all()
+    return rows, page, per_page, total, total_pages
+
+
+def _paginate_list(rows, page, per_page):
+    page = page if isinstance(page, int) and page > 0 else 1
+    per_page = per_page if isinstance(per_page, int) and per_page > 0 else DEFAULT_LB_PER_PAGE
+    total = len(rows)
+    total_pages = max(1, (total + per_page - 1) // per_page)
+    if page > total_pages:
+        page = total_pages
+    start = (page - 1) * per_page
+    end = start + per_page
+    return rows[start:end], page, per_page, total, total_pages
 
 
 @scores_bp.route("/my-scoring")
@@ -487,6 +510,12 @@ def api_save_score():
         top_n=8,
     )
 
+    refresh_doubles_leaderboard_row(
+        competitor_id=competitor_id,
+        competition_id=current_comp.id,
+        top_n=8,
+    )
+
     db.session.commit()
     invalidate_leaderboard_cache()
 
@@ -569,7 +598,7 @@ def leaderboard_details_api():
             jsonify(
                 {
                     "ok": False,
-                    "error": "That competition isn’t live right now — leaderboard is unavailable.",
+                    "error": "That competition isn't live right now — leaderboard is unavailable.",
                     "climbs": [],
                 }
             ),
@@ -587,25 +616,6 @@ def leaderboard_details_api():
     return jsonify({"ok": True, "climbs": climbs}), 200
 
 
-def _paginate(rows, page, per_page):
-    page = page if isinstance(page, int) and page > 0 else 1
-    per_page = per_page if isinstance(per_page, int) and per_page > 0 else DEFAULT_LB_PER_PAGE
-    total = len(rows)
-    total_pages = max(1, (total + per_page - 1) // per_page)
-    if page > total_pages:
-        page = total_pages
-    start = (page - 1) * per_page
-    end = start + per_page
-    return rows[start:end], page, per_page, total, total_pages
-
-
-# ============================================================
-# Replace your existing leaderboard_all and leaderboard_by_category
-# with these two functions.
-#
-# Changes marked with # ← NEW
-# ============================================================
-
 @scores_bp.route("/leaderboard")
 def leaderboard_all():
     comp = get_viewer_comp()
@@ -621,26 +631,24 @@ def leaderboard_all():
         flash("That competition isn't live right now — leaderboard is unavailable.", "warning")
         return redirect("/my-comps")
 
-    # ← NEW: load competitor hero data
     cid_raw = (request.args.get("cid") or str(session.get("competitor_id") or "")).strip()
     competitor, total_points, position = _load_competitor_hero(cid_raw, comp.id)
 
     page = request.args.get("page", 1, type=int)
     per_page = DEFAULT_LB_PER_PAGE
 
-    cat = "all"
-    rows, category_label = build_leaderboard(cat, competition_id=comp.id)
-
-    page_rows, page, per_page, total, total_pages = _paginate(rows, page, per_page)
+    # Initial render — JS immediately takes over, so just use _paginate_list
+    rows, category_label = build_leaderboard("all", competition_id=comp.id)
+    page_rows, page, per_page, total, total_pages = _paginate_list(rows, page, per_page)
 
     return render_template(
         "leaderboard.html",
         leaderboard=page_rows,
         category=category_label,
         current_competitor_id=session.get("competitor_id"),
-        competitor=competitor,       
-        total_points=total_points,      
-        position=position,              
+        competitor=competitor,
+        total_points=total_points,
+        position=position,
         nav_active="leaderboard",
         comp=comp,
         comp_slug=comp.slug,
@@ -666,7 +674,6 @@ def leaderboard_by_category(category):
         flash("That competition isn't live right now — leaderboard is unavailable.", "warning")
         return redirect("/my-comps")
 
-    # ← NEW: load competitor hero data
     cid_raw = (request.args.get("cid") or str(session.get("competitor_id") or "")).strip()
     competitor, total_points, position = _load_competitor_hero(cid_raw, comp.id)
 
@@ -674,18 +681,18 @@ def leaderboard_by_category(category):
     per_page = DEFAULT_LB_PER_PAGE
 
     cat = normalize_leaderboard_category(category)
+    # Initial render — JS immediately takes over, so just use _paginate_list
     rows, category_label = build_leaderboard(cat, competition_id=comp.id)
-
-    page_rows, page, per_page, total, total_pages = _paginate(rows, page, per_page)
+    page_rows, page, per_page, total, total_pages = _paginate_list(rows, page, per_page)
 
     return render_template(
         "leaderboard.html",
         leaderboard=page_rows,
         category=category_label,
         current_competitor_id=session.get("competitor_id"),
-        competitor=competitor,          
-        total_points=total_points,     
-        position=position,             
+        competitor=competitor,
+        total_points=total_points,
+        position=position,
         nav_active="leaderboard",
         comp=comp,
         comp_slug=comp.slug,
@@ -783,17 +790,48 @@ def api_leaderboard():
     except Exception:
         pass
 
-    rows, category_label = build_leaderboard(cat, competition_id=comp.id)
-    page_rows, page, per_page, total, total_pages = _paginate(rows, page, per_page)
+    # Doubles uses a precomputed list — paginate in Python
+    if cat == "doubles":
+        all_rows, category_label = build_leaderboard(cat, competition_id=comp.id)
+        page_rows, page, per_page, total, total_pages = _paginate_list(all_rows, page, per_page)
+
+    # Singles/filtered — paginate in SQL, only fetch what we need
+    else:
+        query, category_label = build_leaderboard(cat, competition_id=comp.id)
+        raw_rows, page, per_page, total, total_pages = _paginate(query, page, per_page)
+
+        page_rows = []
+        current_position = (page - 1) * per_page
+        previous_rank_values = None
+
+        for leaderboard_record, competitor in raw_rows:
+            total_points = int(leaderboard_record.total_points or 0)
+            attempts_on_tops = int(leaderboard_record.attempts_on_tops or 0)
+
+            current_rank_values = (total_points, attempts_on_tops)
+            if current_rank_values != previous_rank_values:
+                current_position += 1
+            previous_rank_values = current_rank_values
+
+            page_rows.append({
+                "competitor_id":    competitor.id,
+                "name":             competitor.name,
+                "gender":           competitor.gender,
+                "tops":             int(leaderboard_record.tops or 0),
+                "attempts_on_tops": attempts_on_tops,
+                "total_points":     total_points,
+                "last_update":      leaderboard_record.last_update,
+                "position":         current_position,
+            })
 
     resp = make_response(jsonify({
         "category": category_label,
-        "rows": page_rows,
-        "req_id": req_id,
-        "cat_key": cat,
-        "page": page,
+        "rows":     page_rows,
+        "req_id":   req_id,
+        "cat_key":  cat,
+        "page":     page,
         "per_page": per_page,
-        "total": total,
+        "total":    total,
         "total_pages": total_pages,
     }))
 

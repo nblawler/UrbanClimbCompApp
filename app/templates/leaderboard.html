@@ -188,25 +188,30 @@
 					</div></td></tr>`;
 			}
 
-			function detailsRowHtmlTeam(teamKey, aId, bId, aName, bName) {
-				return `<tr class="lb-details" data-team-key="${teamKey}" data-a-id="${aId}" data-b-id="${bId}" hidden>
+			function detailsRowHtmlTeam(teamKey, aName, bName, aClimbs, bClimbs) {
+				const aRows = aClimbs.length
+					? aClimbs.map(c => `<tr><td>${escapeHtml(c.label)}</td><td>${escapeHtml(c.attempts)}</td><td>${escapeHtml(c.score)}</td></tr>`).join("")
+					: `<tr><td colspan="3" style="opacity:.75;">No contributing climbs found.</td></tr>`;
+
+				const bRows = bClimbs.length
+					? bClimbs.map(c => `<tr><td>${escapeHtml(c.label)}</td><td>${escapeHtml(c.attempts)}</td><td>${escapeHtml(c.score)}</td></tr>`).join("")
+					: `<tr><td colspan="3" style="opacity:.75;">No contributing climbs found.</td></tr>`;
+
+				return `<tr class="lb-details" data-team-key="${teamKey}" hidden>
 					<td colspan="4"><div class="details-wrap">
-						<div class="details-loading">Loading…</div>
-						<div class="team-members" hidden>
+						<div class="team-members">
 							<div class="member-card">
 								<div class="member-title">${escapeHtml(aName)}</div>
-								<div class="member-empty" data-empty-a hidden>No contributing climbs found.</div>
-								<table class="details-table" data-table-a hidden>
+								<table class="details-table">
 									<thead><tr><th>Climb</th><th>Attempts</th><th>Score</th></tr></thead>
-									<tbody data-body-a></tbody>
+									<tbody>${aRows}</tbody>
 								</table>
 							</div>
 							<div class="member-card">
 								<div class="member-title">${escapeHtml(bName)}</div>
-								<div class="member-empty" data-empty-b hidden>No contributing climbs found.</div>
-								<table class="details-table" data-table-b hidden>
+								<table class="details-table">
 									<thead><tr><th>Climb</th><th>Attempts</th><th>Score</th></tr></thead>
-									<tbody data-body-b></tbody>
+									<tbody>${bRows}</tbody>
 								</table>
 							</div>
 						</div>
@@ -230,10 +235,6 @@
 							<td class="name-cell">
 								<button class="expander" type="button"
 									data-team-key="${escapeHtml(teamKey)}"
-									data-a-id="${escapeHtml(r.a_id)}"
-									data-b-id="${escapeHtml(r.b_id)}"
-									data-a-name="${escapeHtml(r.a_name || '')}"
-									data-b-name="${escapeHtml(r.b_name || '')}"
 									aria-expanded="false">
 									<span class="chev" aria-hidden="true">▸</span>
 									<span class="nm">${escapeHtml(r.name)}</span>
@@ -242,7 +243,13 @@
 							<td>${escapeHtml(r.attempts_on_tops)}</td>
 							<td>${escapeHtml(r.total_points)}</td>
 						</tr>
-						${detailsRowHtmlTeam(escapeHtml(teamKey), escapeHtml(r.a_id), escapeHtml(r.b_id), r.a_name || "", r.b_name || "")}`;
+						${detailsRowHtmlTeam(
+							escapeHtml(teamKey),
+							r.a_name || "",
+							r.b_name || "",
+							r.a_climbs || [],
+							r.b_climbs || []
+						)}`;
 					}).join("");
 					return;
 				}
@@ -379,65 +386,6 @@
 				}
 			}
 
-			async function loadTeamDetails(teamKey, aId, bId) {
-				const detailsRow = document.querySelector(`.lb-details[data-team-key="${CSS.escape(String(teamKey))}"]`);
-				if (!detailsRow || detailsRow.dataset.loaded === "1") return;
-
-				const loading = detailsRow.querySelector(".details-loading");
-				const membersWrap = detailsRow.querySelector(".team-members");
-				const tableA = detailsRow.querySelector("[data-table-a]");
-				const tableB = detailsRow.querySelector("[data-table-b]");
-				const bodyA = detailsRow.querySelector("[data-body-a]");
-				const bodyB = detailsRow.querySelector("[data-body-b]");
-				const emptyA = detailsRow.querySelector("[data-empty-a]");
-				const emptyB = detailsRow.querySelector("[data-empty-b]");
-
-				loading.textContent = "Loading…";
-				loading.hidden = false;
-				membersWrap.hidden = true;
-				tableA.hidden = true;
-				tableB.hidden = true;
-				emptyA.hidden = true;
-				emptyB.hidden = true;
-				bodyA.innerHTML = "";
-				bodyB.innerHTML = "";
-
-				try {
-					const [dataA, dataB] = await Promise.all([
-						fetchCompetitorDetails(aId),
-						fetchCompetitorDetails(bId)
-					]);
-
-					if (!dataA.ok || !dataB.ok) {
-						loading.textContent = dataA.error || dataB.error || "Could not load team details";
-						return;
-					}
-
-					const climbsA = dataA.climbs || [];
-					const climbsB = dataB.climbs || [];
-
-					if (climbsA.length) {
-						bodyA.innerHTML = renderClimbRows(climbsA);
-						tableA.hidden = false;
-					} else {
-						emptyA.hidden = false;
-					}
-
-					if (climbsB.length) {
-						bodyB.innerHTML = renderClimbRows(climbsB);
-						tableB.hidden = false;
-					} else {
-						emptyB.hidden = false;
-					}
-
-					loading.hidden = true;
-					membersWrap.hidden = false;
-					detailsRow.dataset.loaded = "1";
-				} catch (e) {
-					loading.textContent = "Error loading details";
-				}
-			}
-
 			function toggleSingleDetails(cid) {
 				const btn = document.querySelector(`.expander[data-cid="${CSS.escape(String(cid))}"]`);
 				const detailsRow = document.querySelector(`.lb-details[data-cid="${CSS.escape(String(cid))}"]`);
@@ -457,23 +405,15 @@
 				loadSingleDetails(cid);
 			}
 
-			function toggleTeamDetails(teamKey, aId, bId) {
+			function toggleTeamDetails(teamKey) {
 				const btn = document.querySelector(`.expander[data-team-key="${CSS.escape(String(teamKey))}"]`);
 				const detailsRow = document.querySelector(`.lb-details[data-team-key="${CSS.escape(String(teamKey))}"]`);
 				if (!btn || !detailsRow) return;
 
 				const isOpen = !detailsRow.hidden;
-				if (isOpen) {
-					detailsRow.hidden = true;
-					btn.classList.remove("open");
-					btn.setAttribute("aria-expanded", "false");
-					return;
-				}
-
-				detailsRow.hidden = false;
-				btn.classList.add("open");
-				btn.setAttribute("aria-expanded", "true");
-				loadTeamDetails(teamKey, aId, bId);
+				detailsRow.hidden = isOpen;
+				btn.classList.toggle("open", !isOpen);
+				btn.setAttribute("aria-expanded", String(!isOpen));
 			}
 
 			async function load(key, page, { push = true } = {}) {
@@ -555,10 +495,8 @@
 				}
 
 				const teamKey = btn.dataset.teamKey;
-				const aId = btn.dataset.aId;
-				const bId = btn.dataset.bId;
-				if (teamKey && aId && bId) {
-					toggleTeamDetails(teamKey, aId, bId);
+				if (teamKey) {
+					toggleTeamDetails(teamKey);
 				}
 			});
 

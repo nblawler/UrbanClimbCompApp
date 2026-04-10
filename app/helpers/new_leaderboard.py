@@ -1,5 +1,6 @@
+from datetime import datetime, timezone
 from app.extensions import db
-from app.models import Competitor, Score, Section, SectionClimb, Leaderboard
+from app.models import Competitor, Score, Section, SectionClimb, Leaderboard, DoublesLeaderboard, DoublesTeam
 
 
 def normalize_leaderboard_category(category):
@@ -113,3 +114,90 @@ def refresh_leaderboard_row(competitor_id: int, competition_id: int, top_n: int)
     leaderboard_row.attempts_on_tops = attempts_on_tops
     leaderboard_row.tops = tops
     leaderboard_row.last_update = last_update
+    
+def refresh_doubles_leaderboard_row(competitor_id: int, competition_id: int, top_n: int = 8):
+    """
+    Find every doubles team this competitor belongs to in this competition
+    and recompute that team's DoublesLeaderboard row.
+    """
+    teams = DoublesTeam.query.filter(
+        DoublesTeam.competition_id == competition_id,
+        db.or_(
+            DoublesTeam.competitor_a_id == competitor_id,
+            DoublesTeam.competitor_b_id == competitor_id,
+        )
+    ).all()
+
+    if not teams:
+        return
+
+    for team in teams:
+        _recompute_doubles_row(team, competition_id, top_n)
+
+
+def _recompute_doubles_row(team: DoublesTeam, competition_id: int, top_n: int = 8):
+    """Recompute and persist one DoublesLeaderboard row."""
+
+    def member_data(cid):
+        comp = Competitor.query.get(cid)
+        lb   = Leaderboard.query.filter_by(
+            competitor_id=cid,
+            competition_id=competition_id,
+        ).first()
+
+        points   = int(lb.total_points     or 0) if lb else 0
+        attempts = int(lb.attempts_on_tops or 0) if lb else 0
+
+        climbs = (
+            db.session.query(
+                SectionClimb.climb_number,
+                Score.attempts,
+                SectionClimb.base_points,
+            )
+            .join(Score, Score.section_climb_id == SectionClimb.id)
+            .join(Section, Section.id == SectionClimb.section_id)
+            .filter(
+                Score.competitor_id == cid,
+                Section.competition_id == competition_id,
+                Score.topped == True,
+            )
+            .order_by(SectionClimb.base_points.desc(), Score.attempts.asc())
+            .limit(top_n)
+            .all()
+        )
+
+        climb_list = [
+            {
+                "label":    f"Climb {r.climb_number}",
+                "attempts": r.attempts,
+                "score":    r.base_points,
+            }
+            for r in climbs
+        ]
+
+        return comp.name if comp else f"#{cid}", points, attempts, climb_list
+
+    a_name, a_pts, a_att, a_climbs = member_data(team.competitor_a_id)
+    b_name, b_pts, b_att, b_climbs = member_data(team.competitor_b_id)
+
+    row = DoublesLeaderboard.query.filter_by(
+        team_id=team.id,
+        competition_id=competition_id,
+    ).first()
+
+    if not row:
+        row = DoublesLeaderboard(
+            team_id=team.id,
+            competition_id=competition_id,
+        )
+        db.session.add(row)
+
+    row.total_points     = a_pts + b_pts
+    row.attempts_on_tops = a_att + b_att
+    row.a_id     = team.competitor_a_id
+    row.a_name   = a_name
+    row.a_climbs = a_climbs
+    row.b_id     = team.competitor_b_id
+    row.b_name   = b_name
+    row.b_climbs = b_climbs
+    row.last_update = datetime.now(timezone.utc)
