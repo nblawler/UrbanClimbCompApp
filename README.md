@@ -17,11 +17,11 @@ Instead of paper scorecards and manual rankings, competitors can log climbs quic
 
 ## Competitor View Demo
 
-![Competitor View Demo](Docs/Images/competitor_view_demo.gif)
+![Competitor View Demo](Docs/Images/Comp_Circuit_User_Demo.gif)
 
 ## Admin Map Setup
 
-![Admin Map Setup Demo](Docs/Images/admin_map_setup.gif)
+![Admin Map Setup Demo](Docs/Images/Admin_Map_Setting_Demo.gif)
 
 ### Live Competition Scoring
 
