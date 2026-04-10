@@ -39,13 +39,12 @@
 html {
   height: 100%;
   overscroll-behavior-y: none;
-  background: linear-gradient(145deg, var(--bg-from) 0%, #1e5aaa 40%, var(--bg-to) 100%);
-  background-attachment: fixed;
+  background-color: #1a4a8a;
 }
 
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-  background: transparent;
+  background: linear-gradient(145deg, var(--bg-from) 0%, #1e5aaa 40%, var(--bg-to) 100%);
   min-height: var(--app-height);
   display: flex;
   flex-direction: column;
