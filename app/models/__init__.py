@@ -11,3 +11,4 @@ from .login_code import LoginCode
 from .doubles_team import DoublesTeam
 from .doubles_invite import DoublesInvite
 from .leaderboard import Leaderboard
+from .doubles_leaderboard import DoublesLeaderboard
