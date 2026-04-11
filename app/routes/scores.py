@@ -638,8 +638,29 @@ def leaderboard_all():
     per_page = DEFAULT_LB_PER_PAGE
 
     # Initial render — JS immediately takes over, so just use _paginate_list
-    rows, category_label = build_leaderboard("all", competition_id=comp.id)
-    page_rows, page, per_page, total, total_pages = _paginate_list(rows, page, per_page)
+    query, category_label = build_leaderboard("all", competition_id=comp.id)
+    raw_rows, page, per_page, total, total_pages = _paginate(query, page, per_page)
+
+    page_rows = []
+    current_position = (page - 1) * per_page
+    previous_rank_values = None
+    for leaderboard_record, competitor in raw_rows:
+        total_points = int(leaderboard_record.total_points or 0)
+        attempts_on_tops = int(leaderboard_record.attempts_on_tops or 0)
+        current_rank_values = (total_points, attempts_on_tops)
+        if current_rank_values != previous_rank_values:
+            current_position += 1
+        previous_rank_values = current_rank_values
+        page_rows.append({
+            "competitor_id":    competitor.id,
+            "name":             competitor.name,
+            "gender":           competitor.gender,
+            "tops":             int(leaderboard_record.tops or 0),
+            "attempts_on_tops": attempts_on_tops,
+            "total_points":     total_points,
+            "last_update":      leaderboard_record.last_update,
+            "position":         current_position,
+        })
 
     return render_template(
         "leaderboard.html",
@@ -681,9 +702,34 @@ def leaderboard_by_category(category):
     per_page = DEFAULT_LB_PER_PAGE
 
     cat = normalize_leaderboard_category(category)
-    # Initial render — JS immediately takes over, so just use _paginate_list
-    rows, category_label = build_leaderboard(cat, competition_id=comp.id)
-    page_rows, page, per_page, total, total_pages = _paginate_list(rows, page, per_page)
+
+    if cat == "doubles":
+        rows, category_label = build_leaderboard(cat, competition_id=comp.id)
+        page_rows, page, per_page, total, total_pages = _paginate_list(rows, page, per_page)
+    else:
+        query, category_label = build_leaderboard(cat, competition_id=comp.id)
+        raw_rows, page, per_page, total, total_pages = _paginate(query, page, per_page)
+
+        page_rows = []
+        current_position = (page - 1) * per_page
+        previous_rank_values = None
+        for leaderboard_record, competitor in raw_rows:
+            total_points = int(leaderboard_record.total_points or 0)
+            attempts_on_tops = int(leaderboard_record.attempts_on_tops or 0)
+            current_rank_values = (total_points, attempts_on_tops)
+            if current_rank_values != previous_rank_values:
+                current_position += 1
+            previous_rank_values = current_rank_values
+            page_rows.append({
+                "competitor_id":    competitor.id,
+                "name":             competitor.name,
+                "gender":           competitor.gender,
+                "tops":             int(leaderboard_record.tops or 0),
+                "attempts_on_tops": attempts_on_tops,
+                "total_points":     total_points,
+                "last_update":      leaderboard_record.last_update,
+                "position":         current_position,
+            })
 
     return render_template(
         "leaderboard.html",
