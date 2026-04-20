@@ -145,28 +145,6 @@
 		}
 
 		.grade-list-note { font-size: 0.82rem; color: rgba(255,255,255,0.45); }
-
-		/* "Same as grade colours" button */
-		.copy-from-grades-btn {
-			display: inline-flex;
-			align-items: center;
-			gap: 0.4rem;
-			padding: 0.5rem 1rem;
-			border-radius: 999px;
-			border: 1px solid rgba(168,216,240,0.35);
-			background: rgba(168,216,240,0.10);
-			color: #a8d8f0;
-			font-size: 0.85rem;
-			font-weight: 700;
-			cursor: pointer;
-			transition: background 0.15s, border-color 0.15s;
-			white-space: nowrap;
-		}
-
-		.copy-from-grades-btn:hover {
-			background: rgba(168,216,240,0.18);
-			border-color: rgba(168,216,240,0.55);
-		}
 	</style>
 </head>
 
@@ -283,8 +261,9 @@
 				<!-- "Same as grade colours" button — only shown for colour gyms with a saved grade list -->
 				<div id="copyFromGradesWrap"
 					style="{% if gym.grading_system != 'colour' or not gym.grade_list %}display:none;{% endif %}">
-					<button type="button" class="copy-from-grades-btn" onclick="copyHoldColoursFromGrades()">
-						↑ Same as grade colours
+					<button type="button" class="btn" onclick="copyHoldColoursFromGrades()"
+						style="white-space:nowrap; font-size:0.85rem; padding:0.6rem 1.25rem;">
+						Same as grade colours
 					</button>
 				</div>
 
@@ -418,7 +397,6 @@
 
 			return {
 				add() {
-					/* Called from outside — reads from the paired inputs */
 					const labelInputId  = sortableId === "gradeListSortable"  ? "newGradeLabel"  : "newHoldLabel";
 					const colourInputId = sortableId === "gradeListSortable"  ? "newGradeColour" : "newHoldColour";
 					const labelInput  = document.getElementById(labelInputId);
@@ -516,7 +494,6 @@
 			const gradeSection = document.getElementById("gradeListSection");
 			if (gradeSection) gradeSection.style.display = value === "colour" ? "" : "none";
 
-			/* Also show/hide the copy button in hold colours section */
 			const copyWrap = document.getElementById("copyFromGradesWrap");
 			if (copyWrap) {
 				const hasGradeList = {{ "true" if gym.grade_list else "false" }};
