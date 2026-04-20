@@ -5,6 +5,97 @@
 		<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 		<title>Edit section · Urban Climb Comp</title>
 		<link rel="stylesheet" href="/static/app.css" />
+		<style>
+			.grade-not-set {
+				color: rgba(255,255,255,0.4);
+				font-style: italic;
+				font-size: 0.85rem;
+			}
+
+			/* Grade dropdown with colour dot */
+			.grade-select-wrap {
+				position: relative;
+			}
+			.grade-select-wrap select {
+				padding-left: 2.2rem;
+			}
+			.grade-select-dot {
+				position: absolute;
+				left: 0.7rem;
+				top: 50%;
+				transform: translateY(-50%);
+				width: 14px;
+				height: 14px;
+				border-radius: 999px;
+				border: 1px solid rgba(255,255,255,0.25);
+				pointer-events: none;
+				background: #888;
+			}
+
+			/* Style checkboxes */
+			.style-checkboxes {
+				display: flex;
+				flex-wrap: wrap;
+				gap: 0.4rem;
+			}
+			.style-check-label {
+				display: flex;
+				align-items: center;
+				gap: 0.35rem;
+				padding: 0.28rem 0.65rem;
+				border-radius: 999px;
+				border: 1px solid rgba(255,255,255,0.18);
+				background: rgba(255,255,255,0.07);
+				cursor: pointer;
+				font-size: 0.8rem;
+				font-weight: 700;
+				color: rgba(255,255,255,0.75);
+				transition: background 0.12s, border-color 0.12s;
+				white-space: nowrap;
+			}
+			.style-check-label input[type="checkbox"] {
+				width: 13px; height: 13px;
+				accent-color: #a8d8f0;
+				cursor: pointer;
+				flex-shrink: 0;
+			}
+			.style-check-label:has(input:checked) {
+				background: rgba(168,216,240,0.18);
+				border-color: rgba(168,216,240,0.5);
+				color: #a8d8f0;
+			}
+			.style-check-label.style-balance:has(input:checked)      { background: rgba(56,189,248,0.18); border-color: rgba(56,189,248,0.4); color: #7dd3fc; }
+			.style-check-label.style-power:has(input:checked)        { background: rgba(251,113,133,0.18); border-color: rgba(251,113,133,0.4); color: #fda4af; }
+			.style-check-label.style-coordination:has(input:checked) { background: rgba(52,211,153,0.18); border-color: rgba(52,211,153,0.4); color: #6ee7b7; }
+
+			/* Style display badges */
+			.style-badge {
+				display: inline-block;
+				padding: 0.18rem 0.55rem;
+				border-radius: 999px;
+				font-size: 0.78rem;
+				font-weight: 700;
+				background: rgba(255,255,255,0.10);
+				border: 1px solid rgba(255,255,255,0.15);
+				color: rgba(255,255,255,0.85);
+				white-space: nowrap;
+			}
+			.style-badge.style-balance      { background: rgba(56,189,248,0.18); border-color: rgba(56,189,248,0.4); color: #7dd3fc; }
+			.style-badge.style-power        { background: rgba(251,113,133,0.18); border-color: rgba(251,113,133,0.4); color: #fda4af; }
+			.style-badge.style-coordination { background: rgba(52,211,153,0.18); border-color: rgba(52,211,153,0.4); color: #6ee7b7; }
+
+			.grade-display-wrap {
+				display: flex;
+				align-items: center;
+				gap: 0.4rem;
+			}
+			.grade-display-dot {
+				width: 12px; height: 12px;
+				border-radius: 999px;
+				border: 1px solid rgba(255,255,255,0.2);
+				flex-shrink: 0;
+			}
+		</style>
 	</head>
 	<body>
 		<nav class="nav">
@@ -24,6 +115,9 @@
 				<a href="/admin">Admin login</a>
 			{% endif %}
 		</nav>
+
+		{% set grading_system = current_comp.gym.grading_system if current_comp and current_comp.gym else None %}
+		{% set grade_list = current_comp.gym.grade_list or [] if current_comp and current_comp.gym else [] %}
 
 		<main class="container container--centered" style="max-width:1120px;">
 			<header class="hero" style="margin:2rem 0 2rem;">
@@ -137,13 +231,23 @@
 
 				<h3>Climbs in this section</h3>
 
+				{% if not grading_system %}
+					<div class="alert alert--error" style="margin-bottom:1rem;">
+						No grading system is set for this gym. Go to
+						<a href="/admin/gym/settings" style="color:#fbbf24;text-decoration:underline;">Gym Settings</a>
+						to set one before editing grades.
+					</div>
+				{% endif %}
+
 				{% if climbs %}
-					<div class="table-wrap" style="margin-top:0.75rem;">
+					<div class="table-wrap" style="margin-top:0.75rem; overflow-x:auto;">
 						<table>
 							<thead>
 								<tr>
 									<th>Climb #</th>
-									<th>Colour</th>
+									<th>Hold Colour</th>
+									<th>Grade</th>
+									<th>Style</th>
 									<th>Points</th>
 									<th style="text-align:right;">Actions</th>
 								</tr>
@@ -155,6 +259,7 @@
 											<input type="hidden" name="comp_id" value="{{ current_comp_id if current_comp_id is defined else '' }}">
 											<input type="hidden" name="climb_id" value="{{ c.id }}">
 
+											<!-- Climb number -->
 											<td>
 												<span class="cell-display">{{ c.climb_number }}</span>
 												<span class="cell-edit">
@@ -162,13 +267,108 @@
 												</span>
 											</td>
 
+											<!-- Hold colour (always a text/colour input) -->
 											<td>
 												<span class="cell-display">{{ c.colour or "-" }}</span>
 												<span class="cell-edit">
-													<input class="inline-input" type="text" name="colour" value="{{ c.colour or '' }}" placeholder="e.g. Orange">
+													<input class="inline-input" type="text" name="colour" value="{{ c.colour or '' }}" placeholder="e.g. Red">
 												</span>
 											</td>
 
+											<!-- Grade (depends on grading system) -->
+											<td>
+												<span class="cell-display">
+													{% if c.grade %}
+														{% if grading_system == 'colour' %}
+															{% set matching = grade_list | selectattr('label', 'equalto', c.grade) | list %}
+															<span class="grade-display-wrap">
+																<span class="grade-display-dot" style="background: {{ matching[0].colour if matching else '#888' }};"></span>
+																{{ c.grade }}
+															</span>
+														{% else %}
+															{{ c.grade }}
+														{% endif %}
+													{% else %}
+														<span class="grade-not-set">Not set</span>
+													{% endif %}
+												</span>
+												<span class="cell-edit">
+													{% if grading_system == 'colour' %}
+														{% if grade_list %}
+															<div class="grade-select-wrap">
+																<span class="grade-select-dot" id="grade-dot-{{ c.id }}"></span>
+																<select class="inline-input" name="grade" required
+																	id="grade-select-{{ c.id }}"
+																	onchange="updateGradeDot('{{ c.id }}', this)">
+																	<option value="">Select grade…</option>
+																	{% for g in grade_list %}
+																		<option value="{{ g.label }}"
+																			data-colour="{{ g.colour }}"
+																			{% if c.grade == g.label %}selected{% endif %}>
+																			{{ g.label }}
+																		</option>
+																	{% endfor %}
+																</select>
+															</div>
+														{% else %}
+															<span class="grade-not-set">
+																<a href="/admin/gym/settings" style="color:#fbbf24;">Add grades in Gym Settings first</a>
+															</span>
+															<input type="hidden" name="grade" value="{{ c.grade or '' }}" />
+														{% endif %}
+													{% elif grading_system == 'v_grade' %}
+														<select class="inline-input" name="grade" required>
+															<option value="">Select…</option>
+															{% for v in range(0, 18) %}
+																<option value="V{{ v }}" {% if c.grade == 'V' ~ v %}selected{% endif %}>V{{ v }}</option>
+															{% endfor %}
+														</select>
+													{% elif grading_system == 'numeric' %}
+														<select class="inline-input" name="grade" required>
+															<option value="">Select…</option>
+															{% for n in range(1, 10) %}
+																<option value="{{ n }}" {% if c.grade == n|string %}selected{% endif %}>{{ n }}</option>
+															{% endfor %}
+														</select>
+													{% else %}
+														<input class="inline-input" type="text" name="grade" value="{{ c.grade or '' }}" placeholder="Set grading system first" disabled />
+													{% endif %}
+												</span>
+											</td>
+
+											<!-- Style — multi-select checkboxes -->
+											<td>
+												<span class="cell-display">
+													{% if c.styles %}
+														{% for s in c.styles %}
+															<span class="style-badge style-{{ s }}">{{ s | capitalize }}</span>
+														{% endfor %}
+													{% else %}
+														<span class="grade-not-set">Not set</span>
+													{% endif %}
+												</span>
+												<span class="cell-edit">
+													<div class="style-checkboxes">
+														<label class="style-check-label style-balance">
+															<input type="checkbox" name="styles" value="balance"
+																{% if c.styles and 'balance' in c.styles %}checked{% endif %} />
+															Balance
+														</label>
+														<label class="style-check-label style-power">
+															<input type="checkbox" name="styles" value="power"
+																{% if c.styles and 'power' in c.styles %}checked{% endif %} />
+															Power
+														</label>
+														<label class="style-check-label style-coordination">
+															<input type="checkbox" name="styles" value="coordination"
+																{% if c.styles and 'coordination' in c.styles %}checked{% endif %} />
+															Coordination
+														</label>
+													</div>
+												</span>
+											</td>
+
+											<!-- Points -->
 											<td>
 												<span class="cell-display">{{ c.base_points if c.base_points is not none else "-" }}</span>
 												<span class="cell-edit">
@@ -176,20 +376,18 @@
 												</span>
 											</td>
 
+											<!-- Actions -->
 											<td style="text-align:right;">
 												<div class="row-actions">
 													<button type="button" class="btn btn--ghost btn--sm btn-edit" onclick="enterEdit('{{ c.id }}')">
 														Edit
 													</button>
-
 													<button type="submit" class="btn btn--sm btn-save" name="action" value="update_climb">
 														Save
 													</button>
-
 													<button type="button" class="btn btn--ghost btn--sm btn-cancel" onclick="cancelEdit('{{ c.id }}')">
 														Cancel
 													</button>
-
 													<button
 														type="submit"
 														name="action"
@@ -231,6 +429,24 @@
 		</main>
 
 		<script>
+			/* Grade list data for JS use */
+			const GRADE_LIST = {{ grade_list | tojson }};
+
+			/* Update the colour dot next to a grade dropdown */
+			function updateGradeDot(id, selectEl) {
+				const dot = document.getElementById("grade-dot-" + id);
+				if (!dot) return;
+				const selected = selectEl.options[selectEl.selectedIndex];
+				const colour = selected ? (selected.dataset.colour || "#888") : "#888";
+				dot.style.background = colour;
+			}
+
+			/* Init dots for all grade dropdowns on page load */
+			document.querySelectorAll("[id^='grade-select-']").forEach(function (sel) {
+				const id = sel.id.replace("grade-select-", "");
+				updateGradeDot(id, sel);
+			});
+
 			function enterEdit(id) {
 				const row = document.getElementById("row-" + id);
 				if (!row) return;
@@ -238,14 +454,14 @@
 					if (r !== row) r.classList.remove("is-editing");
 				});
 				row.classList.add("is-editing");
-				const firstInput = row.querySelector(".cell-edit input");
+				const firstInput = row.querySelector(".cell-edit input, .cell-edit select");
 				if (firstInput) firstInput.focus();
 			}
 
 			function cancelEdit(id) {
 				const row = document.getElementById("row-" + id);
 				if (!row) return;
-				row.querySelectorAll(".cell-edit input").forEach((inp) => {
+				row.querySelectorAll(".cell-edit input, .cell-edit select").forEach((inp) => {
 					inp.value = inp.defaultValue;
 				});
 				row.classList.remove("is-editing");

@@ -3,12 +3,26 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta
-    name="viewport"
-    content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"
-  />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
   <title>Admin · Scoring</title>
   <link rel="stylesheet" href="/static/app.css" />
+  <style>
+    .grade-colour-wrap {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+    .grade-colour-wrap input[type="color"] {
+      width: 2.2rem;
+      height: 2.2rem;
+      padding: 0;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      background: none;
+      flex-shrink: 0;
+    }
+  </style>
 </head>
 <body>
   <nav class="nav">
@@ -16,6 +30,9 @@
   </nav>
 
   {% include "sidebar.html" %}
+
+  {% set grading_system = current_comp.gym.grading_system if current_comp and current_comp.gym else None %}
+  {% set grade_list = current_comp.gym.grade_list or [] if current_comp and current_comp.gym else [] %}
 
   <main class="admin-map-page" id="pageRoot">
     <section class="map-card" style="background:rgba(255,255,255,0.05);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,0.1);border-radius:1.5rem;padding:2rem;">
@@ -30,12 +47,10 @@
               Wall Map
             {% endif %}
           </h1>
-
           {% if comp_name %}
             <p class="map-subtitle">Editing competition: {{ comp_name }}</p>
           {% endif %}
         </div>
-
         <span class="page-tag">Tap map to place climbs</span>
       </div>
 
@@ -48,14 +63,7 @@
         <div id="mapWrapperAdmin" class="map-wrapper">
           <div id="mapViewport" class="map-viewport">
             <div id="mapLayer" class="map-layer">
-              <img
-                id="mapImg"
-                class="gym-map"
-                src="{{ gym_map_url }}"
-                alt="Gym map"
-                draggable="false"
-              />
-
+              <img id="mapImg" class="gym-map" src="{{ gym_map_url }}" alt="Gym map" draggable="false" />
               <svg id="mapOverlay" class="map-overlay"></svg>
 
               {% for c in climbs %}
@@ -65,11 +73,9 @@
                     style="
                       left: {{ c.x_percent }}%;
                       top: {{ c.y_percent }}%;
-                      {% if c.colour %}
-                        --dot: {{ c.colour|e }};
-                      {% endif %}
+                      {% if c.colour %}--dot: {{ c.colour|e }};{% endif %}
                     "
-                    title="Climb {{ c.climb_number }} · {{ c.section.name if c.section else 'No section' }}{% if c.colour %} · {{ c.colour }}{% endif %}"
+                    title="Climb {{ c.climb_number }} · {{ c.section.name if c.section else 'No section' }}{% if c.colour %} · {{ c.colour }}{% endif %}{% if c.grade %} · Grade: {{ c.grade }}{% endif %}{% if c.style %} · {{ c.style|capitalize }}{% endif %}"
                   >
                     {{ c.climb_number }}
                   </div>
@@ -104,12 +110,18 @@
             <div class="alert
               {% if category in ['error','warning','danger'] %}alert-error{% endif %}
               {% if category in ['success'] %}alert-success{% endif %}
-            ">
-              {{ msg }}
-            </div>
+            ">{{ msg }}</div>
           {% endfor %}
         {% endif %}
       {% endwith %}
+
+      {% if not grading_system %}
+        <div class="alert alert-error" style="margin-bottom:0.75rem;">
+          No grading system set for this gym.
+          <a href="/admin/gym/settings" style="color:#fbbf24;text-decoration:underline;">Go to Gym Settings</a>
+          to set one before adding climbs.
+        </div>
+      {% endif %}
 
       <div class="divider"></div>
 
@@ -137,8 +149,62 @@
         </div>
 
         <div class="field">
-          <label for="colour">Colour / hold set (optional)</label>
-          <input type="text" id="colour" name="colour" placeholder="e.g. Green, Pink Volumes" />
+          <label for="colour">Hold colour (optional)</label>
+          <input type="text" id="colour" name="colour" placeholder="e.g. Red, Pink Volumes" />
+        </div>
+
+        <!-- Grade — rendered based on grading system -->
+        <div class="field">
+          <label for="grade">Grade <span style="color:rgba(255,255,255,0.45);font-weight:400;">(required)</span></label>
+          {% if grading_system == 'colour' %}
+            {% if grade_list %}
+              <select id="grade" name="grade" required
+                onchange="updateMapGradeDot(this)"
+                style="padding-left:2.2rem; position:relative;">
+                <option value="">Select grade…</option>
+                {% for g in grade_list %}
+                  <option value="{{ g.label }}" data-colour="{{ g.colour }}">{{ g.label }}</option>
+                {% endfor %}
+              </select>
+            {% else %}
+              <p style="color:rgba(255,255,255,0.45); font-size:0.85rem; margin:0;">
+                <a href="/admin/gym/settings" style="color:#fbbf24;">Add grade colours in Gym Settings first</a>
+              </p>
+              <input type="hidden" name="grade" value="" />
+            {% endif %}
+          {% elif grading_system == 'v_grade' %}
+            <select id="grade" name="grade" required>
+              <option value="">Select grade…</option>
+              {% for v in range(0, 18) %}
+                <option value="V{{ v }}">V{{ v }}</option>
+              {% endfor %}
+            </select>
+          {% elif grading_system == 'numeric' %}
+            <select id="grade" name="grade" required>
+              <option value="">Select grade…</option>
+              {% for n in range(1, 10) %}
+                <option value="{{ n }}">{{ n }}</option>
+              {% endfor %}
+            </select>
+          {% else %}
+            <input type="text" id="grade" name="grade" placeholder="Set grading system in Gym Settings first" disabled />
+          {% endif %}
+        </div>
+
+        <!-- Style — checkboxes, multiple allowed -->
+        <div class="field">
+          <label>Style <span style="color:rgba(255,255,255,0.45);font-weight:400;">(required — select all that apply)</span></label>
+          <div style="display:flex; gap:0.5rem; flex-wrap:wrap; margin-top:0.3rem;">
+            <label style="display:flex;align-items:center;gap:0.35rem;padding:0.3rem 0.7rem;border-radius:999px;border:1px solid rgba(255,255,255,0.18);background:rgba(255,255,255,0.07);cursor:pointer;font-size:0.82rem;font-weight:700;color:rgba(255,255,255,0.75);">
+              <input type="checkbox" name="styles" value="balance" style="accent-color:#7dd3fc;" /> Balance
+            </label>
+            <label style="display:flex;align-items:center;gap:0.35rem;padding:0.3rem 0.7rem;border-radius:999px;border:1px solid rgba(255,255,255,0.18);background:rgba(255,255,255,0.07);cursor:pointer;font-size:0.82rem;font-weight:700;color:rgba(255,255,255,0.75);">
+              <input type="checkbox" name="styles" value="power" style="accent-color:#fda4af;" /> Power
+            </label>
+            <label style="display:flex;align-items:center;gap:0.35rem;padding:0.3rem 0.7rem;border-radius:999px;border:1px solid rgba(255,255,255,0.18);background:rgba(255,255,255,0.07);cursor:pointer;font-size:0.82rem;font-weight:700;color:rgba(255,255,255,0.75);">
+              <input type="checkbox" name="styles" value="coordination" style="accent-color:#6ee7b7;" /> Coordination
+            </label>
+          </div>
         </div>
 
         <div class="field field-row">
@@ -155,7 +221,9 @@
           Save climb at selected position
         </button>
 
-        <div class="tiny-muted" id="clickHint" style="margin-top: 0.5rem; text-align: center;">Button unlocks after you tap the map.</div>
+        <div class="tiny-muted" id="clickHint" style="margin-top: 0.5rem; text-align: center;">
+          Button unlocks after you tap the map.
+        </div>
       </form>
 
       <div class="divider"></div>
@@ -207,9 +275,18 @@
   </main>
 
   <script>
+    /* Update grade dot colour when dropdown changes */
+    function updateMapGradeDot(selectEl) {
+      const dot = document.getElementById("map-grade-dot");
+      if (!dot) return;
+      const selected = selectEl.options[selectEl.selectedIndex];
+      dot.style.background = selected ? (selected.dataset.colour || "#888") : "#888";
+    }
+  </script>
+
+  <script>
     (function () {
       const pageRoot = document.getElementById("pageRoot");
-
       const viewport = document.getElementById("mapViewport");
       const layer    = document.getElementById("mapLayer");
       const img      = document.getElementById("mapImg");
@@ -243,17 +320,14 @@
       let scale = 1;
       let tx = 0, ty = 0;
       let baseW = 1, baseH = 1;
-
       let activePointerId = null;
       let downX = 0, downY = 0;
       const TAP_SLOP = 8;
-
       const state = { drawing: false, boundaries: {} };
 
       function updateLayerSizeFromImage() {
         const w = img.offsetWidth || img.clientWidth || 0;
         const h = img.offsetHeight || img.clientHeight || 0;
-
         if (w > 0 && h > 0) {
           baseW = Math.max(1, Math.round(w));
           baseH = Math.max(1, Math.round(h));
@@ -262,7 +336,6 @@
           baseW = Math.max(1, Math.round(r.width));
           baseH = Math.max(1, Math.round(r.height));
         }
-
         layer.style.width = baseW + "px";
         layer.style.height = baseH + "px";
       }
@@ -274,30 +347,22 @@
       function setViewportHeightToAspect() {
         const vr = viewport.getBoundingClientRect();
         const availableW = vr.width;
-
         const natW = img.naturalWidth || 1;
         const natH = img.naturalHeight || 1;
-
         const desiredH = availableW * (natH / natW);
-
         const maxH = Math.max(420, Math.floor(window.innerHeight * 0.75));
         const finalH = Math.min(desiredH, maxH);
-
         viewport.style.height = Math.round(finalH) + "px";
       }
 
       function fitToViewport() {
         updateLayerSizeFromImage();
         const vr = viewport.getBoundingClientRect();
-
         const scaleX = vr.width / baseW;
         const scaleY = vr.height / baseH;
-
         scale = Math.min(scaleX, scaleY);
-
         tx = (vr.width  - baseW * scale) / 2;
         ty = (vr.height - baseH * scale) / 2;
-
         applyTransform();
         redrawBoundary();
       }
@@ -306,12 +371,9 @@
         const vr = viewport.getBoundingClientRect();
         const xV = clientX - vr.left;
         const yV = clientY - vr.top;
-
         const xImg = (xV - tx) / scale;
         const yImg = (yV - ty) / scale;
-
         if (xImg < 0 || yImg < 0 || xImg > baseW || yImg > baseH) return null;
-
         return {
           x: Math.max(0, Math.min(100, (xImg / baseW) * 100)),
           y: Math.max(0, Math.min(100, (yImg / baseH) * 100)),
@@ -321,32 +383,25 @@
       function placeClimbAt(clientX, clientY) {
         const pt = clientToImagePercent(clientX, clientY);
         if (!pt) return;
-
         xInput.value = pt.x.toFixed(4);
         yInput.value = pt.y.toFixed(4);
-
         if (ghostDot) {
           ghostDot.style.left = pt.x + "%";
           ghostDot.style.top  = pt.y + "%";
           ghostDot.style.display = "flex";
         }
-
         if (submitBtn) submitBtn.disabled = false;
         if (clickHint) clickHint.textContent = "Position set ✅ Now fill the form and Save.";
-
         setCoords(`Climb position: ${pt.x.toFixed(2)}% / ${pt.y.toFixed(2)}% (Draw boundary OFF)`);
       }
 
       function addBoundaryPoint(clientX, clientY) {
         const s = sid();
         if (!s) { setStatus("❌ Select a Boundary section first."); return; }
-
         const pt = clientToImagePercent(clientX, clientY);
         if (!pt) return;
-
         if (!state.boundaries[s]) state.boundaries[s] = [];
         state.boundaries[s].push({ x: pt.x, y: pt.y });
-
         redrawBoundary();
         setStatus(`${state.boundaries[s].length} point(s) in boundary.`);
         setCoords(`Boundary point: ${pt.x.toFixed(2)}% / ${pt.y.toFixed(2)}% (Draw boundary ON)`);
@@ -372,25 +427,19 @@
         if (!overlay) return;
         ensureOverlaySize();
         clearOverlay();
-
         const s = sid();
         if (!s) return;
-
         const pts = state.boundaries[s] || [];
         if (!pts.length) return;
-
         const pxPts = pts.map(pctToPx);
-
         const d = pxPts.map((p,i)=>`${i===0?"M":"L"} ${p.x} ${p.y}`).join(" ")
           + (pxPts.length >= 3 ? " Z" : "");
-
         const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
         path.setAttribute("d", d);
         path.setAttribute("fill", "rgba(93, 244, 162, 0.14)");
         path.setAttribute("stroke", "rgba(93, 244, 162, 0.95)");
         path.setAttribute("stroke-width", "2.5");
         overlay.appendChild(path);
-
         pxPts.forEach((p) => {
           const c = document.createElementNS("http://www.w3.org/2000/svg", "circle");
           c.setAttribute("cx", p.x);
@@ -404,12 +453,9 @@
       async function loadBoundaries() {
         if (!compId || compId === "None") { setStatus("No competition context in session."); return; }
         setStatus("Loading boundaries…");
-
         const res = await fetch(`/admin/api/comp/${compId}/section-boundaries`, { credentials: "same-origin" });
         const data = await res.json();
-
         if (!data.ok) { setStatus(data.error || "Failed to load boundaries."); return; }
-
         state.boundaries = data.boundaries || {};
         setStatus("Boundaries loaded.");
         redrawBoundary();
@@ -418,29 +464,20 @@
       async function saveBoundary() {
         const s = sid();
         if (!s) { setStatus("Select a section first."); return; }
-
         const pts = state.boundaries[s] || [];
         if (pts.length > 0 && pts.length < 3) {
           setStatus("Need at least 3 points to save a polygon (or Clear to remove).");
           return;
         }
-
         setStatus("Saving boundary…");
-
         const res = await fetch("/admin/map/save-boundary", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           credentials: "same-origin",
-          body: JSON.stringify({
-            comp_id: String(compId),
-            section_id: String(s),
-            points: pts
-          })
+          body: JSON.stringify({ comp_id: String(compId), section_id: String(s), points: pts })
         });
-
         const data = await res.json();
         if (!data.ok) { setStatus(data.error || "Save failed."); return; }
-
         state.boundaries[s] = data.points || [];
         redrawBoundary();
         setStatus("Saved boundary ✅");
@@ -467,12 +504,9 @@
       function setDrawMode(on) {
         if (on && !sid()) { setStatus("❌ Select a Boundary section first."); return; }
         state.drawing = !!on;
-
         btnDraw?.classList.toggle("tiny-btn--active", state.drawing);
         pageRoot?.classList.toggle("draw-mode", state.drawing);
-
         if (ghostDot && state.drawing) ghostDot.style.display = "none";
-
         if (state.drawing) {
           setCoords("Tap to add boundary points. (Draw boundary ON)");
           setStatus("Drawing ON: tap points on the map. Tap Draw boundary again to exit.");
@@ -493,16 +527,12 @@
       viewport.addEventListener("pointerup", (e) => {
         if (activePointerId !== e.pointerId) return;
         e.preventDefault();
-
         try { viewport.releasePointerCapture(e.pointerId); } catch (_) {}
         activePointerId = null;
-
         const dx = e.clientX - downX;
         const dy = e.clientY - downY;
         const isTap = Math.hypot(dx, dy) <= TAP_SLOP;
-
         updateLayerSizeFromImage();
-
         if (isTap) {
           if (state.drawing) addBoundaryPoint(e.clientX, e.clientY);
           else placeClimbAt(e.clientX, e.clientY);
@@ -538,10 +568,8 @@
         if (img.naturalWidth && img.naturalHeight) {
           viewport.style.setProperty("--map-ar", `${img.naturalWidth} / ${img.naturalHeight}`);
         }
-
         relayout();
         loadBoundaries().catch(() => setStatus("Failed to load boundaries."));
-
         const hasSections = !!(boundarySelect && boundarySelect.options && boundarySelect.options.length > 1);
         if (!hasSections) {
           btnDraw.disabled = true;
@@ -552,7 +580,6 @@
         } else {
           btnDraw.disabled = false;
         }
-
         setDrawMode(false);
       }
 

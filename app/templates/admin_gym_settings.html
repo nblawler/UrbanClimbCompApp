@@ -1,0 +1,477 @@
+<!-- admin_gym_settings.html -->
+<!doctype html>
+<html lang="en">
+<head>
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<title>Gym Settings · {{ gym.name }} · Comp Circuit</title>
+	<link rel="stylesheet" href="/static/app.css" />
+	<style>
+		/* ── Grade list builder ── */
+		.grade-list-wrap {
+			display: flex;
+			flex-direction: column;
+			gap: 1.25rem;
+			margin-top: 1.5rem;
+		}
+
+		.grade-list-intro {
+			font-size: 0.9rem;
+			color: rgba(255,255,255,0.65);
+			line-height: 1.55;
+		}
+
+		.grade-list-intro strong { color: rgba(255,255,255,0.9); }
+
+		/* Add grade form row */
+		.grade-add-row {
+			display: flex;
+			align-items: center;
+			gap: 0.75rem;
+			flex-wrap: wrap;
+		}
+
+		.grade-add-row input[type="text"] {
+			flex: 1;
+			min-width: 120px;
+		}
+
+		.grade-add-row input[type="color"] {
+			width: 2.8rem;
+			height: 2.8rem;
+			padding: 0;
+			border: 2px solid rgba(255,255,255,0.25);
+			border-radius: 0.6rem;
+			cursor: pointer;
+			background: none;
+			flex-shrink: 0;
+		}
+
+		/* Sortable list */
+		#gradeListSortable {
+			display: flex;
+			flex-direction: column;
+			gap: 0.5rem;
+			min-height: 48px;
+		}
+
+		.grade-list-item {
+			display: flex;
+			align-items: center;
+			gap: 0.75rem;
+			padding: 0.65rem 0.9rem;
+			background: rgba(255,255,255,0.08);
+			border: 1px solid rgba(255,255,255,0.16);
+			border-radius: 0.85rem;
+			cursor: grab;
+			transition: background 0.15s, box-shadow 0.15s;
+			user-select: none;
+		}
+
+		.grade-list-item:active { cursor: grabbing; }
+
+		.grade-list-item.drag-over {
+			background: rgba(168,216,240,0.18);
+			border-color: rgba(168,216,240,0.55);
+			box-shadow: 0 0 0 2px rgba(168,216,240,0.25);
+		}
+
+		.grade-list-item.dragging {
+			opacity: 0.45;
+		}
+
+		.grade-drag-handle {
+			color: rgba(255,255,255,0.35);
+			font-size: 1rem;
+			flex-shrink: 0;
+			line-height: 1;
+		}
+
+		.grade-dot {
+			width: 22px;
+			height: 22px;
+			border-radius: 999px;
+			border: 2px solid rgba(255,255,255,0.25);
+			flex-shrink: 0;
+			box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+		}
+
+		.grade-dot-edit {
+			width: 2rem;
+			height: 2rem;
+			padding: 0;
+			border: 2px solid rgba(255,255,255,0.22);
+			border-radius: 0.5rem;
+			cursor: pointer;
+			background: none;
+			flex-shrink: 0;
+		}
+
+		.grade-label {
+			flex: 1;
+			font-weight: 700;
+			color: rgba(255,255,255,0.92);
+			font-size: 0.95rem;
+		}
+
+		.grade-order-badge {
+			font-size: 0.72rem;
+			font-weight: 800;
+			color: rgba(255,255,255,0.35);
+			text-transform: uppercase;
+			letter-spacing: 0.04em;
+			white-space: nowrap;
+		}
+
+		.grade-remove-btn {
+			background: rgba(220,60,60,0.18);
+			border: 1px solid rgba(220,60,60,0.35);
+			border-radius: 0.55rem;
+			color: rgba(255,160,160,0.9);
+			padding: 0.3rem 0.6rem;
+			font-size: 0.78rem;
+			font-weight: 800;
+			cursor: pointer;
+			flex-shrink: 0;
+			transition: background 0.15s;
+		}
+
+		.grade-remove-btn:hover {
+			background: rgba(220,60,60,0.32);
+		}
+
+		.grade-list-empty {
+			padding: 1rem;
+			text-align: center;
+			color: rgba(255,255,255,0.35);
+			font-size: 0.9rem;
+			border: 1px dashed rgba(255,255,255,0.15);
+			border-radius: 0.85rem;
+		}
+
+		.grade-list-actions {
+			display: flex;
+			gap: 0.75rem;
+			flex-wrap: wrap;
+			align-items: center;
+		}
+
+		.grade-list-note {
+			font-size: 0.82rem;
+			color: rgba(255,255,255,0.45);
+		}
+
+		/* Divider between sections */
+		.settings-divider {
+			border: none;
+			border-top: 1px solid rgba(255,255,255,0.10);
+			margin: 2rem 0;
+		}
+	</style>
+</head>
+
+<body>
+	<nav class="nav">
+		<button type="button" class="menu-toggle" onclick="openSidebar()">☰ Menu</button>
+	</nav>
+
+	{% include "sidebar.html" %}
+
+	<main class="container container--wide">
+		<header class="hero" style="margin:2rem 0 2rem;">
+			<h1>Gym Settings</h1>
+			<p>{{ gym.name }}</p>
+		</header>
+
+		{% if error %}
+			<div class="alert alert-error">{{ error }}</div>
+		{% endif %}
+
+		{% if message %}
+			<div class="alert alert-success">{{ message }}</div>
+		{% endif %}
+
+		<!-- ── Grading System ── -->
+		<section class="card">
+			<header class="section-header">
+				<h2 class="section-title" style="font-size:1.4rem;">Grading System</h2>
+			</header>
+
+			<p class="form-help" style="margin-bottom:1.25rem;">
+				This controls how climb grades are displayed and entered across all competitions
+				at this gym. It only needs to be set once.
+			</p>
+
+			<form method="post" class="form-grid" id="gradingSystemForm">
+				<input type="hidden" name="action" value="save_gym_settings" />
+
+				<div class="form-row">
+					<label class="form-label" for="grading_system">Grading System</label>
+					<select id="grading_system" name="grading_system" class="form-input" required
+						onchange="handleGradingSystemChange(this.value)">
+						<option value="">Select a grading system…</option>
+						{% for key in grading_systems %}
+							<option value="{{ key }}"
+								{% if gym.grading_system == key %}selected{% endif %}>
+								{{ grading_system_labels[key] }}
+							</option>
+						{% endfor %}
+					</select>
+					<p class="form-help">
+						<strong>Colour</strong> — grades are colours (e.g. Blue, Red, Yellow).<br />
+						<strong>V Grade</strong> — grades follow the V scale (V0–V17).<br />
+						<strong>Numeric</strong> — grades are numbers (1–9).
+					</p>
+				</div>
+
+				<div class="form-row">
+					<button type="submit" class="btn-primary">Save grading system</button>
+				</div>
+			</form>
+		</section>
+
+		<!-- ── Grade List (colour gyms only) ── -->
+		<section class="card" id="gradeListSection"
+			style="{% if gym.grading_system != 'colour' %}display:none;{% endif %}">
+
+			<header class="section-header">
+				<h2 class="section-title" style="font-size:1.4rem;">Grade Colours</h2>
+			</header>
+
+			<div class="grade-list-wrap">
+				<p class="grade-list-intro">
+					Define the grade colours used at this gym, <strong>ordered from easiest to hardest</strong>.
+					Drag to reorder. These will appear as a dropdown in the route setter when adding climbs.
+				</p>
+
+				<!-- Add new grade -->
+				<div>
+					<label class="form-label">Add a grade</label>
+					<div class="grade-add-row">
+						<input
+							type="color"
+							id="newGradeColour"
+							value="#ff4081"
+							title="Pick grade colour"
+						/>
+						<input
+							type="text"
+							id="newGradeLabel"
+							placeholder="Grade name e.g. Blue, Yellow, Purple"
+							class="form-input"
+							maxlength="30"
+						/>
+						<button type="button" class="btn" onclick="addGrade()" style="white-space:nowrap;">
+							Add grade
+						</button>
+					</div>
+				</div>
+
+				<!-- Sortable grade list -->
+				<div>
+					<label class="form-label" style="margin-bottom:0.5rem;">
+						Grades — easiest to hardest
+					</label>
+					<div id="gradeListSortable">
+						<div class="grade-list-empty" id="gradeListEmpty">
+							No grades added yet. Add your first grade above.
+						</div>
+					</div>
+				</div>
+
+				<!-- Save grade list -->
+				<div class="grade-list-actions">
+					<button type="button" class="btn-primary" onclick="saveGradeList()">
+						Save grade list
+					</button>
+					<span class="grade-list-note" id="gradeListNote"></span>
+				</div>
+			</div>
+		</section>
+	</main>
+
+	<script>
+	(function () {
+		/* ── Initial grade list from server ── */
+		const initialGrades = {{ (gym.grade_list or [])|tojson }};
+
+		/* Working copy — array of {label, colour} */
+		let grades = initialGrades.map(g => ({ label: g.label, colour: g.colour }));
+
+		function renderGradeList() {
+			const container = document.getElementById("gradeListSortable");
+			const empty     = document.getElementById("gradeListEmpty");
+
+			/* Remove all existing items */
+			Array.from(container.querySelectorAll(".grade-list-item")).forEach(el => el.remove());
+
+			if (grades.length === 0) {
+				empty.style.display = "";
+				return;
+			}
+			empty.style.display = "none";
+
+			grades.forEach((g, i) => {
+				const item = document.createElement("div");
+				item.className = "grade-list-item";
+				item.draggable = true;
+				item.dataset.index = i;
+
+				item.innerHTML = `
+					<span class="grade-drag-handle" title="Drag to reorder">⠿</span>
+					<input
+						type="color"
+						class="grade-dot-edit"
+						value="${g.colour}"
+						title="Change colour"
+						data-idx="${i}"
+					/>
+					<span class="grade-dot" style="background:${g.colour};"></span>
+					<span class="grade-label">${escHtml(g.label)}</span>
+					<span class="grade-order-badge">${i === 0 ? "Easiest" : i === grades.length - 1 ? "Hardest" : `#${i + 1}`}</span>
+					<button type="button" class="grade-remove-btn" data-idx="${i}" title="Remove">✕</button>
+				`;
+
+				/* Colour picker sync */
+				const picker = item.querySelector("input[type=color]");
+				picker.addEventListener("input", function () {
+					grades[this.dataset.idx].colour = this.value;
+					item.querySelector(".grade-dot").style.background = this.value;
+				});
+
+				/* Remove */
+				item.querySelector(".grade-remove-btn").addEventListener("click", function () {
+					grades.splice(parseInt(this.dataset.idx), 1);
+					renderGradeList();
+				});
+
+				/* Drag and drop */
+				item.addEventListener("dragstart", onDragStart);
+				item.addEventListener("dragover",  onDragOver);
+				item.addEventListener("drop",      onDrop);
+				item.addEventListener("dragend",   onDragEnd);
+
+				container.appendChild(item);
+			});
+		}
+
+		/* ── Drag-and-drop ── */
+		let dragSrcIndex = null;
+
+		function onDragStart(e) {
+			dragSrcIndex = parseInt(this.dataset.index);
+			this.classList.add("dragging");
+			e.dataTransfer.effectAllowed = "move";
+		}
+
+		function onDragOver(e) {
+			e.preventDefault();
+			e.dataTransfer.dropEffect = "move";
+			document.querySelectorAll(".grade-list-item").forEach(el => el.classList.remove("drag-over"));
+			this.classList.add("drag-over");
+		}
+
+		function onDrop(e) {
+			e.preventDefault();
+			const dropIndex = parseInt(this.dataset.index);
+			if (dragSrcIndex === null || dragSrcIndex === dropIndex) return;
+
+			const moved = grades.splice(dragSrcIndex, 1)[0];
+			grades.splice(dropIndex, 0, moved);
+			renderGradeList();
+		}
+
+		function onDragEnd() {
+			document.querySelectorAll(".grade-list-item").forEach(el => {
+				el.classList.remove("dragging", "drag-over");
+			});
+			dragSrcIndex = null;
+		}
+
+		/* ── Add grade ── */
+		window.addGrade = function () {
+			const labelInput  = document.getElementById("newGradeLabel");
+			const colourInput = document.getElementById("newGradeColour");
+			const label  = labelInput.value.trim();
+			const colour = colourInput.value;
+
+			if (!label) {
+				labelInput.focus();
+				setNote("Please enter a grade name.", true);
+				return;
+			}
+
+			/* Prevent duplicate labels (case-insensitive) */
+			if (grades.some(g => g.label.toLowerCase() === label.toLowerCase())) {
+				setNote(`"${label}" already exists.`, true);
+				labelInput.focus();
+				return;
+			}
+
+			grades.push({ label, colour });
+			labelInput.value = "";
+			renderGradeList();
+			setNote("");
+		};
+
+		/* Allow pressing Enter in the label input to add */
+		document.getElementById("newGradeLabel").addEventListener("keydown", function (e) {
+			if (e.key === "Enter") { e.preventDefault(); window.addGrade(); }
+		});
+
+		/* ── Save grade list ── */
+		window.saveGradeList = function () {
+			if (grades.length === 0) {
+				setNote("Add at least one grade before saving.", true);
+				return;
+			}
+
+			const form = document.createElement("form");
+			form.method = "POST";
+
+			const actionInput = document.createElement("input");
+			actionInput.type = "hidden";
+			actionInput.name = "action";
+			actionInput.value = "save_grade_list";
+			form.appendChild(actionInput);
+
+			const dataInput = document.createElement("input");
+			dataInput.type = "hidden";
+			dataInput.name = "grade_list_json";
+			dataInput.value = JSON.stringify(grades);
+			form.appendChild(dataInput);
+
+			document.body.appendChild(form);
+			form.submit();
+		};
+
+		/* ── Show/hide grade list section when grading system changes ── */
+		window.handleGradingSystemChange = function (value) {
+			const section = document.getElementById("gradeListSection");
+			if (section) {
+				section.style.display = value === "colour" ? "" : "none";
+			}
+		};
+
+		/* ── Helpers ── */
+		function setNote(msg, isError) {
+			const el = document.getElementById("gradeListNote");
+			if (!el) return;
+			el.textContent = msg;
+			el.style.color = isError ? "rgba(255,160,160,0.9)" : "rgba(255,255,255,0.45)";
+		}
+
+		function escHtml(str) {
+			return str
+				.replace(/&/g, "&amp;")
+				.replace(/</g, "&lt;")
+				.replace(/>/g, "&gt;")
+				.replace(/"/g, "&quot;");
+		}
+
+		/* ── Init ── */
+		renderGradeList();
+	})();
+	</script>
+</body>
+</html>

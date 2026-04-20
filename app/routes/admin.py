@@ -37,7 +37,7 @@ def _require_admin_login():
         return redirect("/login")
 
     if not _has_any_admin_access():
-        flash("You don’t have admin access.", "warning")
+        flash("You don't have admin access.", "warning")
         return redirect("/")
 
     return None
@@ -248,7 +248,7 @@ def admin_page():
     if current_comp and not admin_can_manage_competition(current_comp):
         if session.get("admin_comp_id"):
             session.pop("admin_comp_id", None)
-            error = "You don’t have access to manage that competition. Please choose a different competition."
+            error = "You don't have access to manage that competition. Please choose a different competition."
         current_comp = None
 
     if request.method == "POST":
@@ -260,7 +260,7 @@ def admin_page():
             if session.get("admin_comp_id"):
                 session.pop("admin_comp_id", None)
             current_comp = None
-            error = "You don’t have access to manage that competition. Please choose a different competition."
+            error = "You don't have access to manage that competition. Please choose a different competition."
 
         if action == "reset_all":
             if not is_super:
@@ -486,7 +486,7 @@ def admin_page():
             session.pop("admin_comp_id", None)
         current_comp = None
         if not error:
-            error = "You don’t have access to manage that competition. Please choose a different competition."
+            error = "You don't have access to manage that competition. Please choose a different competition."
 
     if current_comp:
         sections = (
@@ -679,7 +679,12 @@ def edit_section(section_id):
 
                     climb_raw = (request.form.get("climb_number") or "").strip()
                     colour = (request.form.get("colour") or "").strip()
+                    grade = (request.form.get("grade") or "").strip()
+                    styles = request.form.getlist("styles")
                     base_raw = (request.form.get("base_points") or "").strip()
+
+                    valid_styles = {"balance", "power", "coordination"}
+                    styles = [s for s in styles if s in valid_styles]
 
                     if not climb_raw.isdigit():
                         error = "Please enter a valid climb number."
@@ -687,6 +692,10 @@ def edit_section(section_id):
                         error = "Please enter base points."
                     elif not base_raw.lstrip("-").isdigit():
                         error = "Base points must be a whole number."
+                    elif not grade:
+                        error = "Please enter a grade."
+                    elif not styles:
+                        error = "Please select at least one style."
                     else:
                         new_climb_number = int(climb_raw)
                         new_base = int(base_raw)
@@ -718,6 +727,8 @@ def edit_section(section_id):
 
                             if not error:
                                 sc.colour = colour or None
+                                sc.grade = grade
+                                sc.styles = styles
                                 sc.base_points = new_base
 
                                 db.session.commit()
@@ -895,6 +906,7 @@ def admin_map():
         gym_name=gym_name,
         comp_name=comp_name,
         current_comp_id=current_comp.id,
+        current_comp=current_comp,
     )
 
 
@@ -984,7 +996,8 @@ def route_setter_competitions():
         "route_setter_competitions.html",
         competitions=competitions,
     )
-    
+
+
 @admin_bp.route("/route-setter/leaderboards")
 def route_setter_leaderboards():
     guard = _require_admin_login()
@@ -1008,6 +1021,7 @@ def route_setter_leaderboards():
         "route_setter_leaderboards.html",
         competitions=competitions,
     )
+
 
 @admin_bp.route("/admin/comp/<int:competition_id>/configure")
 def admin_configure_competition(competition_id):
@@ -1068,9 +1082,14 @@ def admin_map_add_climb():
     new_section_name = (request.form.get("new_section_name") or "").strip()
     climb_raw = (request.form.get("climb_number") or "").strip()
     colour = (request.form.get("colour") or "").strip()
+    grade = (request.form.get("grade") or "").strip()
+    styles = request.form.getlist("styles")
     base_raw = (request.form.get("base_points") or "").strip()
     x_raw = (request.form.get("x_percent") or "").strip()
     y_raw = (request.form.get("y_percent") or "").strip()
+
+    valid_styles = {"balance", "power", "coordination"}
+    styles = [s for s in styles if s in valid_styles]
 
     section = None
 
@@ -1116,6 +1135,16 @@ def admin_map_add_climb():
         db.session.rollback()
         return back(current_comp.id)
 
+    if not grade:
+        flash("Grade is required.", "warning")
+        db.session.rollback()
+        return back(current_comp.id)
+
+    if not styles:
+        flash("Please select at least one style (Balance, Power, or Coordination).", "warning")
+        db.session.rollback()
+        return back(current_comp.id)
+
     climb_number = int(climb_raw)
     base_points = int(base_raw)
 
@@ -1156,6 +1185,8 @@ def admin_map_add_climb():
         gym_id=current_comp.gym_id,
         climb_number=climb_number,
         colour=colour or None,
+        grade=grade,
+        styles=styles,
         base_points=base_points,
         x_percent=x_percent,
         y_percent=y_percent,
@@ -1216,6 +1247,7 @@ def admin_map_save_boundary():
 
     return jsonify({"ok": True, "section_id": section.id, "points": points})
 
+
 @admin_bp.app_context_processor
 def inject_sidebar_admin_context():
     sidebar_admin_comp = None
@@ -1226,14 +1258,12 @@ def inject_sidebar_admin_context():
     admin_comp_id = session.get("admin_comp_id")
 
     if account_id:
-        # Is this account a gym admin anywhere?
         gym_admin_row = GymAdmin.query.filter_by(account_id=account_id).first()
 
         if gym_admin_row:
             sidebar_gym_admin_allowed = True
             sidebar_route_setter_allowed = True
 
-            # Optional: if an admin_comp_id is selected, only attach it if user can manage it
             if admin_comp_id:
                 comp = Competition.query.get(admin_comp_id)
                 if comp and admin_can_manage_competition(comp):

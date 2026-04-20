@@ -1,0 +1,67 @@
+<!-- admin_gym_settings_picker.html -->
+<!doctype html>
+<html lang="en">
+<head>
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<title>Gym Settings · Comp Circuit</title>
+	<link rel="stylesheet" href="/static/app.css" />
+</head>
+
+<body>
+	<nav class="nav">
+		<button type="button" class="menu-toggle" onclick="openSidebar()">☰ Menu</button>
+	</nav>
+
+	{% include "sidebar.html" %}
+
+	<main class="container container--wide">
+		<header class="hero" style="margin:2rem 0 2rem;">
+			<h1>Gym Settings</h1>
+		</header>
+
+		<section class="card">
+			<header class="section-header">
+				<h2 class="section-title" style="font-size:1.4rem;">Select a gym</h2>
+			</header>
+
+			<p class="form-help" style="margin-bottom:1.25rem;">
+				You manage multiple gyms. Select one to edit its settings.
+			</p>
+
+			<div class="table-wrapper">
+				<table class="data-table">
+					<thead>
+						<tr>
+							<th>Gym</th>
+							<th>Grading System</th>
+							<th style="text-align:right;">Action</th>
+						</tr>
+					</thead>
+					<tbody>
+						{% for g in gyms %}
+							<tr>
+								<td><strong>{{ g.name }}</strong></td>
+								<td>
+									{% if g.grading_system %}
+										<span class="pill pill-success">
+											{{ g.grading_system | replace("_", " ") | title }}
+										</span>
+									{% else %}
+										<span class="pill pill-muted">Not set</span>
+									{% endif %}
+								</td>
+								<td style="text-align:right;">
+									<a href="/admin/gym/{{ g.id }}/settings" class="btn">
+										Edit
+									</a>
+								</td>
+							</tr>
+						{% endfor %}
+					</tbody>
+				</table>
+			</div>
+		</section>
+	</main>
+</body>
+</html>

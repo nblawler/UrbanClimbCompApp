@@ -5,6 +5,7 @@ from .competitions import competitions_bp
 from .competitors import competitors_bp
 from .scores import scores_bp
 from .climbs import climbs_bp
+from app.routes.gym_settings import gym_settings_bp
 
 def register_blueprints(app):
     app.register_blueprint(index_bp)
@@ -14,3 +15,4 @@ def register_blueprints(app):
     app.register_blueprint(competitors_bp)
     app.register_blueprint(scores_bp)
     app.register_blueprint(climbs_bp)
+    app.register_blueprint(gym_settings_bp)

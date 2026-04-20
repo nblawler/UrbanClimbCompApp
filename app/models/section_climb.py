@@ -1,6 +1,15 @@
 from sqlalchemy import UniqueConstraint
 from app.extensions import db
 
+CLIMB_STYLES = ("balance", "power", "coordination")
+
+CLIMB_STYLE_LABELS = {
+    "balance":       "Balance",
+    "power":         "Power",
+    "coordination":  "Coordination",
+}
+
+
 class SectionClimb(db.Model):
     __tablename__ = "section_climb"
 
@@ -13,7 +22,6 @@ class SectionClimb(db.Model):
         index=True,
     )
 
-    # Which gym owns this climb config + map coordinate
     gym_id = db.Column(
         db.Integer,
         db.ForeignKey("gym.id"),
@@ -25,22 +33,34 @@ class SectionClimb(db.Model):
     climb_number = db.Column(
         db.Integer,
         nullable=False,
-        index=True,  # INDEX for "all section mappings for this climb"
+        index=True,
     )
+
+    # Physical hold colour on the wall — purely for identification.
+    # Separate from grade; a red hold climb can be any grade.
     colour = db.Column(db.String(80), nullable=True)
 
-    # per-climb scoring config (admin editable)
-    base_points = db.Column(db.Integer, nullable=True)           # e.g. 1000
-    penalty_per_attempt = db.Column(db.Integer, nullable=True)   # e.g. 10
-    attempt_cap = db.Column(db.Integer, nullable=True)           # e.g. 5
+    # Difficulty grade — interpreted via gym.grading_system.
+    # Examples: "Blue" (colour gym), "V4" (v_grade gym), "6" (numeric gym).
+    grade = db.Column(db.String(20), nullable=True)
 
-    # where this climb sits on the map (% of width/height)
+    # Movement styles of the climb — stored as a JSON array since a climb can
+    # have multiple styles e.g. ["power", "coordination"].
+    # Valid values per entry: "balance", "power", "coordination"
+    # nullable in DB so migration is safe; UI enforces at least one selection.
+    styles = db.Column(db.JSON, nullable=True, default=None)
+
+    # Per-climb scoring config (admin editable)
+    base_points = db.Column(db.Integer, nullable=True)
+    penalty_per_attempt = db.Column(db.Integer, nullable=True)
+    attempt_cap = db.Column(db.Integer, nullable=True)
+
+    # Where this climb sits on the map (% of width/height)
     x_percent = db.Column(db.Float, nullable=True)
     y_percent = db.Column(db.Float, nullable=True)
 
     section = db.relationship("Section", backref=db.backref("climbs", lazy=True))
 
     __table_args__ = (
-        #  keeps your current uniqueness rule (we may change this later)
         UniqueConstraint("section_id", "climb_number", name="uq_section_climb"),
     )
