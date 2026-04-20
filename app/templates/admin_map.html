@@ -33,6 +33,7 @@
 
   {% set grading_system = current_comp.gym.grading_system if current_comp and current_comp.gym else None %}
   {% set grade_list = current_comp.gym.grade_list or [] if current_comp and current_comp.gym else [] %}
+  {% set hold_colour_list = current_comp.gym.hold_colour_list or [] if current_comp and current_comp.gym else [] %}
 
   <main class="admin-map-page" id="pageRoot">
     <section class="map-card" style="background:rgba(255,255,255,0.05);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,0.1);border-radius:1.5rem;padding:2rem;">
@@ -149,8 +150,20 @@
         </div>
 
         <div class="field">
-          <label for="colour">Hold colour (optional)</label>
-          <input type="text" id="colour" name="colour" placeholder="e.g. Red, Pink Volumes" />
+          <label for="colour">Hold colour <span style="color:rgba(255,255,255,0.45);font-weight:400;">(required)</span></label>
+          {% if hold_colour_list %}
+            <select id="colour" name="colour" required>
+              <option value="">Select hold colour…</option>
+              {% for hc in hold_colour_list %}
+                <option value="{{ hc.label }}">{{ hc.label }}</option>
+              {% endfor %}
+            </select>
+          {% else %}
+            <p style="color:rgba(255,255,255,0.45); font-size:0.85rem; margin:0;">
+              <a href="/admin/gym/settings" style="color:#fbbf24;">Add hold colours in Gym Settings first</a>
+            </p>
+            <input type="hidden" name="colour" value="" />
+          {% endif %}
         </div>
 
         <!-- Grade — rendered based on grading system -->

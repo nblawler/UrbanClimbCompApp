@@ -31,6 +31,30 @@ def _get_admin_gyms():
     return Gym.query.filter(Gym.id.in_(allowed_gym_ids)).order_by(Gym.name).all()
 
 
+def _parse_colour_list(raw):
+    """
+    Parse and validate a JSON colour list from a form field.
+    Returns (cleaned_list, error_string).
+    cleaned_list is None on error.
+    """
+    try:
+        items = json.loads(raw)
+        if not isinstance(items, list):
+            raise ValueError("Expected a list")
+        cleaned = []
+        for entry in items:
+            label = (entry.get("label") or "").strip()
+            colour = (entry.get("colour") or "").strip()
+            if not label:
+                raise ValueError("Each entry must have a label")
+            if not colour:
+                raise ValueError("Each entry must have a colour")
+            cleaned.append({"label": label, "colour": colour})
+        return cleaned, None
+    except (json.JSONDecodeError, ValueError, AttributeError) as e:
+        return None, str(e)
+
+
 @gym_settings_bp.route("/admin/gym/settings")
 def gym_settings_picker():
     guard = _require_gym_admin_login()
@@ -74,41 +98,35 @@ def gym_settings(gym_id):
                 error = "Please select a valid grading system."
             else:
                 gym.grading_system = grading_system
-
                 # If switching away from colour, clear the grade list
                 if grading_system != "colour":
                     gym.grade_list = None
-
                 db.session.commit()
                 message = f"Grading system saved for {gym.name}."
 
         elif action == "save_grade_list":
-            # Receives JSON string of the ordered grade list from the drag UI
             raw = (request.form.get("grade_list_json") or "").strip()
-            try:
-                grade_list = json.loads(raw)
-                # Validate structure — each entry must have label and colour
-                if not isinstance(grade_list, list):
-                    raise ValueError("Expected a list")
-                cleaned = []
-                for entry in grade_list:
-                    label = (entry.get("label") or "").strip()
-                    colour = (entry.get("colour") or "").strip()
-                    if not label:
-                        raise ValueError("Each grade must have a label")
-                    if not colour:
-                        raise ValueError("Each grade must have a colour")
-                    cleaned.append({"label": label, "colour": colour})
+            cleaned, err = _parse_colour_list(raw)
+            if err:
+                error = f"Invalid grade list: {err}"
+            elif not cleaned:
+                error = "Please add at least one grade."
+            else:
+                gym.grade_list = cleaned
+                db.session.commit()
+                message = f"Grade list saved for {gym.name}."
 
-                if len(cleaned) == 0:
-                    error = "Please add at least one grade."
-                else:
-                    gym.grade_list = cleaned
-                    db.session.commit()
-                    message = f"Grade list saved for {gym.name}."
-
-            except (json.JSONDecodeError, ValueError, AttributeError) as e:
-                error = f"Invalid grade list: {e}"
+        elif action == "save_hold_colour_list":
+            raw = (request.form.get("hold_colour_list_json") or "").strip()
+            cleaned, err = _parse_colour_list(raw)
+            if err:
+                error = f"Invalid hold colour list: {err}"
+            elif not cleaned:
+                error = "Please add at least one hold colour."
+            else:
+                gym.hold_colour_list = cleaned
+                db.session.commit()
+                message = f"Hold colour list saved for {gym.name}."
 
         else:
             error = "Unknown action."

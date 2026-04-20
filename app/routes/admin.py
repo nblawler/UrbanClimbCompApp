@@ -692,6 +692,8 @@ def edit_section(section_id):
                         error = "Please enter base points."
                     elif not base_raw.lstrip("-").isdigit():
                         error = "Base points must be a whole number."
+                    elif not colour:
+                        error = "Please select a hold colour."
                     elif not grade:
                         error = "Please enter a grade."
                     elif not styles:
@@ -726,7 +728,7 @@ def edit_section(section_id):
                                     sc.climb_number = new_climb_number
 
                             if not error:
-                                sc.colour = colour or None
+                                sc.colour = colour
                                 sc.grade = grade
                                 sc.styles = styles
                                 sc.base_points = new_base
@@ -1135,6 +1137,11 @@ def admin_map_add_climb():
         db.session.rollback()
         return back(current_comp.id)
 
+    if not colour:
+        flash("Hold colour is required.", "warning")
+        db.session.rollback()
+        return back(current_comp.id)
+
     if not grade:
         flash("Grade is required.", "warning")
         db.session.rollback()
@@ -1184,7 +1191,7 @@ def admin_map_add_climb():
         section_id=section.id,
         gym_id=current_comp.gym_id,
         climb_number=climb_number,
-        colour=colour or None,
+        colour=colour,
         grade=grade,
         styles=styles,
         base_points=base_points,

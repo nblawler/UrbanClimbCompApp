@@ -7,7 +7,6 @@
 	<title>Gym Settings · {{ gym.name }} · Comp Circuit</title>
 	<link rel="stylesheet" href="/static/app.css" />
 	<style>
-		/* ── Grade list builder ── */
 		.grade-list-wrap {
 			display: flex;
 			flex-direction: column;
@@ -23,7 +22,6 @@
 
 		.grade-list-intro strong { color: rgba(255,255,255,0.9); }
 
-		/* Add grade form row */
 		.grade-add-row {
 			display: flex;
 			align-items: center;
@@ -31,10 +29,7 @@
 			flex-wrap: wrap;
 		}
 
-		.grade-add-row input[type="text"] {
-			flex: 1;
-			min-width: 120px;
-		}
+		.grade-add-row input[type="text"] { flex: 1; min-width: 120px; }
 
 		.grade-add-row input[type="color"] {
 			width: 2.8rem;
@@ -47,8 +42,7 @@
 			flex-shrink: 0;
 		}
 
-		/* Sortable list */
-		#gradeListSortable {
+		.colour-list-sortable {
 			display: flex;
 			flex-direction: column;
 			gap: 0.5rem;
@@ -76,9 +70,7 @@
 			box-shadow: 0 0 0 2px rgba(168,216,240,0.25);
 		}
 
-		.grade-list-item.dragging {
-			opacity: 0.45;
-		}
+		.grade-list-item.dragging { opacity: 0.45; }
 
 		.grade-drag-handle {
 			color: rgba(255,255,255,0.35);
@@ -88,8 +80,7 @@
 		}
 
 		.grade-dot {
-			width: 22px;
-			height: 22px;
+			width: 22px; height: 22px;
 			border-radius: 999px;
 			border: 2px solid rgba(255,255,255,0.25);
 			flex-shrink: 0;
@@ -97,8 +88,7 @@
 		}
 
 		.grade-dot-edit {
-			width: 2rem;
-			height: 2rem;
+			width: 2rem; height: 2rem;
 			padding: 0;
 			border: 2px solid rgba(255,255,255,0.22);
 			border-radius: 0.5rem;
@@ -136,9 +126,7 @@
 			transition: background 0.15s;
 		}
 
-		.grade-remove-btn:hover {
-			background: rgba(220,60,60,0.32);
-		}
+		.grade-remove-btn:hover { background: rgba(220,60,60,0.32); }
 
 		.grade-list-empty {
 			padding: 1rem;
@@ -156,16 +144,28 @@
 			align-items: center;
 		}
 
-		.grade-list-note {
-			font-size: 0.82rem;
-			color: rgba(255,255,255,0.45);
+		.grade-list-note { font-size: 0.82rem; color: rgba(255,255,255,0.45); }
+
+		/* "Same as grade colours" button */
+		.copy-from-grades-btn {
+			display: inline-flex;
+			align-items: center;
+			gap: 0.4rem;
+			padding: 0.5rem 1rem;
+			border-radius: 999px;
+			border: 1px solid rgba(168,216,240,0.35);
+			background: rgba(168,216,240,0.10);
+			color: #a8d8f0;
+			font-size: 0.85rem;
+			font-weight: 700;
+			cursor: pointer;
+			transition: background 0.15s, border-color 0.15s;
+			white-space: nowrap;
 		}
 
-		/* Divider between sections */
-		.settings-divider {
-			border: none;
-			border-top: 1px solid rgba(255,255,255,0.10);
-			margin: 2rem 0;
+		.copy-from-grades-btn:hover {
+			background: rgba(168,216,240,0.18);
+			border-color: rgba(168,216,240,0.55);
 		}
 	</style>
 </head>
@@ -202,7 +202,7 @@
 				at this gym. It only needs to be set once.
 			</p>
 
-			<form method="post" class="form-grid" id="gradingSystemForm">
+			<form method="post" class="form-grid">
 				<input type="hidden" name="action" value="save_gym_settings" />
 
 				<div class="form-row">
@@ -230,7 +230,7 @@
 			</form>
 		</section>
 
-		<!-- ── Grade List (colour gyms only) ── -->
+		<!-- ── Grade Colours (colour gyms only) ── -->
 		<section class="card" id="gradeListSection"
 			style="{% if gym.grading_system != 'colour' %}display:none;{% endif %}">
 
@@ -241,50 +241,89 @@
 			<div class="grade-list-wrap">
 				<p class="grade-list-intro">
 					Define the grade colours used at this gym, <strong>ordered from easiest to hardest</strong>.
-					Drag to reorder. These will appear as a dropdown in the route setter when adding climbs.
+					Drag to reorder. These appear as a dropdown in the route setter when adding climbs.
 				</p>
 
-				<!-- Add new grade -->
 				<div>
 					<label class="form-label">Add a grade</label>
 					<div class="grade-add-row">
-						<input
-							type="color"
-							id="newGradeColour"
-							value="#ff4081"
-							title="Pick grade colour"
-						/>
-						<input
-							type="text"
-							id="newGradeLabel"
-							placeholder="Grade name e.g. Blue, Yellow, Purple"
-							class="form-input"
-							maxlength="30"
-						/>
-						<button type="button" class="btn" onclick="addGrade()" style="white-space:nowrap;">
+						<input type="color" id="newGradeColour" value="#ff4081" title="Pick grade colour" />
+						<input type="text" id="newGradeLabel" placeholder="Grade name e.g. Yellow, Blue, Purple"
+							class="form-input" maxlength="30" />
+						<button type="button" class="btn" onclick="gradeList.add()" style="white-space:nowrap;">
 							Add grade
 						</button>
 					</div>
 				</div>
 
-				<!-- Sortable grade list -->
 				<div>
-					<label class="form-label" style="margin-bottom:0.5rem;">
-						Grades — easiest to hardest
-					</label>
-					<div id="gradeListSortable">
+					<label class="form-label" style="margin-bottom:0.5rem;">Grades — easiest to hardest</label>
+					<div class="colour-list-sortable" id="gradeListSortable">
 						<div class="grade-list-empty" id="gradeListEmpty">
 							No grades added yet. Add your first grade above.
 						</div>
 					</div>
 				</div>
 
-				<!-- Save grade list -->
 				<div class="grade-list-actions">
-					<button type="button" class="btn-primary" onclick="saveGradeList()">
+					<button type="button" class="btn-primary" onclick="gradeList.save()">
 						Save grade list
 					</button>
 					<span class="grade-list-note" id="gradeListNote"></span>
+				</div>
+			</div>
+		</section>
+
+		<!-- ── Hold Colours (all gyms) ── -->
+		<section class="card">
+			<header class="section-header">
+				<h2 class="section-title" style="font-size:1.4rem;">Hold Colours</h2>
+			</header>
+
+			<div class="grade-list-wrap">
+				<p class="grade-list-intro">
+					Define the hold colours used at this gym. These appear as a dropdown when
+					adding or editing climbs in the route setter. Hold colour is for physical
+					identification and is independent of grade.
+				</p>
+
+				<!-- "Same as grade colours" button — only shown for colour gyms with a saved grade list -->
+				<div id="copyFromGradesWrap"
+					style="{% if gym.grading_system != 'colour' or not gym.grade_list %}display:none;{% endif %}">
+					<button type="button" class="copy-from-grades-btn" onclick="copyHoldColoursFromGrades()">
+						↑ Same as grade colours
+					</button>
+					<span style="font-size:0.82rem; color:rgba(255,255,255,0.45); margin-left:0.5rem;">
+						Copies your grade colour list into hold colours — you can adjust before saving.
+					</span>
+				</div>
+
+				<div>
+					<label class="form-label">Add a hold colour</label>
+					<div class="grade-add-row">
+						<input type="color" id="newHoldColour" value="#ff0000" title="Pick hold colour" />
+						<input type="text" id="newHoldLabel" placeholder="Colour name e.g. Red, Blue, Green"
+							class="form-input" maxlength="30" />
+						<button type="button" class="btn" onclick="holdColourList.add()" style="white-space:nowrap;">
+							Add colour
+						</button>
+					</div>
+				</div>
+
+				<div>
+					<label class="form-label" style="margin-bottom:0.5rem;">Hold colours</label>
+					<div class="colour-list-sortable" id="holdColourListSortable">
+						<div class="grade-list-empty" id="holdColourListEmpty">
+							No hold colours added yet. Add your first colour above.
+						</div>
+					</div>
+				</div>
+
+				<div class="grade-list-actions">
+					<button type="button" class="btn-primary" onclick="holdColourList.save()">
+						Save hold colour list
+					</button>
+					<span class="grade-list-note" id="holdColourListNote"></span>
 				</div>
 			</div>
 		</section>
@@ -292,185 +331,220 @@
 
 	<script>
 	(function () {
-		/* ── Initial grade list from server ── */
-		const initialGrades = {{ (gym.grade_list or [])|tojson }};
+		/* ─────────────────────────────────────────────
+		   Generic reusable colour-list builder
+		   ───────────────────────────────────────────── */
+		function ColourListBuilder({
+			sortableId,
+			emptyId,
+			noteId,
+			actionValue,
+			jsonFieldName,
+			initialItems,
+		}) {
+			let items = (initialItems || []).map(g => ({ label: g.label, colour: g.colour }));
 
-		/* Working copy — array of {label, colour} */
-		let grades = initialGrades.map(g => ({ label: g.label, colour: g.colour }));
+			const container = document.getElementById(sortableId);
+			const emptyEl   = document.getElementById(emptyId);
+			const noteEl    = document.getElementById(noteId);
 
-		function renderGradeList() {
-			const container = document.getElementById("gradeListSortable");
-			const empty     = document.getElementById("gradeListEmpty");
+			let dragSrcIndex = null;
 
-			/* Remove all existing items */
-			Array.from(container.querySelectorAll(".grade-list-item")).forEach(el => el.remove());
+			function render() {
+				Array.from(container.querySelectorAll(".grade-list-item")).forEach(el => el.remove());
 
-			if (grades.length === 0) {
-				empty.style.display = "";
-				return;
-			}
-			empty.style.display = "none";
+				if (items.length === 0) {
+					emptyEl.style.display = "";
+					return;
+				}
+				emptyEl.style.display = "none";
 
-			grades.forEach((g, i) => {
-				const item = document.createElement("div");
-				item.className = "grade-list-item";
-				item.draggable = true;
-				item.dataset.index = i;
+				items.forEach((g, i) => {
+					const item = document.createElement("div");
+					item.className = "grade-list-item";
+					item.draggable = true;
+					item.dataset.index = i;
 
-				item.innerHTML = `
-					<span class="grade-drag-handle" title="Drag to reorder">⠿</span>
-					<input
-						type="color"
-						class="grade-dot-edit"
-						value="${g.colour}"
-						title="Change colour"
-						data-idx="${i}"
-					/>
-					<span class="grade-dot" style="background:${g.colour};"></span>
-					<span class="grade-label">${escHtml(g.label)}</span>
-					<span class="grade-order-badge">${i === 0 ? "Easiest" : i === grades.length - 1 ? "Hardest" : `#${i + 1}`}</span>
-					<button type="button" class="grade-remove-btn" data-idx="${i}" title="Remove">✕</button>
-				`;
+					const orderLabel = i === 0 ? "First" : i === items.length - 1 ? "Last" : `#${i + 1}`;
 
-				/* Colour picker sync */
-				const picker = item.querySelector("input[type=color]");
-				picker.addEventListener("input", function () {
-					grades[this.dataset.idx].colour = this.value;
-					item.querySelector(".grade-dot").style.background = this.value;
+					item.innerHTML = `
+						<span class="grade-drag-handle" title="Drag to reorder">⠿</span>
+						<input type="color" class="grade-dot-edit" value="${escHtml(g.colour)}"
+							title="Change colour" data-idx="${i}" />
+						<span class="grade-dot" style="background:${escHtml(g.colour)};"></span>
+						<span class="grade-label">${escHtml(g.label)}</span>
+						<span class="grade-order-badge">${orderLabel}</span>
+						<button type="button" class="grade-remove-btn" data-idx="${i}" title="Remove">✕</button>
+					`;
+
+					item.querySelector("input[type=color]").addEventListener("input", function () {
+						items[this.dataset.idx].colour = this.value;
+						item.querySelector(".grade-dot").style.background = this.value;
+					});
+
+					item.querySelector(".grade-remove-btn").addEventListener("click", function () {
+						items.splice(parseInt(this.dataset.idx), 1);
+						render();
+					});
+
+					item.addEventListener("dragstart", function (e) {
+						dragSrcIndex = parseInt(this.dataset.index);
+						this.classList.add("dragging");
+						e.dataTransfer.effectAllowed = "move";
+					});
+
+					item.addEventListener("dragover", function (e) {
+						e.preventDefault();
+						e.dataTransfer.dropEffect = "move";
+						container.querySelectorAll(".grade-list-item").forEach(el => el.classList.remove("drag-over"));
+						this.classList.add("drag-over");
+					});
+
+					item.addEventListener("drop", function (e) {
+						e.preventDefault();
+						const dropIndex = parseInt(this.dataset.index);
+						if (dragSrcIndex === null || dragSrcIndex === dropIndex) return;
+						const moved = items.splice(dragSrcIndex, 1)[0];
+						items.splice(dropIndex, 0, moved);
+						render();
+					});
+
+					item.addEventListener("dragend", function () {
+						container.querySelectorAll(".grade-list-item").forEach(el => {
+							el.classList.remove("dragging", "drag-over");
+						});
+						dragSrcIndex = null;
+					});
+
+					container.appendChild(item);
 				});
-
-				/* Remove */
-				item.querySelector(".grade-remove-btn").addEventListener("click", function () {
-					grades.splice(parseInt(this.dataset.idx), 1);
-					renderGradeList();
-				});
-
-				/* Drag and drop */
-				item.addEventListener("dragstart", onDragStart);
-				item.addEventListener("dragover",  onDragOver);
-				item.addEventListener("drop",      onDrop);
-				item.addEventListener("dragend",   onDragEnd);
-
-				container.appendChild(item);
-			});
-		}
-
-		/* ── Drag-and-drop ── */
-		let dragSrcIndex = null;
-
-		function onDragStart(e) {
-			dragSrcIndex = parseInt(this.dataset.index);
-			this.classList.add("dragging");
-			e.dataTransfer.effectAllowed = "move";
-		}
-
-		function onDragOver(e) {
-			e.preventDefault();
-			e.dataTransfer.dropEffect = "move";
-			document.querySelectorAll(".grade-list-item").forEach(el => el.classList.remove("drag-over"));
-			this.classList.add("drag-over");
-		}
-
-		function onDrop(e) {
-			e.preventDefault();
-			const dropIndex = parseInt(this.dataset.index);
-			if (dragSrcIndex === null || dragSrcIndex === dropIndex) return;
-
-			const moved = grades.splice(dragSrcIndex, 1)[0];
-			grades.splice(dropIndex, 0, moved);
-			renderGradeList();
-		}
-
-		function onDragEnd() {
-			document.querySelectorAll(".grade-list-item").forEach(el => {
-				el.classList.remove("dragging", "drag-over");
-			});
-			dragSrcIndex = null;
-		}
-
-		/* ── Add grade ── */
-		window.addGrade = function () {
-			const labelInput  = document.getElementById("newGradeLabel");
-			const colourInput = document.getElementById("newGradeColour");
-			const label  = labelInput.value.trim();
-			const colour = colourInput.value;
-
-			if (!label) {
-				labelInput.focus();
-				setNote("Please enter a grade name.", true);
-				return;
 			}
 
-			/* Prevent duplicate labels (case-insensitive) */
-			if (grades.some(g => g.label.toLowerCase() === label.toLowerCase())) {
-				setNote(`"${label}" already exists.`, true);
-				labelInput.focus();
-				return;
+			function setNote(msg, isError) {
+				if (!noteEl) return;
+				noteEl.textContent = msg;
+				noteEl.style.color = isError ? "rgba(255,160,160,0.9)" : "rgba(255,255,255,0.45)";
 			}
 
-			grades.push({ label, colour });
-			labelInput.value = "";
-			renderGradeList();
-			setNote("");
-		};
+			return {
+				add() {
+					/* Called from outside — reads from the paired inputs */
+					const labelInputId  = sortableId === "gradeListSortable"  ? "newGradeLabel"  : "newHoldLabel";
+					const colourInputId = sortableId === "gradeListSortable"  ? "newGradeColour" : "newHoldColour";
+					const labelInput  = document.getElementById(labelInputId);
+					const colourInput = document.getElementById(colourInputId);
+					const label  = labelInput.value.trim();
+					const colour = colourInput.value;
 
-		/* Allow pressing Enter in the label input to add */
-		document.getElementById("newGradeLabel").addEventListener("keydown", function (e) {
-			if (e.key === "Enter") { e.preventDefault(); window.addGrade(); }
-		});
+					if (!label) { labelInput.focus(); setNote("Please enter a name.", true); return; }
 
-		/* ── Save grade list ── */
-		window.saveGradeList = function () {
-			if (grades.length === 0) {
-				setNote("Add at least one grade before saving.", true);
-				return;
-			}
+					if (items.some(g => g.label.toLowerCase() === label.toLowerCase())) {
+						setNote(`"${label}" already exists.`, true);
+						labelInput.focus();
+						return;
+					}
 
-			const form = document.createElement("form");
-			form.method = "POST";
+					items.push({ label, colour });
+					labelInput.value = "";
+					render();
+					setNote("");
+				},
 
-			const actionInput = document.createElement("input");
-			actionInput.type = "hidden";
-			actionInput.name = "action";
-			actionInput.value = "save_grade_list";
-			form.appendChild(actionInput);
+				save() {
+					if (items.length === 0) { setNote("Add at least one item before saving.", true); return; }
 
-			const dataInput = document.createElement("input");
-			dataInput.type = "hidden";
-			dataInput.name = "grade_list_json";
-			dataInput.value = JSON.stringify(grades);
-			form.appendChild(dataInput);
+					const form = document.createElement("form");
+					form.method = "POST";
 
-			document.body.appendChild(form);
-			form.submit();
-		};
+					const a = document.createElement("input");
+					a.type = "hidden"; a.name = "action"; a.value = actionValue;
+					form.appendChild(a);
 
-		/* ── Show/hide grade list section when grading system changes ── */
-		window.handleGradingSystemChange = function (value) {
-			const section = document.getElementById("gradeListSection");
-			if (section) {
-				section.style.display = value === "colour" ? "" : "none";
-			}
-		};
+					const d = document.createElement("input");
+					d.type = "hidden"; d.name = jsonFieldName; d.value = JSON.stringify(items);
+					form.appendChild(d);
 
-		/* ── Helpers ── */
-		function setNote(msg, isError) {
-			const el = document.getElementById("gradeListNote");
-			if (!el) return;
-			el.textContent = msg;
-			el.style.color = isError ? "rgba(255,160,160,0.9)" : "rgba(255,255,255,0.45)";
+					document.body.appendChild(form);
+					form.submit();
+				},
+
+				setItems(newItems) {
+					items = newItems.map(g => ({ label: g.label, colour: g.colour }));
+					render();
+				},
+
+				getItems() { return items; },
+
+				render,
+			};
 		}
 
 		function escHtml(str) {
-			return str
+			return String(str)
 				.replace(/&/g, "&amp;")
 				.replace(/</g, "&lt;")
 				.replace(/>/g, "&gt;")
 				.replace(/"/g, "&quot;");
 		}
 
-		/* ── Init ── */
-		renderGradeList();
+		/* ── Initialise grade list builder ── */
+		const gradeList = ColourListBuilder({
+			sortableId:    "gradeListSortable",
+			emptyId:       "gradeListEmpty",
+			noteId:        "gradeListNote",
+			actionValue:   "save_grade_list",
+			jsonFieldName: "grade_list_json",
+			initialItems:  {{ (gym.grade_list or []) | tojson }},
+		});
+		gradeList.render();
+		window.gradeList = gradeList;
+
+		/* ── Initialise hold colour list builder ── */
+		const holdColourList = ColourListBuilder({
+			sortableId:    "holdColourListSortable",
+			emptyId:       "holdColourListEmpty",
+			noteId:        "holdColourListNote",
+			actionValue:   "save_hold_colour_list",
+			jsonFieldName: "hold_colour_list_json",
+			initialItems:  {{ (gym.hold_colour_list or []) | tojson }},
+		});
+		holdColourList.render();
+		window.holdColourList = holdColourList;
+
+		/* ── "Same as grade colours" button ── */
+		window.copyHoldColoursFromGrades = function () {
+			const gradeItems = gradeList.getItems();
+			if (gradeItems.length === 0) {
+				alert("No grade colours defined yet. Save your grade list first.");
+				return;
+			}
+			holdColourList.setItems(gradeItems);
+		};
+
+		/* ── Show/hide grade list section when grading system changes ── */
+		window.handleGradingSystemChange = function (value) {
+			const gradeSection = document.getElementById("gradeListSection");
+			if (gradeSection) gradeSection.style.display = value === "colour" ? "" : "none";
+
+			/* Also show/hide the copy button in hold colours section */
+			const copyWrap = document.getElementById("copyFromGradesWrap");
+			if (copyWrap) {
+				const hasGradeList = {{ "true" if gym.grade_list else "false" }};
+				copyWrap.style.display = (value === "colour" && hasGradeList) ? "" : "none";
+			}
+		};
+
+		/* Enter key support for add inputs */
+		["newGradeLabel", "newHoldLabel"].forEach(function (id) {
+			const el = document.getElementById(id);
+			if (!el) return;
+			el.addEventListener("keydown", function (e) {
+				if (e.key !== "Enter") return;
+				e.preventDefault();
+				if (id === "newGradeLabel") gradeList.add();
+				else holdColourList.add();
+			});
+		});
 	})();
 	</script>
 </body>
