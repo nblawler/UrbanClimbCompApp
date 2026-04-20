@@ -197,16 +197,10 @@
 				<h2 class="section-title" style="font-size:1.4rem;">Grading System</h2>
 			</header>
 
-			<p class="form-help" style="margin-bottom:1.25rem;">
-				This controls how climb grades are displayed and entered across all competitions
-				at this gym. It only needs to be set once.
-			</p>
-
 			<form method="post" class="form-grid">
 				<input type="hidden" name="action" value="save_gym_settings" />
 
 				<div class="form-row">
-					<label class="form-label" for="grading_system">Grading System</label>
 					<select id="grading_system" name="grading_system" class="form-input" required
 						onchange="handleGradingSystemChange(this.value)">
 						<option value="">Select a grading system…</option>
@@ -241,7 +235,7 @@
 			<div class="grade-list-wrap">
 				<p class="grade-list-intro">
 					Define the grade colours used at this gym, <strong>ordered from easiest to hardest</strong>.
-					Drag to reorder. These appear as a dropdown in the route setter when adding climbs.
+					Drag to reorder. 
 				</p>
 
 				<div>
@@ -283,8 +277,7 @@
 			<div class="grade-list-wrap">
 				<p class="grade-list-intro">
 					Define the hold colours used at this gym. These appear as a dropdown when
-					adding or editing climbs in the route setter. Hold colour is for physical
-					identification and is independent of grade.
+					adding or editing climbs. 
 				</p>
 
 				<!-- "Same as grade colours" button — only shown for colour gyms with a saved grade list -->
@@ -293,9 +286,6 @@
 					<button type="button" class="copy-from-grades-btn" onclick="copyHoldColoursFromGrades()">
 						↑ Same as grade colours
 					</button>
-					<span style="font-size:0.82rem; color:rgba(255,255,255,0.45); margin-left:0.5rem;">
-						Copies your grade colour list into hold colours — you can adjust before saving.
-					</span>
 				</div>
 
 				<div>
