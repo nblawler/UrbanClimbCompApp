@@ -6,23 +6,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
   <title>Admin · Scoring</title>
   <link rel="stylesheet" href="/static/app.css" />
-  <style>
-    .grade-colour-wrap {
-      display: flex;
-      align-items: center;
-      gap: 0.4rem;
-    }
-    .grade-colour-wrap input[type="color"] {
-      width: 2.2rem;
-      height: 2.2rem;
-      padding: 0;
-      border: none;
-      border-radius: 6px;
-      cursor: pointer;
-      background: none;
-      flex-shrink: 0;
-    }
-  </style>
 </head>
 <body>
   <nav class="nav">
@@ -34,6 +17,14 @@
   {% set grading_system = current_comp.gym.grading_system if current_comp and current_comp.gym else None %}
   {% set grade_list = current_comp.gym.grade_list or [] if current_comp and current_comp.gym else [] %}
   {% set hold_colour_list = current_comp.gym.hold_colour_list or [] if current_comp and current_comp.gym else [] %}
+
+  {% set missing_grading = not grading_system %}
+  {% set missing_grades  = grading_system == 'colour' and not grade_list %}
+  {% set missing_holds   = not hold_colour_list %}
+  {% set can_add_climbs  = not missing_grading and not missing_grades and not missing_holds %}
+
+  {# form_values is passed back from the route on error to repopulate the form #}
+  {% set fv = form_values if form_values is defined else {} %}
 
   <main class="admin-map-page" id="pageRoot">
     <section class="map-card" style="background:rgba(255,255,255,0.05);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,0.1);border-radius:1.5rem;padding:2rem;">
@@ -76,7 +67,7 @@
                       top: {{ c.y_percent }}%;
                       {% if c.colour %}--dot: {{ c.colour|e }};{% endif %}
                     "
-                    title="Climb {{ c.climb_number }} · {{ c.section.name if c.section else 'No section' }}{% if c.colour %} · {{ c.colour }}{% endif %}{% if c.grade %} · Grade: {{ c.grade }}{% endif %}{% if c.style %} · {{ c.style|capitalize }}{% endif %}"
+                    title="Climb {{ c.climb_number }} · {{ c.section.name if c.section else 'No section' }}{% if c.colour %} · {{ c.colour }}{% endif %}{% if c.grade %} · Grade: {{ c.grade }}{% endif %}"
                   >
                     {{ c.climb_number }}
                   </div>
@@ -105,22 +96,23 @@
         Tap map to set position (you'll see a bright marker), then fill details and press Save.
       </p>
 
-      {% with messages = get_flashed_messages(with_categories=true) %}
-        {% if messages %}
-          {% for category, msg in messages %}
-            <div class="alert
-              {% if category in ['error','warning','danger'] %}alert-error{% endif %}
-              {% if category in ['success'] %}alert-success{% endif %}
-            ">{{ msg }}</div>
-          {% endfor %}
-        {% endif %}
-      {% endwith %}
+      {% if map_error is defined and map_error %}
+        <div class="alert alert-error">{{ map_error }}</div>
+      {% endif %}
 
-      {% if not grading_system %}
-        <div class="alert alert-error" style="margin-bottom:0.75rem;">
-          No grading system set for this gym.
-          <a href="/admin/gym/settings" style="color:#fbbf24;text-decoration:underline;">Go to Gym Settings</a>
-          to set one before adding climbs.
+      {% if not can_add_climbs %}
+        <div style="display:flex; flex-direction:column; gap:0.5rem; padding:1.1rem 1.25rem; background:rgba(251,191,36,0.10); border:1px solid rgba(251,191,36,0.35); border-radius:1rem; margin-bottom:0.75rem;">
+          <div style="font-weight:800; color:#fbbf24; font-size:0.95rem;">Gym Settings required before adding climbs</div>
+          <div style="font-size:0.88rem; color:rgba(255,255,255,0.75); line-height:1.5;">
+            Complete the following in
+            <a href="/admin/gym/settings" style="color:#fbbf24; font-weight:700; text-decoration:underline;">Gym Settings</a>
+            first:
+            <ul style="margin:0.5rem 0 0 1.1rem; display:flex; flex-direction:column; gap:0.25rem;">
+              {% if missing_grading %}<li>Set the <strong>Grading System</strong></li>{% endif %}
+              {% if missing_grades %}<li>Define the <strong>Grade Colours</strong> list</li>{% endif %}
+              {% if missing_holds %}<li>Define the <strong>Hold Colours</strong> list</li>{% endif %}
+            </ul>
+          </div>
         </div>
       {% endif %}
 
@@ -129,93 +121,92 @@
       <form method="POST" action="/admin/map/add-climb">
         <input type="hidden" name="comp_id" value="{{ session.get('admin_comp_id') }}">
 
+        <fieldset style="border:none; padding:0; margin:0;" {% if not can_add_climbs %}disabled{% endif %}>
+
         <div class="field">
           <label for="section_id">Existing section</label>
           <select name="section_id" id="section_id">
             <option value="">— Choose section —</option>
             {% for s in sections %}
-              <option value="{{ s.id }}">{{ s.name }} (id {{ s.id }})</option>
+              <option value="{{ s.id }}"
+                {% if fv.section_id and fv.section_id == s.id|string %}selected{% endif %}>
+                {{ s.name }} (id {{ s.id }})
+              </option>
             {% endfor %}
           </select>
         </div>
 
         <div class="field">
           <label for="new_section_name">New section name</label>
-          <input type="text" id="new_section_name" name="new_section_name" placeholder="e.g. Slab Left" />
+          <input type="text" id="new_section_name" name="new_section_name"
+            placeholder="e.g. Slab Left"
+            value="{{ fv.new_section_name or '' }}" />
         </div>
 
         <div class="field">
           <label for="climb_number">Climb number</label>
-          <input type="number" id="climb_number" name="climb_number" min="1" step="1" required />
+          <input type="number" id="climb_number" name="climb_number" min="1" step="1" required
+            value="{{ fv.climb_number or '' }}" />
         </div>
 
         <div class="field">
           <label for="colour">Hold colour <span style="color:rgba(255,255,255,0.45);font-weight:400;">(required)</span></label>
-          {% if hold_colour_list %}
-            <select id="colour" name="colour" required>
-              <option value="">Select hold colour…</option>
-              {% for hc in hold_colour_list %}
-                <option value="{{ hc.label }}">{{ hc.label }}</option>
-              {% endfor %}
-            </select>
-          {% else %}
-            <p style="color:rgba(255,255,255,0.45); font-size:0.85rem; margin:0;">
-              <a href="/admin/gym/settings" style="color:#fbbf24;">Add hold colours in Gym Settings first</a>
-            </p>
-            <input type="hidden" name="colour" value="" />
-          {% endif %}
+          <select id="colour" name="colour" required>
+            <option value="">Select hold colour…</option>
+            {% for hc in hold_colour_list %}
+              <option value="{{ hc.label }}"
+                {% if fv.colour == hc.label %}selected{% endif %}>
+                {{ hc.label }}
+              </option>
+            {% endfor %}
+          </select>
         </div>
 
-        <!-- Grade — rendered based on grading system -->
         <div class="field">
           <label for="grade">Grade <span style="color:rgba(255,255,255,0.45);font-weight:400;">(required)</span></label>
           {% if grading_system == 'colour' %}
-            {% if grade_list %}
-              <select id="grade" name="grade" required
-                onchange="updateMapGradeDot(this)"
-                style="padding-left:2.2rem; position:relative;">
-                <option value="">Select grade…</option>
-                {% for g in grade_list %}
-                  <option value="{{ g.label }}" data-colour="{{ g.colour }}">{{ g.label }}</option>
-                {% endfor %}
-              </select>
-            {% else %}
-              <p style="color:rgba(255,255,255,0.45); font-size:0.85rem; margin:0;">
-                <a href="/admin/gym/settings" style="color:#fbbf24;">Add grade colours in Gym Settings first</a>
-              </p>
-              <input type="hidden" name="grade" value="" />
-            {% endif %}
+            <select id="grade" name="grade" required onchange="updateMapGradeDot(this)">
+              <option value="">Select grade…</option>
+              {% for g in grade_list %}
+                <option value="{{ g.label }}" data-colour="{{ g.colour }}"
+                  {% if fv.grade == g.label %}selected{% endif %}>
+                  {{ g.label }}
+                </option>
+              {% endfor %}
+            </select>
           {% elif grading_system == 'v_grade' %}
             <select id="grade" name="grade" required>
               <option value="">Select grade…</option>
               {% for v in range(0, 18) %}
-                <option value="V{{ v }}">V{{ v }}</option>
+                <option value="V{{ v }}" {% if fv.grade == 'V' ~ v %}selected{% endif %}>V{{ v }}</option>
               {% endfor %}
             </select>
           {% elif grading_system == 'numeric' %}
             <select id="grade" name="grade" required>
               <option value="">Select grade…</option>
               {% for n in range(1, 10) %}
-                <option value="{{ n }}">{{ n }}</option>
+                <option value="{{ n }}" {% if fv.grade == n|string %}selected{% endif %}>{{ n }}</option>
               {% endfor %}
             </select>
           {% else %}
-            <input type="text" id="grade" name="grade" placeholder="Set grading system in Gym Settings first" disabled />
+            <input type="text" id="grade" name="grade" disabled />
           {% endif %}
         </div>
 
-        <!-- Style — checkboxes, multiple allowed -->
         <div class="field">
           <label>Style <span style="color:rgba(255,255,255,0.45);font-weight:400;">(required — select all that apply)</span></label>
           <div style="display:flex; gap:0.5rem; flex-wrap:wrap; margin-top:0.3rem;">
             <label style="display:flex;align-items:center;gap:0.35rem;padding:0.3rem 0.7rem;border-radius:999px;border:1px solid rgba(255,255,255,0.18);background:rgba(255,255,255,0.07);cursor:pointer;font-size:0.82rem;font-weight:700;color:rgba(255,255,255,0.75);">
-              <input type="checkbox" name="styles" value="balance" style="accent-color:#7dd3fc;" /> Balance
+              <input type="checkbox" name="styles" value="balance" style="accent-color:#7dd3fc;"
+                {% if fv.styles and 'balance' in fv.styles %}checked{% endif %} /> Balance
             </label>
             <label style="display:flex;align-items:center;gap:0.35rem;padding:0.3rem 0.7rem;border-radius:999px;border:1px solid rgba(255,255,255,0.18);background:rgba(255,255,255,0.07);cursor:pointer;font-size:0.82rem;font-weight:700;color:rgba(255,255,255,0.75);">
-              <input type="checkbox" name="styles" value="power" style="accent-color:#fda4af;" /> Power
+              <input type="checkbox" name="styles" value="power" style="accent-color:#fda4af;"
+                {% if fv.styles and 'power' in fv.styles %}checked{% endif %} /> Power
             </label>
             <label style="display:flex;align-items:center;gap:0.35rem;padding:0.3rem 0.7rem;border-radius:999px;border:1px solid rgba(255,255,255,0.18);background:rgba(255,255,255,0.07);cursor:pointer;font-size:0.82rem;font-weight:700;color:rgba(255,255,255,0.75);">
-              <input type="checkbox" name="styles" value="coordination" style="accent-color:#6ee7b7;" /> Coordination
+              <input type="checkbox" name="styles" value="coordination" style="accent-color:#6ee7b7;"
+                {% if fv.styles and 'coordination' in fv.styles %}checked{% endif %} /> Coordination
             </label>
           </div>
         </div>
@@ -223,19 +214,24 @@
         <div class="field field-row">
           <div>
             <label for="base_points">Points</label>
-            <input type="number" id="base_points" name="base_points" min="0" step="1" required />
+            <input type="number" id="base_points" name="base_points" min="0" step="1" required
+              value="{{ fv.base_points or '' }}" />
           </div>
         </div>
 
-        <input type="hidden" name="x_percent" id="x_percent" />
-        <input type="hidden" name="y_percent" id="y_percent" />
+        <input type="hidden" name="x_percent" id="x_percent" value="{{ fv.x_percent or '' }}" />
+        <input type="hidden" name="y_percent" id="y_percent" value="{{ fv.y_percent or '' }}" />
 
-        <button type="submit" class="pill-button" id="submitBtn" {% if not gym_map_url %}disabled{% endif %}>
+        </fieldset>
+
+        <button type="submit" class="pill-button" id="submitBtn"
+          {% if not gym_map_url or not can_add_climbs %}disabled{% endif %}>
           Save climb at selected position
         </button>
 
         <div class="tiny-muted" id="clickHint" style="margin-top: 0.5rem; text-align: center;">
-          Button unlocks after you tap the map.
+            Button unlocks after you tap the map.
+          {% endif %}
         </div>
       </form>
 
@@ -288,7 +284,6 @@
   </main>
 
   <script>
-    /* Update grade dot colour when dropdown changes */
     function updateMapGradeDot(selectEl) {
       const dot = document.getElementById("map-grade-dot");
       if (!dot) return;
@@ -322,13 +317,18 @@
 
       const compId = "{{ session.get('admin_comp_id') }}";
 
+      // Restore position from form_values if we're re-rendering after an error
+      const restoredX = {{ (fv.x_percent or 'null') }};
+      const restoredY = {{ (fv.y_percent or 'null') }};
+
       if (!viewport || !layer || !img) return;
 
       function sid() { return (boundarySelect && boundarySelect.value) ? boundarySelect.value : ""; }
       function setStatus(msg) { if (boundaryStatus) boundaryStatus.textContent = msg || ""; }
       function setCoords(msg) { if (coordsDisplay) coordsDisplay.textContent = msg || ""; }
 
-      if (submitBtn) submitBtn.disabled = true;
+      // Submit button starts disabled unless we have a restored position
+      if (submitBtn) submitBtn.disabled = !(restoredX && restoredY);
 
       let scale = 1;
       let tx = 0, ty = 0;
@@ -378,6 +378,13 @@
         ty = (vr.height - baseH * scale) / 2;
         applyTransform();
         redrawBoundary();
+
+        // Restore ghost dot position if we have saved coords from a failed submit
+        if (restoredX && restoredY && ghostDot) {
+          ghostDot.style.left = restoredX + "%";
+          ghostDot.style.top  = restoredY + "%";
+          ghostDot.style.display = "flex";
+        }
       }
 
       function clientToImagePercent(clientX, clientY) {

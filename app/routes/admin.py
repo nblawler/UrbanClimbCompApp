@@ -44,10 +44,6 @@ def _require_admin_login():
 
 
 def _resolve_admin_current_comp():
-    """
-    Admin pages should prefer the admin-selected competition context (session['admin_comp_id']).
-    Only fall back to get_current_comp() if no admin context exists.
-    """
     admin_comp_id = session.get("admin_comp_id")
     if admin_comp_id:
         comp = Competition.query.get(admin_comp_id)
@@ -516,9 +512,6 @@ def admin_page():
 
 @admin_bp.route("/admin/comp/<slug>")
 def admin_comp(slug):
-    """
-    Per-competition admin dashboard.
-    """
     guard = _require_admin_login()
     if guard:
         return guard
@@ -557,10 +550,6 @@ def admin_comp(slug):
 
 @admin_bp.route("/admin/api/comp/<int:comp_id>/section-boundaries")
 def admin_api_comp_section_boundaries(comp_id):
-    """
-    Admin-only: return boundaries for all sections in this comp.
-    Works even if the comp isn't live.
-    """
     guard = _require_admin_login()
     if guard:
         return guard
@@ -616,16 +605,12 @@ def edit_section(section_id):
 
     def _score_query_for_climb_number(climb_number: int):
         q = Score.query.filter(Score.climb_number == climb_number)
-
         if hasattr(Score, "competition_id"):
             q = q.filter(Score.competition_id == current_comp.id)
-
         if hasattr(Score, "gym_id") and current_comp.gym_id:
             q = q.filter(Score.gym_id == current_comp.gym_id)
-
         if hasattr(Score, "section_id"):
             q = q.filter(Score.section_id == section.id)
-
         return q
 
     def _delete_scores_for_climb_number(climb_number: int):
@@ -634,25 +619,25 @@ def edit_section(section_id):
     def _delete_scores_for_climb_numbers(climb_numbers: list[int]):
         if not climb_numbers:
             return
-
         q = Score.query.filter(Score.climb_number.in_(climb_numbers))
-
         if hasattr(Score, "competition_id"):
             q = q.filter(Score.competition_id == current_comp.id)
-
         if hasattr(Score, "gym_id") and current_comp.gym_id:
             q = q.filter(Score.gym_id == current_comp.gym_id)
-
         if hasattr(Score, "section_id"):
             q = q.filter(Score.section_id == section.id)
-
         q.delete(synchronize_session=False)
 
     error = None
     message = None
+    failed_climb_id = None
+    failed_values = {}
 
     if request.method == "POST":
         action = (request.form.get("action") or "").strip()
+
+        # DEBUG: log all form data on every POST
+        print(f"[edit_section] action={action!r} form={dict(request.form)}", file=sys.stderr)
 
         if action == "save_section":
             name = request.form.get("name", "").strip()
@@ -666,6 +651,8 @@ def edit_section(section_id):
 
         elif action == "update_climb":
             climb_id_raw = (request.form.get("climb_id") or "").strip()
+            print(f"[edit_section] update_climb climb_id_raw={climb_id_raw!r}", file=sys.stderr)
+
             if not climb_id_raw.isdigit():
                 error = "Invalid climb selection."
             else:
@@ -677,49 +664,77 @@ def edit_section(section_id):
                     if current_comp.gym_id and getattr(sc, "gym_id", None) and sc.gym_id != current_comp.gym_id:
                         abort(403)
 
-                    climb_raw = (request.form.get("climb_number") or "").strip()
-                    colour = (request.form.get("colour") or "").strip()
-                    grade = (request.form.get("grade") or "").strip()
-                    styles = request.form.getlist("styles")
-                    base_raw = (request.form.get("base_points") or "").strip()
+                    climb_raw  = (request.form.get("climb_number") or "").strip()
+                    colour     = (request.form.get("colour") or "").strip()
+                    grade      = (request.form.get("grade") or "").strip()
+                    styles     = request.form.getlist("styles")
+                    base_raw   = (request.form.get("base_points") or "").strip()
 
                     valid_styles = {"balance", "power", "coordination"}
                     styles = [s for s in styles if s in valid_styles]
 
+                    print(f"[edit_section] sc.id={sc.id} climb_raw={climb_raw!r} colour={colour!r} grade={grade!r} styles={styles} base_raw={base_raw!r}", file=sys.stderr)
+
+                    def _capture_failed():
+                        return {
+                            "climb_number": climb_raw,
+                            "colour":       colour,
+                            "grade":        grade,
+                            "styles":       styles,
+                            "base_points":  base_raw,
+                        }
+
                     if not climb_raw.isdigit():
                         error = "Please enter a valid climb number."
+                        failed_climb_id = sc.id
+                        failed_values = _capture_failed()
                     elif base_raw == "":
                         error = "Please enter base points."
+                        failed_climb_id = sc.id
+                        failed_values = _capture_failed()
                     elif not base_raw.lstrip("-").isdigit():
                         error = "Base points must be a whole number."
+                        failed_climb_id = sc.id
+                        failed_values = _capture_failed()
                     elif not colour:
                         error = "Please select a hold colour."
+                        failed_climb_id = sc.id
+                        failed_values = _capture_failed()
                     elif not grade:
                         error = "Please enter a grade."
+                        failed_climb_id = sc.id
+                        failed_values = _capture_failed()
                     elif not styles:
                         error = "Please select at least one style."
+                        failed_climb_id = sc.id
+                        failed_values = _capture_failed()
                     else:
                         new_climb_number = int(climb_raw)
                         new_base = int(base_raw)
 
                         if new_climb_number <= 0:
                             error = "Climb number must be positive."
+                            failed_climb_id = sc.id
+                            failed_values = _capture_failed()
                         elif new_base < 0:
                             error = "Base points must be ≥ 0."
+                            failed_climb_id = sc.id
+                            failed_values = _capture_failed()
                         else:
                             if new_climb_number != sc.climb_number:
                                 dup_q = SectionClimb.query.filter_by(
                                     section_id=section.id,
                                     climb_number=new_climb_number,
                                 )
-
                                 if hasattr(SectionClimb, "gym_id") and current_comp.gym_id:
                                     dup_q = dup_q.filter(SectionClimb.gym_id == current_comp.gym_id)
-
                                 dup = dup_q.first()
 
                                 if dup:
                                     error = f"Climb {new_climb_number} is already in this section."
+                                    failed_climb_id = sc.id
+                                    failed_values = _capture_failed()
+                                    print(f"[edit_section] DUPLICATE — failed_climb_id={failed_climb_id} failed_values={failed_values}", file=sys.stderr)
                                 else:
                                     _score_query_for_climb_number(sc.climb_number).update(
                                         {Score.climb_number: new_climb_number},
@@ -732,7 +747,6 @@ def edit_section(section_id):
                                 sc.grade = grade
                                 sc.styles = styles
                                 sc.base_points = new_base
-
                                 db.session.commit()
                                 invalidate_leaderboard_cache()
                                 message = f"Climb {sc.climb_number} updated."
@@ -752,7 +766,6 @@ def edit_section(section_id):
                         abort(403)
 
                     climb_number = sc.climb_number
-
                     _delete_scores_for_climb_number(climb_number)
 
                     climbs_to_delete = (
@@ -764,9 +777,7 @@ def edit_section(section_id):
                         )
                         .all()
                     )
-
                     ids = [c.id for c in climbs_to_delete]
-
                     if ids:
                         SectionClimb.query.filter(SectionClimb.id.in_(ids)).delete(synchronize_session=False)
 
@@ -784,7 +795,6 @@ def edit_section(section_id):
 
             section_climbs = section_climbs_q.all()
             climb_numbers = [sc.climb_number for sc in section_climbs]
-
             _delete_scores_for_climb_numbers(climb_numbers)
 
             delete_climbs_q = SectionClimb.query.filter_by(section_id=section.id)
@@ -801,6 +811,9 @@ def edit_section(section_id):
         else:
             error = "Unknown action."
 
+    # DEBUG: log what we're passing to the template
+    print(f"[edit_section] RENDER failed_climb_id={failed_climb_id} failed_values={failed_values} error={error!r}", file=sys.stderr)
+
     climbs_q = SectionClimb.query.filter_by(section_id=section.id)
     if hasattr(SectionClimb, "gym_id") and current_comp.gym_id:
         climbs_q = climbs_q.filter(SectionClimb.gym_id == current_comp.gym_id)
@@ -812,14 +825,12 @@ def edit_section(section_id):
     climb_points_json = []
     for c in climbs:
         if getattr(c, "x_percent", None) is not None and getattr(c, "y_percent", None) is not None:
-            climb_points_json.append(
-                {
-                    "id": c.id,
-                    "climb_number": c.climb_number,
-                    "x": float(c.x_percent),
-                    "y": float(c.y_percent),
-                }
-            )
+            climb_points_json.append({
+                "id": c.id,
+                "climb_number": c.climb_number,
+                "x": float(c.x_percent),
+                "y": float(c.y_percent),
+            })
 
     gym_map_url = current_comp.gym.map_image_path if current_comp.gym else None
 
@@ -834,16 +845,13 @@ def edit_section(section_id):
         gym_map_url=gym_map_url,
         section_boundary_points=section_boundary_points,
         climb_points_json=climb_points_json,
+        failed_climb_id=failed_climb_id,
+        failed_values=failed_values,
     )
 
 
 @admin_bp.route("/admin/map")
 def admin_map():
-    """
-    Map-based climb creation/edit view.
-    Admin can click the gym map, then fill climb config and save.
-    Loads the admin-selected competition, not the public current comp.
-    """
     guard = _require_admin_login()
     if guard:
         return guard
@@ -891,10 +899,8 @@ def admin_map():
     climbs = []
     if section_ids:
         q = SectionClimb.query.filter(SectionClimb.section_id.in_(section_ids))
-
         if current_comp.gym_id is not None:
             q = q.filter(SectionClimb.gym_id == current_comp.gym_id)
-
         climbs = q.all()
 
     gym_name = current_comp.gym.name if getattr(current_comp, "gym", None) else None
@@ -1027,10 +1033,6 @@ def route_setter_leaderboards():
 
 @admin_bp.route("/admin/comp/<int:competition_id>/configure")
 def admin_configure_competition(competition_id):
-    """
-    Set this competition as the active one for editing
-    and then send the admin to the main admin page.
-    """
     guard = _require_admin_login()
     if guard:
         return guard
@@ -1054,20 +1056,48 @@ def admin_configure_competition(competition_id):
 def admin_map_add_climb():
     """
     Handle form submission from the map when admin clicks and adds a climb.
-    Uses the admin-selected competition context.
+    On success: redirect so the page refreshes and the new dot appears.
+    On error: re-render the map page with form values preserved — no data loss.
     """
     guard = _require_admin_login()
     if guard:
         return guard
 
-    def back(comp_id=None):
-        return redirect(f"/admin/map?comp_id={comp_id}") if comp_id else redirect("/admin/map")
+    def _render_map_error(error_msg, current_comp, form_values):
+        """Re-render the map page with an error and all form values intact."""
+        sections = (
+            Section.query
+            .filter(Section.competition_id == current_comp.id)
+            .order_by(Section.name)
+            .all()
+        )
+        section_ids = [s.id for s in sections]
+        climbs = []
+        if section_ids:
+            q = SectionClimb.query.filter(SectionClimb.section_id.in_(section_ids))
+            if current_comp.gym_id is not None:
+                q = q.filter(SectionClimb.gym_id == current_comp.gym_id)
+            climbs = q.all()
+        gym_map_url = current_comp.gym.map_image_path if current_comp.gym else None
+        gym_name = current_comp.gym.name if getattr(current_comp, "gym", None) else None
+        return render_template(
+            "admin_map.html",
+            sections=sections,
+            climbs=climbs,
+            gym_map_url=gym_map_url,
+            gym_name=gym_name,
+            comp_name=current_comp.name,
+            current_comp_id=current_comp.id,
+            current_comp=current_comp,
+            map_error=error_msg,
+            form_values=form_values,
+        )
 
     comp_id_raw = (request.form.get("comp_id") or "").strip()
     comp_id = int(comp_id_raw) if comp_id_raw.isdigit() else session.get("admin_comp_id")
 
     if not comp_id:
-        flash("No competition context (comp_id missing). Open the map from Gym Admin → Manage Competition.", "warning")
+        flash("No competition context. Open the map from Gym Admin → Manage Competition.", "warning")
         return redirect("/admin/comps/manage")
 
     current_comp = Competition.query.get(comp_id)
@@ -1080,21 +1110,34 @@ def admin_map_add_climb():
     if not admin_can_manage_competition(current_comp):
         abort(403)
 
-    section_id_raw = (request.form.get("section_id") or "").strip()
+    # Capture all form values upfront so we can pass them back on any error
+    section_id_raw   = (request.form.get("section_id") or "").strip()
     new_section_name = (request.form.get("new_section_name") or "").strip()
-    climb_raw = (request.form.get("climb_number") or "").strip()
-    colour = (request.form.get("colour") or "").strip()
-    grade = (request.form.get("grade") or "").strip()
-    styles = request.form.getlist("styles")
-    base_raw = (request.form.get("base_points") or "").strip()
-    x_raw = (request.form.get("x_percent") or "").strip()
-    y_raw = (request.form.get("y_percent") or "").strip()
+    climb_raw        = (request.form.get("climb_number") or "").strip()
+    colour           = (request.form.get("colour") or "").strip()
+    grade            = (request.form.get("grade") or "").strip()
+    styles           = request.form.getlist("styles")
+    base_raw         = (request.form.get("base_points") or "").strip()
+    x_raw            = (request.form.get("x_percent") or "").strip()
+    y_raw            = (request.form.get("y_percent") or "").strip()
 
     valid_styles = {"balance", "power", "coordination"}
     styles = [s for s in styles if s in valid_styles]
 
-    section = None
+    form_values = {
+        "section_id":       section_id_raw,
+        "new_section_name": new_section_name,
+        "climb_number":     climb_raw,
+        "colour":           colour,
+        "grade":            grade,
+        "styles":           styles,
+        "base_points":      base_raw,
+        "x_percent":        x_raw,
+        "y_percent":        y_raw,
+    }
 
+    # Resolve section
+    section = None
     if section_id_raw.isdigit():
         section = Section.query.get(int(section_id_raw))
         if not section or section.competition_id != current_comp.id:
@@ -1105,7 +1148,6 @@ def admin_map_add_climb():
         existing = Section.query.filter_by(competition_id=current_comp.id, slug=slug).first()
         if existing:
             slug = f"{slug}-{int(datetime.utcnow().timestamp())}"
-
         section = Section(
             name=new_section_name,
             slug=slug,
@@ -1118,60 +1160,50 @@ def admin_map_add_climb():
         db.session.flush()
 
     if not section:
-        flash("Please select an existing section or type a new section name.", "warning")
         db.session.rollback()
-        return back(current_comp.id)
+        return _render_map_error("Please select an existing section or type a new section name.", current_comp, form_values)
 
     if not climb_raw.isdigit():
-        flash("Climb number must be a whole number.", "warning")
         db.session.rollback()
-        return back(current_comp.id)
+        return _render_map_error("Climb number must be a whole number.", current_comp, form_values)
 
     if base_raw == "":
-        flash("Base points are required.", "warning")
         db.session.rollback()
-        return back(current_comp.id)
+        return _render_map_error("Base points are required.", current_comp, form_values)
 
     if not base_raw.lstrip("-").isdigit():
-        flash("Base points must be a whole number.", "warning")
         db.session.rollback()
-        return back(current_comp.id)
+        return _render_map_error("Base points must be a whole number.", current_comp, form_values)
 
     if not colour:
-        flash("Hold colour is required.", "warning")
         db.session.rollback()
-        return back(current_comp.id)
+        return _render_map_error("Hold colour is required.", current_comp, form_values)
 
     if not grade:
-        flash("Grade is required.", "warning")
         db.session.rollback()
-        return back(current_comp.id)
+        return _render_map_error("Grade is required.", current_comp, form_values)
 
     if not styles:
-        flash("Please select at least one style (Balance, Power, or Coordination).", "warning")
         db.session.rollback()
-        return back(current_comp.id)
+        return _render_map_error("Please select at least one style.", current_comp, form_values)
 
     climb_number = int(climb_raw)
-    base_points = int(base_raw)
+    base_points  = int(base_raw)
 
     if climb_number <= 0:
-        flash("Climb number must be positive.", "warning")
         db.session.rollback()
-        return back(current_comp.id)
+        return _render_map_error("Climb number must be positive.", current_comp, form_values)
 
     if base_points < 0:
-        flash("Base points must be ≥ 0.", "warning")
         db.session.rollback()
-        return back(current_comp.id)
+        return _render_map_error("Base points must be ≥ 0.", current_comp, form_values)
 
     try:
         x_percent = float(x_raw)
         y_percent = float(y_raw)
     except ValueError:
-        flash("You need to click the map first (missing coordinates).", "warning")
         db.session.rollback()
-        return back(current_comp.id)
+        return _render_map_error("You need to tap the map first to set a position.", current_comp, form_values)
 
     conflict = (
         db.session.query(SectionClimb)
@@ -1183,9 +1215,8 @@ def admin_map_add_climb():
         .first()
     )
     if conflict:
-        flash(f"Climb #{climb_number} already exists in this competition.", "warning")
         db.session.rollback()
-        return back(current_comp.id)
+        return _render_map_error(f"Climb #{climb_number} already exists in this competition.", current_comp, form_values)
 
     sc = SectionClimb(
         section_id=section.id,
@@ -1204,19 +1235,14 @@ def admin_map_add_climb():
         db.session.commit()
     except Exception as e:
         db.session.rollback()
-        flash(f"DB error saving climb: {e}", "warning")
-        return back(current_comp.id)
+        return _render_map_error(f"DB error saving climb: {e}", current_comp, form_values)
 
-    flash(f"Saved climb #{climb_number}.", "success")
-    return back(current_comp.id)
+    # Success — redirect so page refreshes and new dot appears on the map
+    return redirect(f"/admin/map?comp_id={current_comp.id}")
 
 
 @admin_bp.route("/admin/map/save-boundary", methods=["POST"])
 def admin_map_save_boundary():
-    """
-    Save polygon boundary for a section.
-    Payload can be JSON or form-encoded.
-    """
     guard = _require_admin_login()
     if guard:
         return guard
