@@ -1,5 +1,5 @@
 import json
-from flask import Blueprint, render_template, request, session, redirect, flash
+from flask import Blueprint, render_template, request, session, redirect, flash, jsonify
 
 from app.extensions import db
 from app.models import Gym
@@ -33,12 +33,11 @@ def _get_admin_gyms():
 
 def _parse_colour_list(raw):
     """
-    Parse and validate a JSON colour list from a form field.
-    Returns (cleaned_list, error_string).
-    cleaned_list is None on error.
+    Parse and validate a JSON colour list.
+    Returns (cleaned_list, error_string). cleaned_list is None on error.
     """
     try:
-        items = json.loads(raw)
+        items = json.loads(raw) if isinstance(raw, str) else raw
         if not isinstance(items, list):
             raise ValueError("Expected a list")
         cleaned = []
@@ -73,7 +72,7 @@ def gym_settings_picker():
     return render_template("admin_gym_settings_picker.html", gyms=gyms)
 
 
-@gym_settings_bp.route("/admin/gym/<int:gym_id>/settings", methods=["GET", "POST"])
+@gym_settings_bp.route("/admin/gym/<int:gym_id>/settings", methods=["GET"])
 def gym_settings(gym_id):
     guard = _require_gym_admin_login()
     if guard:
@@ -85,57 +84,64 @@ def gym_settings(gym_id):
 
     gym = Gym.query.get_or_404(gym_id)
 
-    message = None
-    error = None
-
-    if request.method == "POST":
-        action = (request.form.get("action") or "").strip()
-
-        if action == "save_gym_settings":
-            grading_system = (request.form.get("grading_system") or "").strip()
-
-            if grading_system not in GRADING_SYSTEMS:
-                error = "Please select a valid grading system."
-            else:
-                gym.grading_system = grading_system
-                # If switching away from colour, clear the grade list
-                if grading_system != "colour":
-                    gym.grade_list = None
-                db.session.commit()
-                message = f"Grading system saved for {gym.name}."
-
-        elif action == "save_grade_list":
-            raw = (request.form.get("grade_list_json") or "").strip()
-            cleaned, err = _parse_colour_list(raw)
-            if err:
-                error = f"Invalid grade list: {err}"
-            elif not cleaned:
-                error = "Please add at least one grade."
-            else:
-                gym.grade_list = cleaned
-                db.session.commit()
-                message = f"Grade list saved for {gym.name}."
-
-        elif action == "save_hold_colour_list":
-            raw = (request.form.get("hold_colour_list_json") or "").strip()
-            cleaned, err = _parse_colour_list(raw)
-            if err:
-                error = f"Invalid hold colour list: {err}"
-            elif not cleaned:
-                error = "Please add at least one hold colour."
-            else:
-                gym.hold_colour_list = cleaned
-                db.session.commit()
-                message = f"Hold colour list saved for {gym.name}."
-
-        else:
-            error = "Unknown action."
-
     return render_template(
         "admin_gym_settings.html",
         gym=gym,
         grading_systems=GRADING_SYSTEMS,
         grading_system_labels=GRADING_SYSTEM_LABELS,
-        message=message,
-        error=error,
     )
+
+
+@gym_settings_bp.route("/admin/gym/<int:gym_id>/settings/api", methods=["POST"])
+def gym_settings_api(gym_id):
+    """
+    JSON API endpoint for all gym settings saves.
+    Returns {"ok": true} or {"ok": false, "error": "..."}.
+    No page refresh — called via fetch() from the template.
+    """
+    if not session.get("account_id"):
+        return jsonify({"ok": False, "error": "Not logged in"}), 401
+
+    if not admin_can_manage_gym_id(gym_id):
+        return jsonify({"ok": False, "error": "Access denied"}), 403
+
+    gym = Gym.query.get_or_404(gym_id)
+
+    data = request.get_json(silent=True) or {}
+    action = (data.get("action") or "").strip()
+
+    if action == "save_grading_system":
+        grading_system = (data.get("grading_system") or "").strip()
+        if grading_system not in GRADING_SYSTEMS:
+            return jsonify({"ok": False, "error": "Please select a valid grading system."})
+
+        gym.grading_system = grading_system
+        if grading_system != "colour":
+            gym.grade_list = None
+        db.session.commit()
+        return jsonify({"ok": True, "message": "Grading system saved."})
+
+    elif action == "save_grade_list":
+        raw = data.get("grade_list") or []
+        cleaned, err = _parse_colour_list(raw if isinstance(raw, str) else json.dumps(raw))
+        if err:
+            return jsonify({"ok": False, "error": f"Invalid grade list: {err}"})
+        if not cleaned:
+            return jsonify({"ok": False, "error": "Please add at least one grade."})
+        gym.grade_list = cleaned
+        db.session.commit()
+        return jsonify({"ok": True, "message": "Grade list saved."})
+
+    elif action == "save_hold_colour_list":
+        raw = data.get("hold_colour_list") or []
+        cleaned, err = _parse_colour_list(raw if isinstance(raw, str) else json.dumps(raw))
+        if err:
+            return jsonify({"ok": False, "error": f"Invalid hold colour list: {err}"})
+        if not cleaned:
+            return jsonify({"ok": False, "error": "Please add at least one hold colour."})
+        gym.hold_colour_list = cleaned
+        db.session.commit()
+        return jsonify({"ok": True, "message": "Hold colour list saved."})
+
+    else:
+        return jsonify({"ok": False, "error": "Unknown action."})

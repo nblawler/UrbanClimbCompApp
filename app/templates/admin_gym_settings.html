@@ -144,7 +144,14 @@
 			align-items: center;
 		}
 
-		.grade-list-note { font-size: 0.82rem; color: rgba(255,255,255,0.45); }
+		.grade-list-note {
+			font-size: 0.82rem;
+			color: rgba(255,255,255,0.45);
+			transition: color 0.2s;
+		}
+
+		.grade-list-note.is-success { color: #5df4a2; }
+		.grade-list-note.is-error   { color: rgba(255,160,160,0.9); }
 	</style>
 </head>
 
@@ -161,25 +168,15 @@
 			<p>{{ gym.name }}</p>
 		</header>
 
-		{% if error %}
-			<div class="alert alert-error">{{ error }}</div>
-		{% endif %}
-
-		{% if message %}
-			<div class="alert alert-success">{{ message }}</div>
-		{% endif %}
-
 		<!-- ── Grading System ── -->
 		<section class="card">
 			<header class="section-header">
 				<h2 class="section-title" style="font-size:1.4rem;">Grading System</h2>
 			</header>
 
-			<form method="post" class="form-grid">
-				<input type="hidden" name="action" value="save_gym_settings" />
-
+			<div class="form-grid">
 				<div class="form-row">
-					<select id="grading_system" name="grading_system" class="form-input" required
+					<select id="grading_system" name="grading_system" class="form-input"
 						onchange="handleGradingSystemChange(this.value)">
 						<option value="">Select a grading system…</option>
 						{% for key in grading_systems %}
@@ -196,10 +193,13 @@
 					</p>
 				</div>
 
-				<div class="form-row">
-					<button type="submit" class="btn-primary">Save grading system</button>
+				<div class="form-row" style="display:flex; align-items:center; gap:0.75rem; flex-wrap:wrap;">
+					<button type="button" class="btn-primary" onclick="saveGradingSystem()">
+						Save grading system
+					</button>
+					<span class="grade-list-note" id="gradingSystemNote"></span>
 				</div>
-			</form>
+			</div>
 		</section>
 
 		<!-- ── Grade Colours (colour gyms only) ── -->
@@ -213,7 +213,7 @@
 			<div class="grade-list-wrap">
 				<p class="grade-list-intro">
 					Define the grade colours used at this gym, <strong>ordered from easiest to hardest</strong>.
-					Drag to reorder. 
+					Drag to reorder.
 				</p>
 
 				<div>
@@ -255,10 +255,10 @@
 			<div class="grade-list-wrap">
 				<p class="grade-list-intro">
 					Define the hold colours used at this gym. These appear as a dropdown when
-					adding or editing climbs. 
+					adding or editing climbs.
 				</p>
 
-				<!-- "Same as grade colours" button — only shown for colour gyms with a saved grade list -->
+				<!-- "Same as grade colours" — only shown for colour gyms with a saved grade list -->
 				<div id="copyFromGradesWrap"
 					style="{% if gym.grading_system != 'colour' or not gym.grade_list %}display:none;{% endif %}">
 					<button type="button" class="btn" onclick="copyHoldColoursFromGrades()"
@@ -300,6 +300,69 @@
 
 	<script>
 	(function () {
+		const GYM_ID = {{ gym.id }};
+		const API_URL = `/admin/gym/${GYM_ID}/settings/api`;
+
+		/* ── Generic API save helper ── */
+		async function apiSave(payload, noteElId, btnEl) {
+			const noteEl = document.getElementById(noteElId);
+
+			function setNote(msg, type) {
+				if (!noteEl) return;
+				noteEl.textContent = msg;
+				noteEl.className = "grade-list-note" + (type ? ` is-${type}` : "");
+			}
+
+			if (btnEl) {
+				btnEl.disabled = true;
+				btnEl.textContent = "Saving…";
+			}
+
+			setNote("Saving…");
+
+			try {
+				const res = await fetch(API_URL, {
+					method: "POST",
+					credentials: "same-origin",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify(payload),
+				});
+
+				const data = await res.json();
+
+				if (data.ok) {
+					setNote(data.message || "Saved ✓", "success");
+					setTimeout(() => setNote(""), 3000);
+				} else {
+					setNote(data.error || "Save failed.", "error");
+				}
+			} catch (err) {
+				setNote("Network error — please try again.", "error");
+			} finally {
+				if (btnEl) {
+					btnEl.disabled = false;
+					btnEl.textContent = btnEl.dataset.label || "Save";
+				}
+			}
+		}
+
+		/* ── Save grading system ── */
+		window.saveGradingSystem = function () {
+			const select = document.getElementById("grading_system");
+			const value = select ? select.value : "";
+			if (!value) {
+				const noteEl = document.getElementById("gradingSystemNote");
+				if (noteEl) {
+					noteEl.textContent = "Please select a grading system.";
+					noteEl.className = "grade-list-note is-error";
+				}
+				return;
+			}
+			const btn = document.querySelector('[onclick="saveGradingSystem()"]');
+			if (btn) btn.dataset.label = "Save grading system";
+			apiSave({ action: "save_grading_system", grading_system: value }, "gradingSystemNote", btn);
+		};
+
 		/* ─────────────────────────────────────────────
 		   Generic reusable colour-list builder
 		   ───────────────────────────────────────────── */
@@ -307,15 +370,14 @@
 			sortableId,
 			emptyId,
 			noteId,
-			actionValue,
-			jsonFieldName,
+			actionKey,
+			payloadKey,
 			initialItems,
 		}) {
 			let items = (initialItems || []).map(g => ({ label: g.label, colour: g.colour }));
 
 			const container = document.getElementById(sortableId);
 			const emptyEl   = document.getElementById(emptyId);
-			const noteEl    = document.getElementById(noteId);
 
 			let dragSrcIndex = null;
 
@@ -389,20 +451,21 @@
 				});
 			}
 
-			function setNote(msg, isError) {
-				if (!noteEl) return;
-				noteEl.textContent = msg;
-				noteEl.style.color = isError ? "rgba(255,160,160,0.9)" : "rgba(255,255,255,0.45)";
-			}
-
 			return {
 				add() {
-					const labelInputId  = sortableId === "gradeListSortable"  ? "newGradeLabel"  : "newHoldLabel";
-					const colourInputId = sortableId === "gradeListSortable"  ? "newGradeColour" : "newHoldColour";
+					const labelInputId  = sortableId === "gradeListSortable" ? "newGradeLabel"  : "newHoldLabel";
+					const colourInputId = sortableId === "gradeListSortable" ? "newGradeColour" : "newHoldColour";
 					const labelInput  = document.getElementById(labelInputId);
 					const colourInput = document.getElementById(colourInputId);
 					const label  = labelInput.value.trim();
 					const colour = colourInput.value;
+
+					const noteEl = document.getElementById(noteId);
+					function setNote(msg, isError) {
+						if (!noteEl) return;
+						noteEl.textContent = msg;
+						noteEl.className = "grade-list-note" + (isError ? " is-error" : "");
+					}
 
 					if (!label) { labelInput.focus(); setNote("Please enter a name.", true); return; }
 
@@ -419,21 +482,26 @@
 				},
 
 				save() {
-					if (items.length === 0) { setNote("Add at least one item before saving.", true); return; }
+					const noteEl = document.getElementById(noteId);
+					function setNote(msg, isError) {
+						if (!noteEl) return;
+						noteEl.textContent = msg;
+						noteEl.className = "grade-list-note" + (isError ? " is-error" : "");
+					}
 
-					const form = document.createElement("form");
-					form.method = "POST";
+					if (items.length === 0) {
+						setNote("Add at least one item before saving.", true);
+						return;
+					}
 
-					const a = document.createElement("input");
-					a.type = "hidden"; a.name = "action"; a.value = actionValue;
-					form.appendChild(a);
+					const btn = document.querySelector(`[onclick="${sortableId === "gradeListSortable" ? "gradeList" : "holdColourList"}.save()"]`);
+					if (btn) btn.dataset.label = btn.textContent;
 
-					const d = document.createElement("input");
-					d.type = "hidden"; d.name = jsonFieldName; d.value = JSON.stringify(items);
-					form.appendChild(d);
-
-					document.body.appendChild(form);
-					form.submit();
+					apiSave(
+						{ action: actionKey, [payloadKey]: items },
+						noteId,
+						btn
+					);
 				},
 
 				setItems(newItems) {
@@ -457,24 +525,24 @@
 
 		/* ── Initialise grade list builder ── */
 		const gradeList = ColourListBuilder({
-			sortableId:    "gradeListSortable",
-			emptyId:       "gradeListEmpty",
-			noteId:        "gradeListNote",
-			actionValue:   "save_grade_list",
-			jsonFieldName: "grade_list_json",
-			initialItems:  {{ (gym.grade_list or []) | tojson }},
+			sortableId:   "gradeListSortable",
+			emptyId:      "gradeListEmpty",
+			noteId:       "gradeListNote",
+			actionKey:    "save_grade_list",
+			payloadKey:   "grade_list",
+			initialItems: {{ (gym.grade_list or []) | tojson }},
 		});
 		gradeList.render();
 		window.gradeList = gradeList;
 
 		/* ── Initialise hold colour list builder ── */
 		const holdColourList = ColourListBuilder({
-			sortableId:    "holdColourListSortable",
-			emptyId:       "holdColourListEmpty",
-			noteId:        "holdColourListNote",
-			actionValue:   "save_hold_colour_list",
-			jsonFieldName: "hold_colour_list_json",
-			initialItems:  {{ (gym.hold_colour_list or []) | tojson }},
+			sortableId:   "holdColourListSortable",
+			emptyId:      "holdColourListEmpty",
+			noteId:       "holdColourListNote",
+			actionKey:    "save_hold_colour_list",
+			payloadKey:   "hold_colour_list",
+			initialItems: {{ (gym.hold_colour_list or []) | tojson }},
 		});
 		holdColourList.render();
 		window.holdColourList = holdColourList;
@@ -483,7 +551,11 @@
 		window.copyHoldColoursFromGrades = function () {
 			const gradeItems = gradeList.getItems();
 			if (gradeItems.length === 0) {
-				alert("No grade colours defined yet. Save your grade list first.");
+				const noteEl = document.getElementById("holdColourListNote");
+				if (noteEl) {
+					noteEl.textContent = "No grade colours defined yet — save your grade list first.";
+					noteEl.className = "grade-list-note is-error";
+				}
 				return;
 			}
 			holdColourList.setItems(gradeItems);
