@@ -1,0 +1,852 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Climb Entry · {{ current_comp.name }}</title>
+  <link rel="stylesheet" href="/static/app.css" />
+  <style>
+    .ce-layout {
+      display: grid;
+      grid-template-columns: 380px 1fr;
+      gap: 1.5rem;
+      align-items: start;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 0 1rem 3rem;
+    }
+    @media (max-width: 800px) {
+      .ce-layout { grid-template-columns: 1fr; }
+    }
+
+    /* ── Add form card ── */
+    .ce-form-card {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.10);
+      border-radius: 1.25rem;
+      padding: 1.5rem;
+      position: sticky;
+      top: 1rem;
+    }
+
+    .ce-form-card h2 {
+      font-size: 1.15rem;
+      font-weight: 800;
+      color: #fff;
+      margin: 0 0 1.25rem;
+    }
+
+    .ce-field { margin-bottom: 1rem; }
+    .ce-field label {
+      display: block;
+      font-size: 0.82rem;
+      font-weight: 700;
+      color: rgba(255,255,255,0.55);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      margin-bottom: 0.35rem;
+    }
+
+    .ce-field input,
+    .ce-field select {
+      width: 100%;
+      box-sizing: border-box;
+      background: rgba(255,255,255,0.07);
+      border: 1px solid rgba(255,255,255,0.16);
+      border-radius: 0.75rem;
+      color: #fff;
+      padding: 0.65rem 0.9rem;
+      font-size: 0.95rem;
+      font-family: inherit;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+
+    .ce-field input:focus,
+    .ce-field select:focus {
+      border-color: rgba(168,216,240,0.6);
+    }
+
+    .ce-field select option { background: #1a2e5a; }
+
+    /* Style checkboxes */
+    .style-pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+      margin-top: 0.25rem;
+    }
+
+    .style-pill-label {
+      display: flex;
+      align-items: center;
+      gap: 0.3rem;
+      padding: 0.3rem 0.75rem;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,0.18);
+      background: rgba(255,255,255,0.07);
+      cursor: pointer;
+      font-size: 0.82rem;
+      font-weight: 700;
+      color: rgba(255,255,255,0.75);
+      transition: background 0.12s, border-color 0.12s, color 0.12s;
+      user-select: none;
+    }
+    .style-pill-label input { display: none; }
+    .style-pill-label.balance:has(input:checked)      { background: rgba(56,189,248,0.2); border-color: rgba(56,189,248,0.5); color: #7dd3fc; }
+    .style-pill-label.power:has(input:checked)        { background: rgba(251,113,133,0.2); border-color: rgba(251,113,133,0.5); color: #fda4af; }
+    .style-pill-label.coordination:has(input:checked) { background: rgba(52,211,153,0.2); border-color: rgba(52,211,153,0.5); color: #6ee7b7; }
+
+    .ce-submit-row {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin-top: 1.25rem;
+    }
+
+    .ce-error {
+      font-size: 0.85rem;
+      color: rgba(255,160,160,0.9);
+      min-height: 1.2em;
+    }
+
+    /* ── Climbs table card ── */
+    .ce-table-card {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.10);
+      border-radius: 1.25rem;
+      padding: 1.5rem;
+    }
+
+    .ce-table-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 1.25rem;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+    }
+
+    .ce-table-header h2 {
+      font-size: 1.15rem;
+      font-weight: 800;
+      color: #fff;
+      margin: 0;
+    }
+
+    .ce-map-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.55rem 1.1rem;
+      border-radius: 0.75rem;
+      background: rgba(168,216,240,0.15);
+      border: 1px solid rgba(168,216,240,0.4);
+      color: #a8d8f0;
+      font-size: 0.88rem;
+      font-weight: 800;
+      text-decoration: none;
+      transition: background 0.15s;
+    }
+    .ce-map-link:hover { background: rgba(168,216,240,0.25); }
+
+    .ce-empty {
+      text-align: center;
+      color: rgba(255,255,255,0.35);
+      font-size: 0.9rem;
+      padding: 2rem 0;
+    }
+
+    .ce-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .ce-table th {
+      text-align: left;
+      font-size: 0.75rem;
+      font-weight: 800;
+      color: rgba(255,255,255,0.4);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      padding: 0 0.75rem 0.6rem;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+    }
+
+    .ce-table td {
+      padding: 0.7rem 0.75rem;
+      font-size: 0.9rem;
+      color: rgba(255,255,255,0.85);
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+      vertical-align: middle;
+    }
+
+    .ce-table tr:last-child td { border-bottom: none; }
+
+    .ce-table tr.editing { background: rgba(168,216,240,0.06); }
+
+    /* Placed / unplaced badge */
+    .placed-badge {
+      display: inline-block;
+      padding: 0.15rem 0.55rem;
+      border-radius: 999px;
+      font-size: 0.72rem;
+      font-weight: 800;
+    }
+    .placed-badge.yes { background: rgba(52,211,153,0.18); color: #6ee7b7; border: 1px solid rgba(52,211,153,0.3); }
+    .placed-badge.no  { background: rgba(255,255,255,0.07); color: rgba(255,255,255,0.4); border: 1px solid rgba(255,255,255,0.12); }
+
+    /* Style badges */
+    .style-badge {
+      display: inline-block;
+      padding: 0.12rem 0.45rem;
+      border-radius: 999px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      margin-right: 0.2rem;
+    }
+    .style-badge.balance      { background: rgba(56,189,248,0.18); color: #7dd3fc; }
+    .style-badge.power        { background: rgba(251,113,133,0.18); color: #fda4af; }
+    .style-badge.coordination { background: rgba(52,211,153,0.18); color: #6ee7b7; }
+
+    /* Grade dot */
+    .grade-dot-inline {
+      display: inline-block;
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      margin-right: 0.3rem;
+      border: 1px solid rgba(255,255,255,0.2);
+      vertical-align: middle;
+    }
+
+    /* Row actions */
+    .ce-row-actions {
+      display: flex;
+      gap: 0.4rem;
+      justify-content: flex-end;
+    }
+
+    .ce-btn-sm {
+      padding: 0.3rem 0.7rem;
+      border-radius: 0.5rem;
+      font-size: 0.78rem;
+      font-weight: 700;
+      cursor: pointer;
+      border: 1px solid transparent;
+      transition: background 0.12s;
+      font-family: inherit;
+    }
+
+    .ce-btn-edit   { background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.15); color: rgba(255,255,255,0.8); }
+    .ce-btn-edit:hover { background: rgba(255,255,255,0.15); }
+    .ce-btn-delete { background: rgba(220,60,60,0.15); border-color: rgba(220,60,60,0.3); color: rgba(255,160,160,0.9); }
+    .ce-btn-delete:hover { background: rgba(220,60,60,0.28); }
+    .ce-btn-save   { background: rgba(52,211,153,0.18); border-color: rgba(52,211,153,0.35); color: #6ee7b7; }
+    .ce-btn-save:hover { background: rgba(52,211,153,0.28); }
+    .ce-btn-cancel { background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.12); color: rgba(255,255,255,0.55); }
+    .ce-btn-cancel:hover { background: rgba(255,255,255,0.12); }
+
+    /* Inline edit inputs */
+    .ce-inline-input {
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(168,216,240,0.4);
+      border-radius: 0.5rem;
+      color: #fff;
+      padding: 0.3rem 0.55rem;
+      font-size: 0.85rem;
+      font-family: inherit;
+      width: 100%;
+      box-sizing: border-box;
+    }
+
+    .ce-table td .display-cell { display: block; }
+    .ce-table td .edit-cell    { display: none; }
+    .ce-table tr.editing td .display-cell { display: none; }
+    .ce-table tr.editing td .edit-cell    { display: block; }
+
+    /* Inline style pills for edit row */
+    .inline-style-pills { display: flex; gap: 0.3rem; flex-wrap: wrap; }
+    .inline-style-pill {
+      padding: 0.2rem 0.55rem;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,0.15);
+      background: rgba(255,255,255,0.06);
+      cursor: pointer;
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: rgba(255,255,255,0.6);
+      user-select: none;
+    }
+    .inline-style-pill input { display: none; }
+    .inline-style-pill.balance:has(input:checked)      { background: rgba(56,189,248,0.2); border-color: rgba(56,189,248,0.4); color: #7dd3fc; }
+    .inline-style-pill.power:has(input:checked)        { background: rgba(251,113,133,0.2); border-color: rgba(251,113,133,0.4); color: #fda4af; }
+    .inline-style-pill.coordination:has(input:checked) { background: rgba(52,211,153,0.2); border-color: rgba(52,211,153,0.4); color: #6ee7b7; }
+  </style>
+</head>
+<body>
+  <nav class="nav-scroll">
+    <button type="button" class="menu-toggle" onclick="openSidebar()">☰</button>
+    <div class="nav-scroll-track">
+      <a href="/route-setter/comps">Competitions</a>
+      <a href="/admin/climbs?comp_id={{ current_comp.id }}" class="active">Climb Entry</a>
+      <a href="/admin/map?comp_id={{ current_comp.id }}">Wall Map</a>
+    </div>
+  </nav>
+
+  {% include "sidebar.html" %}
+
+  <main style="padding-top: 1.5rem;">
+    <header style="max-width:1200px; margin:0 auto 1.5rem; padding:0 1rem;">
+      <h1 style="font-size:1.6rem; font-weight:900; color:#fff; margin:0 0 0.25rem;">
+        Climb Entry
+      </h1>
+      <p style="color:rgba(255,255,255,0.5); font-size:0.9rem; margin:0;">
+        {{ current_comp.name }} · {{ gym.name }}
+      </p>
+    </header>
+
+    <div class="ce-layout">
+
+      <!-- ── Left: Add climb form ── -->
+      <div class="ce-form-card">
+        <h2>Add climb</h2>
+
+        {% set missing_grading = not grading_system %}
+        {% set missing_grades  = grading_system == 'colour' and not grade_list %}
+        {% set missing_holds   = not hold_colour_list %}
+        {% set missing_sections = not sections %}
+        {% set can_add = not missing_grading and not missing_grades and not missing_holds and not missing_sections %}
+
+        {% if not can_add %}
+          <div style="padding:1rem; background:rgba(251,191,36,0.10); border:1px solid rgba(251,191,36,0.3); border-radius:0.85rem; margin-bottom:1.25rem;">
+            <div style="font-weight:800; color:#fbbf24; font-size:0.88rem; margin-bottom:0.4rem;">Setup required</div>
+            <div style="font-size:0.83rem; color:rgba(255,255,255,0.7); line-height:1.5;">
+              Complete in <a href="/admin/gym/settings" style="color:#fbbf24; text-decoration:underline;">Gym Settings</a>:
+              <ul style="margin:0.35rem 0 0 1rem; padding:0; list-style:disc;">
+                {% if missing_grading %}<li>Set the Grading System</li>{% endif %}
+                {% if missing_grades %}<li>Define Grade Colours</li>{% endif %}
+                {% if missing_holds %}<li>Define Hold Colours</li>{% endif %}
+                {% if missing_sections %}<li>Create at least one Section</li>{% endif %}
+              </ul>
+            </div>
+          </div>
+        {% endif %}
+
+        <div id="addFormError" class="ce-error" style="margin-bottom:0.75rem;"></div>
+
+        <fieldset style="border:none;padding:0;margin:0;" {% if not can_add %}disabled{% endif %}>
+          <div class="ce-field">
+            <label>Climb number</label>
+            <input type="number" id="add_climb_number" min="1" step="1" placeholder="e.g. 1" />
+          </div>
+
+          <div class="ce-field">
+            <label>Section</label>
+            <select id="add_section_id">
+              <option value="">— Select section —</option>
+              {% for s in sections %}
+                <option value="{{ s.id }}">{{ s.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="ce-field">
+            <label>Hold colour</label>
+            <select id="add_colour">
+              <option value="">— Select —</option>
+              {% for hc in hold_colour_list %}
+                <option value="{{ hc.label }}">{{ hc.label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="ce-field">
+            <label>Grade</label>
+            {% if grading_system == 'colour' %}
+              <select id="add_grade">
+                <option value="">— Select —</option>
+                {% for g in grade_list %}
+                  <option value="{{ g.label }}" data-colour="{{ g.colour }}">{{ g.label }}</option>
+                {% endfor %}
+              </select>
+            {% elif grading_system == 'v_grade' %}
+              <select id="add_grade">
+                <option value="">— Select —</option>
+                {% for v in range(0, 18) %}
+                  <option value="V{{ v }}">V{{ v }}</option>
+                {% endfor %}
+              </select>
+            {% elif grading_system == 'numeric' %}
+              <select id="add_grade">
+                <option value="">— Select —</option>
+                {% for n in range(1, 10) %}
+                  <option value="{{ n }}">{{ n }}</option>
+                {% endfor %}
+              </select>
+            {% else %}
+              <input type="text" id="add_grade" placeholder="Set grading system first" disabled />
+            {% endif %}
+          </div>
+
+          <div class="ce-field">
+            <label>Style</label>
+            <div class="style-pills">
+              <label class="style-pill-label balance">
+                <input type="checkbox" name="add_styles" value="balance" /> Balance
+              </label>
+              <label class="style-pill-label power">
+                <input type="checkbox" name="add_styles" value="power" /> Power
+              </label>
+              <label class="style-pill-label coordination">
+                <input type="checkbox" name="add_styles" value="coordination" /> Coordination
+              </label>
+            </div>
+          </div>
+
+          <div class="ce-field">
+            <label>Base points</label>
+            <input type="number" id="add_base_points" min="0" step="1" placeholder="e.g. 100" />
+          </div>
+        </fieldset>
+
+        <div class="ce-submit-row">
+          <button type="button" class="btn-primary" onclick="addClimb()" {% if not can_add %}disabled{% endif %}>
+            Add climb
+          </button>
+        </div>
+      </div>
+
+      <!-- ── Right: Climbs table ── -->
+      <div class="ce-table-card">
+        <div class="ce-table-header">
+          <h2>
+            Climbs
+            <span style="font-size:0.85rem; font-weight:600; color:rgba(255,255,255,0.4); margin-left:0.5rem;" id="climbCount">
+              {{ climbs|length }} entered
+            </span>
+          </h2>
+          <a href="/admin/map?comp_id={{ current_comp.id }}" class="ce-map-link">
+            Place on map →
+          </a>
+        </div>
+
+        <div id="climbsTableWrap">
+          {% if not climbs %}
+            <div class="ce-empty" id="emptyState">No climbs added yet. Use the form to add your first climb.</div>
+          {% else %}
+            <table class="ce-table" id="climbsTable">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Section</th>
+                  <th>Hold</th>
+                  <th>Grade</th>
+                  <th>Style</th>
+                  <th>Pts</th>
+                  <th>On map</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="climbsTbody">
+                {% for c in climbs %}
+                  {% set section = section_map.get(c.section_id) %}
+                  {% set is_placed = c.x_percent is not none and c.y_percent is not none %}
+                  {% if grading_system == 'colour' %}
+                    {% set grade_colour = (grade_list | selectattr('label', 'equalto', c.grade) | list | first).colour if grade_list else '#888' %}
+                  {% else %}
+                    {% set grade_colour = '#888' %}
+                  {% endif %}
+                  <tr id="crow-{{ c.id }}" data-climb-id="{{ c.id }}">
+                    <!-- Climb number -->
+                    <td>
+                      <span class="display-cell">{{ c.climb_number }}</span>
+                      <span class="edit-cell">
+                        <input class="ce-inline-input" type="number" id="edit_cn_{{ c.id }}" value="{{ c.climb_number }}" min="1" style="width:70px;" />
+                      </span>
+                    </td>
+                    <!-- Section -->
+                    <td>
+                      <span class="display-cell">{{ section.name if section else '—' }}</span>
+                      <span class="edit-cell">
+                        <select class="ce-inline-input" id="edit_sec_{{ c.id }}">
+                          {% for s in sections %}
+                            <option value="{{ s.id }}" {% if s.id == c.section_id %}selected{% endif %}>{{ s.name }}</option>
+                          {% endfor %}
+                        </select>
+                      </span>
+                    </td>
+                    <!-- Hold colour -->
+                    <td>
+                      <span class="display-cell">{{ c.colour or '—' }}</span>
+                      <span class="edit-cell">
+                        <select class="ce-inline-input" id="edit_col_{{ c.id }}">
+                          {% for hc in hold_colour_list %}
+                            <option value="{{ hc.label }}" {% if hc.label == c.colour %}selected{% endif %}>{{ hc.label }}</option>
+                          {% endfor %}
+                        </select>
+                      </span>
+                    </td>
+                    <!-- Grade -->
+                    <td>
+                      <span class="display-cell">
+                        <span class="grade-dot-inline" style="background:{{ grade_colour }};"></span>{{ c.grade or '—' }}
+                      </span>
+                      <span class="edit-cell">
+                        {% if grading_system == 'colour' %}
+                          <select class="ce-inline-input" id="edit_gr_{{ c.id }}">
+                            {% for g in grade_list %}
+                              <option value="{{ g.label }}" data-colour="{{ g.colour }}" {% if g.label == c.grade %}selected{% endif %}>{{ g.label }}</option>
+                            {% endfor %}
+                          </select>
+                        {% elif grading_system == 'v_grade' %}
+                          <select class="ce-inline-input" id="edit_gr_{{ c.id }}">
+                            {% for v in range(0, 18) %}
+                              <option value="V{{ v }}" {% if c.grade == 'V'~v %}selected{% endif %}>V{{ v }}</option>
+                            {% endfor %}
+                          </select>
+                        {% elif grading_system == 'numeric' %}
+                          <select class="ce-inline-input" id="edit_gr_{{ c.id }}">
+                            {% for n in range(1, 10) %}
+                              <option value="{{ n }}" {% if c.grade == n|string %}selected{% endif %}>{{ n }}</option>
+                            {% endfor %}
+                          </select>
+                        {% else %}
+                          <input class="ce-inline-input" type="text" id="edit_gr_{{ c.id }}" value="{{ c.grade or '' }}" style="width:80px;" />
+                        {% endif %}
+                      </span>
+                    </td>
+                    <!-- Style -->
+                    <td>
+                      <span class="display-cell">
+                        {% if c.styles %}
+                          {% for s in c.styles %}
+                            <span class="style-badge {{ s }}">{{ s|capitalize }}</span>
+                          {% endfor %}
+                        {% else %}—{% endif %}
+                      </span>
+                      <span class="edit-cell">
+                        <div class="inline-style-pills">
+                          <label class="inline-style-pill balance">
+                            <input type="checkbox" class="edit-style-{{ c.id }}" value="balance" {% if c.styles and 'balance' in c.styles %}checked{% endif %} /> Balance
+                          </label>
+                          <label class="inline-style-pill power">
+                            <input type="checkbox" class="edit-style-{{ c.id }}" value="power" {% if c.styles and 'power' in c.styles %}checked{% endif %} /> Power
+                          </label>
+                          <label class="inline-style-pill coordination">
+                            <input type="checkbox" class="edit-style-{{ c.id }}" value="coordination" {% if c.styles and 'coordination' in c.styles %}checked{% endif %} /> Coordination
+                          </label>
+                        </div>
+                      </span>
+                    </td>
+                    <!-- Points -->
+                    <td>
+                      <span class="display-cell">{{ c.base_points if c.base_points is not none else '—' }}</span>
+                      <span class="edit-cell">
+                        <input class="ce-inline-input" type="number" id="edit_pts_{{ c.id }}" value="{{ c.base_points or 0 }}" min="0" style="width:70px;" />
+                      </span>
+                    </td>
+                    <!-- Placed -->
+                    <td>
+                      <span class="placed-badge {{ 'yes' if is_placed else 'no' }}">
+                        {{ '✓' if is_placed else 'No' }}
+                      </span>
+                    </td>
+                    <!-- Actions -->
+                    <td>
+                      <div class="ce-row-actions">
+                        <button class="ce-btn-sm ce-btn-edit"   onclick="startEdit({{ c.id }})">Edit</button>
+                        <button class="ce-btn-sm ce-btn-save"   onclick="saveEdit({{ c.id }})" style="display:none;">Save</button>
+                        <button class="ce-btn-sm ce-btn-cancel" onclick="cancelEdit({{ c.id }})" style="display:none;">Cancel</button>
+                        <button class="ce-btn-sm ce-btn-delete" onclick="deleteClimb({{ c.id }})">Delete</button>
+                      </div>
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script>
+  (function () {
+    const COMP_ID         = {{ current_comp.id }};
+    const GRADING_SYSTEM  = {{ grading_system | tojson }};
+    const GRADE_LIST      = {{ grade_list | tojson }};
+    const HOLD_LIST       = {{ hold_colour_list | tojson }};
+    const SECTIONS        = {{ sections | map(attribute='id') | list | tojson }};
+    const SECTION_NAMES   = {{ section_names_json | tojson }};
+
+    /* ── Add climb ── */
+    window.addClimb = async function () {
+      const errEl = document.getElementById("addFormError");
+      errEl.textContent = "";
+
+      const fd = new FormData();
+      fd.append("comp_id",      COMP_ID);
+      fd.append("climb_number", document.getElementById("add_climb_number").value);
+      fd.append("section_id",   document.getElementById("add_section_id").value);
+      fd.append("colour",       document.getElementById("add_colour").value);
+      fd.append("grade",        document.getElementById("add_grade").value);
+      fd.append("base_points",  document.getElementById("add_base_points").value);
+
+      document.querySelectorAll("input[name='add_styles']:checked").forEach(cb => {
+        fd.append("styles", cb.value);
+      });
+
+      try {
+        const res  = await fetch("/admin/climbs/add", { method: "POST", credentials: "same-origin", body: fd });
+        const data = await res.json();
+
+        if (!data.ok) {
+          errEl.textContent = data.error;
+          return;
+        }
+
+        appendClimbRow(data.climb);
+
+        // Reset form
+        document.getElementById("add_climb_number").value = "";
+        document.getElementById("add_section_id").value   = "";
+        document.getElementById("add_colour").value       = "";
+        document.getElementById("add_grade").value        = "";
+        document.getElementById("add_base_points").value  = "";
+        document.querySelectorAll("input[name='add_styles']").forEach(cb => cb.checked = false);
+
+        updateCount(1);
+      } catch (e) {
+        errEl.textContent = "Network error — please try again.";
+      }
+    };
+
+    function appendClimbRow(c) {
+      const tbody = document.getElementById("climbsTbody");
+      const empty = document.getElementById("emptyState");
+      if (empty) empty.style.display = "none";
+
+      // Ensure table exists
+      let table = document.getElementById("climbsTable");
+      if (!table) {
+        const wrap = document.getElementById("climbsTableWrap");
+        wrap.innerHTML = `
+          <table class="ce-table" id="climbsTable">
+            <thead><tr>
+              <th>#</th><th>Section</th><th>Hold</th><th>Grade</th>
+              <th>Style</th><th>Pts</th><th>On map</th><th></th>
+            </tr></thead>
+            <tbody id="climbsTbody"></tbody>
+          </table>`;
+        table = document.getElementById("climbsTable");
+      }
+
+      const tbodyEl = document.getElementById("climbsTbody");
+      const gradeColour = getGradeColour(c.grade);
+      const styleBadges = (c.styles || []).map(s =>
+        `<span class="style-badge ${s}">${cap(s)}</span>`).join("");
+
+      const gradeEditHtml = buildGradeEditHtml(`edit_gr_${c.id}`, c.grade);
+      const styleEditHtml = buildStyleEditHtml(c.id, c.styles || []);
+
+      const holdOptions = HOLD_LIST.map(hc =>
+        `<option value="${esc(hc.label)}" ${hc.label === c.colour ? "selected" : ""}>${esc(hc.label)}</option>`
+      ).join("");
+
+      const sectionOptions = Object.entries(SECTION_NAMES).map(([id, name]) =>
+        `<option value="${id}" ${parseInt(id) === c.section_id ? "selected" : ""}>${esc(name)}</option>`
+      ).join("");
+
+      const tr = document.createElement("tr");
+      tr.id = `crow-${c.id}`;
+      tr.dataset.climbId = c.id;
+      tr.innerHTML = `
+        <td>
+          <span class="display-cell">${c.climb_number}</span>
+          <span class="edit-cell"><input class="ce-inline-input" type="number" id="edit_cn_${c.id}" value="${c.climb_number}" min="1" style="width:70px;" /></span>
+        </td>
+        <td>
+          <span class="display-cell">${esc(c.section_name)}</span>
+          <span class="edit-cell"><select class="ce-inline-input" id="edit_sec_${c.id}">${sectionOptions}</select></span>
+        </td>
+        <td>
+          <span class="display-cell">${esc(c.colour)}</span>
+          <span class="edit-cell"><select class="ce-inline-input" id="edit_col_${c.id}">${holdOptions}</select></span>
+        </td>
+        <td>
+          <span class="display-cell"><span class="grade-dot-inline" style="background:${gradeColour};"></span>${esc(c.grade)}</span>
+          <span class="edit-cell">${gradeEditHtml}</span>
+        </td>
+        <td>
+          <span class="display-cell">${styleBadges || '—'}</span>
+          <span class="edit-cell">${styleEditHtml}</span>
+        </td>
+        <td>
+          <span class="display-cell">${c.base_points ?? '—'}</span>
+          <span class="edit-cell"><input class="ce-inline-input" type="number" id="edit_pts_${c.id}" value="${c.base_points || 0}" min="0" style="width:70px;" /></span>
+        </td>
+        <td><span class="placed-badge no">No</span></td>
+        <td>
+          <div class="ce-row-actions">
+            <button class="ce-btn-sm ce-btn-edit"   onclick="startEdit(${c.id})">Edit</button>
+            <button class="ce-btn-sm ce-btn-save"   onclick="saveEdit(${c.id})" style="display:none;">Save</button>
+            <button class="ce-btn-sm ce-btn-cancel" onclick="cancelEdit(${c.id})" style="display:none;">Cancel</button>
+            <button class="ce-btn-sm ce-btn-delete" onclick="deleteClimb(${c.id})">Delete</button>
+          </div>
+        </td>
+      `;
+      tbodyEl.appendChild(tr);
+    }
+
+    /* ── Inline edit ── */
+    window.startEdit = function (id) {
+      const row = document.getElementById(`crow-${id}`);
+      if (!row) return;
+      row.classList.add("editing");
+      row.querySelector(".ce-btn-edit").style.display   = "none";
+      row.querySelector(".ce-btn-save").style.display   = "";
+      row.querySelector(".ce-btn-cancel").style.display = "";
+    };
+
+    window.cancelEdit = function (id) {
+      const row = document.getElementById(`crow-${id}`);
+      if (!row) return;
+      row.classList.remove("editing");
+      row.querySelector(".ce-btn-edit").style.display   = "";
+      row.querySelector(".ce-btn-save").style.display   = "none";
+      row.querySelector(".ce-btn-cancel").style.display = "none";
+    };
+
+    window.saveEdit = async function (id) {
+      const row = document.getElementById(`crow-${id}`);
+      if (!row) return;
+
+      const fd = new FormData();
+      fd.append("comp_id",      COMP_ID);
+      fd.append("climb_number", document.getElementById(`edit_cn_${id}`)?.value  || "");
+      fd.append("section_id",   document.getElementById(`edit_sec_${id}`)?.value || "");
+      fd.append("colour",       document.getElementById(`edit_col_${id}`)?.value || "");
+      fd.append("grade",        document.getElementById(`edit_gr_${id}`)?.value  || "");
+      fd.append("base_points",  document.getElementById(`edit_pts_${id}`)?.value || "");
+
+      document.querySelectorAll(`.edit-style-${id}:checked`).forEach(cb => {
+        fd.append("styles", cb.value);
+      });
+
+      try {
+        const res  = await fetch(`/admin/climbs/${id}/edit`, { method: "POST", credentials: "same-origin", body: fd });
+        const data = await res.json();
+
+        if (!data.ok) {
+          alert(data.error);
+          return;
+        }
+
+        // Update display cells
+        const c = data.climb;
+        const gradeColour  = getGradeColour(c.grade);
+        const styleBadges  = (c.styles || []).map(s =>
+          `<span class="style-badge ${s}">${cap(s)}</span>`).join("") || "—";
+
+        row.querySelector("td:nth-child(1) .display-cell").textContent = c.climb_number;
+        row.querySelector("td:nth-child(2) .display-cell").textContent = c.section_name;
+        row.querySelector("td:nth-child(3) .display-cell").textContent = c.colour;
+        row.querySelector("td:nth-child(4) .display-cell").innerHTML   =
+          `<span class="grade-dot-inline" style="background:${gradeColour};"></span>${esc(c.grade)}`;
+        row.querySelector("td:nth-child(5) .display-cell").innerHTML   = styleBadges;
+        row.querySelector("td:nth-child(6) .display-cell").textContent = c.base_points ?? "—";
+
+        cancelEdit(id);
+      } catch (e) {
+        alert("Network error — please try again.");
+      }
+    };
+
+    /* ── Delete climb ── */
+    window.deleteClimb = async function (id) {
+      if (!confirm("Delete this climb?")) return;
+
+      const fd = new FormData();
+      fd.append("comp_id", COMP_ID);
+
+      try {
+        const res  = await fetch(`/admin/climbs/${id}/delete`, { method: "POST", credentials: "same-origin", body: fd });
+        const data = await res.json();
+
+        if (!data.ok) { alert(data.error); return; }
+
+        const row = document.getElementById(`crow-${id}`);
+        if (row) row.remove();
+        updateCount(-1);
+
+        const tbody = document.getElementById("climbsTbody");
+        if (tbody && tbody.children.length === 0) {
+          document.getElementById("climbsTableWrap").innerHTML =
+            `<div class="ce-empty" id="emptyState">No climbs added yet. Use the form to add your first climb.</div>`;
+        }
+      } catch (e) {
+        alert("Network error — please try again.");
+      }
+    };
+
+    /* ── Helpers ── */
+    function updateCount(delta) {
+      const el = document.getElementById("climbCount");
+      if (!el) return;
+      const m = el.textContent.match(/\d+/);
+      const n = m ? parseInt(m[0]) + delta : delta;
+      el.textContent = `${n} entered`;
+    }
+
+    function getGradeColour(grade) {
+      if (GRADING_SYSTEM !== "colour") return "#888";
+      const match = GRADE_LIST.find(g => g.label === grade);
+      return match ? match.colour : "#888";
+    }
+
+    function buildGradeEditHtml(inputId, currentGrade) {
+      if (GRADING_SYSTEM === "colour") {
+        const opts = GRADE_LIST.map(g =>
+          `<option value="${esc(g.label)}" data-colour="${esc(g.colour)}" ${g.label === currentGrade ? "selected" : ""}>${esc(g.label)}</option>`
+        ).join("");
+        return `<select class="ce-inline-input" id="${inputId}">${opts}</select>`;
+      }
+      if (GRADING_SYSTEM === "v_grade") {
+        const opts = Array.from({length: 18}, (_, v) =>
+          `<option value="V${v}" ${currentGrade === `V${v}` ? "selected" : ""}>V${v}</option>`
+        ).join("");
+        return `<select class="ce-inline-input" id="${inputId}">${opts}</select>`;
+      }
+      if (GRADING_SYSTEM === "numeric") {
+        const opts = Array.from({length: 9}, (_, i) =>
+          `<option value="${i+1}" ${currentGrade === String(i+1) ? "selected" : ""}>${i+1}</option>`
+        ).join("");
+        return `<select class="ce-inline-input" id="${inputId}">${opts}</select>`;
+      }
+      return `<input class="ce-inline-input" type="text" id="${inputId}" value="${esc(currentGrade || '')}" style="width:80px;" />`;
+    }
+
+    function buildStyleEditHtml(id, currentStyles) {
+      return `<div class="inline-style-pills">` +
+        ["balance", "power", "coordination"].map(s =>
+          `<label class="inline-style-pill ${s}">
+            <input type="checkbox" class="edit-style-${id}" value="${s}" ${currentStyles.includes(s) ? "checked" : ""} /> ${cap(s)}
+          </label>`
+        ).join("") + `</div>`;
+    }
+
+    function cap(str) { return str.charAt(0).toUpperCase() + str.slice(1); }
+    function esc(str) {
+      return String(str || "")
+        .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+    }
+
+    // Allow Enter key on add form
+    ["add_climb_number","add_base_points"].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); addClimb(); } });
+    });
+  })();
+  </script>
+</body>
+</html>

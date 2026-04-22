@@ -1,15 +1,382 @@
-<!-- admin_map.html -->
 <!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-  <title>Admin · Scoring</title>
+  <title>Map · {{ comp_name or 'Admin' }}</title>
   <link rel="stylesheet" href="/static/app.css" />
+  <style>
+    /* ── Layout ── */
+    .map-page {
+      display: grid;
+      grid-template-columns: 1fr 320px;
+      gap: 1.25rem;
+      height: calc(100vh - 56px);
+      padding: 1rem;
+      box-sizing: border-box;
+      align-items: start;
+    }
+    @media (max-width: 900px) {
+      .map-page { grid-template-columns: 1fr; height: auto; }
+    }
+
+    /* ── Map card ── */
+    .map-card {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.10);
+      border-radius: 1.25rem;
+      padding: 1.25rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .map-card h1 {
+      font-size: 1.25rem;
+      font-weight: 900;
+      color: #fff;
+      margin: 0;
+    }
+
+    .map-subtitle {
+      font-size: 0.85rem;
+      color: rgba(255,255,255,0.45);
+      margin: 0;
+    }
+
+    /* ── Map viewport ── */
+    .map-viewport {
+      position: relative;
+      width: 100%;
+      overflow: hidden;
+      border-radius: 0.85rem;
+      background: rgba(0,0,0,0.3);
+      cursor: crosshair;
+    }
+
+    .map-layer {
+      position: relative;
+      transform-origin: top left;
+    }
+
+    .gym-map {
+      display: block;
+      width: 100%;
+      height: auto;
+      user-select: none;
+      pointer-events: none;
+    }
+
+    .map-overlay {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      pointer-events: none;
+    }
+
+    /* ── Climb dots ── */
+    .map-dot {
+      position: absolute;
+      transform: translate(-50%, -50%);
+      width: 32px; height: 32px;
+      border-radius: 50%;
+      background: var(--dot-bg, #ff8a3d);
+      border: 2.5px solid rgba(255,255,255,0.9);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.72rem;
+      font-weight: 900;
+      color: #fff;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.45);
+      cursor: pointer;
+      transition: transform 0.12s, box-shadow 0.12s;
+      z-index: 10;
+    }
+
+    .map-dot:hover {
+      transform: translate(-50%, -50%) scale(1.15);
+      box-shadow: 0 4px 16px rgba(0,0,0,0.55);
+    }
+
+    .map-dot.selected {
+      border-color: #fbbf24;
+      box-shadow: 0 0 0 3px rgba(251,191,36,0.4), 0 4px 16px rgba(0,0,0,0.5);
+      transform: translate(-50%, -50%) scale(1.18);
+      z-index: 20;
+    }
+
+    .map-dot.ghost {
+      opacity: 0.6;
+      border-style: dashed;
+      pointer-events: none;
+      z-index: 5;
+    }
+
+    /* ── Map controls ── */
+    .map-controls {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .map-status {
+      font-size: 0.82rem;
+      color: rgba(255,255,255,0.45);
+      flex: 1;
+      min-width: 0;
+    }
+
+    /* ── Right panel ── */
+    .map-panel {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      max-height: calc(100vh - 56px - 2rem);
+      overflow-y: auto;
+    }
+
+    .panel-card {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.10);
+      border-radius: 1.25rem;
+      padding: 1.1rem;
+    }
+
+    .panel-card h3 {
+      font-size: 0.95rem;
+      font-weight: 800;
+      color: #fff;
+      margin: 0 0 0.85rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .panel-count {
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: rgba(255,255,255,0.4);
+    }
+
+    /* ── Unplaced climb list ── */
+    .climb-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+      max-height: 340px;
+      overflow-y: auto;
+    }
+
+    .climb-list-item {
+      display: flex;
+      align-items: center;
+      gap: 0.65rem;
+      padding: 0.6rem 0.8rem;
+      border-radius: 0.75rem;
+      border: 1px solid rgba(255,255,255,0.10);
+      background: rgba(255,255,255,0.05);
+      cursor: pointer;
+      transition: background 0.12s, border-color 0.12s;
+      user-select: none;
+    }
+
+    .climb-list-item:hover {
+      background: rgba(255,255,255,0.10);
+      border-color: rgba(255,255,255,0.18);
+    }
+
+    .climb-list-item.active {
+      background: rgba(168,216,240,0.15);
+      border-color: rgba(168,216,240,0.45);
+    }
+
+    .climb-num-badge {
+      width: 30px; height: 30px;
+      border-radius: 50%;
+      background: var(--dot-bg, #ff8a3d);
+      border: 2px solid rgba(255,255,255,0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.72rem;
+      font-weight: 900;
+      color: #fff;
+      flex-shrink: 0;
+    }
+
+    .climb-list-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .climb-list-title {
+      font-size: 0.88rem;
+      font-weight: 800;
+      color: #fff;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .climb-list-sub {
+      font-size: 0.75rem;
+      color: rgba(255,255,255,0.45);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .empty-list {
+      text-align: center;
+      color: rgba(255,255,255,0.35);
+      font-size: 0.85rem;
+      padding: 1rem 0;
+    }
+
+    /* ── Selected climb actions ── */
+    .selected-panel {
+      display: none;
+    }
+
+    .selected-panel.visible {
+      display: block;
+    }
+
+    .selected-info {
+      font-size: 0.85rem;
+      color: rgba(255,255,255,0.7);
+      margin-bottom: 0.85rem;
+      line-height: 1.6;
+    }
+
+    .selected-info strong { color: #fff; }
+
+    .selected-actions {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+
+    /* ── Climb info popup ── */
+    .climb-popup {
+      position: absolute;
+      background: rgba(10,20,50,0.97);
+      border: 1px solid rgba(168,216,240,0.35);
+      border-radius: 1rem;
+      padding: 1rem 1.1rem;
+      min-width: 200px;
+      max-width: 260px;
+      z-index: 100;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+      pointer-events: auto;
+    }
+
+    .climb-popup.hidden { display: none; }
+
+    .popup-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 0.75rem;
+    }
+
+    .popup-title {
+      font-size: 1rem;
+      font-weight: 900;
+      color: #fff;
+    }
+
+    .popup-close {
+      background: none;
+      border: none;
+      color: rgba(255,255,255,0.45);
+      font-size: 1.1rem;
+      cursor: pointer;
+      padding: 0;
+      line-height: 1;
+    }
+    .popup-close:hover { color: #fff; }
+
+    .popup-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.83rem;
+      padding: 0.22rem 0;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+      gap: 0.5rem;
+    }
+    .popup-row:last-of-type { border-bottom: none; }
+    .popup-row-label { color: rgba(255,255,255,0.45); flex-shrink: 0; }
+    .popup-row-value { color: rgba(255,255,255,0.9); font-weight: 700; text-align: right; }
+
+    .popup-move-btn {
+      display: block;
+      width: 100%;
+      margin-top: 0.85rem;
+      padding: 0.55rem;
+      border-radius: 0.65rem;
+      background: rgba(251,191,36,0.15);
+      border: 1px solid rgba(251,191,36,0.35);
+      color: #fbbf24;
+      font-size: 0.85rem;
+      font-weight: 800;
+      cursor: pointer;
+      font-family: inherit;
+      text-align: center;
+      transition: background 0.12s;
+    }
+    .popup-move-btn:hover { background: rgba(251,191,36,0.25); }
+
+    /* Style badges */
+    .style-badge {
+      display: inline-block;
+      padding: 0.1rem 0.4rem;
+      border-radius: 999px;
+      font-size: 0.7rem;
+      font-weight: 700;
+    }
+    .style-badge.balance      { background: rgba(56,189,248,0.2); color: #7dd3fc; }
+    .style-badge.power        { background: rgba(251,113,133,0.2); color: #fda4af; }
+    .style-badge.coordination { background: rgba(52,211,153,0.2); color: #6ee7b7; }
+
+    /* Section boundary overlay */
+    .boundary-label {
+      font-size: 0.65rem;
+      fill: rgba(255,255,255,0.55);
+      font-weight: 700;
+      pointer-events: none;
+    }
+
+    /* No-section message */
+    .no-section-msg {
+      display: none;
+      position: absolute;
+      bottom: 0.75rem;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(220,60,60,0.9);
+      color: #fff;
+      padding: 0.5rem 1rem;
+      border-radius: 0.65rem;
+      font-size: 0.82rem;
+      font-weight: 700;
+      white-space: nowrap;
+      z-index: 50;
+      pointer-events: none;
+    }
+  </style>
 </head>
 <body>
-  <nav class="nav">
-    <button type="button" class="menu-toggle" onclick="openSidebar()">☰ Menu</button>
+  <nav class="nav-scroll">
+    <button type="button" class="menu-toggle" onclick="openSidebar()">☰</button>
+    <div class="nav-scroll-track">
+      <a href="/route-setter/comps">Competitions</a>
+      <a href="/admin/climbs?comp_id={{ current_comp.id }}">Climb Entry</a>
+      <a href="/admin/map?comp_id={{ current_comp.id }}" class="active">Wall Map</a>
+    </div>
   </nav>
 
   {% include "sidebar.html" %}
@@ -18,600 +385,723 @@
   {% set grade_list = current_comp.gym.grade_list or [] if current_comp and current_comp.gym else [] %}
   {% set hold_colour_list = current_comp.gym.hold_colour_list or [] if current_comp and current_comp.gym else [] %}
 
-  {% set missing_grading = not grading_system %}
-  {% set missing_grades  = grading_system == 'colour' and not grade_list %}
-  {% set missing_holds   = not hold_colour_list %}
-  {% set can_add_climbs  = not missing_grading and not missing_grades and not missing_holds %}
+  <div class="map-page">
 
-  {# form_values is passed back from the route on error to repopulate the form #}
-  {% set fv = form_values if form_values is defined else {} %}
-
-  <main class="admin-map-page" id="pageRoot">
-    <section class="map-card" style="background:rgba(255,255,255,0.05);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,0.1);border-radius:1.5rem;padding:2rem;">
-      <div class="map-header">
-        <div class="map-header-left">
-          <h1 class="page-title" style="font-size:1.6rem;">
-            {% if gym_name %}
-              {{ gym_name }} Wall Map
-            {% elif comp_name %}
-              {{ comp_name }} · Wall Map
-            {% else %}
-              Wall Map
-            {% endif %}
-          </h1>
-          {% if comp_name %}
-            <p class="map-subtitle">Editing competition: {{ comp_name }}</p>
-          {% endif %}
-        </div>
-        <span class="page-tag">Tap map to place climbs</span>
+    <!-- ── Left: Map ── -->
+    <div class="map-card">
+      <div>
+        <h1>{{ gym_name or comp_name or 'Wall Map' }}</h1>
+        {% if comp_name %}<p class="map-subtitle">{{ comp_name }}</p>{% endif %}
       </div>
 
       {% if not gym_map_url %}
-        <div class="alert alert-error">
-          No map is configured for this competition's gym yet.
-          Set gym.map_image_path (e.g. /static/maps/collingwood-map.png) and reload.
-        </div>
+        <div class="alert alert-error">No map image configured for this gym.</div>
       {% else %}
-        <div id="mapWrapperAdmin" class="map-wrapper">
-          <div id="mapViewport" class="map-viewport">
-            <div id="mapLayer" class="map-layer">
-              <img id="mapImg" class="gym-map" src="{{ gym_map_url }}" alt="Gym map" draggable="false" />
-              <svg id="mapOverlay" class="map-overlay"></svg>
+        <div class="map-viewport" id="mapViewport">
+          <div class="map-layer" id="mapLayer">
+            <img id="mapImg" class="gym-map" src="{{ gym_map_url }}" alt="Gym map" draggable="false" />
+            <svg id="mapOverlay" class="map-overlay"></svg>
 
-              {% for c in climbs %}
-                {% if c.x_percent is not none and c.y_percent is not none %}
-                  <div
-                    class="map-dot"
-                    style="
-                      left: {{ c.x_percent }}%;
-                      top: {{ c.y_percent }}%;
-                      {% if c.colour %}--dot: {{ c.colour|e }};{% endif %}
-                    "
-                    title="Climb {{ c.climb_number }} · {{ c.section.name if c.section else 'No section' }}{% if c.colour %} · {{ c.colour }}{% endif %}{% if c.grade %} · Grade: {{ c.grade }}{% endif %}"
-                  >
-                    {{ c.climb_number }}
-                  </div>
-                {% endif %}
-              {% endfor %}
+            <!-- Placed climb dots -->
+            {% for c in placed_climbs %}
+              {% if grading_system == 'colour' %}
+                {% set dot_colour = (grade_list | selectattr('label', 'equalto', c.grade) | list | first).colour if grade_list else '#888' %}
+              {% else %}
+                {% set dot_colour = '#888' %}
+              {% endif %}
+              <div
+                class="map-dot"
+                id="dot-{{ c.id }}"
+                style="left:{{ c.x_percent }}%; top:{{ c.y_percent }}%; --dot-bg:{{ dot_colour }};"
+                data-climb-id="{{ c.id }}"
+                data-climb-number="{{ c.climb_number }}"
+                data-section="{{ c.section.name if c.section else '' }}"
+                data-colour="{{ c.colour or '' }}"
+                data-grade="{{ c.grade or '' }}"
+                data-styles="{{ c.styles | tojson if c.styles else '[]' }}"
+                data-points="{{ c.base_points or '' }}"
+                onclick="showClimbPopup({{ c.id }}, event)"
+              >{{ c.climb_number }}</div>
+            {% endfor %}
 
-              <div id="ghostDot" class="map-dot map-dot--placer" style="display:none;"></div>
-            </div>
+            <!-- Ghost dot for placement preview -->
+            <div id="ghostDot" class="map-dot ghost" style="display:none; --dot-bg:#a8d8f0;">?</div>
+
+            <!-- No-section warning -->
+            <div id="noSectionMsg" class="no-section-msg">No section here — try a different area or add one in Gym Settings</div>
           </div>
         </div>
 
-        <div class="map-controls">
-          <button type="button" class="tiny-btn" id="btnDrawBoundary">Draw boundary</button>
-          <button type="button" class="tiny-btn" id="btnUndoBoundary">Undo</button>
-          <button type="button" class="tiny-btn" id="btnClearBoundary">Clear</button>
-          <button type="button" class="tiny-btn" id="btnSaveBoundary">Save boundary</button>
+        <div class="map-controls" style="display:flex; gap:0.5rem; align-items:center;">
+          <span style="font-size:0.78rem; color:rgba(255,255,255,0.35);">
+            Section boundaries are managed in
+            <a href="/admin/gym/settings" style="color:#a8d8f0; font-weight:700;">Gym Settings</a>
+          </span>
         </div>
-
-        <div class="map-coords" id="coordsDisplay">Tap to add a climb. (Draw boundary OFF)</div>
-      {% endif %}
-    </section>
-
-    <section class="form-card" style="background:rgba(255,255,255,0.05);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,0.1);border-radius:1.5rem;padding:1.75rem;">
-      <h2>Add climb from map</h2>
-      <p class="tiny-muted">
-        Tap map to set position (you'll see a bright marker), then fill details and press Save.
-      </p>
-
-      {% if map_error is defined and map_error %}
-        <div class="alert alert-error">{{ map_error }}</div>
-      {% endif %}
-
-      {% if not can_add_climbs %}
-        <div style="display:flex; flex-direction:column; gap:0.5rem; padding:1.1rem 1.25rem; background:rgba(251,191,36,0.10); border:1px solid rgba(251,191,36,0.35); border-radius:1rem; margin-bottom:0.75rem;">
-          <div style="font-weight:800; color:#fbbf24; font-size:0.95rem;">Gym Settings required before adding climbs</div>
-          <div style="font-size:0.88rem; color:rgba(255,255,255,0.75); line-height:1.5;">
-            Complete the following in
-            <a href="/admin/gym/settings" style="color:#fbbf24; font-weight:700; text-decoration:underline;">Gym Settings</a>
-            first:
-            <ul style="margin:0.5rem 0 0 1.1rem; display:flex; flex-direction:column; gap:0.25rem;">
-              {% if missing_grading %}<li>Set the <strong>Grading System</strong></li>{% endif %}
-              {% if missing_grades %}<li>Define the <strong>Grade Colours</strong> list</li>{% endif %}
-              {% if missing_holds %}<li>Define the <strong>Hold Colours</strong> list</li>{% endif %}
-            </ul>
-          </div>
-        </div>
-      {% endif %}
-
-      <div class="divider"></div>
-
-      <form method="POST" action="/admin/map/add-climb">
-        <input type="hidden" name="comp_id" value="{{ session.get('admin_comp_id') }}">
-
-        <fieldset style="border:none; padding:0; margin:0;" {% if not can_add_climbs %}disabled{% endif %}>
-
-        <div class="field">
-          <label for="section_id">Existing section</label>
-          <select name="section_id" id="section_id">
-            <option value="">— Choose section —</option>
-            {% for s in sections %}
-              <option value="{{ s.id }}"
-                {% if fv.section_id and fv.section_id == s.id|string %}selected{% endif %}>
-                {{ s.name }} (id {{ s.id }})
-              </option>
-            {% endfor %}
-          </select>
-        </div>
-
-        <div class="field">
-          <label for="new_section_name">New section name</label>
-          <input type="text" id="new_section_name" name="new_section_name"
-            placeholder="e.g. Slab Left"
-            value="{{ fv.new_section_name or '' }}" />
-        </div>
-
-        <div class="field">
-          <label for="climb_number">Climb number</label>
-          <input type="number" id="climb_number" name="climb_number" min="1" step="1" required
-            value="{{ fv.climb_number or '' }}" />
-        </div>
-
-        <div class="field">
-          <label for="colour">Hold colour <span style="color:rgba(255,255,255,0.45);font-weight:400;">(required)</span></label>
-          <select id="colour" name="colour" required>
-            <option value="">Select hold colour…</option>
-            {% for hc in hold_colour_list %}
-              <option value="{{ hc.label }}"
-                {% if fv.colour == hc.label %}selected{% endif %}>
-                {{ hc.label }}
-              </option>
-            {% endfor %}
-          </select>
-        </div>
-
-        <div class="field">
-          <label for="grade">Grade <span style="color:rgba(255,255,255,0.45);font-weight:400;">(required)</span></label>
-          {% if grading_system == 'colour' %}
-            <select id="grade" name="grade" required onchange="updateMapGradeDot(this)">
-              <option value="">Select grade…</option>
-              {% for g in grade_list %}
-                <option value="{{ g.label }}" data-colour="{{ g.colour }}"
-                  {% if fv.grade == g.label %}selected{% endif %}>
-                  {{ g.label }}
-                </option>
-              {% endfor %}
-            </select>
-          {% elif grading_system == 'v_grade' %}
-            <select id="grade" name="grade" required>
-              <option value="">Select grade…</option>
-              {% for v in range(0, 18) %}
-                <option value="V{{ v }}" {% if fv.grade == 'V' ~ v %}selected{% endif %}>V{{ v }}</option>
-              {% endfor %}
-            </select>
-          {% elif grading_system == 'numeric' %}
-            <select id="grade" name="grade" required>
-              <option value="">Select grade…</option>
-              {% for n in range(1, 10) %}
-                <option value="{{ n }}" {% if fv.grade == n|string %}selected{% endif %}>{{ n }}</option>
-              {% endfor %}
-            </select>
+        <div class="map-status" id="mapStatus">
+          {% if selected_climb_id %}
+            Climb selected — tap map to place it.
           {% else %}
-            <input type="text" id="grade" name="grade" disabled />
+            Select a climb from the list to place it.
           {% endif %}
         </div>
+      {% endif %}
+    </div>
 
-        <div class="field">
-          <label>Style <span style="color:rgba(255,255,255,0.45);font-weight:400;">(required — select all that apply)</span></label>
-          <div style="display:flex; gap:0.5rem; flex-wrap:wrap; margin-top:0.3rem;">
-            <label style="display:flex;align-items:center;gap:0.35rem;padding:0.3rem 0.7rem;border-radius:999px;border:1px solid rgba(255,255,255,0.18);background:rgba(255,255,255,0.07);cursor:pointer;font-size:0.82rem;font-weight:700;color:rgba(255,255,255,0.75);">
-              <input type="checkbox" name="styles" value="balance" style="accent-color:#7dd3fc;"
-                {% if fv.styles and 'balance' in fv.styles %}checked{% endif %} /> Balance
-            </label>
-            <label style="display:flex;align-items:center;gap:0.35rem;padding:0.3rem 0.7rem;border-radius:999px;border:1px solid rgba(255,255,255,0.18);background:rgba(255,255,255,0.07);cursor:pointer;font-size:0.82rem;font-weight:700;color:rgba(255,255,255,0.75);">
-              <input type="checkbox" name="styles" value="power" style="accent-color:#fda4af;"
-                {% if fv.styles and 'power' in fv.styles %}checked{% endif %} /> Power
-            </label>
-            <label style="display:flex;align-items:center;gap:0.35rem;padding:0.3rem 0.7rem;border-radius:999px;border:1px solid rgba(255,255,255,0.18);background:rgba(255,255,255,0.07);cursor:pointer;font-size:0.82rem;font-weight:700;color:rgba(255,255,255,0.75);">
-              <input type="checkbox" name="styles" value="coordination" style="accent-color:#6ee7b7;"
-                {% if fv.styles and 'coordination' in fv.styles %}checked{% endif %} /> Coordination
-            </label>
-          </div>
+    <!-- ── Right panel ── -->
+    <div class="map-panel">
+
+      <!-- Selected climb actions -->
+      <div class="panel-card selected-panel" id="selectedPanel">
+        <h3>Selected climb</h3>
+        <div class="selected-info" id="selectedInfo">—</div>
+        <div class="selected-actions">
+          <button type="button" class="btn-primary" id="btnSavePosition" onclick="savePosition()" disabled>
+            Save position
+          </button>
+          <button type="button" class="btn" onclick="clearSelection()">
+            Deselect
+          </button>
         </div>
+      </div>
 
-        <div class="field field-row">
-          <div>
-            <label for="base_points">Points</label>
-            <input type="number" id="base_points" name="base_points" min="0" step="1" required
-              value="{{ fv.base_points or '' }}" />
-          </div>
-        </div>
+      <!-- Unplaced climbs -->
+      <div class="panel-card">
+        <h3>
+          Unplaced climbs
+          <span class="panel-count" id="unplacedCount">{{ unplaced_climbs|length }}</span>
+        </h3>
 
-        <input type="hidden" name="x_percent" id="x_percent" value="{{ fv.x_percent or '' }}" />
-        <input type="hidden" name="y_percent" id="y_percent" value="{{ fv.y_percent or '' }}" />
-
-        </fieldset>
-
-        <button type="submit" class="pill-button" id="submitBtn"
-          {% if not gym_map_url or not can_add_climbs %}disabled{% endif %}>
-          Save climb at selected position
-        </button>
-
-        <div class="tiny-muted" id="clickHint" style="margin-top: 0.5rem; text-align: center;">
-            Button unlocks after you tap the map.
-          {% endif %}
-        </div>
-      </form>
-
-      <div class="divider"></div>
-
-      <h2>Section boundary</h2>
-      <p class="tiny-muted" style="margin-top: 0.25rem;">
-        Boundaries require sections. If this dropdown is empty, create your first section by:
-        Add climb → type New section name → Save climb.
-      </p>
-
-      <div class="field" style="margin-top: 0.75rem;">
-        <label for="boundary_section">Boundary section</label>
-        <select id="boundary_section">
-          <option value="">— Choose section —</option>
-          {% for s in sections %}
-            <option value="{{ s.id }}">{{ s.name }} (id {{ s.id }})</option>
-          {% endfor %}
-        </select>
-        <div class="tiny-muted" id="boundaryStatus"></div>
-
-        {% if sections|length == 0 %}
-          <div class="alert alert-error" style="margin-top: 0.65rem;">
-            No sections exist yet.
-            1) Tap map to place a climb position
-            2) Type a New section name (e.g. Slab Left)
-            3) Save the climb
-            Then you can draw boundaries for that section.
+        {% if not unplaced_climbs %}
+          <div class="empty-list" id="unplacedEmpty">
+            All climbs have been placed on the map. 🎉
           </div>
         {% endif %}
-      </div>
 
-      <div class="section-list">
-        <strong>Existing sections</strong>
-        <ul>
-          {% for s in sections %}
-            <li class="section-pill">
-              <a href="/admin/section/{{ s.id }}/edit" title="Edit section: {{ s.name }}">
-                <span>{{ s.name }}</span>
-                <span class="pill-arrow">→</span>
-              </a>
-            </li>
+        <div class="climb-list" id="unplacedList">
+          {% for c in unplaced_climbs %}
+            {% if grading_system == 'colour' %}
+              {% set dot_colour = (grade_list | selectattr('label', 'equalto', c.grade) | list | first).colour if grade_list else '#888' %}
+            {% else %}
+              {% set dot_colour = '#888' %}
+            {% endif %}
+            <div
+              class="climb-list-item"
+              id="listitem-{{ c.id }}"
+              data-climb-id="{{ c.id }}"
+              data-climb-number="{{ c.climb_number }}"
+              data-grade="{{ c.grade or '' }}"
+              data-colour="{{ c.colour or '' }}"
+              data-section="{{ c.section.name if c.section else '' }}"
+              data-styles="{{ c.styles | tojson if c.styles else '[]' }}"
+              data-points="{{ c.base_points or '' }}"
+              data-dot-colour="{{ dot_colour }}"
+              onclick="selectClimb({{ c.id }})"
+            >
+              <div class="climb-num-badge" style="--dot-bg:{{ dot_colour }};">{{ c.climb_number }}</div>
+              <div class="climb-list-info">
+                <div class="climb-list-title">Climb #{{ c.climb_number }} · {{ c.grade or '—' }}</div>
+                <div class="climb-list-sub">{{ c.section.name if c.section else 'No section' }} · {{ c.colour or '—' }}</div>
+              </div>
+            </div>
           {% endfor %}
-          {% if sections|length == 0 %}
-            <li><em>None yet</em></li>
-          {% endif %}
-        </ul>
+        </div>
+
+        <div style="margin-top:0.85rem;">
+          <a href="/admin/climbs?comp_id={{ current_comp.id }}" style="font-size:0.82rem; color:rgba(168,216,240,0.8); text-decoration:none; font-weight:700;">
+            + Add / edit climbs →
+          </a>
+        </div>
       </div>
-    </section>
-  </main>
+
+    </div>
+  </div>
+
+  <!-- ── Climb info popup (absolutely positioned inside mapLayer) ── -->
+  <div id="climbPopup" class="climb-popup hidden">
+    <div class="popup-header">
+      <span class="popup-title" id="popupTitle">Climb #</span>
+      <button class="popup-close" onclick="closePopup()">✕</button>
+    </div>
+    <div id="popupBody"></div>
+    <button class="popup-move-btn" onclick="moveClimb()">Move climb</button>
+  </div>
 
   <script>
-    function updateMapGradeDot(selectEl) {
-      const dot = document.getElementById("map-grade-dot");
-      if (!dot) return;
-      const selected = selectEl.options[selectEl.selectedIndex];
-      dot.style.background = selected ? (selected.dataset.colour || "#888") : "#888";
+  (function () {
+    const COMP_ID        = {{ current_comp.id }};
+    const GRADING_SYSTEM = {{ grading_system | tojson }};
+    const GRADE_LIST     = {{ grade_list | tojson }};
+
+    // Section boundaries from server
+    const SECTION_BOUNDARIES = {{ section_boundaries_json | tojson }};
+    // [{id, name, points: [{x, y}, ...]}, ...]
+
+    /* ── State ── */
+    let selectedClimbId  = null;
+    let pendingX         = null;
+    let pendingY         = null;
+    let popupClimbId     = null;
+
+    // Map geometry
+    let scale = 1, tx = 0, ty = 0, baseW = 1, baseH = 1;
+    let activePointerId = null, downX = 0, downY = 0;
+    const TAP_SLOP = 8;
+
+    // Boundary drawing
+    const boundaryState = { drawing: false, boundaries: {} };
+
+    /* ── DOM refs ── */
+    const viewport      = document.getElementById("mapViewport");
+    const layer         = document.getElementById("mapLayer");
+    const img           = document.getElementById("mapImg");
+    const overlay       = document.getElementById("mapOverlay");
+    const ghostDot      = document.getElementById("ghostDot");
+    const mapStatus     = document.getElementById("mapStatus");
+    const selectedPanel = document.getElementById("selectedPanel");
+    const selectedInfo  = document.getElementById("selectedInfo");
+    const btnSavePos    = document.getElementById("btnSavePosition");
+    const noSectionMsg  = document.getElementById("noSectionMsg");
+    const unplacedList  = document.getElementById("unplacedList");
+    const unplacedEmpty = document.getElementById("unplacedEmpty");
+    const popup         = document.getElementById("climbPopup");
+
+    // Boundary drawing removed — managed in Gym Settings
+    const btnDraw  = null;
+    const btnUndo  = null;
+    const btnClear = null;
+    const btnSave  = null;
+    const boundarySelect = null;
+
+    /* ── Map init ── */
+    function updateLayerSize() {
+      const w = img.offsetWidth || img.clientWidth || 0;
+      const h = img.offsetHeight || img.clientHeight || 0;
+      baseW = Math.max(1, Math.round(w || img.getBoundingClientRect().width));
+      baseH = Math.max(1, Math.round(h || img.getBoundingClientRect().height));
+      layer.style.width  = baseW + "px";
+      layer.style.height = baseH + "px";
     }
-  </script>
 
-  <script>
-    (function () {
-      const pageRoot = document.getElementById("pageRoot");
-      const viewport = document.getElementById("mapViewport");
-      const layer    = document.getElementById("mapLayer");
-      const img      = document.getElementById("mapImg");
-      const overlay  = document.getElementById("mapOverlay");
-      const ghostDot = document.getElementById("ghostDot");
+    function applyTransform() {
+      layer.style.transform = `translate(${tx}px,${ty}px) scale(${scale})`;
+    }
 
-      const btnDraw  = document.getElementById("btnDrawBoundary");
-      const btnUndo  = document.getElementById("btnUndoBoundary");
-      const btnClear = document.getElementById("btnClearBoundary");
-      const btnSave  = document.getElementById("btnSaveBoundary");
+    function setViewportHeight() {
+      const vr = viewport.getBoundingClientRect();
+      const natW = img.naturalWidth || 1, natH = img.naturalHeight || 1;
+      const desired = vr.width * (natH / natW);
+      viewport.style.height = Math.round(Math.min(desired, window.innerHeight * 0.75)) + "px";
+    }
 
-      const boundarySelect = document.getElementById("boundary_section");
-      const boundaryStatus = document.getElementById("boundaryStatus");
+    function fitToViewport() {
+      updateLayerSize();
+      const vr = viewport.getBoundingClientRect();
+      scale = Math.min(vr.width / baseW, vr.height / baseH);
+      tx = (vr.width  - baseW * scale) / 2;
+      ty = (vr.height - baseH * scale) / 2;
+      applyTransform();
+      redrawBoundaries();
+    }
 
-      const xInput = document.getElementById("x_percent");
-      const yInput = document.getElementById("y_percent");
-      const coordsDisplay = document.getElementById("coordsDisplay");
-      const submitBtn = document.getElementById("submitBtn");
-      const clickHint = document.getElementById("clickHint");
+    function clientToPercent(clientX, clientY) {
+      const vr = viewport.getBoundingClientRect();
+      const xImg = (clientX - vr.left  - tx) / scale;
+      const yImg = (clientY - vr.top   - ty) / scale;
+      if (xImg < 0 || yImg < 0 || xImg > baseW || yImg > baseH) return null;
+      return {
+        x: Math.max(0, Math.min(100, (xImg / baseW) * 100)),
+        y: Math.max(0, Math.min(100, (yImg / baseH) * 100)),
+      };
+    }
 
-      const compId = "{{ session.get('admin_comp_id') }}";
-
-      // Restore position from form_values if we're re-rendering after an error
-      const restoredX = {{ (fv.x_percent or 'null') }};
-      const restoredY = {{ (fv.y_percent or 'null') }};
-
-      if (!viewport || !layer || !img) return;
-
-      function sid() { return (boundarySelect && boundarySelect.value) ? boundarySelect.value : ""; }
-      function setStatus(msg) { if (boundaryStatus) boundaryStatus.textContent = msg || ""; }
-      function setCoords(msg) { if (coordsDisplay) coordsDisplay.textContent = msg || ""; }
-
-      // Submit button starts disabled unless we have a restored position
-      if (submitBtn) submitBtn.disabled = !(restoredX && restoredY);
-
-      let scale = 1;
-      let tx = 0, ty = 0;
-      let baseW = 1, baseH = 1;
-      let activePointerId = null;
-      let downX = 0, downY = 0;
-      const TAP_SLOP = 8;
-      const state = { drawing: false, boundaries: {} };
-
-      function updateLayerSizeFromImage() {
-        const w = img.offsetWidth || img.clientWidth || 0;
-        const h = img.offsetHeight || img.clientHeight || 0;
-        if (w > 0 && h > 0) {
-          baseW = Math.max(1, Math.round(w));
-          baseH = Math.max(1, Math.round(h));
-        } else {
-          const r = img.getBoundingClientRect();
-          baseW = Math.max(1, Math.round(r.width));
-          baseH = Math.max(1, Math.round(r.height));
-        }
-        layer.style.width = baseW + "px";
-        layer.style.height = baseH + "px";
+    /* ── Section boundary hit-test ── */
+    function pointInPolygon(px, py, polygon) {
+      // Ray casting — polygon is array of {x, y} in percent
+      let inside = false;
+      for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+        const xi = polygon[i].x, yi = polygon[i].y;
+        const xj = polygon[j].x, yj = polygon[j].y;
+        const intersect = ((yi > py) !== (yj > py)) &&
+          (px < (xj - xi) * (py - yi) / (yj - yi) + xi);
+        if (intersect) inside = !inside;
       }
+      return inside;
+    }
 
-      function applyTransform() {
-        layer.style.transform = `translate(${tx}px, ${ty}px) scale(${scale})`;
-      }
-
-      function setViewportHeightToAspect() {
-        const vr = viewport.getBoundingClientRect();
-        const availableW = vr.width;
-        const natW = img.naturalWidth || 1;
-        const natH = img.naturalHeight || 1;
-        const desiredH = availableW * (natH / natW);
-        const maxH = Math.max(420, Math.floor(window.innerHeight * 0.75));
-        const finalH = Math.min(desiredH, maxH);
-        viewport.style.height = Math.round(finalH) + "px";
-      }
-
-      function fitToViewport() {
-        updateLayerSizeFromImage();
-        const vr = viewport.getBoundingClientRect();
-        const scaleX = vr.width / baseW;
-        const scaleY = vr.height / baseH;
-        scale = Math.min(scaleX, scaleY);
-        tx = (vr.width  - baseW * scale) / 2;
-        ty = (vr.height - baseH * scale) / 2;
-        applyTransform();
-        redrawBoundary();
-
-        // Restore ghost dot position if we have saved coords from a failed submit
-        if (restoredX && restoredY && ghostDot) {
-          ghostDot.style.left = restoredX + "%";
-          ghostDot.style.top  = restoredY + "%";
-          ghostDot.style.display = "flex";
+    function getSectionAtPoint(px, py) {
+      for (const sec of SECTION_BOUNDARIES) {
+        if (sec.points && sec.points.length >= 3 && pointInPolygon(px, py, sec.points)) {
+          return sec;
         }
       }
+      return null;
+    }
 
-      function clientToImagePercent(clientX, clientY) {
-        const vr = viewport.getBoundingClientRect();
-        const xV = clientX - vr.left;
-        const yV = clientY - vr.top;
-        const xImg = (xV - tx) / scale;
-        const yImg = (yV - ty) / scale;
-        if (xImg < 0 || yImg < 0 || xImg > baseW || yImg > baseH) return null;
-        return {
-          x: Math.max(0, Math.min(100, (xImg / baseW) * 100)),
-          y: Math.max(0, Math.min(100, (yImg / baseH) * 100)),
-        };
+    /* ── Boundary drawing overlay ── */
+    function sid() { return boundarySelect?.value || ""; }
+
+    function redrawBoundaries() {
+      if (!overlay) return;
+      overlay.setAttribute("width",   baseW);
+      overlay.setAttribute("height",  baseH);
+      overlay.setAttribute("viewBox", `0 0 ${baseW} ${baseH}`);
+      while (overlay.firstChild) overlay.removeChild(overlay.firstChild);
+
+      // Draw saved boundaries
+      for (const sec of SECTION_BOUNDARIES) {
+        if (!sec.points || sec.points.length < 3) continue;
+        drawBoundaryPolygon(sec.points, "rgba(93,244,162,0.12)", "rgba(93,244,162,0.6)", sec.name);
       }
 
-      function placeClimbAt(clientX, clientY) {
-        const pt = clientToImagePercent(clientX, clientY);
-        if (!pt) return;
-        xInput.value = pt.x.toFixed(4);
-        yInput.value = pt.y.toFixed(4);
-        if (ghostDot) {
-          ghostDot.style.left = pt.x + "%";
-          ghostDot.style.top  = pt.y + "%";
-          ghostDot.style.display = "flex";
-        }
-        if (submitBtn) submitBtn.disabled = false;
-        if (clickHint) clickHint.textContent = "Position set ✅ Now fill the form and Save.";
-        setCoords(`Climb position: ${pt.x.toFixed(2)}% / ${pt.y.toFixed(2)}% (Draw boundary OFF)`);
+      // Draw in-progress boundary
+      const s = sid();
+      if (s && boundaryState.boundaries[s]?.length) {
+        drawBoundaryPolygon(boundaryState.boundaries[s], "rgba(168,216,240,0.10)", "rgba(168,216,240,0.8)", null);
       }
+    }
 
-      function addBoundaryPoint(clientX, clientY) {
-        const s = sid();
-        if (!s) { setStatus("❌ Select a Boundary section first."); return; }
-        const pt = clientToImagePercent(clientX, clientY);
-        if (!pt) return;
-        if (!state.boundaries[s]) state.boundaries[s] = [];
-        state.boundaries[s].push({ x: pt.x, y: pt.y });
-        redrawBoundary();
-        setStatus(`${state.boundaries[s].length} point(s) in boundary.`);
-        setCoords(`Boundary point: ${pt.x.toFixed(2)}% / ${pt.y.toFixed(2)}% (Draw boundary ON)`);
+    function drawBoundaryPolygon(pts, fill, stroke, label) {
+      const pxPts = pts.map(p => ({ x: (p.x / 100) * baseW, y: (p.y / 100) * baseH }));
+      const d = pxPts.map((p,i) => `${i===0?"M":"L"} ${p.x} ${p.y}`).join(" ") +
+        (pxPts.length >= 3 ? " Z" : "");
+      const path = document.createElementNS("http://www.w3.org/2000/svg","path");
+      path.setAttribute("d", d);
+      path.setAttribute("fill", fill);
+      path.setAttribute("stroke", stroke);
+      path.setAttribute("stroke-width", "2");
+      overlay.appendChild(path);
+
+      // Draw vertex dots
+      pxPts.forEach(p => {
+        const c = document.createElementNS("http://www.w3.org/2000/svg","circle");
+        c.setAttribute("cx", p.x); c.setAttribute("cy", p.y);
+        c.setAttribute("r", "4"); c.setAttribute("fill", "rgba(255,255,255,0.8)");
+        overlay.appendChild(c);
+      });
+
+      if (label && pxPts.length >= 3) {
+        const cx = pxPts.reduce((s,p) => s + p.x, 0) / pxPts.length;
+        const cy = pxPts.reduce((s,p) => s + p.y, 0) / pxPts.length;
+        const t = document.createElementNS("http://www.w3.org/2000/svg","text");
+        t.setAttribute("x", cx); t.setAttribute("y", cy);
+        t.setAttribute("text-anchor", "middle");
+        t.setAttribute("dominant-baseline", "middle");
+        t.setAttribute("class", "boundary-label");
+        t.textContent = label;
+        overlay.appendChild(t);
       }
+    }
 
-      function clearOverlay() {
-        if (!overlay) return;
-        while (overlay.firstChild) overlay.removeChild(overlay.firstChild);
-      }
+    /* ── Tap handler ── */
+    function handleTap(clientX, clientY) {
+      const pt = clientToPercent(clientX, clientY);
+      if (!pt) return;
 
-      function ensureOverlaySize() {
-        if (!overlay) return;
-        overlay.setAttribute("width", baseW);
-        overlay.setAttribute("height", baseH);
-        overlay.setAttribute("viewBox", `0 0 ${baseW} ${baseH}`);
-      }
-
-      function pctToPx(pt) {
-        return { x: (pt.x / 100) * baseW, y: (pt.y / 100) * baseH };
-      }
-
-      function redrawBoundary() {
-        if (!overlay) return;
-        ensureOverlaySize();
-        clearOverlay();
-        const s = sid();
-        if (!s) return;
-        const pts = state.boundaries[s] || [];
-        if (!pts.length) return;
-        const pxPts = pts.map(pctToPx);
-        const d = pxPts.map((p,i)=>`${i===0?"M":"L"} ${p.x} ${p.y}`).join(" ")
-          + (pxPts.length >= 3 ? " Z" : "");
-        const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-        path.setAttribute("d", d);
-        path.setAttribute("fill", "rgba(93, 244, 162, 0.14)");
-        path.setAttribute("stroke", "rgba(93, 244, 162, 0.95)");
-        path.setAttribute("stroke-width", "2.5");
-        overlay.appendChild(path);
-        pxPts.forEach((p) => {
-          const c = document.createElementNS("http://www.w3.org/2000/svg", "circle");
-          c.setAttribute("cx", p.x);
-          c.setAttribute("cy", p.y);
-          c.setAttribute("r", "4.5");
-          c.setAttribute("fill", "rgba(255,255,255,0.95)");
-          overlay.appendChild(c);
-        });
-      }
-
-      async function loadBoundaries() {
-        if (!compId || compId === "None") { setStatus("No competition context in session."); return; }
-        setStatus("Loading boundaries…");
-        const res = await fetch(`/admin/api/comp/${compId}/section-boundaries`, { credentials: "same-origin" });
-        const data = await res.json();
-        if (!data.ok) { setStatus(data.error || "Failed to load boundaries."); return; }
-        state.boundaries = data.boundaries || {};
-        setStatus("Boundaries loaded.");
-        redrawBoundary();
-      }
-
-      async function saveBoundary() {
+      if (boundaryState.drawing) {
         const s = sid();
         if (!s) { setStatus("Select a section first."); return; }
-        const pts = state.boundaries[s] || [];
-        if (pts.length > 0 && pts.length < 3) {
-          setStatus("Need at least 3 points to save a polygon (or Clear to remove).");
+        if (!boundaryState.boundaries[s]) boundaryState.boundaries[s] = [];
+        boundaryState.boundaries[s].push({ x: pt.x, y: pt.y });
+        redrawBoundaries();
+        setStatus(`${boundaryState.boundaries[s].length} point(s).`);
+        return;
+      }
+
+      if (!selectedClimbId) {
+        setStatus("Select a climb from the list first.");
+        return;
+      }
+
+      // Check which section this point falls in
+      const sec = getSectionAtPoint(pt.x, pt.y);
+      if (!sec) {
+        showNoSectionMsg();
+        return;
+      }
+
+      pendingX = pt.x;
+      pendingY = pt.y;
+      placeGhostDot(pt.x, pt.y);
+      btnSavePos.disabled = false;
+      setStatus("Position set — tap again to adjust, or Save position.");
+    }
+
+    function placeGhostDot(x, y) {
+      ghostDot.style.left    = x + "%";
+      ghostDot.style.top     = y + "%";
+      ghostDot.style.display = "flex";
+    }
+
+    function showNoSectionMsg() {
+      noSectionMsg.style.display = "block";
+      setTimeout(() => { noSectionMsg.style.display = "none"; }, 2500);
+    }
+
+    function setStatus(msg) {
+      if (mapStatus) mapStatus.textContent = msg || "";
+    }
+
+    /* ── Select climb from list ── */
+    window.selectClimb = function (climbId) {
+      // Deselect previous
+      document.querySelectorAll(".climb-list-item.active").forEach(el => el.classList.remove("active"));
+
+      if (selectedClimbId === climbId) {
+        clearSelection();
+        return;
+      }
+
+      selectedClimbId = climbId;
+      pendingX = null;
+      pendingY = null;
+      ghostDot.style.display = "none";
+      btnSavePos.disabled = true;
+
+      const item = document.getElementById(`listitem-${climbId}`);
+      if (item) {
+        item.classList.add("active");
+        const num     = item.dataset.climbNumber;
+        const grade   = item.dataset.grade;
+        const section = item.dataset.section;
+        const colour  = item.dataset.colour;
+        const dotColour = item.dataset.dotColour || "#888";
+
+        // Update ghost dot colour
+        ghostDot.style.setProperty("--dot-bg", dotColour);
+        ghostDot.textContent = num;
+
+        selectedInfo.innerHTML = `
+          <strong>Climb #${esc(num)}</strong><br/>
+          ${esc(section)} · ${esc(grade)} · ${esc(colour)}
+        `;
+
+        selectedPanel.classList.add("visible");
+        setStatus(`Climb #${num} selected — tap the map to place it.`);
+      }
+    };
+
+    window.clearSelection = function () {
+      selectedClimbId = null;
+      pendingX = null;
+      pendingY = null;
+      ghostDot.style.display = "none";
+      btnSavePos.disabled = true;
+      selectedPanel.classList.remove("visible");
+      document.querySelectorAll(".climb-list-item.active").forEach(el => el.classList.remove("active"));
+      setStatus("Select a climb from the list to place it.");
+    };
+
+    /* ── Save position ── */
+    window.savePosition = async function () {
+      if (!selectedClimbId || pendingX === null || pendingY === null) return;
+
+      btnSavePos.disabled = true;
+      btnSavePos.textContent = "Saving…";
+
+      const fd = new FormData();
+      fd.append("comp_id",   COMP_ID);
+      fd.append("x_percent", pendingX.toFixed(4));
+      fd.append("y_percent", pendingY.toFixed(4));
+
+      try {
+        const res  = await fetch(`/admin/climbs/${selectedClimbId}/place`, {
+          method: "POST", credentials: "same-origin", body: fd
+        });
+        const data = await res.json();
+
+        if (!data.ok) {
+          setStatus("Error: " + data.error);
+          btnSavePos.disabled = false;
+          btnSavePos.textContent = "Save position";
           return;
         }
-        setStatus("Saving boundary…");
-        const res = await fetch("/admin/map/save-boundary", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          credentials: "same-origin",
-          body: JSON.stringify({ comp_id: String(compId), section_id: String(s), points: pts })
-        });
-        const data = await res.json();
-        if (!data.ok) { setStatus(data.error || "Save failed."); return; }
-        state.boundaries[s] = data.points || [];
-        redrawBoundary();
-        setStatus("Saved boundary ✅");
+
+        // Add dot to map
+        const item = document.getElementById(`listitem-${selectedClimbId}`);
+        const dotColour = item?.dataset.dotColour || "#888";
+        const num       = item?.dataset.climbNumber || "?";
+
+        const dot = document.createElement("div");
+        dot.className       = "map-dot";
+        dot.id              = `dot-${selectedClimbId}`;
+        dot.textContent     = num;
+        dot.style.left      = pendingX + "%";
+        dot.style.top       = pendingY + "%";
+        dot.style.setProperty("--dot-bg", dotColour);
+        dot.dataset.climbId     = selectedClimbId;
+        dot.dataset.climbNumber = num;
+        dot.dataset.section     = item?.dataset.section || "";
+        dot.dataset.colour      = item?.dataset.colour  || "";
+        dot.dataset.grade       = item?.dataset.grade   || "";
+        dot.dataset.styles      = item?.dataset.styles  || "[]";
+        dot.dataset.points      = item?.dataset.points  || "";
+        dot.onclick = (e) => showClimbPopup(selectedClimbId, e);
+        layer.appendChild(dot);
+
+        // Remove from unplaced list
+        if (item) item.remove();
+        updateUnplacedCount(-1);
+
+        // Hide ghost
+        ghostDot.style.display = "none";
+
+        clearSelection();
+        setStatus("Placed ✓ — select another climb to continue.");
+        btnSavePos.textContent = "Save position";
+
+      } catch (e) {
+        setStatus("Network error.");
+        btnSavePos.disabled = false;
+        btnSavePos.textContent = "Save position";
       }
+    };
 
-      function undoBoundaryPoint() {
-        const s = sid();
-        if (!s) { setStatus("Select a section first."); return; }
-        const pts = state.boundaries[s] || [];
-        pts.pop();
-        state.boundaries[s] = pts;
-        redrawBoundary();
-        setStatus(`${pts.length} point(s) in boundary.`);
-      }
+    /* ── Climb info popup ── */
+    window.showClimbPopup = function (climbId, event) {
+      event.stopPropagation();
+      popupClimbId = climbId;
 
-      function clearBoundary() {
-        const s = sid();
-        if (!s) { setStatus("Select a section first."); return; }
-        state.boundaries[s] = [];
-        redrawBoundary();
-        setStatus("Cleared boundary (remember to Save).");
-      }
+      const dot = document.getElementById(`dot-${climbId}`);
+      if (!dot) return;
 
-      function setDrawMode(on) {
-        if (on && !sid()) { setStatus("❌ Select a Boundary section first."); return; }
-        state.drawing = !!on;
-        btnDraw?.classList.toggle("tiny-btn--active", state.drawing);
-        pageRoot?.classList.toggle("draw-mode", state.drawing);
-        if (ghostDot && state.drawing) ghostDot.style.display = "none";
-        if (state.drawing) {
-          setCoords("Tap to add boundary points. (Draw boundary ON)");
-          setStatus("Drawing ON: tap points on the map. Tap Draw boundary again to exit.");
-        } else {
-          setCoords("Tap to add a climb. (Draw boundary OFF)");
-          setStatus("");
-        }
-      }
+      const num     = dot.dataset.climbNumber;
+      const section = dot.dataset.section;
+      const colour  = dot.dataset.colour;
+      const grade   = dot.dataset.grade;
+      const points  = dot.dataset.points;
+      let   styles  = [];
+      try { styles = JSON.parse(dot.dataset.styles || "[]"); } catch (_) {}
 
-      viewport.addEventListener("pointerdown", (e) => {
-        e.preventDefault();
-        activePointerId = e.pointerId;
-        downX = e.clientX;
-        downY = e.clientY;
-        viewport.setPointerCapture(e.pointerId);
-      }, { passive: false });
+      document.getElementById("popupTitle").textContent = `Climb #${num}`;
 
-      viewport.addEventListener("pointerup", (e) => {
-        if (activePointerId !== e.pointerId) return;
-        e.preventDefault();
-        try { viewport.releasePointerCapture(e.pointerId); } catch (_) {}
-        activePointerId = null;
-        const dx = e.clientX - downX;
-        const dy = e.clientY - downY;
-        const isTap = Math.hypot(dx, dy) <= TAP_SLOP;
-        updateLayerSizeFromImage();
-        if (isTap) {
-          if (state.drawing) addBoundaryPoint(e.clientX, e.clientY);
-          else placeClimbAt(e.clientX, e.clientY);
-        }
-      }, { passive: false });
+      const styleBadges = styles.map(s =>
+        `<span class="style-badge ${s}">${cap(s)}</span>`
+      ).join(" ") || "—";
 
-      viewport.addEventListener("pointercancel", (e) => {
-        if (activePointerId === e.pointerId) activePointerId = null;
-      }, { passive: false });
+      document.getElementById("popupBody").innerHTML = `
+        <div class="popup-row"><span class="popup-row-label">Section</span><span class="popup-row-value">${esc(section) || "—"}</span></div>
+        <div class="popup-row"><span class="popup-row-label">Hold colour</span><span class="popup-row-value">${esc(colour) || "—"}</span></div>
+        <div class="popup-row"><span class="popup-row-label">Grade</span><span class="popup-row-value">${esc(grade) || "—"}</span></div>
+        <div class="popup-row"><span class="popup-row-label">Style</span><span class="popup-row-value">${styleBadges}</span></div>
+        <div class="popup-row"><span class="popup-row-label">Points</span><span class="popup-row-value">${esc(points) || "—"}</span></div>
+      `;
 
-      viewport.addEventListener("wheel", (e) => e.preventDefault(), { passive: false });
-      viewport.addEventListener("dblclick", (e) => e.preventDefault(), { passive: false });
+      // Position popup near the dot but keep within viewport
+      const dotRect = dot.getBoundingClientRect();
+      const vpRect  = viewport.getBoundingClientRect();
 
-      btnDraw?.addEventListener("click", () => setDrawMode(!state.drawing));
-      btnUndo?.addEventListener("click", undoBoundaryPoint);
-      btnClear?.addEventListener("click", clearBoundary);
-      btnSave?.addEventListener("click", saveBoundary);
+      popup.classList.remove("hidden");
+      popup.style.position = "fixed";
 
-      boundarySelect?.addEventListener("change", () => {
-        redrawBoundary();
-        const s = sid();
-        const pts = s ? (state.boundaries[s] || []) : [];
-        setStatus(s ? `${pts.length} point(s) in boundary.` : "");
-        if (state.drawing && !s) setDrawMode(false);
+      let left = dotRect.right  + 8;
+      let top  = dotRect.top;
+
+      // Clamp to screen
+      const pw = popup.offsetWidth  || 260;
+      const ph = popup.offsetHeight || 220;
+      if (left + pw > window.innerWidth  - 8) left = dotRect.left - pw - 8;
+      if (top  + ph > window.innerHeight - 8) top  = window.innerHeight - ph - 8;
+      if (top  < 8) top = 8;
+
+      popup.style.left = left + "px";
+      popup.style.top  = top  + "px";
+    };
+
+    window.closePopup = function () {
+      popup.classList.add("hidden");
+      popupClimbId = null;
+    };
+
+    /* ── Move placed climb ── */
+    window.moveClimb = async function () {
+      if (!popupClimbId) return;
+
+      // Remove the dot from the map
+      const dot = document.getElementById(`dot-${popupClimbId}`);
+      if (dot) dot.remove();
+
+      // Clear its position on the server
+      const fd = new FormData();
+      fd.append("comp_id", COMP_ID);
+      await fetch(`/admin/climbs/${popupClimbId}/unplace`, {
+        method: "POST", credentials: "same-origin", body: fd
       });
 
-      function relayout() {
-        if (img.naturalWidth && img.naturalHeight) setViewportHeightToAspect();
-        fitToViewport();
-      }
+      // Add back to unplaced list
+      const climbId   = popupClimbId;
+      closePopup();
 
-      function init() {
-        if (img.naturalWidth && img.naturalHeight) {
-          viewport.style.setProperty("--map-ar", `${img.naturalWidth} / ${img.naturalHeight}`);
-        }
-        relayout();
-        loadBoundaries().catch(() => setStatus("Failed to load boundaries."));
-        const hasSections = !!(boundarySelect && boundarySelect.options && boundarySelect.options.length > 1);
-        if (!hasSections) {
-          btnDraw.disabled = true;
-          btnUndo.disabled = true;
-          btnClear.disabled = true;
-          btnSave.disabled = true;
-          setStatus("No sections yet. Create one by adding a climb with a New section name.");
-        } else {
-          btnDraw.disabled = false;
-        }
-        setDrawMode(false);
-      }
+      // Re-fetch and re-add list item — we stored data on the dot
+      // (dot was removed so re-read from server isn't needed — we have the data)
+      addToUnplacedList(climbId, dot);
+    };
 
+    function addToUnplacedList(climbId, dot) {
+      if (!dot) return;
+      const item = document.createElement("div");
+      item.className         = "climb-list-item";
+      item.id                = `listitem-${climbId}`;
+      item.dataset.climbId      = climbId;
+      item.dataset.climbNumber  = dot.dataset.climbNumber;
+      item.dataset.grade        = dot.dataset.grade;
+      item.dataset.colour       = dot.dataset.colour;
+      item.dataset.section      = dot.dataset.section;
+      item.dataset.styles       = dot.dataset.styles;
+      item.dataset.points       = dot.dataset.points;
+      item.dataset.dotColour    = getComputedStyle(dot).getPropertyValue("--dot-bg").trim() || "#888";
+      item.onclick = () => selectClimb(climbId);
+
+      const dotColour = item.dataset.dotColour;
+      item.innerHTML = `
+        <div class="climb-num-badge" style="--dot-bg:${dotColour};">${esc(dot.dataset.climbNumber)}</div>
+        <div class="climb-list-info">
+          <div class="climb-list-title">Climb #${esc(dot.dataset.climbNumber)} · ${esc(dot.dataset.grade || "—")}</div>
+          <div class="climb-list-sub">${esc(dot.dataset.section || "No section")} · ${esc(dot.dataset.colour || "—")}</div>
+        </div>
+      `;
+      unplacedList.appendChild(item);
+      updateUnplacedCount(1);
+    }
+
+    /* ── Boundary drawing controls ── */
+    function setDrawMode(on) {
+      boundaryState.drawing = !!on;
+      btnDraw?.classList.toggle("tiny-btn--active", boundaryState.drawing);
+      if (boundaryState.drawing) {
+        setStatus("Drawing boundary — tap points on the map. Tap again to exit.");
+      } else {
+        setStatus(selectedClimbId ? "Tap the map to place the climb." : "Select a climb from the list.");
+      }
+    }
+
+    async function saveBoundary() {
+      const s = sid();
+      if (!s) { setStatus("Select a section first."); return; }
+      const pts = boundaryState.boundaries[s] || [];
+      if (pts.length > 0 && pts.length < 3) {
+        setStatus("Need at least 3 points (or Clear to remove).");
+        return;
+      }
+      setStatus("Saving boundary…");
+      const compId = COMP_ID;
+      const res = await fetch("/admin/map/save-boundary", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
+        body: JSON.stringify({ comp_id: String(compId), section_id: String(s), points: pts })
+      });
+      const data = await res.json();
+      if (!data.ok) { setStatus(data.error || "Save failed."); return; }
+
+      // Update local boundary data
+      const existing = SECTION_BOUNDARIES.find(b => String(b.id) === String(s));
+      if (existing) existing.points = data.points || [];
+      else SECTION_BOUNDARIES.push({ id: parseInt(s), name: "", points: data.points || [] });
+
+      redrawBoundaries();
+      setStatus("Boundary saved ✅");
+    }
+
+    btnDraw?.addEventListener("click",  () => setDrawMode(!boundaryState.drawing));
+    btnUndo?.addEventListener("click",  () => {
+      const s = sid();
+      if (!s) return;
+      const pts = boundaryState.boundaries[s] || [];
+      pts.pop();
+      boundaryState.boundaries[s] = pts;
+      redrawBoundaries();
+    });
+    btnClear?.addEventListener("click", () => {
+      const s = sid();
+      if (!s) return;
+      boundaryState.boundaries[s] = [];
+      redrawBoundaries();
+    });
+    btnSave?.addEventListener("click",  saveBoundary);
+
+    /* ── Pointer events ── */
+    viewport?.addEventListener("pointerdown", (e) => {
+      e.preventDefault();
+      activePointerId = e.pointerId;
+      downX = e.clientX; downY = e.clientY;
+      viewport.setPointerCapture(e.pointerId);
+    }, { passive: false });
+
+    viewport?.addEventListener("pointerup", (e) => {
+      if (activePointerId !== e.pointerId) return;
+      e.preventDefault();
+      try { viewport.releasePointerCapture(e.pointerId); } catch (_) {}
+      activePointerId = null;
+      const dx = e.clientX - downX, dy = e.clientY - downY;
+      if (Math.hypot(dx, dy) <= TAP_SLOP) {
+        updateLayerSize();
+        handleTap(e.clientX, e.clientY);
+      }
+    }, { passive: false });
+
+    viewport?.addEventListener("pointercancel", (e) => {
+      if (activePointerId === e.pointerId) activePointerId = null;
+    }, { passive: false });
+
+    viewport?.addEventListener("wheel",   (e) => e.preventDefault(), { passive: false });
+    viewport?.addEventListener("dblclick",(e) => e.preventDefault(), { passive: false });
+
+    // Close popup when clicking outside
+    document.addEventListener("click", (e) => {
+      if (!popup.classList.contains("hidden") &&
+          !popup.contains(e.target) &&
+          !e.target.closest(".map-dot")) {
+        closePopup();
+      }
+    });
+
+    /* ── Unplaced count ── */
+    function updateUnplacedCount(delta) {
+      const el = document.getElementById("unplacedCount");
+      if (!el) return;
+      const n = Math.max(0, (parseInt(el.textContent) || 0) + delta);
+      el.textContent = n;
+      if (unplacedEmpty) unplacedEmpty.style.display = n === 0 ? "block" : "none";
+    }
+
+    /* ── Helpers ── */
+    function cap(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
+    function esc(s) {
+      return String(s || "")
+        .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+    }
+
+    /* ── Init ── */
+    function init() {
+      if (img.naturalWidth && img.naturalHeight) setViewportHeight();
+      fitToViewport();
+      loadBoundaries();
+    }
+
+    async function loadBoundaries() {
+      const res  = await fetch(`/admin/api/comp/${COMP_ID}/section-boundaries`, { credentials: "same-origin" });
+      const data = await res.json();
+      if (!data.ok) return;
+      // Merge into SECTION_BOUNDARIES
+      for (const [secId, pts] of Object.entries(data.boundaries || {})) {
+        const existing = SECTION_BOUNDARIES.find(b => String(b.id) === String(secId));
+        if (existing) existing.points = pts;
+      }
+      redrawBoundaries();
+    }
+
+    if (img) {
       if (img.complete) init();
       else img.addEventListener("load", init, { once: true });
+    }
 
-      let resizeTimer = null;
-      window.addEventListener("resize", () => {
-        clearTimeout(resizeTimer);
-        resizeTimer = setTimeout(() => relayout(), 120);
-      });
-    })();
+    let resizeTimer;
+    window.addEventListener("resize", () => {
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(() => { if (img.naturalWidth) setViewportHeight(); fitToViewport(); }, 120);
+    });
+  })();
   </script>
 </body>
 </html>

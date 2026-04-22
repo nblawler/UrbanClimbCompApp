@@ -755,6 +755,9 @@ def leaderboard_for_comp(comp_id):
 
     from_route_setter = (request.args.get("from") or "").strip() == "route_setter"
 
+    # Store comp name so the leaderboard page can display it
+    session["leaderboard_comp_name"] = comp.name
+
     if admin_can_manage_competition(comp):
         session["admin_comp_id"] = comp.id
         session["active_comp_slug"] = comp.slug

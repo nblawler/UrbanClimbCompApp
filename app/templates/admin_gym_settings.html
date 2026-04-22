@@ -1,590 +1,745 @@
-<!-- admin_gym_settings.html -->
 <!doctype html>
 <html lang="en">
 <head>
-	<meta charset="utf-8" />
-	<meta name="viewport" content="width=device-width, initial-scale=1" />
-	<title>Gym Settings · {{ gym.name }} · Comp Circuit</title>
-	<link rel="stylesheet" href="/static/app.css" />
-	<style>
-		.grade-list-wrap {
-			display: flex;
-			flex-direction: column;
-			gap: 1.25rem;
-			margin-top: 1.5rem;
-		}
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Gym Settings · {{ gym.name }} · Comp Circuit</title>
+  <link rel="stylesheet" href="/static/app.css" />
+  <style>
+    /* ── Colour list builder ── */
+    .grade-list-wrap { display:flex; flex-direction:column; gap:1.25rem; margin-top:1.5rem; }
+    .grade-list-intro { font-size:0.9rem; color:rgba(255,255,255,0.65); line-height:1.55; }
+    .grade-list-intro strong { color:rgba(255,255,255,0.9); }
+    .grade-add-row { display:flex; align-items:center; gap:0.75rem; flex-wrap:wrap; }
+    .grade-add-row input[type="text"] { flex:1; min-width:120px; }
+    .grade-add-row input[type="color"] { width:2.8rem; height:2.8rem; padding:0; border:2px solid rgba(255,255,255,0.25); border-radius:0.6rem; cursor:pointer; background:none; flex-shrink:0; }
+    .colour-list-sortable { display:flex; flex-direction:column; gap:0.5rem; min-height:48px; }
+    .grade-list-item { display:flex; align-items:center; gap:0.75rem; padding:0.65rem 0.9rem; background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.16); border-radius:0.85rem; cursor:grab; transition:background 0.15s, box-shadow 0.15s; user-select:none; }
+    .grade-list-item:active { cursor:grabbing; }
+    .grade-list-item.drag-over { background:rgba(168,216,240,0.18); border-color:rgba(168,216,240,0.55); box-shadow:0 0 0 2px rgba(168,216,240,0.25); }
+    .grade-list-item.dragging { opacity:0.45; }
+    .grade-drag-handle { color:rgba(255,255,255,0.35); font-size:1rem; flex-shrink:0; line-height:1; }
+    .grade-dot { width:22px; height:22px; border-radius:999px; border:2px solid rgba(255,255,255,0.25); flex-shrink:0; box-shadow:0 1px 4px rgba(0,0,0,0.3); }
+    .grade-dot-edit { width:2rem; height:2rem; padding:0; border:2px solid rgba(255,255,255,0.22); border-radius:0.5rem; cursor:pointer; background:none; flex-shrink:0; }
+    .grade-label { flex:1; font-weight:700; color:rgba(255,255,255,0.92); font-size:0.95rem; }
+    .grade-order-badge { font-size:0.72rem; font-weight:800; color:rgba(255,255,255,0.35); text-transform:uppercase; letter-spacing:0.04em; white-space:nowrap; }
+    .grade-remove-btn { background:rgba(220,60,60,0.18); border:1px solid rgba(220,60,60,0.35); border-radius:0.55rem; color:rgba(255,160,160,0.9); padding:0.3rem 0.6rem; font-size:0.78rem; font-weight:800; cursor:pointer; flex-shrink:0; transition:background 0.15s; }
+    .grade-remove-btn:hover { background:rgba(220,60,60,0.32); }
+    .grade-list-empty { padding:1rem; text-align:center; color:rgba(255,255,255,0.35); font-size:0.9rem; border:1px dashed rgba(255,255,255,0.15); border-radius:0.85rem; }
+    .grade-list-actions { display:flex; gap:0.75rem; flex-wrap:wrap; align-items:center; }
+    .grade-list-note { font-size:0.82rem; color:rgba(255,255,255,0.45); transition:color 0.2s; }
+    .grade-list-note.is-success { color:#5df4a2; }
+    .grade-list-note.is-error   { color:rgba(255,160,160,0.9); }
 
-		.grade-list-intro {
-			font-size: 0.9rem;
-			color: rgba(255,255,255,0.65);
-			line-height: 1.55;
-		}
+    /* ── Sections card ── */
+    .sections-layout {
+      display: grid;
+      grid-template-columns: 260px 1fr;
+      gap: 1.25rem;
+      margin-top: 1.5rem;
+      align-items: start;
+    }
+    @media (max-width: 700px) { .sections-layout { grid-template-columns: 1fr; } }
 
-		.grade-list-intro strong { color: rgba(255,255,255,0.9); }
+    /* Section list */
+    .section-list-panel { display:flex; flex-direction:column; gap:0.75rem; }
+    .section-add-row { display:flex; gap:0.5rem; }
+    .section-add-row input { flex:1; }
+    .section-items { display:flex; flex-direction:column; gap:0.4rem; max-height:420px; overflow-y:auto; }
+    .section-item {
+      display:flex; align-items:center; justify-content:space-between; gap:0.5rem;
+      padding:0.6rem 0.85rem;
+      border-radius:0.75rem;
+      border:1px solid rgba(255,255,255,0.10);
+      background:rgba(255,255,255,0.05);
+      cursor:pointer;
+      transition:background 0.12s, border-color 0.12s;
+      user-select:none;
+    }
+    .section-item:hover { background:rgba(255,255,255,0.10); border-color:rgba(255,255,255,0.18); }
+    .section-item.active { background:rgba(168,216,240,0.15); border-color:rgba(168,216,240,0.45); }
+    .section-item-name { font-size:0.9rem; font-weight:700; color:#fff; flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .section-item-badge {
+      font-size:0.7rem; font-weight:800; padding:0.15rem 0.5rem;
+      border-radius:999px; white-space:nowrap;
+    }
+    .section-item-badge.has-boundary { background:rgba(52,211,153,0.18); color:#6ee7b7; border:1px solid rgba(52,211,153,0.3); }
+    .section-item-badge.no-boundary  { background:rgba(255,255,255,0.07); color:rgba(255,255,255,0.4); border:1px solid rgba(255,255,255,0.12); }
+    .section-delete-btn { background:rgba(220,60,60,0.15); border:1px solid rgba(220,60,60,0.28); border-radius:0.45rem; color:rgba(255,160,160,0.85); padding:0.25rem 0.55rem; font-size:0.75rem; font-weight:800; cursor:pointer; flex-shrink:0; transition:background 0.12s; }
+    .section-delete-btn:hover { background:rgba(220,60,60,0.28); }
+    .section-empty { font-size:0.85rem; color:rgba(255,255,255,0.35); text-align:center; padding:1rem 0; }
 
-		.grade-add-row {
-			display: flex;
-			align-items: center;
-			gap: 0.75rem;
-			flex-wrap: wrap;
-		}
+    /* Map panel */
+    .section-map-panel { display:flex; flex-direction:column; gap:0.75rem; }
 
-		.grade-add-row input[type="text"] { flex: 1; min-width: 120px; }
+    .section-map-instructions {
+      font-size:0.82rem;
+      color:rgba(255,255,255,0.55);
+      line-height:1.5;
+      padding:0.65rem 0.85rem;
+      background:rgba(255,255,255,0.04);
+      border:1px solid rgba(255,255,255,0.08);
+      border-radius:0.65rem;
+    }
 
-		.grade-add-row input[type="color"] {
-			width: 2.8rem;
-			height: 2.8rem;
-			padding: 0;
-			border: 2px solid rgba(255,255,255,0.25);
-			border-radius: 0.6rem;
-			cursor: pointer;
-			background: none;
-			flex-shrink: 0;
-		}
+    .section-map-viewport {
+      position:relative;
+      width:100%;
+      border-radius:0.85rem;
+      overflow:hidden;
+      background:rgba(0,0,0,0.3);
+      cursor:crosshair;
+    }
 
-		.colour-list-sortable {
-			display: flex;
-			flex-direction: column;
-			gap: 0.5rem;
-			min-height: 48px;
-		}
+    .section-map-layer {
+      position:relative;
+      transform-origin:top left;
+    }
 
-		.grade-list-item {
-			display: flex;
-			align-items: center;
-			gap: 0.75rem;
-			padding: 0.65rem 0.9rem;
-			background: rgba(255,255,255,0.08);
-			border: 1px solid rgba(255,255,255,0.16);
-			border-radius: 0.85rem;
-			cursor: grab;
-			transition: background 0.15s, box-shadow 0.15s;
-			user-select: none;
-		}
+    .section-map-img { display:block; width:100%; height:auto; user-select:none; pointer-events:none; }
 
-		.grade-list-item:active { cursor: grabbing; }
+    .section-map-svg {
+      position:absolute; top:0; left:0;
+      width:100%; height:100%;
+      pointer-events:none;
+    }
 
-		.grade-list-item.drag-over {
-			background: rgba(168,216,240,0.18);
-			border-color: rgba(168,216,240,0.55);
-			box-shadow: 0 0 0 2px rgba(168,216,240,0.25);
-		}
+    .section-map-controls { display:flex; gap:0.5rem; flex-wrap:wrap; align-items:center; }
+    .section-map-status { font-size:0.8rem; color:rgba(255,255,255,0.45); }
 
-		.grade-list-item.dragging { opacity: 0.45; }
-
-		.grade-drag-handle {
-			color: rgba(255,255,255,0.35);
-			font-size: 1rem;
-			flex-shrink: 0;
-			line-height: 1;
-		}
-
-		.grade-dot {
-			width: 22px; height: 22px;
-			border-radius: 999px;
-			border: 2px solid rgba(255,255,255,0.25);
-			flex-shrink: 0;
-			box-shadow: 0 1px 4px rgba(0,0,0,0.3);
-		}
-
-		.grade-dot-edit {
-			width: 2rem; height: 2rem;
-			padding: 0;
-			border: 2px solid rgba(255,255,255,0.22);
-			border-radius: 0.5rem;
-			cursor: pointer;
-			background: none;
-			flex-shrink: 0;
-		}
-
-		.grade-label {
-			flex: 1;
-			font-weight: 700;
-			color: rgba(255,255,255,0.92);
-			font-size: 0.95rem;
-		}
-
-		.grade-order-badge {
-			font-size: 0.72rem;
-			font-weight: 800;
-			color: rgba(255,255,255,0.35);
-			text-transform: uppercase;
-			letter-spacing: 0.04em;
-			white-space: nowrap;
-		}
-
-		.grade-remove-btn {
-			background: rgba(220,60,60,0.18);
-			border: 1px solid rgba(220,60,60,0.35);
-			border-radius: 0.55rem;
-			color: rgba(255,160,160,0.9);
-			padding: 0.3rem 0.6rem;
-			font-size: 0.78rem;
-			font-weight: 800;
-			cursor: pointer;
-			flex-shrink: 0;
-			transition: background 0.15s;
-		}
-
-		.grade-remove-btn:hover { background: rgba(220,60,60,0.32); }
-
-		.grade-list-empty {
-			padding: 1rem;
-			text-align: center;
-			color: rgba(255,255,255,0.35);
-			font-size: 0.9rem;
-			border: 1px dashed rgba(255,255,255,0.15);
-			border-radius: 0.85rem;
-		}
-
-		.grade-list-actions {
-			display: flex;
-			gap: 0.75rem;
-			flex-wrap: wrap;
-			align-items: center;
-		}
-
-		.grade-list-note {
-			font-size: 0.82rem;
-			color: rgba(255,255,255,0.45);
-			transition: color 0.2s;
-		}
-
-		.grade-list-note.is-success { color: #5df4a2; }
-		.grade-list-note.is-error   { color: rgba(255,160,160,0.9); }
-	</style>
+    .boundary-label { font-size:0.72rem; fill:#1a2e5a; font-weight:900; pointer-events:none; paint-order:stroke; stroke:#fff; stroke-width:3px; stroke-linejoin:round; }
+  </style>
 </head>
-
 <body>
-	<nav class="nav">
-		<button type="button" class="menu-toggle" onclick="openSidebar()">☰ Menu</button>
-	</nav>
+  <nav class="nav-scroll">
+    <button type="button" class="menu-toggle" onclick="openSidebar()">☰</button>
+    <div class="nav-scroll-track">
+      <a href="/admin/gym/settings" class="active">Gym Settings</a>
+      <a href="/admin/comps/create">Create Competition</a>
+      <a href="/admin/comps/manage">Competitions</a>
+    </div>
+  </nav>
 
-	{% include "sidebar.html" %}
+  {% include "sidebar.html" %}
 
-	<main class="container container--wide">
-		<header class="hero" style="margin:2rem 0 2rem;">
-			<h1>Gym Settings</h1>
-			<p>{{ gym.name }}</p>
-		</header>
+  <main class="container container--wide">
+    <header style="margin:2rem 0 2rem; text-align:center; width:100%;">
+      <h1 style="font-size:2.75rem; font-weight:900; color:#fff; letter-spacing:-0.02em; margin-bottom:0.5rem;">Gym Settings</h1>
+      <p style="font-size:1.15rem; color:rgba(255,255,255,0.75);">{{ gym.name }}</p>
+    </header>
 
-		<!-- ── Grading System ── -->
-		<section class="card">
-			<header class="section-header">
-				<h2 class="section-title" style="font-size:1.4rem;">Grading System</h2>
-			</header>
+    <!-- ── Grading System ── -->
+    <section class="card">
+      <header class="section-header">
+        <h2 class="section-title" style="font-size:1.4rem;">Grading System</h2>
+      </header>
+      <div class="form-grid">
+        <div class="form-row">
+          <select id="grading_system" name="grading_system" class="form-input"
+            onchange="handleGradingSystemChange(this.value)">
+            <option value="">Select a grading system…</option>
+            {% for key in grading_systems %}
+              <option value="{{ key }}" {% if gym.grading_system == key %}selected{% endif %}>
+                {{ grading_system_labels[key] }}
+              </option>
+            {% endfor %}
+          </select>
+          <p class="form-help">
+            <strong>Colour</strong> — grades are colours (e.g. Blue, Red, Yellow).<br />
+            <strong>V Grade</strong> — grades follow the V scale (V0–V17).<br />
+            <strong>Numeric</strong> — grades are numbers (1–9).
+          </p>
+        </div>
+        <div class="form-row" style="display:flex; align-items:center; gap:0.75rem; flex-wrap:wrap;">
+          <button type="button" class="btn-primary" onclick="saveGradingSystem()">Save grading system</button>
+          <span class="grade-list-note" id="gradingSystemNote"></span>
+        </div>
+      </div>
+    </section>
 
-			<div class="form-grid">
-				<div class="form-row">
-					<select id="grading_system" name="grading_system" class="form-input"
-						onchange="handleGradingSystemChange(this.value)">
-						<option value="">Select a grading system…</option>
-						{% for key in grading_systems %}
-							<option value="{{ key }}"
-								{% if gym.grading_system == key %}selected{% endif %}>
-								{{ grading_system_labels[key] }}
-							</option>
-						{% endfor %}
-					</select>
-					<p class="form-help">
-						<strong>Colour</strong> — grades are colours (e.g. Blue, Red, Yellow).<br />
-						<strong>V Grade</strong> — grades follow the V scale (V0–V17).<br />
-						<strong>Numeric</strong> — grades are numbers (1–9).
-					</p>
-				</div>
+    <!-- ── Grade Colours ── -->
+    <section class="card" id="gradeListSection"
+      style="{% if gym.grading_system != 'colour' %}display:none;{% endif %}">
+      <header class="section-header">
+        <h2 class="section-title" style="font-size:1.4rem;">Grade Colours</h2>
+      </header>
+      <div class="grade-list-wrap">
+        <p class="grade-list-intro">
+          Define the grade colours, <strong>ordered from easiest to hardest</strong>. Drag to reorder.
+        </p>
+        <div>
+          <label class="form-label">Add a grade</label>
+          <div class="grade-add-row">
+            <input type="color" id="newGradeColour" value="#ff4081" title="Pick grade colour" />
+            <input type="text" id="newGradeLabel" placeholder="Grade name e.g. Yellow, Blue, Purple" class="form-input" maxlength="30" />
+            <button type="button" class="btn" onclick="gradeList.add()" style="white-space:nowrap;">Add grade</button>
+          </div>
+        </div>
+        <div>
+          <label class="form-label" style="margin-bottom:0.5rem;">Grades — easiest to hardest</label>
+          <div class="colour-list-sortable" id="gradeListSortable">
+            <div class="grade-list-empty" id="gradeListEmpty">No grades added yet.</div>
+          </div>
+        </div>
+        <div class="grade-list-actions">
+          <button type="button" class="btn-primary" onclick="gradeList.save()">Save grade list</button>
+          <span class="grade-list-note" id="gradeListNote"></span>
+        </div>
+      </div>
+    </section>
 
-				<div class="form-row" style="display:flex; align-items:center; gap:0.75rem; flex-wrap:wrap;">
-					<button type="button" class="btn-primary" onclick="saveGradingSystem()">
-						Save grading system
-					</button>
-					<span class="grade-list-note" id="gradingSystemNote"></span>
-				</div>
-			</div>
-		</section>
+    <!-- ── Hold Colours ── -->
+    <section class="card">
+      <header class="section-header">
+        <h2 class="section-title" style="font-size:1.4rem;">Hold Colours</h2>
+      </header>
+      <div class="grade-list-wrap">
+        <p class="grade-list-intro">
+          Define the hold colours used at this gym — independent of grade.
+        </p>
+        <div id="copyFromGradesWrap"
+          style="{% if gym.grading_system != 'colour' or not gym.grade_list %}display:none;{% endif %}">
+          <button type="button" class="btn" onclick="copyHoldColoursFromGrades()"
+            style="white-space:nowrap; font-size:0.85rem; padding:0.6rem 1.25rem;">
+            Same as grade colours
+          </button>
+        </div>
+        <div>
+          <label class="form-label">Add a hold colour</label>
+          <div class="grade-add-row">
+            <input type="color" id="newHoldColour" value="#ff0000" title="Pick hold colour" />
+            <input type="text" id="newHoldLabel" placeholder="Colour name e.g. Red, Blue, Green" class="form-input" maxlength="30" />
+            <button type="button" class="btn" onclick="holdColourList.add()" style="white-space:nowrap;">Add colour</button>
+          </div>
+        </div>
+        <div>
+          <label class="form-label" style="margin-bottom:0.5rem;">Hold colours</label>
+          <div class="colour-list-sortable" id="holdColourListSortable">
+            <div class="grade-list-empty" id="holdColourListEmpty">No hold colours added yet.</div>
+          </div>
+        </div>
+        <div class="grade-list-actions">
+          <button type="button" class="btn-primary" onclick="holdColourList.save()">Save hold colour list</button>
+          <span class="grade-list-note" id="holdColourListNote"></span>
+        </div>
+      </div>
+    </section>
 
-		<!-- ── Grade Colours (colour gyms only) ── -->
-		<section class="card" id="gradeListSection"
-			style="{% if gym.grading_system != 'colour' %}display:none;{% endif %}">
+    <!-- ── Sections ── -->
+    <section class="card">
+      <header class="section-header">
+        <h2 class="section-title" style="font-size:1.4rem;">Sections</h2>
+      </header>
+      <p class="form-help" style="margin-bottom:0;">
+        Sections define areas of the gym wall. Draw a boundary polygon on the map so the route
+        setter tool knows which section a climb belongs to when placing it.
+      </p>
 
-			<header class="section-header">
-				<h2 class="section-title" style="font-size:1.4rem;">Grade Colours</h2>
-			</header>
+      <div class="sections-layout">
 
-			<div class="grade-list-wrap">
-				<p class="grade-list-intro">
-					Define the grade colours used at this gym, <strong>ordered from easiest to hardest</strong>.
-					Drag to reorder.
-				</p>
+        <!-- Left: section list + add -->
+        <div class="section-list-panel">
+          <div>
+            <label class="form-label">Add a section</label>
+            <div class="section-add-row">
+              <input type="text" id="newSectionName" class="form-input" placeholder="e.g. Slab Left" maxlength="80" />
+              <button type="button" class="btn" onclick="addSection()" style="white-space:nowrap;">Add</button>
+            </div>
+            <span class="grade-list-note is-error" id="sectionAddError" style="display:block; margin-top:0.4rem;"></span>
+          </div>
 
-				<div>
-					<label class="form-label">Add a grade</label>
-					<div class="grade-add-row">
-						<input type="color" id="newGradeColour" value="#ff4081" title="Pick grade colour" />
-						<input type="text" id="newGradeLabel" placeholder="Grade name e.g. Yellow, Blue, Purple"
-							class="form-input" maxlength="30" />
-						<button type="button" class="btn" onclick="gradeList.add()" style="white-space:nowrap;">
-							Add grade
-						</button>
-					</div>
-				</div>
+          <div>
+            <label class="form-label" style="margin-bottom:0.4rem;">Sections</label>
+            <div class="section-items" id="sectionItems">
+              {% if not sections %}
+                <div class="section-empty" id="sectionEmpty">No sections yet.</div>
+              {% endif %}
+              {% for s in sections %}
+                {% set has_boundary = s.boundary_points_json and s.boundary_points_json != '[]' %}
+                <div class="section-item" id="secitem-{{ s.id }}"
+                  data-section-id="{{ s.id }}" onclick="selectSection({{ s.id }})">
+                  <span class="section-item-name">{{ s.name }}</span>
+                  <span class="section-item-badge {{ 'has-boundary' if has_boundary else 'no-boundary' }}">
+                    {{ 'Boundary ✓' if has_boundary else 'No boundary' }}
+                  </span>
+                  <button class="section-delete-btn" onclick="event.stopPropagation(); deleteSection({{ s.id }})">✕</button>
+                </div>
+              {% endfor %}
+            </div>
+          </div>
+        </div>
 
-				<div>
-					<label class="form-label" style="margin-bottom:0.5rem;">Grades — easiest to hardest</label>
-					<div class="colour-list-sortable" id="gradeListSortable">
-						<div class="grade-list-empty" id="gradeListEmpty">
-							No grades added yet. Add your first grade above.
-						</div>
-					</div>
-				</div>
+        <!-- Right: map with boundary drawing -->
+        <div class="section-map-panel">
+          {% if not gym.map_image_path %}
+            <div class="alert alert-error">No map image set for this gym. Set <code>gym.map_image_path</code> to enable section boundary drawing.</div>
+          {% else %}
+            <div class="section-map-instructions" id="mapInstructions">
+              Select a section on the left, then tap the map to draw its boundary polygon.
+            </div>
 
-				<div class="grade-list-actions">
-					<button type="button" class="btn-primary" onclick="gradeList.save()">
-						Save grade list
-					</button>
-					<span class="grade-list-note" id="gradeListNote"></span>
-				</div>
-			</div>
-		</section>
+            <div class="section-map-viewport" id="secMapViewport">
+              <div class="section-map-layer" id="secMapLayer">
+                <img id="secMapImg" class="section-map-img" src="{{ gym.map_image_path }}" alt="Gym map" draggable="false" />
+                <svg id="secMapSvg" class="section-map-svg" viewBox="0 0 1000 1000" preserveAspectRatio="none"></svg>
+              </div>
+            </div>
 
-		<!-- ── Hold Colours (all gyms) ── -->
-		<section class="card">
-			<header class="section-header">
-				<h2 class="section-title" style="font-size:1.4rem;">Hold Colours</h2>
-			</header>
+            <div class="section-map-controls">
+              <button type="button" class="tiny-btn" id="btnSecUndo">Undo point</button>
+              <button type="button" class="tiny-btn" id="btnSecClear">Clear</button>
+              <button type="button" class="tiny-btn btn-primary" id="btnSecSave" disabled onclick="saveBoundary()">Save boundary</button>
+            </div>
+            <div class="section-map-status" id="secMapStatus">Select a section to start drawing.</div>
+          {% endif %}
+        </div>
+      </div>
+    </section>
+  </main>
 
-			<div class="grade-list-wrap">
-				<p class="grade-list-intro">
-					Define the hold colours used at this gym. These appear as a dropdown when
-					adding or editing climbs.
-				</p>
+  <script>
+  (function () {
+    const GYM_ID  = {{ gym.id }};
+    const API_URL = `/admin/gym/${GYM_ID}/settings/api`;
 
-				<!-- "Same as grade colours" — only shown for colour gyms with a saved grade list -->
-				<div id="copyFromGradesWrap"
-					style="{% if gym.grading_system != 'colour' or not gym.grade_list %}display:none;{% endif %}">
-					<button type="button" class="btn" onclick="copyHoldColoursFromGrades()"
-						style="white-space:nowrap; font-size:0.85rem; padding:0.6rem 1.25rem;">
-						Same as grade colours
-					</button>
-				</div>
+    /* ── Generic API save ── */
+    async function apiSave(payload, noteElId, btnEl) {
+      const noteEl = document.getElementById(noteElId);
+      function setNote(msg, type) {
+        if (!noteEl) return;
+        noteEl.textContent = msg;
+        noteEl.className = "grade-list-note" + (type ? ` is-${type}` : "");
+      }
+      if (btnEl) { btnEl.disabled = true; btnEl.textContent = "Saving…"; }
+      setNote("Saving…");
+      try {
+        const res  = await fetch(API_URL, { method:"POST", credentials:"same-origin", headers:{"Content-Type":"application/json"}, body:JSON.stringify(payload) });
+        const data = await res.json();
+        if (data.ok) { setNote(data.message || "Saved ✓", "success"); setTimeout(() => setNote(""), 3000); }
+        else { setNote(data.error || "Save failed.", "error"); }
+      } catch { setNote("Network error.", "error"); }
+      finally { if (btnEl) { btnEl.disabled = false; btnEl.textContent = btnEl.dataset.label || "Save"; } }
+    }
 
-				<div>
-					<label class="form-label">Add a hold colour</label>
-					<div class="grade-add-row">
-						<input type="color" id="newHoldColour" value="#ff0000" title="Pick hold colour" />
-						<input type="text" id="newHoldLabel" placeholder="Colour name e.g. Red, Blue, Green"
-							class="form-input" maxlength="30" />
-						<button type="button" class="btn" onclick="holdColourList.add()" style="white-space:nowrap;">
-							Add colour
-						</button>
-					</div>
-				</div>
+    window.saveGradingSystem = function () {
+      const v = document.getElementById("grading_system")?.value;
+      if (!v) { const n = document.getElementById("gradingSystemNote"); if (n) { n.textContent = "Please select a grading system."; n.className = "grade-list-note is-error"; } return; }
+      const btn = document.querySelector('[onclick="saveGradingSystem()"]');
+      if (btn) btn.dataset.label = "Save grading system";
+      apiSave({ action:"save_grading_system", grading_system:v }, "gradingSystemNote", btn);
+    };
 
-				<div>
-					<label class="form-label" style="margin-bottom:0.5rem;">Hold colours</label>
-					<div class="colour-list-sortable" id="holdColourListSortable">
-						<div class="grade-list-empty" id="holdColourListEmpty">
-							No hold colours added yet. Add your first colour above.
-						</div>
-					</div>
-				</div>
+    /* ── Colour list builder (shared) ── */
+    function ColourListBuilder({ sortableId, emptyId, noteId, actionKey, payloadKey, initialItems }) {
+      let items = (initialItems || []).map(g => ({ label:g.label, colour:g.colour }));
+      const container = document.getElementById(sortableId);
+      const emptyEl   = document.getElementById(emptyId);
+      let dragSrcIndex = null;
 
-				<div class="grade-list-actions">
-					<button type="button" class="btn-primary" onclick="holdColourList.save()">
-						Save hold colour list
-					</button>
-					<span class="grade-list-note" id="holdColourListNote"></span>
-				</div>
-			</div>
-		</section>
-	</main>
+      function render() {
+        Array.from(container.querySelectorAll(".grade-list-item")).forEach(el => el.remove());
+        if (items.length === 0) { emptyEl.style.display = ""; return; }
+        emptyEl.style.display = "none";
+        items.forEach((g, i) => {
+          const item = document.createElement("div");
+          item.className = "grade-list-item"; item.draggable = true; item.dataset.index = i;
+          const orderLabel = i === 0 ? "First" : i === items.length - 1 ? "Last" : `#${i+1}`;
+          item.innerHTML = `
+            <span class="grade-drag-handle" title="Drag to reorder">⠿</span>
+            <input type="color" class="grade-dot-edit" value="${escHtml(g.colour)}" title="Change colour" data-idx="${i}" />
+            <span class="grade-dot" style="background:${escHtml(g.colour)};"></span>
+            <span class="grade-label">${escHtml(g.label)}</span>
+            <span class="grade-order-badge">${orderLabel}</span>
+            <button type="button" class="grade-remove-btn" data-idx="${i}" title="Remove">✕</button>`;
+          item.querySelector("input[type=color]").addEventListener("input", function () {
+            items[this.dataset.idx].colour = this.value;
+            item.querySelector(".grade-dot").style.background = this.value;
+          });
+          item.querySelector(".grade-remove-btn").addEventListener("click", function () {
+            items.splice(parseInt(this.dataset.idx), 1); render();
+          });
+          item.addEventListener("dragstart", function(e) { dragSrcIndex = parseInt(this.dataset.index); this.classList.add("dragging"); e.dataTransfer.effectAllowed = "move"; });
+          item.addEventListener("dragover",  function(e) { e.preventDefault(); e.dataTransfer.dropEffect = "move"; container.querySelectorAll(".grade-list-item").forEach(el => el.classList.remove("drag-over")); this.classList.add("drag-over"); });
+          item.addEventListener("drop",      function(e) { e.preventDefault(); const di = parseInt(this.dataset.index); if (dragSrcIndex !== null && dragSrcIndex !== di) { const moved = items.splice(dragSrcIndex,1)[0]; items.splice(di,0,moved); render(); } });
+          item.addEventListener("dragend",   function()  { container.querySelectorAll(".grade-list-item").forEach(el => el.classList.remove("dragging","drag-over")); dragSrcIndex = null; });
+          container.appendChild(item);
+        });
+      }
 
-	<script>
-	(function () {
-		const GYM_ID = {{ gym.id }};
-		const API_URL = `/admin/gym/${GYM_ID}/settings/api`;
+      return {
+        add() {
+          const labelInputId  = sortableId === "gradeListSortable" ? "newGradeLabel"  : "newHoldLabel";
+          const colourInputId = sortableId === "gradeListSortable" ? "newGradeColour" : "newHoldColour";
+          const labelInput  = document.getElementById(labelInputId);
+          const colourInput = document.getElementById(colourInputId);
+          const label = labelInput.value.trim(), colour = colourInput.value;
+          const noteEl = document.getElementById(noteId);
+          function setNote(msg, isError) { if (!noteEl) return; noteEl.textContent = msg; noteEl.className = "grade-list-note" + (isError ? " is-error" : ""); }
+          if (!label) { labelInput.focus(); setNote("Please enter a name.", true); return; }
+          if (items.some(g => g.label.toLowerCase() === label.toLowerCase())) { setNote(`"${label}" already exists.`, true); labelInput.focus(); return; }
+          items.push({ label, colour }); labelInput.value = ""; render(); setNote("");
+        },
+        save() {
+          const noteEl = document.getElementById(noteId);
+          function setNote(msg, isError) { if (!noteEl) return; noteEl.textContent = msg; noteEl.className = "grade-list-note" + (isError ? " is-error" : ""); }
+          if (items.length === 0) { setNote("Add at least one item before saving.", true); return; }
+          const btn = document.querySelector(`[onclick="${sortableId === "gradeListSortable" ? "gradeList" : "holdColourList"}.save()"]`);
+          if (btn) btn.dataset.label = btn.textContent;
+          apiSave({ action: actionKey, [payloadKey]: items }, noteId, btn);
+        },
+        setItems(newItems) { items = newItems.map(g => ({ label:g.label, colour:g.colour })); render(); },
+        getItems() { return items; },
+        render,
+      };
+    }
 
-		/* ── Generic API save helper ── */
-		async function apiSave(payload, noteElId, btnEl) {
-			const noteEl = document.getElementById(noteElId);
+    function escHtml(str) {
+      return String(str).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+    }
 
-			function setNote(msg, type) {
-				if (!noteEl) return;
-				noteEl.textContent = msg;
-				noteEl.className = "grade-list-note" + (type ? ` is-${type}` : "");
-			}
+    const gradeList = ColourListBuilder({ sortableId:"gradeListSortable", emptyId:"gradeListEmpty", noteId:"gradeListNote", actionKey:"save_grade_list", payloadKey:"grade_list", initialItems:{{ (gym.grade_list or []) | tojson }} });
+    gradeList.render(); window.gradeList = gradeList;
 
-			if (btnEl) {
-				btnEl.disabled = true;
-				btnEl.textContent = "Saving…";
-			}
+    const holdColourList = ColourListBuilder({ sortableId:"holdColourListSortable", emptyId:"holdColourListEmpty", noteId:"holdColourListNote", actionKey:"save_hold_colour_list", payloadKey:"hold_colour_list", initialItems:{{ (gym.hold_colour_list or []) | tojson }} });
+    holdColourList.render(); window.holdColourList = holdColourList;
 
-			setNote("Saving…");
+    window.copyHoldColoursFromGrades = function () {
+      const items = gradeList.getItems();
+      if (!items.length) { const n = document.getElementById("holdColourListNote"); if (n) { n.textContent = "No grade colours yet — save your grade list first."; n.className = "grade-list-note is-error"; } return; }
+      holdColourList.setItems(items);
+    };
 
-			try {
-				const res = await fetch(API_URL, {
-					method: "POST",
-					credentials: "same-origin",
-					headers: { "Content-Type": "application/json" },
-					body: JSON.stringify(payload),
-				});
+    window.handleGradingSystemChange = function (value) {
+      const gs = document.getElementById("gradeListSection");
+      if (gs) gs.style.display = value === "colour" ? "" : "none";
+      const cw = document.getElementById("copyFromGradesWrap");
+      if (cw) cw.style.display = (value === "colour" && {{ "true" if gym.grade_list else "false" }}) ? "" : "none";
+    };
 
-				const data = await res.json();
+    ["newGradeLabel","newHoldLabel"].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.addEventListener("keydown", e => { if (e.key !== "Enter") return; e.preventDefault(); id === "newGradeLabel" ? gradeList.add() : holdColourList.add(); });
+    });
 
-				if (data.ok) {
-					setNote(data.message || "Saved ✓", "success");
-					setTimeout(() => setNote(""), 3000);
-				} else {
-					setNote(data.error || "Save failed.", "error");
-				}
-			} catch (err) {
-				setNote("Network error — please try again.", "error");
-			} finally {
-				if (btnEl) {
-					btnEl.disabled = false;
-					btnEl.textContent = btnEl.dataset.label || "Save";
-				}
-			}
-		}
+    /* ════════════════════════════════════════════════
+       SECTIONS
+    ════════════════════════════════════════════════ */
+    let sections = {{ section_boundaries | tojson }};
+    // Each: { id, name, points: [{x,y},...] }
 
-		/* ── Save grading system ── */
-		window.saveGradingSystem = function () {
-			const select = document.getElementById("grading_system");
-			const value = select ? select.value : "";
-			if (!value) {
-				const noteEl = document.getElementById("gradingSystemNote");
-				if (noteEl) {
-					noteEl.textContent = "Please select a grading system.";
-					noteEl.className = "grade-list-note is-error";
-				}
-				return;
-			}
-			const btn = document.querySelector('[onclick="saveGradingSystem()"]');
-			if (btn) btn.dataset.label = "Save grading system";
-			apiSave({ action: "save_grading_system", grading_system: value }, "gradingSystemNote", btn);
-		};
+    let activeSectionId = null;
+    let pendingPoints   = [];   // in-progress boundary for the active section
 
-		/* ─────────────────────────────────────────────
-		   Generic reusable colour-list builder
-		   ───────────────────────────────────────────── */
-		function ColourListBuilder({
-			sortableId,
-			emptyId,
-			noteId,
-			actionKey,
-			payloadKey,
-			initialItems,
-		}) {
-			let items = (initialItems || []).map(g => ({ label: g.label, colour: g.colour }));
+    /* ── Add section ── */
+    window.addSection = async function () {
+      const input  = document.getElementById("newSectionName");
+      const errEl  = document.getElementById("sectionAddError");
+      const name   = input.value.trim();
+      errEl.textContent = "";
+      if (!name) { errEl.textContent = "Please enter a section name."; return; }
 
-			const container = document.getElementById(sortableId);
-			const emptyEl   = document.getElementById(emptyId);
+      try {
+        const res  = await fetch(`/admin/gym/${GYM_ID}/sections/add`, { method:"POST", credentials:"same-origin", headers:{"Content-Type":"application/json"}, body:JSON.stringify({ name }) });
+        const data = await res.json();
+        if (!data.ok) { errEl.textContent = data.error; return; }
 
-			let dragSrcIndex = null;
+        const s = data.section;
+        sections.push({ id:s.id, name:s.name, points:[] });
+        appendSectionItem(s.id, s.name, false);
+        input.value = "";
+        document.getElementById("sectionEmpty")?.remove();
+      } catch { errEl.textContent = "Network error."; }
+    };
 
-			function render() {
-				Array.from(container.querySelectorAll(".grade-list-item")).forEach(el => el.remove());
+    document.getElementById("newSectionName")?.addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); addSection(); } });
 
-				if (items.length === 0) {
-					emptyEl.style.display = "";
-					return;
-				}
-				emptyEl.style.display = "none";
+    function appendSectionItem(id, name, hasBoundary) {
+      const container = document.getElementById("sectionItems");
+      const div = document.createElement("div");
+      div.className     = "section-item";
+      div.id            = `secitem-${id}`;
+      div.dataset.sectionId = id;
+      div.onclick = () => selectSection(id);
+      div.innerHTML = `
+        <span class="section-item-name">${escHtml(name)}</span>
+        <span class="section-item-badge ${hasBoundary ? 'has-boundary' : 'no-boundary'}" id="secbadge-${id}">
+          ${hasBoundary ? 'Boundary ✓' : 'No boundary'}
+        </span>
+        <button class="section-delete-btn" onclick="event.stopPropagation(); deleteSection(${id})">✕</button>`;
+      container.appendChild(div);
+    }
 
-				items.forEach((g, i) => {
-					const item = document.createElement("div");
-					item.className = "grade-list-item";
-					item.draggable = true;
-					item.dataset.index = i;
+    /* ── Delete section ── */
+    window.deleteSection = async function (id) {
+      // Replace the delete button with inline confirm/cancel
+      const btn = document.querySelector(`#secitem-${id} .section-delete-btn`);
+      if (!btn) return;
 
-					const orderLabel = i === 0 ? "First" : i === items.length - 1 ? "Last" : `#${i + 1}`;
+      // Already confirming?
+      if (btn.dataset.confirming) return;
+      btn.dataset.confirming = "1";
 
-					item.innerHTML = `
-						<span class="grade-drag-handle" title="Drag to reorder">⠿</span>
-						<input type="color" class="grade-dot-edit" value="${escHtml(g.colour)}"
-							title="Change colour" data-idx="${i}" />
-						<span class="grade-dot" style="background:${escHtml(g.colour)};"></span>
-						<span class="grade-label">${escHtml(g.label)}</span>
-						<span class="grade-order-badge">${orderLabel}</span>
-						<button type="button" class="grade-remove-btn" data-idx="${i}" title="Remove">✕</button>
-					`;
+      const original = btn.innerHTML;
+      btn.innerHTML = "";
+      btn.style.cssText = "display:flex; gap:0.3rem; align-items:center; background:none; border:none; padding:0;";
 
-					item.querySelector("input[type=color]").addEventListener("input", function () {
-						items[this.dataset.idx].colour = this.value;
-						item.querySelector(".grade-dot").style.background = this.value;
-					});
+      const confirmBtn = document.createElement("button");
+      confirmBtn.textContent = "Delete";
+      confirmBtn.className   = "section-delete-btn";
+      confirmBtn.style.cssText = "background:rgba(220,60,60,0.8); border-color:rgba(220,60,60,0.9); color:#fff; font-size:0.72rem;";
 
-					item.querySelector(".grade-remove-btn").addEventListener("click", function () {
-						items.splice(parseInt(this.dataset.idx), 1);
-						render();
-					});
+      const cancelBtn = document.createElement("button");
+      cancelBtn.textContent = "Cancel";
+      cancelBtn.className   = "section-delete-btn";
+      cancelBtn.style.cssText = "background:rgba(255,255,255,0.10); border-color:rgba(255,255,255,0.2); color:rgba(255,255,255,0.8); font-size:0.72rem;";
 
-					item.addEventListener("dragstart", function (e) {
-						dragSrcIndex = parseInt(this.dataset.index);
-						this.classList.add("dragging");
-						e.dataTransfer.effectAllowed = "move";
-					});
+      btn.appendChild(confirmBtn);
+      btn.appendChild(cancelBtn);
 
-					item.addEventListener("dragover", function (e) {
-						e.preventDefault();
-						e.dataTransfer.dropEffect = "move";
-						container.querySelectorAll(".grade-list-item").forEach(el => el.classList.remove("drag-over"));
-						this.classList.add("drag-over");
-					});
+      cancelBtn.onclick = (e) => {
+        e.stopPropagation();
+        delete btn.dataset.confirming;
+        btn.innerHTML = original;
+        btn.style.cssText = "";
+        btn.onclick = (ev) => { ev.stopPropagation(); deleteSection(id); };
+      };
 
-					item.addEventListener("drop", function (e) {
-						e.preventDefault();
-						const dropIndex = parseInt(this.dataset.index);
-						if (dragSrcIndex === null || dragSrcIndex === dropIndex) return;
-						const moved = items.splice(dragSrcIndex, 1)[0];
-						items.splice(dropIndex, 0, moved);
-						render();
-					});
+      confirmBtn.onclick = async (e) => {
+        e.stopPropagation();
+        try {
+          const res  = await fetch(`/admin/gym/${GYM_ID}/sections/${id}/delete`, { method:"POST", credentials:"same-origin" });
+          const data = await res.json();
+          if (!data.ok) { alert(data.error); return; }
+          sections = sections.filter(s => s.id !== id);
+          document.getElementById(`secitem-${id}`)?.remove();
+          if (activeSectionId === id) {
+            activeSectionId = null;
+            pendingPoints = [];
+            setStatus("Select a section to start drawing.");
+            updateSaveBtn();
+          }
+          redrawAll();
+          if (!document.querySelector(".section-item")) {
+            const empty = document.createElement("div");
+            empty.className = "section-empty"; empty.id = "sectionEmpty"; empty.textContent = "No sections yet.";
+            document.getElementById("sectionItems").appendChild(empty);
+          }
+        } catch { alert("Network error."); }
+      };
+    };
 
-					item.addEventListener("dragend", function () {
-						container.querySelectorAll(".grade-list-item").forEach(el => {
-							el.classList.remove("dragging", "drag-over");
-						});
-						dragSrcIndex = null;
-					});
+    /* ── Select section ── */
+    window.selectSection = function (id) {
+      if (activeSectionId === id) return;
 
-					container.appendChild(item);
-				});
-			}
+      // Commit any unsaved pending points back to the section data
+      if (activeSectionId !== null) {
+        const prev = sections.find(s => s.id === activeSectionId);
+        if (prev) prev.pendingPoints = pendingPoints;
+      }
 
-			return {
-				add() {
-					const labelInputId  = sortableId === "gradeListSortable" ? "newGradeLabel"  : "newHoldLabel";
-					const colourInputId = sortableId === "gradeListSortable" ? "newGradeColour" : "newHoldColour";
-					const labelInput  = document.getElementById(labelInputId);
-					const colourInput = document.getElementById(colourInputId);
-					const label  = labelInput.value.trim();
-					const colour = colourInput.value;
+      activeSectionId = id;
+      const sec = sections.find(s => s.id === id);
+      pendingPoints = sec?.pendingPoints ? [...sec.pendingPoints] : (sec?.points ? [...sec.points] : []);
 
-					const noteEl = document.getElementById(noteId);
-					function setNote(msg, isError) {
-						if (!noteEl) return;
-						noteEl.textContent = msg;
-						noteEl.className = "grade-list-note" + (isError ? " is-error" : "");
-					}
+      document.querySelectorAll(".section-item").forEach(el => el.classList.remove("active"));
+      document.getElementById(`secitem-${id}`)?.classList.add("active");
 
-					if (!label) { labelInput.focus(); setNote("Please enter a name.", true); return; }
+      setStatus(`Drawing boundary for "${sec?.name || id}". Tap the map to add points.`);
+      updateSaveBtn();
+      redrawAll();
+    };
 
-					if (items.some(g => g.label.toLowerCase() === label.toLowerCase())) {
-						setNote(`"${label}" already exists.`, true);
-						labelInput.focus();
-						return;
-					}
+    /* ════════════════════
+       MAP DRAWING
+    ════════════════════ */
+    const viewport  = document.getElementById("secMapViewport");
+    const layer     = document.getElementById("secMapLayer");
+    const img       = document.getElementById("secMapImg");
+    const svg       = document.getElementById("secMapSvg");
+    const statusEl  = document.getElementById("secMapStatus");
+    const btnSave   = document.getElementById("btnSecSave");
+    const btnUndo   = document.getElementById("btnSecUndo");
+    const btnClear  = document.getElementById("btnSecClear");
 
-					items.push({ label, colour });
-					labelInput.value = "";
-					render();
-					setNote("");
-				},
+    if (!viewport || !img) return; // no map configured
 
-				save() {
-					const noteEl = document.getElementById(noteId);
-					function setNote(msg, isError) {
-						if (!noteEl) return;
-						noteEl.textContent = msg;
-						noteEl.className = "grade-list-note" + (isError ? " is-error" : "");
-					}
+    let baseW = 1, baseH = 1;
+    let scale = 1, tx = 0, ty = 0;
+    let activePointer = null, downX = 0, downY = 0;
+    const TAP_SLOP = 8;
 
-					if (items.length === 0) {
-						setNote("Add at least one item before saving.", true);
-						return;
-					}
+    function updateSize() {
+      baseW = Math.max(1, img.offsetWidth  || img.getBoundingClientRect().width);
+      baseH = Math.max(1, img.offsetHeight || img.getBoundingClientRect().height);
+      layer.style.width  = baseW + "px";
+      layer.style.height = baseH + "px";
+    }
 
-					const btn = document.querySelector(`[onclick="${sortableId === "gradeListSortable" ? "gradeList" : "holdColourList"}.save()"]`);
-					if (btn) btn.dataset.label = btn.textContent;
+    function fitViewport() {
+      updateSize();
+      const vr = viewport.getBoundingClientRect();
+      scale = Math.min(vr.width / baseW, (window.innerHeight * 0.6) / baseH);
+      tx = (vr.width  - baseW * scale) / 2;
+      ty = 0;
+      layer.style.transform = `translate(${tx}px,${ty}px) scale(${scale})`;
+      viewport.style.height = Math.round(baseH * scale) + "px";
+      redrawAll();
+    }
 
-					apiSave(
-						{ action: actionKey, [payloadKey]: items },
-						noteId,
-						btn
-					);
-				},
+    function clientToPct(cx, cy) {
+      const vr = viewport.getBoundingClientRect();
+      const xi = (cx - vr.left  - tx) / scale;
+      const yi = (cy - vr.top   - ty) / scale;
+      if (xi < 0 || yi < 0 || xi > baseW || yi > baseH) return null;
+      return { x: Math.max(0, Math.min(100, (xi/baseW)*100)), y: Math.max(0, Math.min(100, (yi/baseH)*100)) };
+    }
 
-				setItems(newItems) {
-					items = newItems.map(g => ({ label: g.label, colour: g.colour }));
-					render();
-				},
+    function pctToPx(p) { return { x:(p.x/100)*baseW, y:(p.y/100)*baseH }; }
 
-				getItems() { return items; },
+    function redrawAll() {
+      if (!svg) return;
+      svg.setAttribute("width", baseW);
+      svg.setAttribute("height", baseH);
+      svg.setAttribute("viewBox", `0 0 ${baseW} ${baseH}`);
+      while (svg.firstChild) svg.removeChild(svg.firstChild);
 
-				render,
-			};
-		}
+      // Draw saved boundaries (all sections)
+      for (const sec of sections) {
+        const pts = sec.id === activeSectionId ? pendingPoints : (sec.points || []);
+        if (!pts.length) continue;
+        const isActive = sec.id === activeSectionId;
+        drawPolygon(pts, isActive ? "rgba(168,216,240,0.15)" : "rgba(93,244,162,0.30)",
+                        isActive ? "rgba(168,216,240,0.9)"  : "rgba(93,244,162,0.95)",
+                        sec.name, isActive);
+      }
+    }
 
-		function escHtml(str) {
-			return String(str)
-				.replace(/&/g, "&amp;")
-				.replace(/</g, "&lt;")
-				.replace(/>/g, "&gt;")
-				.replace(/"/g, "&quot;");
-		}
+    function drawPolygon(pts, fill, stroke, label, showDots) {
+      if (!pts.length) return;
+      const pxPts = pts.map(pctToPx);
+      const d = pxPts.map((p,i) => `${i===0?"M":"L"} ${p.x} ${p.y}`).join(" ") + (pxPts.length >= 3 ? " Z" : "");
+      const path = document.createElementNS("http://www.w3.org/2000/svg","path");
+      path.setAttribute("d", d); path.setAttribute("fill", fill);
+      path.setAttribute("stroke", stroke); path.setAttribute("stroke-width", "2");
+      svg.appendChild(path);
 
-		/* ── Initialise grade list builder ── */
-		const gradeList = ColourListBuilder({
-			sortableId:   "gradeListSortable",
-			emptyId:      "gradeListEmpty",
-			noteId:       "gradeListNote",
-			actionKey:    "save_grade_list",
-			payloadKey:   "grade_list",
-			initialItems: {{ (gym.grade_list or []) | tojson }},
-		});
-		gradeList.render();
-		window.gradeList = gradeList;
+      if (showDots) {
+        pxPts.forEach((p,i) => {
+          const c = document.createElementNS("http://www.w3.org/2000/svg","circle");
+          c.setAttribute("cx", p.x); c.setAttribute("cy", p.y);
+          c.setAttribute("r", "5"); c.setAttribute("fill", "rgba(255,255,255,0.9)");
+          c.setAttribute("stroke", stroke); c.setAttribute("stroke-width","1.5");
+          svg.appendChild(c);
+          // Number the points
+          const t = document.createElementNS("http://www.w3.org/2000/svg","text");
+          t.setAttribute("x", p.x + 7); t.setAttribute("y", p.y - 5);
+          t.setAttribute("class","boundary-label"); t.textContent = i+1;
+          svg.appendChild(t);
+        });
+      }
 
-		/* ── Initialise hold colour list builder ── */
-		const holdColourList = ColourListBuilder({
-			sortableId:   "holdColourListSortable",
-			emptyId:      "holdColourListEmpty",
-			noteId:       "holdColourListNote",
-			actionKey:    "save_hold_colour_list",
-			payloadKey:   "hold_colour_list",
-			initialItems: {{ (gym.hold_colour_list or []) | tojson }},
-		});
-		holdColourList.render();
-		window.holdColourList = holdColourList;
+      if (label && pxPts.length >= 3) {
+        const cx = pxPts.reduce((s,p)=>s+p.x,0)/pxPts.length;
+        const cy = pxPts.reduce((s,p)=>s+p.y,0)/pxPts.length;
+        const t = document.createElementNS("http://www.w3.org/2000/svg","text");
+        t.setAttribute("x", cx); t.setAttribute("y", cy);
+        t.setAttribute("text-anchor","middle"); t.setAttribute("dominant-baseline","middle");
+        t.setAttribute("class","boundary-label"); t.textContent = label;
+        svg.appendChild(t);
+      }
+    }
 
-		/* ── "Same as grade colours" button ── */
-		window.copyHoldColoursFromGrades = function () {
-			const gradeItems = gradeList.getItems();
-			if (gradeItems.length === 0) {
-				const noteEl = document.getElementById("holdColourListNote");
-				if (noteEl) {
-					noteEl.textContent = "No grade colours defined yet — save your grade list first.";
-					noteEl.className = "grade-list-note is-error";
-				}
-				return;
-			}
-			holdColourList.setItems(gradeItems);
-		};
+    /* Pointer events */
+    viewport.addEventListener("pointerdown", e => {
+      e.preventDefault(); activePointer = e.pointerId;
+      downX = e.clientX; downY = e.clientY;
+      viewport.setPointerCapture(e.pointerId);
+    }, { passive:false });
 
-		/* ── Show/hide grade list section when grading system changes ── */
-		window.handleGradingSystemChange = function (value) {
-			const gradeSection = document.getElementById("gradeListSection");
-			if (gradeSection) gradeSection.style.display = value === "colour" ? "" : "none";
+    viewport.addEventListener("pointerup", e => {
+      if (activePointer !== e.pointerId) return;
+      e.preventDefault();
+      try { viewport.releasePointerCapture(e.pointerId); } catch(_) {}
+      activePointer = null;
+      if (Math.hypot(e.clientX - downX, e.clientY - downY) > TAP_SLOP) return;
+      if (!activeSectionId) { setStatus("Select a section on the left first."); return; }
+      updateSize();
+      const pt = clientToPct(e.clientX, e.clientY);
+      if (!pt) return;
+      pendingPoints.push(pt);
+      updateSaveBtn();
+      redrawAll();
+      setStatus(`${pendingPoints.length} point${pendingPoints.length !== 1 ? "s" : ""} — ${pendingPoints.length >= 3 ? "ready to save." : "keep tapping."}`);
+    }, { passive:false });
 
-			const copyWrap = document.getElementById("copyFromGradesWrap");
-			if (copyWrap) {
-				const hasGradeList = {{ "true" if gym.grade_list else "false" }};
-				copyWrap.style.display = (value === "colour" && hasGradeList) ? "" : "none";
-			}
-		};
+    viewport.addEventListener("pointercancel", e => { if (activePointer === e.pointerId) activePointer = null; }, { passive:false });
+    viewport.addEventListener("wheel", e => e.preventDefault(), { passive:false });
 
-		/* Enter key support for add inputs */
-		["newGradeLabel", "newHoldLabel"].forEach(function (id) {
-			const el = document.getElementById(id);
-			if (!el) return;
-			el.addEventListener("keydown", function (e) {
-				if (e.key !== "Enter") return;
-				e.preventDefault();
-				if (id === "newGradeLabel") gradeList.add();
-				else holdColourList.add();
-			});
-		});
-	})();
-	</script>
+    btnUndo?.addEventListener("click", () => {
+      if (!pendingPoints.length) return;
+      pendingPoints.pop(); updateSaveBtn(); redrawAll();
+      setStatus(pendingPoints.length ? `${pendingPoints.length} point(s).` : "Points cleared.");
+    });
+
+    btnClear?.addEventListener("click", () => {
+      pendingPoints = []; updateSaveBtn(); redrawAll();
+      setStatus(activeSectionId ? "Cleared. Tap to start again." : "Select a section first.");
+    });
+
+    /* Save boundary */
+    window.saveBoundary = async function () {
+      if (!activeSectionId) return;
+      if (pendingPoints.length > 0 && pendingPoints.length < 3) {
+        setStatus("Need at least 3 points to save a boundary."); return;
+      }
+      btnSave.disabled = true; btnSave.textContent = "Saving…";
+      try {
+        const res  = await fetch(`/admin/gym/${GYM_ID}/sections/${activeSectionId}/boundary`, {
+          method:"POST", credentials:"same-origin", headers:{"Content-Type":"application/json"},
+          body: JSON.stringify({ points: pendingPoints })
+        });
+        const data = await res.json();
+        if (!data.ok) { setStatus("Error: " + data.error); return; }
+
+        // Update local data
+        const sec = sections.find(s => s.id === activeSectionId);
+        if (sec) sec.points = data.points || [];
+
+        // Update badge
+        const badge = document.getElementById(`secbadge-${activeSectionId}`);
+        if (badge) {
+          const hasBoundary = data.points && data.points.length >= 3;
+          badge.className   = `section-item-badge ${hasBoundary ? "has-boundary" : "no-boundary"}`;
+          badge.textContent = hasBoundary ? "Boundary ✓" : "No boundary";
+        }
+
+        // Deselect so the boundary renders green (saved style) immediately
+        document.getElementById(`secitem-${activeSectionId}`)?.classList.remove("active");
+        activeSectionId = null;
+        pendingPoints   = [];
+        updateSaveBtn();
+        redrawAll();
+        setStatus("Boundary saved ✅ — select a section to edit it.");
+      } catch { setStatus("Network error."); }
+      finally { btnSave.disabled = false; btnSave.textContent = "Save boundary"; }
+    };
+
+    function setStatus(msg) { if (statusEl) statusEl.textContent = msg || ""; }
+    function updateSaveBtn() {
+      if (!btnSave) return;
+      btnSave.disabled = !activeSectionId || (pendingPoints.length > 0 && pendingPoints.length < 3) ? true : !activeSectionId;
+      // Allow saving 0 points (clears the boundary) or 3+
+      btnSave.disabled = !activeSectionId;
+    }
+
+    if (img.complete) fitViewport();
+    else img.addEventListener("load", fitViewport, { once:true });
+
+    let resizeTimer;
+    window.addEventListener("resize", () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(fitViewport, 120); });
+
+  })();
+  </script>
 </body>
 </html>

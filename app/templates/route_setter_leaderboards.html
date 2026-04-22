@@ -3,21 +3,24 @@
 <head>
 	<meta charset="utf-8" />
 	<meta name="viewport" content="width=device-width, initial-scale=1" />
-	<title>Leaderboards</title>
+	<title>All Leaderboards</title>
 	<link rel="stylesheet" href="/static/app.css" />
 </head>
 
 <body>
-	<nav class="nav">
-		<button type="button" class="menu-toggle" onclick="openSidebar()">☰ Menu</button>
+	<nav class="nav-scroll">
+		<button type="button" class="menu-toggle" onclick="openSidebar()">☰</button>
+		<div class="nav-scroll-track">
+			<a href="/route-setter/leaderboards" class="active">All Leaderboards</a>
+		</div>
 	</nav>
 
 	{% include "sidebar.html" %}
 
 	<main class="container container--wide">
 
-		<header class="hero" style="margin:2rem 0 2rem;">
-			<h1>Leaderboards</h1>
+		<header style="margin:2rem 0 2rem; text-align:center; width:100%;">
+				<h1 style="font-size:2.75rem; font-weight:900; color:#fff; letter-spacing:-0.02em; margin-bottom:0.5rem;">All Leaderboards</h1>
 		</header>
 
 		<section class="card">
@@ -26,7 +29,6 @@
 					<table class="data-table">
 						<thead>
 							<tr>
-								<th>ID</th>
 								<th>Name</th>
 								<th>Gym</th>
 								<th>Status</th>
@@ -38,8 +40,6 @@
 						<tbody>
 							{% for comp in competitions %}
 								<tr>
-									<td>#{{ comp.id }}</td>
-
 									<td><strong>{{ comp.name }}</strong></td>
 
 									<td>
@@ -67,10 +67,7 @@
 									</td>
 
 									<td style="text-align:right;">
-										<a
-											href="/leaderboard/comp/{{ comp.id }}?from=route_setter"
-											class="btn"
-										>
+										<a href="/leaderboard/comp/{{ comp.id }}?from=route_setter" class="btn">
 											View
 										</a>
 									</td>

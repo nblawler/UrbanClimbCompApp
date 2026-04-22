@@ -33,10 +33,29 @@
 
 	{% set show_comp_nav = (not admin_only) and (comp_slug and cid_val) %}
 
-	{% include "nav_scroll.html" %}
+	{% if from_route_setter %}
+		<nav class="nav-scroll">
+			<button type="button" class="menu-toggle" onclick="openSidebar()">☰</button>
+			<div class="nav-scroll-track">
+				<a href="/route-setter/leaderboards">All Leaderboards</a>
+				<a class="active">Leaderboard</a>
+			</div>
+		</nav>
+	{% else %}
+		{% include "nav_scroll.html" %}
+	{% endif %}
+
 	{% include "sidebar.html" %}
 
 	<main class="container">
+		{% if from_route_setter and session.get('leaderboard_comp_name') %}
+			<div style="text-align:center; padding:2rem 0 1.5rem;">
+				<h1 style="font-size:2.75rem; font-weight:900; color:#fff; letter-spacing:-0.02em;">
+					{{ session.get('leaderboard_comp_name') }}
+				</h1>
+			</div>
+		{% endif %}
+
 		{% if not admin_only and competitor %}
 			{% include "comp_hero.html" %}
 		{% endif %}

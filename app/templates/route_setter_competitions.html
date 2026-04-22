@@ -2,90 +2,74 @@
 <!doctype html>
 <html lang="en">
 <head>
-	<meta charset="utf-8" />
-	<meta name="viewport" content="width=device-width, initial-scale=1" />
-	<title> Competitions </title>
-	<link rel="stylesheet" href="/static/app.css" />
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Competitions · Route Setter</title>
+  <link rel="stylesheet" href="/static/app.css" />
 </head>
-
 <body>
-	<nav class="nav">
-		<button type="button" class="menu-toggle" onclick="openSidebar()">☰ Menu</button>
-	</nav>
+  <nav class="nav-scroll">
+    <button type="button" class="menu-toggle" onclick="openSidebar()">☰</button>
+    <div class="nav-scroll-track">
+      <a href="/route-setter/comps" class="active">Competitions</a>
+      <a href="/route-setter/leaderboards">Leaderboards</a>
+    </div>
+  </nav>
 
-	{% include "sidebar.html" %}
+  {% include "sidebar.html" %}
 
-	<main class="container container--wide">
+  <main class="container container--wide">
+    <header style="margin:2rem 0 2rem; text-align:center; width:100%;">
+				<h1 style="font-size:2.75rem; font-weight:900; color:#fff; letter-spacing:-0.02em; margin-bottom:0.5rem;">Competitions</h1>
+    </header>
 
-		<header class="hero" style="margin:2rem 0 2rem;">
-			<h1>Competitions</h1>
-		</header>
-
-		<section class="card">
-			{% if competitions %}
-				<div class="table-wrapper">
-					<table class="data-table">
-						<thead>
-							<tr>
-								<th>ID</th>
-								<th>Name</th>
-								<th>Gym</th>
-								<th>Status</th>
-								<th>Dates</th>
-								<th style="text-align:right;">Action</th>
-							</tr>
-						</thead>
-
-						<tbody>
-							{% for comp in competitions %}
-								<tr>
-									<td>#{{ comp.id }}</td>
-
-									<td><strong>{{ comp.name }}</strong></td>
-
-									<td>
-										{{ (comp.gym.name if comp.gym else comp.gym_name) or "—" }}
-									</td>
-
-									<td>
-										{% if comp.is_active %}
-											<span class="pill pill-success">Live</span>
-										{% else %}
-											<span class="pill pill-muted">Not live</span>
-										{% endif %}
-									</td>
-
-									<td>
-										{% if comp.start_at %}
-											{{ comp.start_at|melb_dt("%d %b %Y %H:%M") }}
-										{% else %}
-											—
-										{% endif %}
-
-										{% if comp.end_at %}
-											&mdash; {{ comp.end_at|melb_dt("%d %b %Y %H:%M") }}
-										{% endif %}
-									</td>
-
-									<td style="text-align:right;">
-										<a
-											href="/admin/map?comp_id={{ comp.id }}"
-											class="btn"
-										>
-											Edit
-										</a>
-									</td>
-								</tr>
-							{% endfor %}
-						</tbody>
-					</table>
-				</div>
-
-			{% else %}
-				<p class="muted">No competitions found.</p>
-			{% endif %}
-		</section>
-
-	</main>
+    <section class="card">
+      {% if competitions %}
+        <div class="table-wrapper">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Gym</th>
+                <th>Status</th>
+                <th>Dates</th>
+                <th style="text-align:right;">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for comp in competitions %}
+                <tr>
+                  <td><strong>{{ comp.name }}</strong></td>
+                  <td>{{ (comp.gym.name if comp.gym else comp.gym_name) or '—' }}</td>
+                  <td>
+                    {% if comp.is_active %}
+                      <span class="pill pill-success">Live</span>
+                    {% else %}
+                      <span class="pill pill-muted">Not live</span>
+                    {% endif %}
+                  </td>
+                  <td>
+                    {% if comp.start_at %}
+                      {{ comp.start_at | melb_dt("%d %b %Y %H:%M") }}
+                    {% else %}
+                      —
+                    {% endif %}
+                    {% if comp.end_at %}
+                      &mdash; {{ comp.end_at | melb_dt("%d %b %Y %H:%M") }}
+                    {% endif %}
+                  </td>
+                  <td style="text-align:right;">
+                    <a href="/admin/map?comp_id={{ comp.id }}" class="btn">Edit</a>
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <p class="muted">No competitions found.</p>
+      {% endif %}
+    </section>
+  </main>
 </body>
 </html>

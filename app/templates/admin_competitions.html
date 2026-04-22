@@ -1,4 +1,4 @@
-<!-- admin_manage_comps.html -->
+<!-- admin_competitions.html -->
 <!doctype html>
 <html lang="en">
 	<head>
@@ -12,15 +12,20 @@
 		{% set is_logged_in = session.get('account_id') %}
 		{% set is_admin = session.get('admin_ok', False) %}
 
-		<nav class="nav">
-			<button type="button" class="menu-toggle" onclick="openSidebar()">☰ Menu</button>
+		<nav class="nav-scroll">
+			<button type="button" class="menu-toggle" onclick="openSidebar()">☰</button>
+			<div class="nav-scroll-track">
+				<a href="/admin/gym/settings">Gym Settings</a>
+				<a href="/admin/comps/create">Create Competition</a>
+				<a href="/admin/comps/manage" class="active">Competitions</a>
+			</div>
 		</nav>
 
 		{% include "sidebar.html" %}
 
 		<main class="container container--wide">
-			<header class="hero" style="margin:2rem 0 2rem;">
-				<h1>Competitions</h1>
+			<header style="margin:2rem 0 2rem; text-align:center; width:100%;">
+				<h1 style="font-size:2.75rem; font-weight:900; color:#fff; letter-spacing:-0.02em; margin-bottom:0.5rem;">Competitions</h1>
 			</header>
 
 			{% if error %}

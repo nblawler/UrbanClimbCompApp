@@ -17,8 +17,11 @@
 	{% set is_logged_in = session.get('account_id') %}
 	{% set is_admin = session.get('admin_ok', False) %}
 
-	<nav class="nav">
-		<button type="button" class="menu-toggle" onclick="openSidebar()">☰ Menu</button>
+	<nav class="nav-scroll">
+		<button type="button" class="menu-toggle" onclick="openSidebar()">☰</button>
+		<div class="nav-scroll-track">
+			<a href="/my-comps" class="active">Upcoming Competitions</a>
+		</div>
 	</nav>
 
 	{% include "sidebar.html" %}

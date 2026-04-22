@@ -10,30 +10,23 @@
 		{% set on_my_comps = request.path == "/my-comps" %}
 		{% set on_my_profile = request.path == "/my-profile" %}
 
-		{#
-		{% if session.get("account_id") %}
-			<a href="/my-profile" class="sidebar-link {% if on_my_profile %}active{% endif %}">
-				My Profile
-			</a>
-		{% endif %}
-		#}
-
 		<a href="/my-comps" class="sidebar-link {% if on_my_comps %}active{% endif %}">
 			Upcoming Competitions
 		</a>
 
-		{% set on_admin_create = request.path == "/admin/comps/create" %}
-		{% set on_admin_manage = request.path == "/admin/comps/manage" %}
-		{% set on_admin_home = request.path == "/admin" %}
-		{% set on_admin_map = request.path == "/admin/map" %}
-		{% set on_admin_section = request.path.startswith("/admin/section/") %}
-		{% set on_admin_configure = request.path.startswith("/admin/comp/") %}
-		{% set on_route_setter_comps = request.path == "/route-setter/comps" %}
+		{% set on_admin_create           = request.path == "/admin/comps/create" %}
+		{% set on_admin_manage           = request.path == "/admin/comps/manage" %}
+		{% set on_admin_home             = request.path == "/admin" %}
+		{% set on_admin_map              = request.path == "/admin/map" %}
+		{% set on_admin_section          = request.path.startswith("/admin/section/") %}
+		{% set on_admin_configure        = request.path.startswith("/admin/comp/") %}
+		{% set on_route_setter_comps     = request.path == "/route-setter/comps" %}
 		{% set on_route_setter_leaderboards = request.path == "/route-setter/leaderboards" %}
-		{% set on_gym_settings = request.path.startswith("/admin/gym/") %}
+		{% set on_gym_settings           = request.path.startswith("/admin/gym/") %}
+		{% set on_climb_entry            = request.path == "/admin/climbs" %}
 
-		{% set gym_admin_open = on_admin_create or on_admin_manage or on_admin_home or on_admin_configure or on_gym_settings %}
-		{% set route_setter_open = on_route_setter_comps or on_route_setter_leaderboards or on_admin_map or on_admin_section %}
+		{% set gym_admin_open    = on_admin_create or on_admin_manage or on_admin_home or on_admin_configure or on_gym_settings %}
+		{% set route_setter_open = on_route_setter_comps or on_route_setter_leaderboards %}
 
 		{% if sidebar_gym_admin_allowed|default(false) %}
 			<div class="sidebar-group {% if gym_admin_open %}open{% endif %}">
@@ -78,7 +71,7 @@
 						Competitions
 					</a>
 					<a href="/route-setter/leaderboards" class="sidebar-sublink {% if on_route_setter_leaderboards %}active{% endif %}">
-						Leaderboards
+						All Leaderboards
 					</a>
 				</div>
 			</div>
@@ -105,16 +98,11 @@
 		backdrop-filter: blur(2px);
 		-webkit-backdrop-filter: blur(2px);
 	}
-
-	.sidebar-overlay.open {
-		opacity: 1;
-		pointer-events: auto;
-	}
+	.sidebar-overlay.open { opacity: 1; pointer-events: auto; }
 
 	.app-sidebar {
 		position: fixed;
-		top: 0;
-		left: 0;
+		top: 0; left: 0;
 		width: 300px;
 		max-width: 85vw;
 		height: 100vh;
@@ -129,10 +117,7 @@
 		flex-direction: column;
 		overflow-y: auto;
 	}
-
-	.app-sidebar.open {
-		transform: translateX(0);
-	}
+	.app-sidebar.open { transform: translateX(0); }
 
 	.sidebar-header {
 		display: flex;
@@ -142,7 +127,6 @@
 		border-bottom: 1px solid rgba(255,255,255,0.12);
 		position: relative;
 	}
-
 	.sidebar-header::after {
 		content: '';
 		position: absolute;
@@ -150,13 +134,7 @@
 		height: 1px;
 		background: linear-gradient(90deg, transparent, rgba(168,216,240,0.35), transparent);
 	}
-
-	.sidebar-title {
-		font-size: 1.1rem;
-		font-weight: 900;
-		color: #ffffff;
-		letter-spacing: -0.01em;
-	}
+	.sidebar-title { font-size: 1.1rem; font-weight: 900; color: #fff; letter-spacing: -0.01em; }
 
 	.sidebar-close {
 		background: rgba(255,255,255,0.08);
@@ -166,18 +144,11 @@
 		font-size: 1.4rem;
 		cursor: pointer;
 		line-height: 1;
-		width: 32px;
-		height: 32px;
-		display: flex;
-		align-items: center;
-		justify-content: center;
+		width: 32px; height: 32px;
+		display: flex; align-items: center; justify-content: center;
 		transition: background 0.15s, color 0.15s;
 	}
-
-	.sidebar-close:hover {
-		background: rgba(255,255,255,0.15);
-		color: #fff;
-	}
+	.sidebar-close:hover { background: rgba(255,255,255,0.15); color: #fff; }
 
 	.sidebar-nav {
 		padding: 1rem 0.85rem;
@@ -204,32 +175,12 @@
 		width: 100%;
 		box-sizing: border-box;
 	}
+	.sidebar-link:hover { background: rgba(255,255,255,0.12); border-color: rgba(255,255,255,0.18); color: #fff; }
+	.sidebar-link.active { background: rgba(168,216,240,0.14); border-color: rgba(168,216,240,0.32); color: #a8d8f0; font-weight: 800; }
 
-	.sidebar-link:hover {
-		background: rgba(255,255,255,0.12);
-		border-color: rgba(255,255,255,0.18);
-		color: #fff;
-	}
+	.sidebar-dropdown-toggle { border: 1px solid rgba(255,255,255,0.08); cursor: pointer; font: inherit; text-align: left; }
 
-	.sidebar-link.active {
-		background: rgba(168,216,240,0.14);
-		border-color: rgba(168,216,240,0.32);
-		color: #a8d8f0;
-		font-weight: 800;
-	}
-
-	.sidebar-dropdown-toggle {
-		border: 1px solid rgba(255,255,255,0.08);
-		cursor: pointer;
-		font: inherit;
-		text-align: left;
-	}
-
-	.sidebar-group {
-		display: flex;
-		flex-direction: column;
-		gap: 0.25rem;
-	}
+	.sidebar-group { display: flex; flex-direction: column; gap: 0.25rem; }
 
 	.sidebar-submenu {
 		display: none;
@@ -238,10 +189,7 @@
 		padding-left: 0.75rem;
 		margin-top: 0.1rem;
 	}
-
-	.sidebar-group.open .sidebar-submenu {
-		display: flex;
-	}
+	.sidebar-group.open .sidebar-submenu { display: flex; }
 
 	.sidebar-sublink {
 		color: rgba(255,255,255,0.68);
@@ -254,30 +202,11 @@
 		font-weight: 600;
 		font-size: 0.9rem;
 	}
+	.sidebar-sublink:hover { background: rgba(255,255,255,0.10); border-color: rgba(255,255,255,0.14); color: rgba(255,255,255,0.92); }
+	.sidebar-sublink.active { background: rgba(168,216,240,0.12); border-color: rgba(168,216,240,0.28); color: #a8d8f0; font-weight: 700; }
 
-	.sidebar-sublink:hover {
-		background: rgba(255,255,255,0.10);
-		border-color: rgba(255,255,255,0.14);
-		color: rgba(255,255,255,0.92);
-	}
-
-	.sidebar-sublink.active {
-		background: rgba(168,216,240,0.12);
-		border-color: rgba(168,216,240,0.28);
-		color: #a8d8f0;
-		font-weight: 700;
-	}
-
-	.sidebar-caret {
-		font-size: 0.85rem;
-		opacity: 0.7;
-		transition: transform 0.18s ease;
-		flex-shrink: 0;
-	}
-
-	.sidebar-group.open .sidebar-caret {
-		transform: rotate(180deg);
-	}
+	.sidebar-caret { font-size: 0.85rem; opacity: 0.7; transition: transform 0.18s ease; flex-shrink: 0; }
+	.sidebar-group.open .sidebar-caret { transform: rotate(180deg); }
 
 	.menu-toggle {
 		background: rgba(255,255,255,0.10);
@@ -290,10 +219,7 @@
 		font-weight: 700;
 		transition: background 0.15s;
 	}
-
-	.menu-toggle:hover {
-		background: rgba(255,255,255,0.16);
-	}
+	.menu-toggle:hover { background: rgba(255,255,255,0.16); }
 </style>
 
 <script>

@@ -857,25 +857,17 @@ def admin_map():
         return guard
 
     comp_id = request.args.get("comp_id", type=int)
-
     if not comp_id:
         comp_id = session.get("admin_comp_id")
 
     if not comp_id:
-        flash(
-            "Pick a competition first (Gym Admin → Manage Competition) before opening the map editor.",
-            "warning",
-        )
+        flash("Pick a competition first.", "warning")
         return redirect("/admin/comps/manage")
 
     current_comp = Competition.query.get(comp_id)
-
     if not current_comp:
         session.pop("admin_comp_id", None)
-        flash(
-            "That competition no longer exists (or your session is stale). Please choose a competition to manage.",
-            "warning",
-        )
+        flash("Competition not found.", "warning")
         return redirect("/admin/comps/manage")
 
     if request.args.get("comp_id", type=int) != current_comp.id:
@@ -886,36 +878,54 @@ def admin_map():
 
     session["admin_comp_id"] = current_comp.id
 
-    gym_map_url = current_comp.gym.map_image_path if current_comp.gym else None
+    gym = current_comp.gym
+    gym_map_url = gym.map_image_path if gym else None
 
+    # Sections are gym-level
     sections = (
         Section.query
-        .filter(Section.competition_id == current_comp.id)
+        .filter(Section.gym_id == current_comp.gym_id)
         .order_by(Section.name)
+        .all()
+    ) if current_comp.gym_id else []
+
+    # All climbs for this competition
+    all_climbs = (
+        SectionClimb.query
+        .filter_by(competition_id=current_comp.id)
+        .order_by(SectionClimb.climb_number)
         .all()
     )
 
-    section_ids = [s.id for s in sections]
-    climbs = []
-    if section_ids:
-        q = SectionClimb.query.filter(SectionClimb.section_id.in_(section_ids))
-        if current_comp.gym_id is not None:
-            q = q.filter(SectionClimb.gym_id == current_comp.gym_id)
-        climbs = q.all()
+    placed_climbs   = [c for c in all_climbs if c.x_percent is not None and c.y_percent is not None]
+    unplaced_climbs = [c for c in all_climbs if c.x_percent is None or c.y_percent is None]
 
-    gym_name = current_comp.gym.name if getattr(current_comp, "gym", None) else None
+    # Build section boundaries JSON for the map JS
+    section_boundaries_json = []
+    for s in sections:
+        pts = parse_boundary_points(s.boundary_points_json)
+        section_boundaries_json.append({
+            "id":     s.id,
+            "name":   s.name,
+            "points": [{"x": p["x"], "y": p["y"]} for p in pts] if pts else [],
+        })
+
+    gym_name  = gym.name if gym else None
     comp_name = current_comp.name
 
     return render_template(
         "admin_map.html",
         sections=sections,
-        climbs=climbs,
+        placed_climbs=placed_climbs,
+        unplaced_climbs=unplaced_climbs,
         gym_map_url=gym_map_url,
         gym_name=gym_name,
         comp_name=comp_name,
         current_comp_id=current_comp.id,
         current_comp=current_comp,
+        section_boundaries_json=section_boundaries_json,
     )
+
 
 
 @admin_bp.route("/admin/comps")
@@ -1307,3 +1317,25 @@ def inject_sidebar_admin_context():
         "sidebar_gym_admin_allowed": sidebar_gym_admin_allowed,
         "sidebar_route_setter_allowed": sidebar_route_setter_allowed,
     }
+
+
+@admin_bp.route("/route-setter/comp/<int:comp_id>")
+def route_setter_comp_detail(comp_id):
+    """
+    Competition detail page for route setters.
+    Entry point to Climb Entry and Wall Map for a specific comp.
+    """
+    guard = _require_admin_login()
+    if guard:
+        return guard
+
+    comp = Competition.query.get_or_404(comp_id)
+    if not admin_can_manage_competition(comp):
+        abort(403)
+
+    session["admin_comp_id"] = comp.id
+
+    return render_template(
+        "route_setter_comp_detail.html",
+        comp=comp,
+    )
