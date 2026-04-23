@@ -7,7 +7,7 @@
 
 	<title>
 		{% if current_comp %}
-			Manage {{ current_comp.name }} · Comp Circuit
+			{{ current_comp.name }} · Comp Circuit
 		{% else %}
 			Manage Competition · Comp Circuit
 		{% endif %}
@@ -35,7 +35,7 @@
 		<header style="margin:2rem 0 2rem; text-align:center; width:100%;">
 				<h1 style="font-size:2.75rem; font-weight:900; color:#fff; letter-spacing:-0.02em; margin-bottom:0.5rem;">
 				{% if current_comp %}
-					Manage {{ current_comp.name }}
+					{{ current_comp.name }}
 				{% else %}
 					Manage Competition
 				{% endif %}
